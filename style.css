@@ -533,7 +533,8 @@ body.mobile:has(.msheet.open) #joy { display: none; }
   #mol-list .mol-row { padding: 4px 6px; font-size: 11.5px; }
   #mol-list .m-f { font-size: 10.5px; }
   #ch-list .ch { font-size: 11px; padding: 2px 5px; }
-  #disc-list .disc-row { font-size: 11px; padding: 2px 5px; }
+  #disc-list .disc-row { font-size: 11px; padding: 2px 5px; gap: 5px; }
+  #disc-list .d-btn { font-size: 9.5px; padding: 1px 5px; }
 }
 
 /* Very small phones (iPhone SE, etc.) */
@@ -953,6 +954,21 @@ footer {
   flex: none;
   align-self: center;
 }
+#disc-list .d-btn {
+  flex: none;
+  align-self: center;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.5;
+}
+#disc-list .d-btn:hover { border-color: var(--accent); color: var(--accent); }
+#disc-list .d-del { padding: 1px 6px; color: var(--muted); }
+#disc-list .d-del:hover { border-color: var(--err); color: var(--err); }
 
 .rxn-overlay {
   position: fixed;

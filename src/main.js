@@ -505,6 +505,17 @@ function safeName(comp, an) {
   }
 }
 
+function structureTplOf(comp, an) {
+  const idxMap = new Map(comp.atoms.map((id, i) => [id, i]));
+  const cKey = compKey(comp);
+  const tpl = {
+    atoms: comp.atoms.map(id => atoms.get(id).el.sym),
+    bonds: comp.bonds.map(b => [idxMap.get(b.a), idxMap.get(b.b), b.order, b.ionic ? 1 : 0]),
+    charge: overrides.get(cKey) || 0,
+  };
+  return { tpl, cKey };
+}
+
 function recordDiscoveries() {
   for (let i = 0; i < lastComps.length; i++) {
     const comp = lastComps[i], an = analyses[i];
@@ -512,10 +523,30 @@ function recordDiscoveries() {
     if (!an.formula || typeof an.formula !== 'string') continue;
     if (comp.bonds.length === 0 || comp.atoms.length < 2) continue;
     const key = discKeyOf(an.formula, an.charge);
-    if (seenDisc.has(key)) continue;
+    const { tpl, cKey } = structureTplOf(comp, an);
+    if (seenDisc.has(key)) {
+      // Same molecule already known — keep its structure current so Spawn
+      // rebuilds the latest arrangement (e.g. after a bond-order upgrade).
+      const existing = discoveries.find(x => discKeyOf(x.formula, x.charge ?? 0) === key);
+      if (existing && JSON.stringify(existing.tpl) !== JSON.stringify(tpl)) {
+        existing.tpl = tpl;
+        const df = isoSel.get(cKey);
+        if (df) existing.displayFormula = df;
+        else delete existing.displayFormula;
+        if (existing.saved) persistSavedDiscoveries();
+      }
+      continue;
+    }
     seenDisc.add(key);
     const nm = safeName(comp, an);
-    discoveries.push({ formula: an.formula, charge: an.charge, name: nm, t: Date.now(), saved: false });
+    const d = {
+      formula: an.formula, charge: an.charge, name: nm, t: Date.now(), saved: false,
+      // exact structure so Spawn can rebuild it faithfully (bond orders, ionic flags, charge)
+      tpl,
+    };
+    const df = isoSel.get(cKey);
+    if (df) d.displayFormula = df;
+    discoveries.push(d);
     discUnsaved = true;
     toast(t('toast.newDisc', { f: prettyFormula(an.formula) + formulaWithCharge('', an.charge), name: nm ? ` — ${nm}` : '' }));
   }
@@ -547,6 +578,76 @@ function saveDiscoveries() {
   }
 }
 
+// Rewrite storage with only the still-saved entries (delete must not
+// accidentally persist unsaved ones).
+function persistSavedDiscoveries() {
+  try {
+    const saved = discoveries.filter(x => x.saved);
+    if (saved.length) localStorage.setItem(DISC_KEY, JSON.stringify(saved));
+    else localStorage.removeItem(DISC_KEY);
+  } catch { /* storage blocked: list stays in memory */ }
+}
+
+function deleteDiscovery(d) {
+  const i = discoveries.indexOf(d);
+  if (i === -1) return;
+  discoveries.splice(i, 1);
+  seenDisc.delete(discKeyOf(d.formula, d.charge ?? 0));
+  persistSavedDiscoveries();
+  discUnsaved = discoveries.some(x => !x.saved);
+  updateDiscList();
+  toast(t('toast.discDeleted', { f: prettyFormula(d.formula) + formulaWithCharge('', d.charge ?? 0) }));
+}
+
+// Free spot near scene center, maximizing distance to existing molecules.
+function findSpawnSpot() {
+  const cents = lastComps.map(c => {
+    let x = 0, y = 0, z = 0;
+    for (const id of c.atoms) { const p = atoms.get(id).pos; x += p.x; y += p.y; z += p.z; }
+    const k = c.atoms.length;
+    return { x: x / k, y: y / k, z: z / k };
+  });
+  let best = { x: 0, y: 1.8, z: 0 }, bestScore = -1;
+  for (let t = 0; t < 10; t++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = t === 0 ? 0 : 2.2 + t * 0.9 + Math.random();
+    const c = { x: Math.cos(a) * r, y: 1.2 + Math.random() * 1.4, z: Math.sin(a) * r };
+    let minD = 99;
+    for (const p of cents) minD = Math.min(minD, Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z));
+    if (minD > bestScore) { bestScore = minD; best = c; }
+  }
+  return best;
+}
+
+function spawnDiscovery(d) {
+  // Faithful structure if captured at discovery time; legacy entries fall back
+  // to curated templates, then the canonical generated arrangement.
+  const tpl = d.tpl || productTemplate(d.formula) || (isomerTemplates(d.formula)[0] || {}).tpl;
+  if (!tpl || !tpl.atoms || !tpl.atoms.length) {
+    status(t('status.spawnFail', { f: prettyFormula(d.formula) + formulaWithCharge('', d.charge ?? 0) }), 'err');
+    return;
+  }
+  const c = findSpawnSpot();
+  pushUndo({
+    type: 'snapshot',
+    atoms: [...atoms.values()].map(snapAtom),
+    bonds: [...bonds.values()].map(b => ({ ...b })),
+    overrides: [...overrides],
+    iso: [...isoSel],
+    nextId,
+  });
+  const { ids } = buildMoleculeAt(tpl, c.x, c.y, c.z);
+  if (!ids.length) {
+    status(t('status.spawnFail', { f: prettyFormula(d.formula) + formulaWithCharge('', d.charge ?? 0) }), 'err');
+    return;
+  }
+  const key = compKey({ atoms: ids, bonds: [] });
+  if (tpl.charge) overrides.set(key, tpl.charge);
+  if (d.displayFormula) isoSel.set(key, d.displayFormula);
+  reanalyze(new Set(ids));
+  toast(t('toast.spawned', { f: prettyFormula(d.formula) + formulaWithCharge('', d.charge ?? 0) }));
+}
+
 function updateDiscList() {
   const list = document.getElementById('disc-list');
   const count = document.getElementById('disc-count');
@@ -576,6 +677,18 @@ function updateDiscList() {
       dot.title = t('dex.notSaved');
       row.appendChild(dot);
     }
+    const spawnBtn = document.createElement('button');
+    spawnBtn.className = 'd-btn d-spawn';
+    spawnBtn.textContent = t('dex.spawn');
+    spawnBtn.title = t('dex.spawnTitle');
+    spawnBtn.addEventListener('click', e => { e.stopPropagation(); spawnDiscovery(d); });
+    const delBtn = document.createElement('button');
+    delBtn.className = 'd-btn d-del';
+    delBtn.textContent = '\u2715';
+    delBtn.title = t('dex.deleteTitle');
+    delBtn.setAttribute('aria-label', `${t('dex.deleteTitle')} ${d.name || d.formula}`);
+    delBtn.addEventListener('click', e => { e.stopPropagation(); deleteDiscovery(d); });
+    row.append(spawnBtn, delBtn);
     list.appendChild(row);
   }
   btn.disabled = !discUnsaved;
@@ -2221,30 +2334,15 @@ function closeIsomerDrawer() {
   isomerDrawerCompIdx = null;
 }
 
-function swapToIsomer(compIdx, iso) {
-  const comp = lastComps[compIdx];
-  if (!comp) return;
-
-  let cx = 0, cy = 0, cz = 0;
-  for (const id of comp.atoms) {
-    const at = atoms.get(id);
-    cx += at.pos.x; cy += at.pos.y; cz += at.pos.z;
-  }
-  const n = comp.atoms.length;
-  cx /= n; cy /= n; cz /= n;
-
-  for (const id of comp.atoms) {
-    atoms.delete(id);
-    for (const [bid, b] of bonds) {
-      if (b.a === id || b.b === id) bonds.delete(bid);
-    }
-  }
-
+// Build a molecule from a template ({atoms:[sym], bonds:[[ai,bi,order,ionic]], charge})
+// centered on (cx, cy, cz), using BFS layout with proper bond lengths.
+// Returns the new atom ids (empty if no known element in tpl).
+function buildMoleculeAt(tpl, cx, cy, cz) {
   const idMap = new Map();
-  const newAtomIds = [];
   const newAtoms = [];
-  for (let i = 0; i < iso.tpl.atoms.length; i++) {
-    const sym = iso.tpl.atoms[i];
+  const newAtomIds = [];
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    const sym = tpl.atoms[i];
     const el = elementBySym(sym);
     if (!el) continue;
     const id = nextId++;
@@ -2252,11 +2350,12 @@ function swapToIsomer(compIdx, iso) {
     newAtoms.push({ id, el, idx: i });
     newAtomIds.push(id);
   }
+  if (!newAtoms.length) return { ids: [] };
 
   // Build adjacency list for the new structure
   const adjacency = new Map();
   for (const a of newAtoms) adjacency.set(a.id, []);
-  for (const b of iso.tpl.bonds) {
+  for (const b of tpl.bonds) {
     const [ai, bi, order, ionic] = b;
     const aId = idMap.get(ai);
     const bId = idMap.get(bi);
@@ -2313,7 +2412,7 @@ function swapToIsomer(compIdx, iso) {
   }
 
   // Create bonds
-  for (const b of iso.tpl.bonds) {
+  for (const b of tpl.bonds) {
     const [ai, bi, order, ionic] = b;
     const aId = idMap.get(ai);
     const bId = idMap.get(bi);
@@ -2321,6 +2420,30 @@ function swapToIsomer(compIdx, iso) {
     const bid = nextId++;
     bonds.set(bid, { id: bid, a: aId, b: bId, order: order || 1, ionic: !!ionic });
   }
+
+  return { ids: newAtomIds };
+}
+
+function swapToIsomer(compIdx, iso) {
+  const comp = lastComps[compIdx];
+  if (!comp) return;
+
+  let cx = 0, cy = 0, cz = 0;
+  for (const id of comp.atoms) {
+    const at = atoms.get(id);
+    cx += at.pos.x; cy += at.pos.y; cz += at.pos.z;
+  }
+  const n = comp.atoms.length;
+  cx /= n; cy /= n; cz /= n;
+
+  for (const id of comp.atoms) {
+    atoms.delete(id);
+    for (const [bid, b] of bonds) {
+      if (b.a === id || b.b === id) bonds.delete(bid);
+    }
+  }
+
+  const { ids: newAtomIds } = buildMoleculeAt(iso.tpl, cx, cy, cz);
 
   const key = compKey({ atoms: newAtomIds, bonds: [] });
   const prevKey = compKey(comp);

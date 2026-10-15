@@ -6,7 +6,7 @@
 // `charge` forces the product component's ion charge (e.g. NH4+ / Cl-).
 import { elementBySym, isMetal } from './elements.js';
 import { MAYHEM_ELEMENTS, MAYHEM_REACTIONS } from './mayhem.js';
-import { structuralFingerprint } from './chemistry.js';
+import { structuralFingerprint, formulaOf } from './chemistry.js';
 import { classifyMolecule, nameMolecule } from './names.js';
 const T = {
   H2O:   { atoms: ['O', 'H', 'H'], bonds: [[0, 1, 1], [0, 2, 1]] },
@@ -776,46 +776,75 @@ function getAcidAnion(formula) {
 function generateSaltTemplate(cation, anion) {
   const cationCharge = Math.abs(cation.charge);
   const anionCharge = Math.abs(anion.charge);
-  
+
   // Find LCM to balance charges
   const lcm = (cationCharge * anionCharge) / gcd(cationCharge, anionCharge);
   const cationCount = lcm / cationCharge;
   const anionCount = lcm / anionCharge;
-  
+
   // Build atom list
   const atoms = [];
   for (let i = 0; i < cationCount; i++) atoms.push(cation.sym);
-  
-  // Parse anion formula
+
+  const bonds = [];
+
+  // Polyatomic oxoanions get real geometry derived from their charge:
+  // central X, d = o - x - m double-bonded O's, x H-bearing O's, and
+  // |charge| single-bonded O attach points that take the ionic bonds
+  // round-robin across the cations (CO3^2- -> C(=O)(O-)(O-), HCO3- keeps
+  // one OH, ZnO2^2- is all-single for bond-capacity reasons).
+  const oxo = oxoanionSpec(anion.sym, anionCharge);
+  if (oxo) {
+    const slots = [];
+    for (let i = 0; i < anionCount; i++) {
+      const base = atoms.length;
+      atoms.push(oxo.central);
+      const oIdx = [];
+      for (let j = 0; j < oxo.o; j++) { atoms.push('O'); oIdx.push(base + 1 + j); }
+      for (let j = 0; j < oxo.d; j++) bonds.push([base, oIdx[j], 2]);
+      for (let j = oxo.d; j < oxo.o; j++) bonds.push([base, oIdx[j], 1]);
+      for (let j = oxo.d; j < oxo.d + oxo.x; j++) {
+        atoms.push('H');
+        bonds.push([oIdx[j], atoms.length - 1, 1]);
+      }
+      for (let j = oxo.d + oxo.x; j < oxo.o; j++) slots.push(oIdx[j]);
+    }
+    const totalIonic = anionCharge * anionCount;
+    for (let k = 0; k < totalIonic; k++) {
+      bonds.push([k % cationCount, slots[k % slots.length], 1, true]);
+    }
+    return { atoms, bonds };
+  }
+
+  // Legacy path: single-atom or non-oxo anions bond straight to the center.
   const anionAtoms = parseAnionFormula(anion.sym);
   for (let i = 0; i < anionCount; i++) {
     for (const a of anionAtoms) atoms.push(a);
   }
-  
+
   // Build bonds (ionic bonds between cations and anion central atoms)
-  const bonds = [];
   const cationIndices = [];
   for (let i = 0; i < cationCount; i++) cationIndices.push(i);
-  
+
   // Find central atom of each anion group
   const anionStartIdx = cationCount;
   for (let i = 0; i < anionCount; i++) {
     const anionOffset = anionStartIdx + i * anionAtoms.length;
     const centralIdx = findCentralAtom(anionAtoms, anionOffset);
-    
+
     // Connect cations to central atom with ionic bonds
     for (const catIdx of cationIndices) {
       bonds.push([catIdx, centralIdx, 1, true]);
     }
   }
-  
+
   // Add internal anion bonds
   for (let i = 0; i < anionCount; i++) {
     const anionOffset = anionStartIdx + i * anionAtoms.length;
     const internalBonds = getAnionInternalBonds(anion.sym, anionOffset);
     bonds.push(...internalBonds);
   }
-  
+
   return { atoms, bonds };
 }
 
@@ -2032,6 +2061,738 @@ function buildCarboxylicAcidTemplate(n) {
   return { atoms, bonds };
 }
 
+// ========== UNIVERSAL REACTION ENGINES ==========
+// Every engine below derives products from element-chemistry tables
+// (oxidation states, oxoacid stoichiometry, bond capacities) plus a
+// brute-force equation balancer. No specific reactant pair is hardcoded.
+
+// Oxoacid table: central symbol -> { oxidation state: [acidH, acidO] } for
+// the acid HxXOy; the fully-deprotonated anion is XOy^(x-).
+const OXYACID = {
+  C:  { 4: [2, 3] },
+  N:  { 3: [1, 2], 5: [1, 3] },
+  P:  { 3: [3, 3], 5: [3, 4] },
+  As: { 3: [3, 3], 5: [3, 4] },
+  Sb: { 3: [3, 3], 5: [3, 4] },
+  S:  { 4: [2, 3], 6: [2, 4] },
+  Se: { 4: [2, 3], 6: [2, 4] },
+  Te: { 4: [2, 3], 6: [2, 4] },
+  Cl: { 1: [1, 1], 3: [1, 2], 5: [1, 3], 7: [1, 4] },
+  Br: { 1: [1, 1], 3: [1, 2], 5: [1, 3] },
+  I:  { 1: [1, 1], 3: [1, 2], 5: [1, 3], 7: [1, 4] },
+  B:  { 3: [3, 3] },
+  Si: { 4: [2, 3] },
+  Ge: { 4: [2, 3] },
+  Cr: { 6: [2, 4] },
+  Mn: { 7: [1, 4] },
+  V:  { 5: [3, 4] },
+  W:  { 6: [2, 4] },
+  Mo: { 6: [2, 4] },
+};
+
+// Hydroxides of these metals dissolve in excess strong base (aluminates,
+// zincates, plumbates, stannates, chromites, beryllates).
+const AMPHOTERIC_METALS = new Set(['Al', 'Zn', 'Pb', 'Sn', 'Be', 'Cr']);
+
+// Acidic oxides whose central atom does not hydrate with water directly.
+const NO_HYDRATION = new Set(['Si', 'Ge']);
+
+// Brute-force integer equation balancer. Returns coefficients aligned with
+// [...lhs, ...rhs], or null when no balanced equation exists at small
+// coefficients (which also vetoes chemically impossible products).
+function balanceEquation(lhs, rhs, max = 12) {
+  const species = [...lhs, ...rhs];
+  if (species.length > 5) return null;
+  const counts = species.map(f => parseFormula(f));
+  for (const c of counts) if (!c.size) return null;
+  const elemSet = new Set();
+  for (const c of counts) for (const s of c.keys()) elemSet.add(s);
+  const split = lhs.length;
+  const n = species.length;
+  const rows = [...elemSet].map(e => counts.map(c => c.get(e) || 0));
+  const x = new Array(n).fill(1);
+  function search(i) {
+    if (i === n) {
+      for (const row of rows) {
+        let l = 0, r = 0;
+        for (let j = 0; j < n; j++) {
+          if (j < split) l += row[j] * x[j]; else r += row[j] * x[j];
+        }
+        if (l !== r) return false;
+      }
+      return true;
+    }
+    for (let v = 1; v <= max; v++) {
+      x[i] = v;
+      if (search(i + 1)) return true;
+    }
+    return false;
+  }
+  if (!search(0)) return null;
+  const g = x.reduce((a, b) => gcd(a, b));
+  return x.map(v => v / g);
+}
+
+function eqParts(lhs, rhs, coeffs, phases = {}) {
+  const seg = (list, from) => list
+    .map((f, i) => `${coeffs[from + i] === 1 ? '' : coeffs[from + i]}${f}${phases[f] || ''}`)
+    .join(' + ');
+  return `${seg(lhs, 0)} -> ${seg(rhs, lhs.length)}`;
+}
+
+// Canonical display symbol for an ion fragment — derived through the same
+// formulaOf the scene uses, so equation strings always match spawned atoms.
+function anionFormulaSym(atomsArr) {
+  return atomsArr.length > 1 ? formulaOf(atomsArr.map(s => elementBySym(s))) : atomsArr[0];
+}
+
+function oxoanionFormulaSym(central, x, o) {
+  const atoms = [central];
+  for (let j = 0; j < o; j++) atoms.push('O');
+  for (let j = 0; j < x; j++) atoms.push('H');
+  return anionFormulaSym(atoms);
+}
+
+// Oxoanion geometry spec for symbol + charge: central X with o oxygens,
+// d = o - x - m double bonds, x of the single bonds carrying H, and
+// m = |charge| remaining single-bonded O attach points for ionic bonds.
+function oxoanionSpec(sym, charge) {
+  const counts = parseFormula(sym);
+  const keys = [...counts.keys()];
+  if (keys.length < 2 || !counts.has('O')) return null;
+  const central = keys.find(k => k !== 'O' && k !== 'H');
+  if (!central || !elementBySym(central)) return null;
+  const x = counts.get('H') || 0;
+  const o = counts.get('O');
+  if (keys.length !== (x > 0 ? 3 : 2)) return null;
+  const m = Math.abs(charge);
+  let d = o - x - m;
+  if (d < 0) return null;
+  // Bond-capacity clamp: total units o + d must fit the central atom
+  // (nitrate's delocalized bonds render as 1 double + 2 singles on N).
+  const mb = elementBySym(central).maxBonds;
+  if (Number.isFinite(mb)) d = Math.max(0, Math.min(d, mb - o));
+  return { central, o, x, m, d };
+}
+
+// Oxoacid template HxXOy: y - x double bonds, H on x single-bonded O's.
+function buildOxoacidTemplate(central, x, y) {
+  const atoms = [central];
+  const oIdx = [];
+  for (let i = 0; i < y; i++) { atoms.push('O'); oIdx.push(atoms.length - 1); }
+  const mb = elementBySym(central)?.maxBonds;
+  const doubles = Math.max(0, Math.min(y - x, Number.isFinite(mb) ? mb - y : y - x));
+  const bonds = [];
+  for (let i = 0; i < doubles; i++) bonds.push([0, oIdx[i], 2]);
+  for (let i = doubles; i < y - x; i++) bonds.push([0, oIdx[i], 1]);
+  for (let i = y - x; i < y; i++) {
+    bonds.push([0, oIdx[i], 1]);
+    atoms.push('H');
+    bonds.push([oIdx[i], atoms.length - 1, 1]);
+  }
+  return { atoms, bonds };
+}
+
+// Acidic (non-metal) oxide XxOy whose oxidation state 2y/x has an oxoacid
+// entry. Table-driven, so Na2O/Al2O3/Fe2O3 etc. never qualify.
+function acidicOxideOf(formula) {
+  const counts = parseFormula(formula);
+  if (counts.size !== 2 || !counts.has('O')) return null;
+  const central = [...counts.keys()].find(k => k !== 'O');
+  if (!central || central === 'H') return null;
+  const table = OXYACID[central];
+  if (!table) return null;
+  const xCount = counts.get(central);
+  const yCount = counts.get('O');
+  if (!xCount) return null;
+  const v = (2 * yCount) / xCount;
+  if (!Number.isInteger(v)) return null;
+  const entry = table[v];
+  if (!entry) return null;
+  return { central, xCount, yCount, v, acidH: entry[0], acidO: entry[1] };
+}
+
+function phaseOfSalt(formula) {
+  const parsed = parseIonicCompound(formula);
+  if (!parsed) return '';
+  return isSoluble(parsed.cation, parsed.anion) ? '(aq)' : '(s)';
+}
+
+// Acidic oxide + metal hydroxide / basic oxide / carbonate + CO2 + H2O.
+// Route A yields the normal salt + water; route B keeps one acidic H per
+// anion (acid salt). The exact multiset matcher picks whichever route fits
+// the selected ratio: 1 NaOH + CO2 -> NaHCO3, 2 NaOH + CO2 -> Na2CO3,
+// Ca(OH)2 + CO2 -> CaCO3(s) + H2O, Ca(OH)2 + 2 CO2 -> Ca(HCO3)2.
+function tryAcidicOxideBase(formulas, have) {
+  const out = [];
+  const keys = [...have.keys()];
+  const oxides = keys.map(f => ({ f, ox: acidicOxideOf(f) })).filter(e => e.ox);
+  if (!oxides.length) return out;
+
+  const bases = keys
+    .filter(f => isBase(f))
+    .map(f => ({ f, cat: getBaseCation(f) }))
+    .filter(e => e.cat && e.cat.charge <= 2 && !AMPHOTERIC_METALS.has(e.cat.sym));
+
+  const metalOxides = keys
+    .map(f => ({ f, mo: isMetalOxide(f) }))
+    .filter(e => e.mo && !AMPHOTERIC_METALS.has(e.mo.metalSym) && !OXYACID[e.mo.metalSym]);
+
+  for (const { f: oxideF, ox } of oxides) {
+    const anionSym = oxoanionFormulaSym(ox.central, 0, ox.acidO);
+    const anion = { sym: anionSym, charge: -ox.acidH };
+
+    // Route A: metal hydroxide + acidic oxide -> normal salt + water
+    for (const { f: baseF, cat } of bases) {
+      const saltF = generateSaltFormula(cat, anion);
+      const coeffs = balanceEquation([baseF, oxideF], [saltF, 'H2O']);
+      if (!coeffs) continue;
+      if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, anion);
+      const phases = { [saltF]: phaseOfSalt(saltF) };
+      out.push({
+        reactants: { [baseF]: coeffs[0], [oxideF]: coeffs[1] },
+        condition: 'rt',
+        products: [[saltF, coeffs[2]], ['H2O', coeffs[3]]],
+        equation: eqParts([baseF, oxideF], [saltF, 'H2O'], coeffs, phases),
+        dynamic: true,
+      });
+    }
+
+    // Route B: acid salt, one H kept per anion (needs a polybasic acid)
+    if (ox.acidH >= 2) {
+      const hAnion = { sym: oxoanionFormulaSym(ox.central, ox.acidH - 1, ox.acidO), charge: -1 };
+      for (const { f: baseF, cat } of bases) {
+        const saltF = generateSaltFormula(cat, hAnion);
+        const coeffs = balanceEquation([baseF, oxideF], [saltF]);
+        if (!coeffs) continue;
+        if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, hAnion);
+        const phases = { [saltF]: phaseOfSalt(saltF) };
+        out.push({
+          reactants: { [baseF]: coeffs[0], [oxideF]: coeffs[1] },
+          condition: 'rt',
+          products: [[saltF, coeffs[2]]],
+          equation: eqParts([baseF, oxideF], [saltF], coeffs, phases),
+          dynamic: true,
+        });
+      }
+    }
+
+    // Basic (metal) oxide + acidic oxide -> normal salt, no water
+    for (const { f: mF, mo } of metalOxides) {
+      const cat = { sym: mo.metalSym, charge: mo.oxidationState };
+      const saltF = generateSaltFormula(cat, anion);
+      const coeffs = balanceEquation([mF, oxideF], [saltF]);
+      if (!coeffs) continue;
+      if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, anion);
+      const phases = { [saltF]: phaseOfSalt(saltF) };
+      out.push({
+        reactants: { [mF]: coeffs[0], [oxideF]: coeffs[1] },
+        condition: 'rt',
+        products: [[saltF, coeffs[2]]],
+        equation: eqParts([mF, oxideF], [saltF], coeffs, phases),
+        dynamic: true,
+      });
+    }
+  }
+
+  // Carbonate + CO2 + H2O -> bicarbonate: the limewater precipitate
+  // redissolving in excess CO2.
+  if (have.has('CO2') && have.has('H2O')) {
+    for (const f of keys) {
+      const ions = parseIonicCompound(f);
+      if (!ions || ions.anion.sym !== 'CO3') continue;
+      if (AMPHOTERIC_METALS.has(ions.cation.sym)) continue;
+      const hAnion = { sym: oxoanionFormulaSym('C', 1, 3), charge: -1 };
+      const saltF = generateSaltFormula(ions.cation, hAnion);
+      const coeffs = balanceEquation([f, 'CO2', 'H2O'], [saltF]);
+      if (!coeffs) continue;
+      if (!T[saltF]) T[saltF] = generateSaltTemplate(ions.cation, hAnion);
+      const phases = { [saltF]: phaseOfSalt(saltF) };
+      out.push({
+        reactants: { [f]: coeffs[0], CO2: coeffs[1], H2O: coeffs[2] },
+        condition: 'rt',
+        products: [[saltF, coeffs[3]]],
+        equation: eqParts([f, 'CO2', 'H2O'], [saltF], coeffs, phases),
+        dynamic: true,
+      });
+    }
+  }
+
+  return out;
+}
+
+// Anhydride hydration: reactive metal oxides -> hydroxides, acidic oxides
+// -> oxoacids (SO3 + H2O -> H2SO4, N2O5 + H2O -> 2HNO3, P4O10 + 6H2O
+// -> 4H3PO4, ...), all balanced by conservation.
+function tryOxideHydration(formulas, have) {
+  if (have.size !== 2 || !have.has('H2O')) return [];
+  const out = [];
+  const others = [...have.keys()].filter(f => f !== 'H2O');
+
+  for (const f of others) {
+    const mo = isMetalOxide(f);
+    if (mo) {
+      const el = elementBySym(mo.metalSym);
+      if (el && (el.cat === 'alkali' || el.cat === 'alkaline') && mo.metalSym !== 'Be') {
+        const cat = { sym: mo.metalSym, charge: mo.oxidationState };
+        const hydF = generateHydroxideFormula(cat);
+        const coeffs = balanceEquation([f, 'H2O'], [hydF]);
+        if (coeffs) {
+          if (!T[hydF]) T[hydF] = generateHydroxideTemplate(cat);
+          out.push({
+            reactants: { [f]: coeffs[0], H2O: coeffs[1] },
+            condition: 'rt',
+            products: [[hydF, coeffs[2]]],
+            equation: eqParts([f, 'H2O'], [hydF], coeffs),
+            dynamic: true,
+          });
+          continue;
+        }
+      }
+    }
+    const ox = acidicOxideOf(f);
+    if (!ox || NO_HYDRATION.has(ox.central)) continue;
+    const acidTpl = buildOxoacidTemplate(ox.central, ox.acidH, ox.acidO);
+    const acidF = formulaOf(acidTpl.atoms.map(s => elementBySym(s)));
+    const coeffs = balanceEquation([f, 'H2O'], [acidF]);
+    if (!coeffs) continue;
+    if (!T[acidF]) T[acidF] = acidTpl;
+    out.push({
+      reactants: { [f]: coeffs[0], H2O: coeffs[1] },
+      condition: 'rt',
+      products: [[acidF, coeffs[2]]],
+      equation: eqParts([f, 'H2O'], [acidF], coeffs),
+      dynamic: true,
+    });
+  }
+
+  return out;
+}
+
+// Amphoteric hydroxide + strong alkali -> metalate + water
+// (Al(OH)3 + NaOH -> NaAlO2 + 2H2O, Zn(OH)2 + 2NaOH -> Na2ZnO2 + 2H2O).
+function tryAmphotericBase(formulas, have) {
+  if (have.size !== 2) return [];
+  const out = [];
+  for (const f of have.keys()) {
+    const cat = getBaseCation(f);
+    if (!cat || !AMPHOTERIC_METALS.has(cat.sym)) continue;
+    const other = [...have.keys()].find(k => k !== f);
+    if (!other) continue;
+    const oCat = getBaseCation(other);
+    if (!oCat || oCat.charge !== 1) continue;
+    const oEl = elementBySym(oCat.sym);
+    if (!oEl || oEl.cat !== 'alkali') continue;
+
+    const metalate = { sym: oxoanionFormulaSym(cat.sym, 0, 2), charge: cat.charge - 4 };
+    const saltF = generateSaltFormula(oCat, metalate);
+    const coeffs = balanceEquation([f, other], [saltF, 'H2O']);
+    if (!coeffs) continue;
+    if (!T[saltF]) T[saltF] = generateSaltTemplate(oCat, metalate);
+    const phases = { [saltF]: phaseOfSalt(saltF) };
+    out.push({
+      reactants: { [f]: coeffs[0], [other]: coeffs[1] },
+      condition: 'rt',
+      products: [[saltF, coeffs[2]], ['H2O', coeffs[3]]],
+      equation: eqParts([f, other], [saltF, 'H2O'], coeffs, phases),
+      dynamic: true,
+    });
+  }
+  return out;
+}
+
+// ── Structure-aware organic checks ──
+// These read the actual scene structures so isomer identity is preserved:
+// formic acid + methanol yields methyl formate's structure, never acetic
+// acid's; hydration lands the OH on the Markovnikov carbon.
+
+function tplAdj(tpl) {
+  const adj = tpl.atoms.map(() => []);
+  for (const b of tpl.bonds) {
+    adj[b[0]].push({ n: b[1], o: b[2], ionic: !!b[3] });
+    adj[b[1]].push({ n: b[0], o: b[2], ionic: !!b[3] });
+  }
+  return adj;
+}
+
+// Acidic center: a carbon with a double-bond O; collects the H's on its
+// single-bonded O neighbours (1 for R-COOH, 2 for carbonic O=C(OH)2).
+function findAcidCenter(tpl) {
+  const adj = tplAdj(tpl);
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    if (tpl.atoms[i] !== 'C') continue;
+    if (!adj[i].some(e => !e.ionic && e.o === 2 && tpl.atoms[e.n] === 'O')) continue;
+    const ohs = [];
+    for (const e of adj[i]) {
+      if (e.ionic || e.o !== 1 || tpl.atoms[e.n] !== 'O') continue;
+      const h = adj[e.n].find(h2 => !h2.ionic && h2.o === 1 && tpl.atoms[h2.n] === 'H');
+      if (h) ohs.push({ o: e.n, h: h.n });
+    }
+    if (ohs.length) return { c: i, ohs };
+  }
+  return null;
+}
+
+// Alcohol O: bonded to exactly one C and one H, all covalent.
+function findAlcoholO(tpl) {
+  const adj = tplAdj(tpl);
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    if (tpl.atoms[i] !== 'O') continue;
+    const heavy = adj[i].filter(e => !e.ionic && e.o === 1 && tpl.atoms[e.n] === 'C');
+    const hyd = adj[i].filter(e => !e.ionic && e.o === 1 && tpl.atoms[e.n] === 'H');
+    if (heavy.length === 1 && hyd.length === 1) return i;
+  }
+  return null;
+}
+
+// Ester link: carbonyl C (=O) bonded to an O that bonds onward to another C.
+function findEsterLink(tpl) {
+  const adj = tplAdj(tpl);
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    if (tpl.atoms[i] !== 'C') continue;
+    if (!adj[i].some(e => !e.ionic && e.o === 2 && tpl.atoms[e.n] === 'O')) continue;
+    for (const e of adj[i]) {
+      if (e.ionic || e.o !== 1 || tpl.atoms[e.n] !== 'O') continue;
+      const onward = adj[e.n].find(x => !x.ionic && x.o === 1 && tpl.atoms[x.n] === 'C' && x.n !== i);
+      if (onward) return { c: i, o: e.n, c2: onward.n };
+    }
+  }
+  return null;
+}
+
+function findAlkeneBond(tpl) {
+  for (const b of tpl.bonds) {
+    if (b[3]) continue;
+    if (b[2] === 2 && tpl.atoms[b[0]] === 'C' && tpl.atoms[b[1]] === 'C') return [b[0], b[1]];
+  }
+  return null;
+}
+
+// Metal-hydroxide base in a structure: metal atom(s) carrying ionic bonds
+// to O-H oxygens. Returns { count, cation } or null.
+function structBaseOH(tpl) {
+  const adj = tplAdj(tpl);
+  const ionicUnits = new Map();
+  for (const b of tpl.bonds) {
+    if (!b[3]) continue;
+    for (const [x, y] of [[b[0], b[1]], [b[1], b[0]]]) {
+      const el = elementBySym(tpl.atoms[x]);
+      if (el && isMetal(el)) ionicUnits.set(x, (ionicUnits.get(x) || 0) + b[2]);
+    }
+  }
+  if (!ionicUnits.size) return null;
+  let ohCount = 0;
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    if (tpl.atoms[i] !== 'O') continue;
+    const hasH = adj[i].some(e => !e.ionic && e.o === 1 && tpl.atoms[e.n] === 'H');
+    const hasMetal = adj[i].some(e => e.ionic && ionicUnits.has(e.n));
+    if (hasH && hasMetal) ohCount++;
+  }
+  if (!ohCount) return null;
+  const [mIdx, units] = [...ionicUnits.entries()][0];
+  return { count: ohCount, cation: { sym: tpl.atoms[mIdx], charge: units } };
+}
+
+// The scene formula whose atom counts match this template (fall back to the
+// canonical formulaOf rendering).
+function sceneF(comp, have) {
+  const canon = formulaOf(comp.atoms.map(s => elementBySym(s)));
+  const norm = normalizeFormula(canon);
+  for (const f of have.keys()) if (normalizeFormula(f) === norm) return f;
+  return canon;
+}
+
+// Register a generated structure under `formula`, deduping by
+// label-invariant signature; returns the T key to use in products.
+function registerStructure(formula, tpl) {
+  const sig = wlSignature(tpl.atoms, tpl.bonds);
+  const existing = ISOMERS[formula] || [];
+  for (const e of existing) {
+    if (e.tpl && wlSignature(e.tpl.atoms, e.tpl.bonds) === sig) {
+      T[e.key] = tpl;
+      return e.key;
+    }
+  }
+  const key = `${formula}_g_${existing.length}`;
+  registerIsomer(formula, key, tpl);
+  return key;
+}
+
+// Structure-aware acid-base: scans for carboxyl-type acid centers and
+// metal-hydroxide bases. Covers H2CO3 (two OH) and fixes formic/organic
+// acids, which the formula-path H counter mishandles.
+function tryAcidBaseStruct(comps, have) {
+  if (comps.length < 2) return [];
+  const acids = [], bases = [];
+  for (const comp of comps) {
+    const ac = findAcidCenter(comp);
+    if (ac) { acids.push({ comp, ac }); continue; }
+    const bo = structBaseOH(comp);
+    if (bo) bases.push({ comp, bo });
+  }
+  if (!acids.length || !bases.length) return [];
+  const out = [];
+  for (const { comp: acidC, ac } of acids) {
+    for (const { comp: baseC, bo } of bases) {
+      for (let k = 1; k <= ac.ohs.length && k <= bo.count; k++) {
+        const anionCounts = parseFormula(formulaOf(acidC.atoms.map(s => elementBySym(s))));
+        anionCounts.set('H', (anionCounts.get('H') || 0) - k);
+        if ((anionCounts.get('H') || 0) < 0) continue;
+        const atomsArr = [];
+        for (const [s, n] of anionCounts) for (let i = 0; i < n; i++) atomsArr.push(s);
+        const anion = { sym: anionFormulaSym(atomsArr), charge: -k };
+        const saltF = generateSaltFormula(bo.cation, anion);
+        const acidF = sceneF(acidC, have), baseF = sceneF(baseC, have);
+        const coeffs = balanceEquation([acidF, baseF], [saltF, 'H2O']);
+        if (!coeffs) continue;
+        if (!T[saltF]) T[saltF] = generateSaltTemplate(bo.cation, anion);
+        const phases = { [saltF]: phaseOfSalt(saltF) };
+        out.push({
+          reactants: { [acidF]: coeffs[0], [baseF]: coeffs[1] },
+          condition: 'rt',
+          products: [[saltF, coeffs[2]], ['H2O', coeffs[3]]],
+          equation: eqParts([acidF, baseF], [saltF, 'H2O'], coeffs, phases),
+          dynamic: true,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+// R-COOH + R'OH -> R-COOR' + H2O (catalyst, reversible). The ester keeps
+// the alcohol oxygen; the water is built from the acid's hydroxyl.
+function tryEsterificationStruct(comps, have) {
+  if (comps.length !== 2) return [];
+  let acid = comps[0], alcohol = comps[1];
+  if (!findAcidCenter(acid) && findAcidCenter(alcohol)) { acid = comps[1]; alcohol = comps[0]; }
+  const ac = findAcidCenter(acid);
+  if (!ac || ac.ohs.length !== 1) return [];
+  const oAlc = findAlcoholO(alcohol);
+  if (oAlc == null) return [];
+  const hAlc = tplAdj(alcohol)[oAlc].find(e => !e.ionic && e.o === 1 && alcohol.atoms[e.n] === 'H');
+  if (!hAlc) return [];
+
+  const atoms = [];
+  const bonds = [];
+  const mapA = new Map(), mapB = new Map();
+  const dropA = new Set([ac.ohs[0].o, ac.ohs[0].h]);
+  for (let i = 0; i < acid.atoms.length; i++) {
+    if (dropA.has(i)) continue;
+    mapA.set(i, atoms.length); atoms.push(acid.atoms[i]);
+  }
+  for (const bd of acid.bonds) {
+    if (mapA.has(bd[0]) && mapA.has(bd[1])) bonds.push([mapA.get(bd[0]), mapA.get(bd[1]), bd[2], bd[3] || 0]);
+  }
+  const dropB = new Set([hAlc.n]);
+  for (let i = 0; i < alcohol.atoms.length; i++) {
+    if (dropB.has(i)) continue;
+    mapB.set(i, atoms.length); atoms.push(alcohol.atoms[i]);
+  }
+  for (const bd of alcohol.bonds) {
+    if (mapB.has(bd[0]) && mapB.has(bd[1])) bonds.push([mapB.get(bd[0]), mapB.get(bd[1]), bd[2], bd[3] || 0]);
+  }
+  bonds.push([mapA.get(ac.c), mapB.get(oAlc), 1, 0]);
+  const esterF = formulaOf(atoms.map(s => elementBySym(s)));
+  const key = registerStructure(esterF, { atoms, bonds });
+  const acidF = sceneF(acid, have), alcF = sceneF(alcohol, have);
+  return [{
+    reactants: { [acidF]: 1, [alcF]: 1 },
+    condition: 'catalyst',
+    products: [[key, 1], ['H2O', 1]],
+    equation: `${acidF} + ${alcF} ⇌ ${esterF} + H2O`,
+    dynamic: true,
+  }];
+}
+
+// Ester + H2O -> carboxylic acid + alcohol: breaks the ester C-O, keeps the
+// ester O with the alkoxy side, adds O+H to the carbonyl side.
+function tryEsterHydrolysisStruct(comps, have) {
+  if (!have.has('H2O')) return [];
+  const comp = comps.find(c => findEsterLink(c));
+  if (!comp) return [];
+  const tpl = comp;
+  const link = findEsterLink(tpl);
+  if (!link) return [];
+  const adj = tplAdj(tpl);
+  const cutKey = `${Math.min(link.c, link.o)}-${Math.max(link.c, link.o)}`;
+  const sideA = new Set([link.c]);
+  const stack = [link.c];
+  while (stack.length) {
+    const cur = stack.pop();
+    for (const e of adj[cur]) {
+      const key = `${Math.min(cur, e.n)}-${Math.max(cur, e.n)}`;
+      if (cutKey === key || sideA.has(e.n)) continue;
+      sideA.add(e.n); stack.push(e.n);
+    }
+  }
+  if (sideA.size === tpl.atoms.length) return []; // cyclic ester: no split
+
+  const atomsA = [], bondsA = [], mapA = new Map();
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    if (sideA.has(i)) { mapA.set(i, atomsA.length); atomsA.push(tpl.atoms[i]); }
+  }
+  for (const b of tpl.bonds) {
+    if (mapA.has(b[0]) && mapA.has(b[1])) bondsA.push([mapA.get(b[0]), mapA.get(b[1]), b[2], b[3] || 0]);
+  }
+  atomsA.push('O', 'H');
+  bondsA.push([mapA.get(link.c), atomsA.length - 2, 1, 0], [atomsA.length - 2, atomsA.length - 1, 1, 0]);
+
+  const atomsB = [], bondsB = [], mapB = new Map();
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    if (!sideA.has(i)) { mapB.set(i, atomsB.length); atomsB.push(tpl.atoms[i]); }
+  }
+  for (const b of tpl.bonds) {
+    if (mapB.has(b[0]) && mapB.has(b[1])) bondsB.push([mapB.get(b[0]), mapB.get(b[1]), b[2], b[3] || 0]);
+  }
+  atomsB.push('H');
+  bondsB.push([mapB.get(link.o), atomsB.length - 1, 1, 0]);
+
+  const acidF = formulaOf(atomsA.map(s => elementBySym(s)));
+  const alcF = formulaOf(atomsB.map(s => elementBySym(s)));
+  const acidKey = registerStructure(acidF, { atoms: atomsA, bonds: bondsA });
+  const alcKey = registerStructure(alcF, { atoms: atomsB, bonds: bondsB });
+  const esterF = sceneF(comp, have);
+  return [{
+    reactants: { [esterF]: 1, H2O: 1 },
+    condition: 'catalyst',
+    products: [[acidKey, 1], [alcKey, 1]],
+    equation: `${esterF} + H2O ⇌ ${acidF} + ${alcF}`,
+    dynamic: true,
+  }];
+}
+
+// Alkene + X2 -> vicinal dihalide: X added across the double bond.
+function tryAlkeneHalogenationStruct(comps, have) {
+  const halMap = { Cl2: 'Cl', Br2: 'Br', F2: 'F', I2: 'I' };
+  const halSym = Object.keys(halMap).find(k => have.has(k));
+  if (!halSym) return [];
+  const tpl = comps.find(c => findAlkeneBond(c));
+  if (!tpl) return [];
+  const bond = findAlkeneBond(tpl);
+  if (!bond) return [];
+  const atoms = tpl.atoms.slice();
+  atoms.push(halMap[halSym], halMap[halSym]);
+  const bonds = tpl.bonds.map(b => [...b]);
+  for (const b of bonds) {
+    if ((b[0] === bond[0] && b[1] === bond[1]) || (b[0] === bond[1] && b[1] === bond[0])) b[2] = 1;
+  }
+  const i1 = tpl.atoms.length, i2 = i1 + 1;
+  bonds.push([bond[0], i1, 1, 0], [bond[1], i2, 1, 0]);
+  const prodF = formulaOf(atoms.map(s => elementBySym(s)));
+  const key = registerStructure(prodF, { atoms, bonds });
+  const alkF = sceneF(tpl, have);
+  return [{
+    reactants: { [alkF]: 1, [halSym]: 1 },
+    condition: 'rt',
+    products: [[key, 1]],
+    equation: `${alkF} + ${halSym} -> ${prodF}`,
+    dynamic: true,
+  }];
+}
+
+// Shared Markovnikov machinery: split the C=C, put the substituent on the
+// carbon with fewer H's and the H on the other. Returns null when no C=C.
+function markovnikovAddition(comps) {
+  const tpl = comps.find(c => findAlkeneBond(c));
+  if (!tpl) return null;
+  const bond = findAlkeneBond(tpl);
+  const adj = tplAdj(tpl);
+  const hCount = c => adj[c].filter(e => !e.ionic && tpl.atoms[e.n] === 'H').length;
+  const [c1, c2] = bond;
+  const cSub = hCount(c1) <= hCount(c2) ? c1 : c2;
+  const cOther = cSub === c1 ? c2 : c1;
+  return { tpl, bond, cSub, cOther };
+}
+
+function tryAlkeneHydrationStruct(comps, have) {
+  if (!have.has('H2O')) return [];
+  const mk = markovnikovAddition(comps);
+  if (!mk) return [];
+  const { tpl, bond, cSub, cOther } = mk;
+  const atoms = tpl.atoms.slice();
+  atoms.push('O', 'H', 'H');
+  const bonds = tpl.bonds.map(b => [...b]);
+  for (const b of bonds) {
+    if ((b[0] === bond[0] && b[1] === bond[1]) || (b[0] === bond[1] && b[1] === bond[0])) b[2] = 1;
+  }
+  const iO = tpl.atoms.length, iH1 = iO + 1, iH2 = iO + 2;
+  bonds.push([cSub, iO, 1, 0], [iO, iH1, 1, 0], [cOther, iH2, 1, 0]);
+  const prodF = formulaOf(atoms.map(s => elementBySym(s)));
+  const key = registerStructure(prodF, { atoms, bonds });
+  const alkF = sceneF(tpl, have);
+  return [{
+    reactants: { [alkF]: 1, H2O: 1 },
+    condition: 'catalyst',
+    products: [[key, 1]],
+    equation: `${alkF} + H2O -> ${prodF}`,
+    dynamic: true,
+  }];
+}
+
+function tryAlkeneAdditionHXStruct(comps, have) {
+  const hx = [['HCl', 'Cl'], ['HBr', 'Br'], ['HF', 'F'], ['HI', 'I']].find(([f]) => have.has(f));
+  if (!hx) return [];
+  const mk = markovnikovAddition(comps);
+  if (!mk) return [];
+  const { tpl, bond, cSub, cOther } = mk;
+  const atoms = tpl.atoms.slice();
+  atoms.push(hx[1], 'H');
+  const bonds = tpl.bonds.map(b => [...b]);
+  for (const b of bonds) {
+    if ((b[0] === bond[0] && b[1] === bond[1]) || (b[0] === bond[1] && b[1] === bond[0])) b[2] = 1;
+  }
+  const iX = tpl.atoms.length, iH = iX + 1;
+  bonds.push([cSub, iX, 1, 0], [cOther, iH, 1, 0]);
+  const prodF = formulaOf(atoms.map(s => elementBySym(s)));
+  const key = registerStructure(prodF, { atoms, bonds });
+  const alkF = sceneF(tpl, have);
+  return [{
+    reactants: { [alkF]: 1, [hx[0]]: 1 },
+    condition: 'rt',
+    products: [[key, 1]],
+    equation: `${alkF} + ${hx[0]} -> ${prodF}`,
+    dynamic: true,
+  }];
+}
+
+// Structure-aware checks run before the formula-based ones whenever the
+// caller supplies selected component structures.
+const STRUCT_CHECKS = {
+  rt: [tryAcidBaseStruct, tryAlkeneHalogenationStruct, tryAlkeneAdditionHXStruct],
+  catalyst: [tryEsterificationStruct, tryEsterHydrolysisStruct, tryAlkeneHydrationStruct],
+};
+
+function candidatesOf(r) {
+  if (!r) return [];
+  return Array.isArray(r) ? r.filter(Boolean) : [r];
+}
+
+// Scale a dynamic reaction to the selection when every reactant count is an
+// exact integer multiple (4 NaOH + 2 CO2 -> 2 NaHCO3 via 2x scaling).
+function matchDynamic(rx, have) {
+  if (matches(rx, have)) return rx;
+  const reactantKeys = Object.keys(rx.reactants);
+  if (reactantKeys.length !== have.size) return null;
+  let s = 0;
+  for (const [f, n] of Object.entries(rx.reactants)) {
+    const norm = normalizeFormula(f);
+    let hc = 0;
+    for (const [hf, hn] of have) if (normalizeFormula(hf) === norm) hc = hn;
+    if (hc === 0 || hc % n !== 0) return null;
+    const k = hc / n;
+    if (s !== 0 && s !== k) return null;
+    s = k;
+  }
+  if (s <= 1) return null;
+  const reactants = {};
+  for (const [f, n] of Object.entries(rx.reactants)) reactants[f] = n * s;
+  const products = rx.products.map(([f, n]) => [f, n * s]);
+  const fmt = ([f, n]) => `${n === 1 ? '' : n}${f}${(rx.phases && rx.phases[f]) || ''}`;
+  const equation = `${Object.entries(reactants).map(([f, n]) => fmt([f, n])).join(' + ')} -> ${products.map(fmt).join(' + ')}`;
+  return { ...rx, reactants, products, equation };
+}
+
 // ========== PRECIPITATION & DOUBLE DISPLACEMENT ==========
 
 const COMMON_CATIONS = {
@@ -2051,16 +2812,30 @@ const COMMON_CATIONS = {
 
 const COMMON_ANIONS = {
   'NO3': { sym: 'NO3', charge: -1, type: 'nitrate' },
+  'NO2': { sym: 'NO2', charge: -1, type: 'nitrite' },
   'C2H3O2': { sym: 'C2H3O2', charge: -1, type: 'acetate' },
   'Cl': { sym: 'Cl', charge: -1, type: 'halide' },
   'Br': { sym: 'Br', charge: -1, type: 'halide' },
   'I': { sym: 'I', charge: -1, type: 'halide' },
   'SO4': { sym: 'SO4', charge: -2, type: 'sulfate' },
+  'SO3': { sym: 'SO3', charge: -2, type: 'sulfite' },
+  'HSO4': { sym: 'HSO4', charge: -1, type: 'hydrogenSulfate' },
+  'HCO3': { sym: 'HCO3', charge: -1, type: 'hydrogenCarbonate' },
+  'H2PO4': { sym: 'H2PO4', charge: -1, type: 'dihydrogenPhosphate' },
   'OH': { sym: 'OH', charge: -1, type: 'hydroxide' },
   'S': { sym: 'S', charge: -2, type: 'sulfide' },
   'CO3': { sym: 'CO3', charge: -2, type: 'carbonate' },
   'PO4': { sym: 'PO4', charge: -3, type: 'phosphate' },
   'CrO4': { sym: 'CrO4', charge: -2, type: 'chromate' },
+  'SiO3': { sym: 'SiO3', charge: -2, type: 'silicate' },
+  'ClO': { sym: 'ClO', charge: -1, type: 'hypochlorite' },
+  'ClO2': { sym: 'ClO2', charge: -1, type: 'chlorite' },
+  'ClO3': { sym: 'ClO3', charge: -1, type: 'chlorate' },
+  'ClO4': { sym: 'ClO4', charge: -1, type: 'perchlorate' },
+  'MnO4': { sym: 'MnO4', charge: -1, type: 'permanganate' },
+  'AlO2': { sym: 'AlO2', charge: -1, type: 'metalate' },
+  'ZnO2': { sym: 'ZnO2', charge: -2, type: 'metalate' },
+  'CN': { sym: 'CN', charge: -1, type: 'cyanide' },
 };
 
 function isSoluble(cation, anion) {
@@ -2076,8 +2851,17 @@ function isSoluble(cation, anion) {
     if (cation.sym === 'Ca') return true;
     return true;
   }
+  if (anion.type === 'hydrogenCarbonate' || anion.type === 'hydrogenSulfate' ||
+      anion.type === 'dihydrogenPhosphate' || anion.type === 'metalate' ||
+      anion.type === 'permanganate' || anion.type === 'chlorate' ||
+      anion.type === 'perchlorate' || anion.type === 'hypochlorite' ||
+      anion.type === 'chlorite' || anion.type === 'nitrite') return true;
+  if (anion.type === 'cyanide') {
+    return !(cation.sym === 'Ag' || cation.sym === 'Pb');
+  }
   if (anion.type === 'hydroxide' || anion.type === 'sulfide' ||
-      anion.type === 'carbonate' || anion.type === 'phosphate' || anion.type === 'chromate') {
+      anion.type === 'carbonate' || anion.type === 'phosphate' || anion.type === 'chromate' ||
+      anion.type === 'sulfite' || anion.type === 'silicate') {
     return false;
   }
   return true;
@@ -2621,17 +3405,15 @@ export const REACTIONS = [
   { reactants: { N2: 1, H2: 3 }, condition: 'catalyst', products: [['NH3', 2]], equation: 'N2 + 3H2 -> 2NH3' },
   { reactants: { Mg: 2, O2: 1 }, condition: 'heat', products: [['MgO', 2]], equation: '2Mg + O2 -> 2MgO' },
   { reactants: { Na: 2, Cl2: 1 }, condition: 'spark', products: [['NaCl', 2]], equation: '2Na + Cl2 -> 2NaCl' },
-  { reactants: { CaO: 1, H2O: 1 }, condition: 'rt', products: [['CaOH2', 1]], equation: 'CaO + H2O -> Ca(OH)2' },
-  { reactants: { CaO: 1, CO2: 1 }, condition: 'rt', products: [['CaCO3', 1]], equation: 'CaO + CO2 -> CaCO3' },
+  // CaO + H2O / CaO + CO2 / Ca(OH)2 + CO2 / SO3 + H2O are derived
+  // universally by tryOxideHydration and tryAcidicOxideBase now.
   { reactants: { CaCO3: 1 }, condition: 'heat', products: [['CaO', 1], ['CO2', 1]], equation: 'CaCO3 -> CaO + CO2' },
-  { reactants: { CaOH2: 1, CO2: 1 }, condition: 'rt', products: [['CaCO3', 1], ['H2O', 1]], equation: 'Ca(OH)2 + CO2 -> CaCO3 + H2O' },
   { reactants: { HCl: 1, NaOH: 1 }, condition: 'rt', products: [['NaCl', 1], ['H2O', 1]], equation: 'HCl + NaOH -> NaCl + H2O' },
   { reactants: { H2O2: 2 }, condition: 'catalyst', products: [['H2O', 2], ['O2', 1]], equation: '2H2O2 -> 2H2O + O2' },
   { reactants: { CH4: 1, O2: 2 }, condition: 'spark', products: [['CO2', 1], ['H2O', 2]], equation: 'CH4 + 2O2 -> CO2 + 2H2O' },
   { reactants: { C: 1, O2: 1 }, condition: 'heat', products: [['CO2', 1]], equation: 'C + O2 -> CO2' },
   { reactants: { N2: 1, O2: 1 }, condition: 'spark', products: [['NO', 2]], equation: 'N2 + O2 -> 2NO' },
   { reactants: { SO2: 2, O2: 1 }, condition: 'catalyst', products: [['SO3', 2]], equation: '2SO2 + O2 -> 2SO3' },
-  { reactants: { SO3: 1, H2O: 1 }, condition: 'rt', products: [['H2SO4', 1]], equation: 'SO3 + H2O -> H2SO4' },
   { reactants: { H2O: 2 }, condition: 'electricity', products: [['H2', 2], ['O2', 1]], equation: '2H2O -> 2H2 + O2' },
   { reactants: { NH3: 1, HCl: 1 }, condition: 'rt', products: [['NH4', 1], ['ClI', 1]], equation: 'NH3 + HCl -> NH4+ + Cl-' },
   { reactants: { Na: 2, H2O: 2 }, condition: 'rt', products: [['NaOH', 2], ['H2', 1]], equation: '2Na + 2H2O -> 2NaOH + H2' },
@@ -2709,37 +3491,52 @@ function matches(rx, have) {
   return true;
 }
 
-// Exact match for a chosen condition, or null.
-export function findReaction(formulas, conditionKey) {
+// Exact match for a chosen condition, or null. `comps` optionally supplies
+// the selected components' structures ({atoms, bonds}) enabling the
+// structure-aware organic/acid-base checkers (isomer-exact products).
+export function findReaction(formulas, conditionKey, comps = null) {
   const have = multisetOf(formulas);
-  
+  const structsValid = Array.isArray(comps) && comps.length > 0 &&
+    comps.every(c => c && Array.isArray(c.atoms));
+
+  if (structsValid) {
+    for (const tryFn of STRUCT_CHECKS[conditionKey] || []) {
+      for (const rx of candidatesOf(tryFn(comps, have))) {
+        const m = matchDynamic(rx, have);
+        if (m) return m;
+      }
+    }
+  }
+
   // First check static reactions
   for (const rx of REACTIONS) {
     if (rx.condition !== conditionKey) continue;
     if (matches(rx, have)) return rx;
   }
-  
+
   // Check mayhem reactions
   for (const rx of MAYHEM_REACTIONS) {
     if (rx.condition !== conditionKey) continue;
     if (matches(rx, have)) return rx;
   }
-  
+
   // Then try dynamic reaction patterns
   const dynamicChecks = {
-    'rt': [tryAcidBaseReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryRedoxBalancing, tryCoordinationComplex, tryBiochemicalReaction],
+    'rt': [tryAcidBaseReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryRedoxBalancing, tryCoordinationComplex, tryBiochemicalReaction],
     'spark': [tryCombustion],
     'heat': [tryCombustion, tryMetalOxideReduction, tryMetalHalogenSynthesis, tryMetalDimerFormation, tryMetalDimerDecomposition, tryDehydration, tryAdvancedDecomposition],
     'catalyst': [tryEsterification, tryHydrogenation, tryAlkeneHydration, tryEsterHydrolysis, tryBiochemicalReaction],
     'uv': [tryHalogenation],
   };
-  
+
   const checks = dynamicChecks[conditionKey] || [];
   for (const tryFn of checks) {
-    const rx = tryFn([...have.keys()]);
-    if (rx && matches(rx, have)) return rx;
+    for (const rx of candidatesOf(tryFn([...have.keys()], have))) {
+      const m = matchDynamic(rx, have);
+      if (m) return m;
+    }
   }
-  
+
   return null;
 }
 
@@ -2747,36 +3544,44 @@ export function findReaction(formulas, conditionKey) {
 // Subset semantics — every selected formula must be a reactant, with counts
 // not exceeding what the reaction needs — so partial selections still hint
 // at the right condition. Execution itself stays exact (findReaction).
-export function conditionsFor(formulas) {
+export function conditionsFor(formulas, comps = null) {
   const have = multisetOf(formulas);
   const set = new Set();
-  
-  // Check static reactions
-  for (const rx of REACTIONS) {
-    let ok = true;
+
+  const subsetOk = (reactants) => {
     for (const [f, n] of have) {
       const fNorm = normalizeFormula(f);
       let found = 0;
-      for (const [rf, rn] of Object.entries(rx.reactants)) {
+      for (const [rf, rn] of Object.entries(reactants)) {
         if (normalizeFormula(rf) === fNorm) found = rn;
       }
-      if (found < n) { ok = false; break; }
+      if (found < n) return false;
     }
-    if (ok) set.add(rx.condition);
+    return true;
+  };
+
+  const structsValid = Array.isArray(comps) && comps.length > 0 &&
+    comps.every(c => c && Array.isArray(c.atoms));
+  if (structsValid) {
+    for (const [cond, fns] of Object.entries(STRUCT_CHECKS)) {
+      for (const tryFn of fns) {
+        let hit = false;
+        for (const rx of candidatesOf(tryFn(comps, have))) {
+          if (subsetOk(rx.reactants)) { hit = true; break; }
+        }
+        if (hit) { set.add(cond); break; }
+      }
+    }
+  }
+
+  // Check static reactions
+  for (const rx of REACTIONS) {
+    if (subsetOk(rx.reactants)) set.add(rx.condition);
   }
 
   // Check mayhem reactions
   for (const rx of MAYHEM_REACTIONS) {
-    let ok = true;
-    for (const [f, n] of have) {
-      const fNorm = normalizeFormula(f);
-      let found = 0;
-      for (const [rf, rn] of Object.entries(rx.reactants)) {
-        if (normalizeFormula(rf) === fNorm) found = rn;
-      }
-      if (found < n) { ok = false; break; }
-    }
-    if (ok) set.add(rx.condition);
+    if (subsetOk(rx.reactants)) set.add(rx.condition);
   }
 
   // Check dynamic patterns
@@ -2785,6 +3590,9 @@ export function conditionsFor(formulas) {
     { fn: tryMetalAcidReaction, cond: 'rt' },
     { fn: tryMetalWaterReaction, cond: 'rt' },
     { fn: tryCarbonateAcidReaction, cond: 'rt' },
+    { fn: tryAcidicOxideBase, cond: 'rt' },
+    { fn: tryOxideHydration, cond: 'rt' },
+    { fn: tryAmphotericBase, cond: 'rt' },
     { fn: tryCombustion, cond: 'spark' },
     { fn: tryMetalOxideReduction, cond: 'heat' },
     { fn: trySingleDisplacement, cond: 'rt' },
@@ -2804,23 +3612,15 @@ export function conditionsFor(formulas) {
     { fn: tryBiochemicalReaction, cond: 'rt' },
     { fn: tryBiochemicalReaction, cond: 'catalyst' },
   ];
-  
+
   for (const { fn, cond } of allChecks) {
-    const rx = fn([...have.keys()]);
-    if (rx) {
-      let ok = true;
-      for (const [f, n] of have) {
-        const fNorm = normalizeFormula(f);
-        let found = 0;
-        for (const [rf, rn] of Object.entries(rx.reactants)) {
-          if (normalizeFormula(rf) === fNorm) found = rn;
-        }
-        if (found < n) { ok = false; break; }
-      }
-      if (ok) set.add(cond);
+    let hit = false;
+    for (const rx of candidatesOf(fn([...have.keys()], have))) {
+      if (subsetOk(rx.reactants)) { hit = true; break; }
     }
+    if (hit) set.add(cond);
   }
-  
+
   return set;
 }
 

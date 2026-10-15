@@ -1096,7 +1096,7 @@ function updateRxnStoich() {
   const seen = new Set();
   const matched = [];
   for (const c of CONDITIONS) {
-    const rx = findReaction(formulas, c.key);
+    const rx = findReaction(formulas, c.key, selectedStructures());
     if (!rx || rx.effect) continue;
     const k = `${rx.equation}|${rx.condition}`;
     if (seen.has(k)) continue;
@@ -1214,6 +1214,19 @@ function selectedFormulas() {
   return out;
 }
 
+// Structure templates of the selected components, parallel to
+// selectedFormulas() — feeds the structure-aware reaction checkers.
+function selectedStructures() {
+  const out = [];
+  for (let i = 0; i < lastComps.length; i++) {
+    if (!reactionSel.has(compKey(lastComps[i]))) continue;
+    const an = analyses[i];
+    if (!an) continue;
+    out.push(structureTplOf(lastComps[i], an).tpl);
+  }
+  return out;
+}
+
 function prettyEq(eq) {
   const sub = '₀₁₂₃₄₅₆₇₈₉';
   return eq.replace(/->/g, '\u2192').replace(/(?<=[A-Za-z)\]])\d+/g, m => [...m].map(c => sub[+c]).join(''));
@@ -1236,9 +1249,9 @@ function buildRxnPanel() {
 
 function onConditionPick(cond) {
   const formulas = selectedFormulas();
-  const rx = findReaction(formulas, cond);
+  const rx = findReaction(formulas, cond, selectedStructures());
   if (rx) { executeReaction(rx); return; }
-  const valid = conditionsFor(formulas);
+  const valid = conditionsFor(formulas, selectedStructures());
   if (!valid.size) { status(t('status.noReaction'), 'err'); return; }
   if (valid.has(cond)) {
     const more = missingFor(formulas, cond);
@@ -1273,7 +1286,8 @@ function executeReaction(rx) {
     const an = analyses[lastComps.indexOf(c)];
     return an ? (an.displayFormula || an.formula) : '';
   });
-  if (!findReaction(formulas, rx.condition)) {
+  const structs = selComps.map(c => structureTplOf(c, analyses[lastComps.indexOf(c)]).tpl);
+  if (!findReaction(formulas, rx.condition, structs)) {
     status(t('status.sceneChanged'), 'err');
     clearReactionSel();
     return;
@@ -3093,9 +3107,9 @@ window.__mol3d = {
     },
     pick: cond => {
       const fs = selectedFormulas();
-      const rx = findReaction(fs, cond);
+      const rx = findReaction(fs, cond, selectedStructures());
       if (rx) { executeReaction(rx); return rx.equation; }
-      const valid = conditionsFor(fs);
+      const valid = conditionsFor(fs, selectedStructures());
       return valid.size ? `wrong-condition:${[...valid].join(',')}` : 'none';
     },
     clear: clearReactionSel,

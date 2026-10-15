@@ -362,7 +362,7 @@ export function formulaOf(elements) {
   const others = syms.filter(s => s !== 'H' && s !== 'O');
 
   // Acid formulas: H first, then central atom, then O (e.g., H3PO4, H2SO4, HNO3)
-  const ACID_CENTRAL = new Set(['P', 'S', 'N', 'Cl', 'Br', 'I', 'C']);
+  const ACID_CENTRAL = new Set(['P', 'S', 'N', 'Cl', 'Br', 'I', 'C', 'B', 'Si', 'Ge', 'As', 'Sb', 'Te', 'Cr', 'Mn', 'V', 'W', 'Mo']);
   if (h > 0 && o > 0 && others.length === 1 && ACID_CENTRAL.has(others[0])) {
     return seg('H') + seg(others[0]) + seg('O');
   }

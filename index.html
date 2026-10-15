@@ -62,6 +62,7 @@
       <div id="rxn-panel" style="display:none">
         <div id="rxn-title"><span data-i18n="rxn.title">Reaction</span> &middot; <span id="rxn-count"></span></div>
         <div id="rxn-conds"></div>
+        <div id="rxn-stoich"></div>
         <button id="rxn-cancel" class="linklike" data-i18n="rxn.cancel">Cancel</button>
       </div>
       <div id="joy" aria-hidden="true">
@@ -97,6 +98,28 @@
               <button id="chg-auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
               <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
             </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 data-i18n="stoich.title">Stoichiometry</h2>
+          <div id="stoich-empty" class="muted" data-i18n="stoich.empty">Select an atom or molecule to compute molar mass.</div>
+          <div id="stoich-body" hidden>
+            <div id="stoich-formula" class="mol-formula"></div>
+            <div id="stoich-molar"></div>
+            <table class="stoich-table"><thead><tr>
+              <th data-i18n="stoich.el">Element</th>
+              <th data-i18n="stoich.atoms">Atoms</th>
+              <th data-i18n="stoich.atomic">g/mol</th>
+              <th data-i18n="stoich.subtotal">Subtotal</th>
+              <th data-i18n="stoich.pct">Mass %</th>
+            </tr></thead><tbody id="stoich-comp"></tbody></table>
+            <div class="stoich-convert">
+              <label><span data-i18n="stoich.massLbl">Mass (g)</span><input id="stoich-g" type="number" min="0" step="any" /></label>
+              <label><span data-i18n="stoich.molLbl">Moles</span><input id="stoich-mol" type="number" min="0" step="any" /></label>
+              <label><span data-i18n="stoich.partLbl">Particles</span><input id="stoich-n" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" /></label>
+            </div>
+            <div id="stoich-note" class="muted"></div>
           </div>
         </section>
 

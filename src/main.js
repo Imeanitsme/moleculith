@@ -21,6 +21,9 @@ import {
 } from './reactions.js';
 import { initLang, applyStatic, t, trReason, elName, catLabel, isVi, otherLang, setLang, getLang } from './i18n.js';
 import { initTutorial, showTutorial } from './tutorial.js';
+import { AVOGADRO, setElementLookup, molarMass, compositionOf, limitingAnalysis, fmtAmount } from './stoich.js';
+
+setElementLookup(elementBySym);
 
 // Tolerate hand-edited challenge entries: skip malformed ones with a warning
 // instead of breaking the Dex.
@@ -960,9 +963,130 @@ function clearReactionSel() {
 
 function updateRxnPanel() {
   if (!rxnPanel) return;
+  updateRxnStoich();
   if (reactionSel.size === 0) { rxnPanel.style.display = 'none'; return; }
   rxnPanel.style.display = 'flex';
   rxnCount.textContent = t('rxn.count', { n: reactionSel.size, s: reactionSel.size > 1 ? 's' : '' });
+  updateRxnStoich();
+}
+
+const rxnStoichBox = document.getElementById('rxn-stoich');
+
+// Amounts & yield: one calculator per exactly-matched reaction for the
+// current selection. Skips mayhem visual effects (not stoichiometric).
+function updateRxnStoich() {
+  if (!rxnStoichBox) return;
+  rxnStoichBox.innerHTML = '';
+  rxnStoichBox.style.display = 'none';
+  if (reactionSel.size === 0) return;
+  const formulas = selectedFormulas();
+  const seen = new Set();
+  const matched = [];
+  for (const c of CONDITIONS) {
+    const rx = findReaction(formulas, c.key);
+    if (!rx || rx.effect) continue;
+    const k = `${rx.equation}|${rx.condition}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    matched.push(rx);
+  }
+  if (!matched.length) return;
+  rxnStoichBox.style.display = 'flex';
+  const title = document.createElement('div');
+  title.className = 'rxn-stoich-title';
+  title.textContent = t('stoich.rxnTitle');
+  rxnStoichBox.appendChild(title);
+  for (const rx of matched) rxnStoichBox.appendChild(buildRxnStoichBlock(rx));
+}
+
+function buildRxnStoichBlock(rx) {
+  const block = document.createElement('div');
+  block.className = 'rxn-stoich-block';
+
+  const eq = document.createElement('div');
+  eq.className = 'rxn-stoich-eq';
+  eq.innerHTML = `${prettyEq(rx.equation)} <span class="cond-chip">${condLabel(rx.condition)}</span>`;
+  block.appendChild(eq);
+
+  const reactants = Object.entries(rx.reactants);
+  const inputs = [];
+  for (const [f, coeff] of reactants) {
+    const row = document.createElement('div');
+    row.className = 'rxn-stoich-row';
+    const lbl = document.createElement('span');
+    lbl.className = 'rxn-stoich-f';
+    lbl.innerHTML = `${prettyFormula(f)}${coeff > 1 ? ` <span class="muted">&times;${coeff}</span>` : ''}`;
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = '0';
+    inp.step = 'any';
+    inp.placeholder = 'g';
+    inp.setAttribute('aria-label', `${t('stoich.massLbl')} ${f}`);
+    const molSpan = document.createElement('span');
+    molSpan.className = 'rxn-stoich-mol';
+    row.append(lbl, inp, molSpan);
+    block.appendChild(row);
+    inputs.push({ f, coeff, inp, molSpan });
+  }
+
+  const out = document.createElement('div');
+  out.className = 'rxn-stoich-out';
+  block.appendChild(out);
+
+  const yieldRow = document.createElement('div');
+  yieldRow.className = 'rxn-stoich-row';
+  const yieldLbl = document.createElement('span');
+  yieldLbl.className = 'rxn-stoich-f';
+  yieldLbl.textContent = t('stoich.yieldLbl');
+  const yieldInp = document.createElement('input');
+  yieldInp.type = 'number';
+  yieldInp.min = '0';
+  yieldInp.max = '100';
+  yieldInp.step = 'any';
+  yieldInp.value = '100';
+  yieldRow.append(yieldLbl, yieldInp);
+  block.appendChild(yieldRow);
+
+  const num = (el) => { const v = parseFloat(el.value); return isFinite(v) && v >= 0 ? v : null; };
+
+  const recalc = () => {
+    const moles = new Map();
+    let any = false, all = true;
+    for (const r of inputs) {
+      const g = num(r.inp);
+      const M = molarMass(r.f);
+      if (g === null || M === null) {
+        r.molSpan.textContent = '';
+        all = false;
+        if (g !== null) any = true;
+      } else {
+        r.molSpan.textContent = `${fmtAmount(g / M)} mol`;
+        moles.set(r.f, g / M);
+        any = true;
+      }
+    }
+    if (!any) { out.textContent = ''; return; }
+    const res = all ? limitingAnalysis(rx, moles) : null;
+    if (!res) { out.textContent = t('stoich.enterAll'); return; }
+    const pct = num(yieldInp);
+    const lines = [];
+    lines.push(`${t('stoich.limiting')}: <b>${prettyFormula(res.limiting.formula)}</b> — ${fmtAmount(res.limiting.extent)} mol`);
+    for (const l of res.leftovers) {
+      lines.push(`${prettyFormula(l.formula)}: +${fmtAmount(l.moles)} mol ${t('stoich.left')}`);
+    }
+    for (const p of res.products) {
+      const massStr = p.mass !== null ? ` · ${fmtAmount(p.mass)} g` : '';
+      lines.push(`&rarr; ${prettyFormula(p.formula)}: ${fmtAmount(p.moles)} mol${massStr}`);
+      if (pct !== null && pct !== 100) {
+        const am = p.mass !== null ? ` · ${fmtAmount(p.mass * pct / 100)} g` : '';
+        lines.push(`&nbsp;&nbsp;${t('stoich.actual')} (${fmtAmount(pct)}%): ${fmtAmount(p.moles * pct / 100)} mol${am}`);
+      }
+    }
+    out.innerHTML = lines.map(s => `<div>${s}</div>`).join('');
+  };
+  for (const r of inputs) r.inp.addEventListener('input', recalc);
+  yieldInp.addEventListener('input', recalc);
+  return block;
 }
 
 function selectedFormulas() {
@@ -1699,6 +1823,7 @@ function currentComp() {
 }
 
 function updateInspector() {
+  updateStoichPanel();
   const sel = document.getElementById('sel-info');
   const mol = document.getElementById('mol-info');
   const warn = document.getElementById('mol-warn');
@@ -1757,6 +1882,84 @@ function updateInspector() {
       warn.style.display = 'none';
     }
   }
+}
+
+// ── Stoichiometry panel ──
+
+const stoichBody = document.getElementById('stoich-body');
+const stoichEmpty = document.getElementById('stoich-empty');
+const stoichFormulaEl = document.getElementById('stoich-formula');
+const stoichMolarEl = document.getElementById('stoich-molar');
+const stoichCompEl = document.getElementById('stoich-comp');
+const stoichNoteEl = document.getElementById('stoich-note');
+const stoichG = document.getElementById('stoich-g');
+const stoichMol = document.getElementById('stoich-mol');
+const stoichN = document.getElementById('stoich-n');
+let stoichFormula = null;
+
+function updateStoichPanel() {
+  const cur = currentComp();
+  if (!cur) {
+    stoichFormula = null;
+    stoichBody.hidden = true;
+    stoichEmpty.style.display = '';
+    return;
+  }
+  const at = atoms.get(selectedId);
+  let formula, fHtml, note = '';
+  if (cur.comp.bonds.length === 0) {
+    formula = at.el.sym;
+    fHtml = prettyFormula(formula);
+    note = t('stoich.freeAtom');
+  } else {
+    const { an } = cur;
+    formula = an.formula;
+    fHtml = `${prettyFormula(an.displayFormula || an.formula)}<span class="muted">${formulaWithCharge('', an.charge)}</span>`;
+  }
+  const changed = formula !== stoichFormula;
+  stoichFormula = formula;
+  const M = molarMass(formula);
+  stoichEmpty.style.display = 'none';
+  stoichBody.hidden = false;
+  stoichFormulaEl.innerHTML = fHtml;
+  stoichMolarEl.textContent = M === null ? '—' : t('stoich.molar', { m: fmtAmount(M) });
+  const comp = compositionOf(formula);
+  stoichCompEl.innerHTML = (comp ? comp.rows : []).map(r =>
+    `<tr><td><b>${r.sym}</b> ${elName(r)}</td><td>${r.count}</td><td>${fmtAmount(r.atomicMass)}</td><td>${fmtAmount(r.subtotal)}</td><td>${fmtAmount(r.pct)}%</td></tr>`
+  ).join('');
+  stoichNoteEl.textContent = note;
+  if (changed && M !== null) {
+    stoichMol.value = '1';
+    stoichG.value = fmtAmount(M);
+    stoichN.value = fmtAmount(AVOGADRO);
+  }
+}
+
+function initStoichPanel() {
+  const num = (el) => { const v = parseFloat(el.value); return isFinite(v) && v >= 0 ? v : null; };
+  stoichMol.addEventListener('input', () => {
+    const M = molarMass(stoichFormula);
+    const mol = num(stoichMol);
+    if (M === null || mol === null) return;
+    stoichG.value = fmtAmount(mol * M);
+    stoichN.value = fmtAmount(mol * AVOGADRO);
+  });
+  stoichG.addEventListener('input', () => {
+    const M = molarMass(stoichFormula);
+    const g = num(stoichG);
+    if (M === null || g === null) return;
+    const mol = g / M;
+    stoichMol.value = fmtAmount(mol);
+    stoichN.value = fmtAmount(mol * AVOGADRO);
+  });
+  stoichN.addEventListener('input', () => {
+    const M = molarMass(stoichFormula);
+    const n = num(stoichN);
+    if (M === null || n === null) return;
+    const mol = n / AVOGADRO;
+    stoichMol.value = fmtAmount(mol);
+    stoichG.value = fmtAmount(mol * M);
+  });
 }
 
 // ── Bohr Atom Model ──
@@ -2801,6 +3004,7 @@ loadDiscoveries();
 buildPool();
 buildLegend();
 buildRxnPanel();
+initStoichPanel();
 updateChallengeList();
 updateDiscList();
 updateUndoBtn();

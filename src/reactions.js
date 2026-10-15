@@ -36,8 +36,8 @@ const T = {
   MnCl2: { atoms: ['Mn', 'Cl', 'Cl'], bonds: [[0, 1, 1, true], [0, 2, 1, true]] },
   Cl2:   { atoms: ['Cl', 'Cl'], bonds: [[0, 1, 1]] },
   KCl:   { atoms: ['K', 'Cl'], bonds: [[0, 1, 1, true]] },
-  Na2SO4: { atoms: ['Na', 'Na', 'S', 'O', 'O', 'O', 'O'], bonds: [[0, 2, 1, true], [1, 2, 1, true], [2, 3, 2], [2, 4, 2], [2, 5, 1], [2, 6, 1]] },
-  K2SO4: { atoms: ['K', 'K', 'S', 'O', 'O', 'O', 'O'], bonds: [[0, 2, 1, true], [1, 2, 1, true], [2, 3, 2], [2, 4, 2], [2, 5, 1], [2, 6, 1]] },
+  Na2SO4: { atoms: ['Na', 'Na', 'S', 'O', 'O', 'O', 'O'], bonds: [[0, 5, 1, true], [1, 6, 1, true], [2, 3, 2], [2, 4, 2], [2, 5, 1], [2, 6, 1]] },
+  K2SO4: { atoms: ['K', 'K', 'S', 'O', 'O', 'O', 'O'], bonds: [[0, 5, 1, true], [1, 6, 1, true], [2, 3, 2], [2, 4, 2], [2, 5, 1], [2, 6, 1]] },
   CaCl2: { atoms: ['Ca', 'Cl', 'Cl'], bonds: [[0, 1, 1, true], [0, 2, 1, true]] },
   Al2O3: { atoms: ['Al', 'Al', 'O', 'O', 'O'], bonds: [[0, 2, 2, true], [0, 3, 2, true], [0, 4, 2, true], [1, 2, 2, true], [1, 3, 2, true], [1, 4, 2, true]] },
   Fe: { atoms: ['Fe'], bonds: [] },
@@ -3031,6 +3031,28 @@ function tryAdvancedDecomposition(formulas) {
 
 function tryGasEvolution(formulas) {
   if (formulas.length !== 2) return null;
+
+  // Ammonium salts classify as acids (NH4+ is protic), so they never reach the
+  // salt slot below — detect them up front. NH4 count = total H / 4 in
+  // inorganic (no-C) salts; h === 4n or extra elements rules out hydrazine.
+  for (let i = 0; i < 2; i++) {
+    const other = formulas[1 - i];
+    const p = parseFormula(formulas[i]);
+    const h = p.get('H') || 0;
+    const n = p.get('N') || 0;
+    if (p.has('N') && !p.has('C') && h > 0 && h % 4 === 0 &&
+        (h === 4 * n || p.size > 2) && isBase(other)) {
+      return {
+        reactants: { [formulas[i]]: 1, [other]: 1 },
+        condition: 'rt',
+        products: [['NH3', 1], ['H2O', 1]],
+        equation: `${formulas[i]} + ${other} -> NH3(g) + H2O + ...`,
+        dynamic: true,
+        gas: 'NH3',
+      };
+    }
+  }
+
   let acid = null, salt = null;
   for (const f of formulas) {
     if (isAcid(f)) acid = f;
@@ -3070,19 +3092,6 @@ function tryGasEvolution(formulas) {
         equation: `${salt} + ${acid} -> SO2(g) + H2O + ...`,
         dynamic: true,
         gas: 'SO2',
-      };
-    }
-  }
-
-  if (salt === 'NH4Cl' || salt === 'NH4NO3' || salt === '(NH4)2SO4') {
-    if (isBase(acid) || acid === 'NaOH' || acid === 'KOH') {
-      return {
-        reactants: { [salt]: 1, [acid]: 1 },
-        condition: 'rt',
-        products: [['NH3', 1], ['H2O', 1]],
-        equation: `${salt} + ${acid} -> NH3(g) + H2O + ...`,
-        dynamic: true,
-        gas: 'NH3',
       };
     }
   }

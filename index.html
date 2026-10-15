@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1117" />
+  <title>Molecule Builder 3D</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="brand-wrap">
+        <div class="brand">Molecule Builder <span>3D</span></div>
+        <span class="credit">Made by Nguyen Thien Quan. Warning: All right reserved @2026</span>
+      </div>
+      <div class="toolbar">
+        <button id="btn-undo" title="Ctrl+Z" data-i18n="btn.undo">Undo</button>
+        <button id="btn-delete" title="Del" data-i18n="btn.delete" disabled>Delete</button>
+        <button id="btn-duplicate" title="Ctrl+D" data-i18n="btn.duplicate">Duplicate</button>
+        <button id="btn-clear" data-i18n="btn.clear">Clear all</button>
+        <button id="btn-fc" class="toggle" data-i18n="btn.fc" data-i18n-title="btn.fc.title">Formal charges</button>
+        <button id="btn-menu" class="menu-toggle" aria-expanded="false" aria-controls="menu-dropdown">&#9776;</button>
+        <div id="menu-dropdown" class="menu-dropdown" hidden>
+          <button id="btn-tutorial" data-i18n="btn.tutorial">Tutorial</button>
+          <button id="btn-mayhem" class="toggle" data-i18n="btn.mayhem" data-i18n-title="btn.mayhem.title">Mayhem</button>
+          <button id="btn-import" data-i18n="btn.import" data-i18n-title="btn.import.title" hidden>Custom Elements</button>
+          <button id="btn-quality" data-i18n-title="btn.quality.title">Quality: Auto</button>
+          <button id="btn-theme" data-i18n-title="btn.theme.title">Theme: Dark</button>
+          <div class="volume-row">
+            <span class="volume-label" data-i18n="menu.volume">Volume</span>
+            <input type="range" id="volume-slider" min="0" max="100" value="50" />
+          </div>
+          <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <aside id="left" class="msheet">
+      <section class="panel grow">
+        <h2 data-i18n="pool.title">Element pool</h2>
+        <div id="pool-tools">
+          <input id="pool-search" type="search" data-i18n-ph="pool.searchPh" placeholder="Search 118 elements..." autocomplete="off" spellcheck="false" />
+          <button id="pool-view" data-i18n="pool.viewTable" data-i18n-title="pool.view.title">Table</button>
+        </div>
+        <p class="panel-hint" data-i18n="pool.hint">Click an element to place an atom. Metals bond ionically (electron transfer). Noble gases are inert &mdash; Kr, Xe and Rn react only with F or O.</p>
+        <div id="pool-list"></div>
+        <div id="ptable" hidden></div>
+        <div id="legend"></div>
+      </section>
+    </aside>
+
+    <main id="scene-wrap">
+      <div id="hint" data-i18n-html="hint.html">
+        Click an element in the pool to place your first atom.<br />
+        Drag atoms together to bond them &mdash; green ghost means a legal bond, red means forbidden.<br />
+        Click a bond to cycle its order (1&rlm;&rarr;2&rlm;&rarr;3&rlm;&rarr;2&rlm;&rarr;1&rlm;&rarr;delete).<br />
+        Double-click two or more molecules to set up a reaction, then pick a condition.<br />
+        Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.
+      </div>
+      <div id="fps-chip"></div>
+      <div id="rxn-panel" style="display:none">
+        <div id="rxn-title"><span data-i18n="rxn.title">Reaction</span> &middot; <span id="rxn-count"></span></div>
+        <div id="rxn-conds"></div>
+        <button id="rxn-cancel" class="linklike" data-i18n="rxn.cancel">Cancel</button>
+      </div>
+      <div id="joy" aria-hidden="true">
+        <div id="joy-stick"><div id="joy-knob"></div></div>
+        <div id="joy-vert">
+          <button id="joy-up" aria-label="Move camera up">&#9650;</button>
+          <button id="joy-down" aria-label="Move camera down">&#9660;</button>
+        </div>
+      </div>
+      <div id="toast"></div>
+    </main>
+
+    <aside id="right">
+      <div id="tab-info" class="msheet">
+        <section class="panel">
+          <h2 data-i18n="sel.title">Selection</h2>
+          <div id="sel-info" class="muted" data-i18n="sel.empty">Click an atom to inspect it.</div>
+          <button id="bohr-toggle" class="bohr-toggle" hidden data-i18n="bohr.toggle">Bohr Model</button>
+          <div id="bohr-container" class="bohr-container" hidden>
+            <canvas id="bohr-canvas" width="280" height="280"></canvas>
+            <div id="bohr-stats" class="bohr-stats"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 data-i18n="mol.title">Molecule</h2>
+          <div id="mol-info" class="muted" data-i18n="mol.empty">Build a molecule to analyze it.</div>
+          <div id="mol-warn"></div>
+          <div id="charge-row">
+            <span class="lbl" data-i18n="mol.chargeLbl">Ion charge</span>
+            <div class="charge-btns">
+              <button id="chg-minus" data-i18n-title="chg.minus.title" title="Set ion charge one unit lower">&minus;1</button>
+              <button id="chg-auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
+              <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 data-i18n="list.title">Molecules in scene</h2>
+          <div id="mol-list" class="muted" data-i18n="list.empty">No molecules yet.</div>
+        </section>
+
+        <section class="panel now-playing-panel">
+          <div id="now-playing" class="now-playing"></div>
+        </section>
+      </div>
+
+      <div id="tab-dex" class="msheet">
+        <section class="panel">
+          <h2><span data-i18n="dex.disc">Discoveries</span> <span id="disc-count" class="muted"></span></h2>
+          <div id="disc-list" class="muted" data-i18n="dex.discEmpty">Nothing discovered yet.</div>
+          <button id="btn-save-disc" class="linklike" disabled data-i18n="btn.saveDisc">Save discoveries</button>
+        </section>
+
+        <section class="panel">
+          <h2><span data-i18n="dex.chal">Challenges</span> <span id="ch-progress" class="muted"></span></h2>
+          <div id="ch-list"></div>
+          <button id="ch-reset" class="linklike" data-i18n="btn.reset">Reset progress</button>
+        </section>
+      </div>
+    </aside>
+
+    <footer id="status-bar">
+      <span id="status-text" class="info"></span>
+      <span id="keys-hint" data-i18n="keys.hint">WASD/arrows = move camera &middot; drag = move / bond &middot; click bond = raise order &middot; Shift+click = lower &middot; double-click molecule = select for reaction &middot; Del = remove &middot; Ctrl+Z = undo</span>
+    </footer>
+
+    <nav id="mtabs" aria-label="Panels">
+      <button data-tab="left" data-i18n="tab.pool">Pool</button>
+      <button data-tab="tab-info" data-i18n="tab.info">Info</button>
+      <button data-tab="tab-dex" data-i18n="tab.dex">Dex</button>
+    </nav>
+  </div>
+
+  <div id="rxn-overlay" class="rxn-overlay" aria-hidden="true">
+    <div class="rxn-condition"></div>
+    <div class="rxn-equation"></div>
+  </div>
+
+  <div id="isomer-drawer" class="isomer-drawer" aria-hidden="true">
+    <div class="isomer-drawer-header">
+      <h3 id="isomer-drawer-title">Isomers</h3>
+      <button id="isomer-drawer-close" class="isomer-close">&times;</button>
+    </div>
+    <input id="isomer-search" class="isomer-search" type="text" data-i18n-ph="iso.search" placeholder="Search arrangements…" autocomplete="off" spellcheck="false" />
+    <div id="isomer-drawer-list" class="isomer-drawer-list"></div>
+  </div>
+
+  <div id="custom-element-modal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="custom.title">Create Custom Element</h2>
+        <button id="custom-close" class="modal-close">&times;</button>
+      </div>
+      <form id="custom-element-form">
+        <div class="form-row">
+          <label data-i18n="custom.name">Name</label>
+          <input type="text" id="custom-name" required placeholder="e.g., Vibranium" />
+        </div>
+        <div class="form-row">
+          <label data-i18n="custom.sym">Symbol</label>
+          <input type="text" id="custom-sym" required maxlength="3" placeholder="e.g., Vb" pattern="[A-Z][a-z]{0,2}" />
+        </div>
+        <div class="form-row">
+          <label data-i18n="custom.type">Type</label>
+          <select id="custom-cat">
+            <option value="exotic" data-i18n="cat.exotic">Exotic</option>
+            <option value="metal" data-i18n="cat.metal">Metal</option>
+            <option value="nonmetal" data-i18n="cat.nonmetal">Nonmetal</option>
+            <option value="metalloid" data-i18n="cat.metalloid">Metalloid</option>
+            <option value="halogen" data-i18n="cat.halogen">Halogen</option>
+            <option value="noble" data-i18n="cat.noble">Noble gas</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="custom.maxBonds">Max bonds</label>
+          <input type="number" id="custom-maxbonds" min="0" max="20" value="4" />
+        </div>
+        <div class="form-row">
+          <label data-i18n="custom.mass">Mass</label>
+          <input type="number" id="custom-mass" min="0" step="0.01" value="100" />
+        </div>
+        <div class="form-row">
+          <label data-i18n="custom.color">Color</label>
+          <input type="color" id="custom-color" value="#ff00ff" />
+        </div>
+        <div class="form-row checkbox-row">
+          <label data-i18n="custom.anion">Can make anion?</label>
+          <input type="checkbox" id="custom-anion" />
+        </div>
+        <div class="form-row" id="anion-charge-row" hidden>
+          <label data-i18n="custom.anionCharge">Anion charge</label>
+          <input type="number" id="custom-anion-charge" min="1" max="10" value="1" />
+        </div>
+        <div class="form-actions">
+          <button type="button" id="custom-cancel" class="btn-secondary" data-i18n="btn.cancel">Cancel</button>
+          <button type="submit" class="btn-primary" data-i18n="btn.create">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

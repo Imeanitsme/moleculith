@@ -22,6 +22,7 @@ import {
 import { initLang, applyStatic, t, trReason, elName, catLabel, isVi, otherLang, setLang, getLang } from './i18n.js';
 import { initTutorial, showTutorial } from './tutorial.js';
 import { AVOGADRO, setElementLookup, molarMass, compositionOf, limitingAnalysis, fmtAmount } from './stoich.js';
+import { createSimulation, compileNetwork, parseRateExpr, rk4Step } from './kinetics.js';
 
 setElementLookup(elementBySym);
 
@@ -3083,6 +3084,7 @@ function frame(now) {
 window.__mol3d = {
   atoms, bonds, overrides,
   movement, camera, controls,
+  kinetics: { createSimulation, compileNetwork, parseRateExpr, rk4Step },
   analyses: () => analyses,
   comps: () => lastComps,
   spawnAtom, reanalyze, selectAtom, undo, clearAll,

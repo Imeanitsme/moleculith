@@ -325,6 +325,7 @@ export function classifyMolecule(formula, charge, comp) {
   const hasO = counts.has('O');
   const hasC = counts.has('C');
   const hasN = counts.has('N');
+  const hasS = counts.has('S');
 
   if (syms.length === 1) return { key: 'element', label: isVi() ? 'Nguyên tố' : 'Element' };
 

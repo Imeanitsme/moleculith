@@ -3563,6 +3563,9 @@ function exportBlueprintTo3D() {
     return;
   }
   
+  // Clear existing 3D atoms first to avoid "revived" molecules
+  clearAll();
+  
   // Map canvas atom IDs to 3D scene atom IDs
   const idMap = new Map();
   const canvasCenter = { x: 0, y: 0 };
@@ -3577,12 +3580,14 @@ function exportBlueprintTo3D() {
   
   // Create 3D atoms from canvas atoms (directly, without calling spawnAtom)
   // This avoids triggering reanalyze() for each atom
+  const now = performance.now();
   for (const [canvasId, atom] of blueprintCanvasAtoms) {
     const pos = blueprintAtomPositions.get(canvasId);
     const x3d = (pos ? pos.x - canvasCenter.x : 0) / 40;
     const z3d = (pos ? -(pos.y - canvasCenter.y) : 0) / 40;
     const id3d = nextId++;
     atoms.set(id3d, { id: id3d, el: atom.el, pos: { x: x3d, y: 0, z: z3d } });
+    spawnAnim.set(id3d, now); // Add spawn animation for proper rendering
     idMap.set(canvasId, id3d);
   }
   
@@ -4853,9 +4858,10 @@ window.__mol3d = {
       return `Cloned ${times} times`;
     },
     dna: (length = 20) => {
-      console.log(`%c🧬 DNA MODE! Creating helix with ${length} atoms...`, 'color: #3f51b5; font-weight: bold; font-size: 14px;');
+      console.log(`%c DNA MODE! Creating helix with ${length} atoms...`, 'color: #3f51b5; font-weight: bold; font-size: 14px;');
       clearAll();
       const atomIds = [];
+      const now = performance.now();
       for (let i = 0; i < length; i++) {
         const angle = (i / length) * Math.PI * 4;
         const el = i % 2 === 0 ? ELEMENTS.find(e => e.sym === 'C') : ELEMENTS.find(e => e.sym === 'O');
@@ -4866,6 +4872,7 @@ window.__mol3d = {
           z: Math.sin(angle) * 2
         };
         atoms.set(id, { id, el, pos });
+        spawnAnim.set(id, now); // Add spawn animation for proper rendering
         atomIds.push(id);
       }
       // Create bonds between adjacent atoms
@@ -4956,7 +4963,7 @@ window.__mol3d = {
       return `Unlocked ${CHALLENGES.length} discoveries!`;
     },
     spawnMolecule: (formula) => {
-      console.log(`%c🧪 Spawning molecule: ${formula}`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+      console.log(`%c Spawning molecule: ${formula}`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
       clearAll();
       // Parse formula to get atoms (e.g., "C2H6O" -> ["C", "C", "H", "H", "H", "H", "H", "H", "O"])
       const atomList = [];
@@ -4976,6 +4983,7 @@ window.__mol3d = {
       // Central atom first (the one with highest typical valence), others around it
       const atomIds = [];
       const positions = computeInitialPositions(atomList);
+      const now = performance.now();
       for (let i = 0; i < atomList.length; i++) {
         const sym = atomList[i];
         const el = ELEMENTS.find(e => e.sym === sym);
@@ -4986,6 +4994,7 @@ window.__mol3d = {
         const id = nextId++;
         const pos = positions[i] || { x: (i % 5) * 1.5 - 3, y: 0, z: Math.floor(i / 5) * 1.5 };
         atoms.set(id, { id, el, pos });
+        spawnAnim.set(id, now); // Add spawn animation for proper rendering
         atomIds.push(id);
       }
       // Auto-bond: connect atoms based on proximity and valence rules

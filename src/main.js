@@ -3575,17 +3575,15 @@ function exportBlueprintTo3D() {
   canvasCenter.x /= blueprintCanvasAtoms.size || 1;
   canvasCenter.y /= blueprintCanvasAtoms.size || 1;
   
-  // Create 3D atoms from canvas atoms
+  // Create 3D atoms from canvas atoms (directly, without calling spawnAtom)
+  // This avoids triggering reanalyze() for each atom
   for (const [canvasId, atom] of blueprintCanvasAtoms) {
     const pos = blueprintAtomPositions.get(canvasId);
     const x3d = (pos ? pos.x - canvasCenter.x : 0) / 40;
     const z3d = (pos ? -(pos.y - canvasCenter.y) : 0) / 40;
-    const id3d = spawnAtom(atom.el);
-    if (id3d !== undefined) {
-      const a = atoms.get(id3d);
-      if (a) { a.pos.x = x3d; a.pos.y = 0; a.pos.z = z3d; }
-      idMap.set(canvasId, id3d);
-    }
+    const id3d = nextId++;
+    atoms.set(id3d, { id: id3d, el: atom.el, pos: { x: x3d, y: 0, z: z3d } });
+    idMap.set(canvasId, id3d);
   }
   
   // Create 3D bonds from canvas bonds
@@ -3593,11 +3591,10 @@ function exportBlueprintTo3D() {
     const id3dA = idMap.get(bond.a);
     const id3dB = idMap.get(bond.b);
     if (id3dA !== undefined && id3dB !== undefined) {
-      createBond(id3dA, id3dB);
-      // Set bond order
-      if (bond.order !== 1) {
-        const newBond = findBond(id3dA, id3dB);
-        if (newBond) setBondOrder(newBond.id, bond.order === 0 ? 1 : bond.order);
+      const chk = bondCheck(atoms, bonds, id3dA, id3dB);
+      if (chk.ok) {
+        const bondId = nextId++;
+        bonds.set(bondId, { id: bondId, a: id3dA, b: id3dB, order: bond.order || 1, ionic: chk.type === 'ionic' });
       }
     }
   }
@@ -3615,7 +3612,8 @@ function exportBlueprintTo3D() {
   document.title = 'Molecule Builder 3D';
   renderer.domElement.style.display = 'block';
   
-  invalidate();
+  // Now call reanalyze once to properly analyze the molecule
+  reanalyze();
   status('Exported to 3D scene!');
 }
 

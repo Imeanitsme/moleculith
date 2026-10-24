@@ -11,10 +11,11 @@
   <div id="app">
     <header>
       <div class="brand-wrap">
-        <div class="brand">Molecule Builder <span>3D</span></div>
+        <div class="brand">Molecule Builder <span id="mode-indicator">3D</span></div>
         <span class="credit">Made by Nguyen Thien Quan. Warning: All right reserved @2026</span>
       </div>
       <div class="toolbar">
+        <button id="btn-blueprint-mode" class="toggle" title="Switch to BluePrint 2D mode">BluePrint</button>
         <button id="btn-undo" title="Ctrl+Z" data-i18n="btn.undo">Undo</button>
         <button id="btn-delete" title="Del" data-i18n="btn.delete" disabled>Delete</button>
         <button id="btn-duplicate" title="Ctrl+D" data-i18n="btn.duplicate">Duplicate</button>
@@ -32,9 +33,43 @@
             <input type="range" id="volume-slider" min="0" max="100" value="50" />
           </div>
           <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
+          <button id="btn-console" data-i18n="btn.console">Console</button>
         </div>
       </div>
     </header>
+
+    <!-- BluePrint Mode Toolbar -->
+    <div id="blueprint-toolbar" class="blueprint-toolbar" hidden>
+      <div class="blueprint-tools">
+        <span id="bp-element-display" class="bp-element-display" title="Selected element — click an element in the pool to change">C</span>
+        <div class="bp-separator"></div>
+        <button id="bp-select" class="bp-tool active" title="Select / move atoms (V)">Select</button>
+        <button id="bp-eraser" class="bp-tool" title="Eraser — click atom or bond to delete (E)">Eraser</button>
+        <div class="bp-separator"></div>
+        <button id="bp-bond-single" class="bp-tool" title="Single bond (1)">─</button>
+        <button id="bp-bond-double" class="bp-tool" title="Double bond (2)">═</button>
+        <button id="bp-bond-triple" class="bp-tool" title="Triple bond (3)">≡</button>
+        <button id="bp-bond-coordinate" class="bp-tool" title="Coordinate bond (←)">←</button>
+        <div class="bp-separator"></div>
+        <button id="bp-bracket" class="bp-tool" title="Coordination brackets [ ]">[ ]</button>
+        <button id="bp-electron" class="bp-tool" title="Show electron shells">e⁻</button>
+        <div class="bp-separator"></div>
+        <button id="bp-undo" class="bp-tool" title="Undo (Ctrl+Z)">↩</button>
+        <button id="bp-redo" class="bp-tool" title="Redo (Ctrl+Y)">↪</button>
+        <div class="bp-separator"></div>
+        <button id="bp-clean" class="bp-tool" title="Auto-layout molecule">Clean</button>
+        <button id="bp-center" class="bp-tool" title="Zoom to fit">Center</button>
+        <button id="bp-grid" class="bp-tool active" title="Toggle grid snap">Grid</button>
+        <button id="bp-add-h" class="bp-tool" title="Auto-add hydrogens">+H</button>
+        <div class="bp-separator"></div>
+        <button id="bp-to-3d" class="bp-tool bp-primary" title="Export molecule to 3D scene">→ 3D</button>
+        <button id="bp-export-png" class="bp-tool" title="Export as PNG image">PNG</button>
+        <button id="bp-clear" class="bp-tool bp-danger" title="Clear 2D canvas">Clear</button>
+        <div class="bp-separator"></div>
+        <button id="bp-mode-structural" class="bp-tool active" title="Structural view">Structural</button>
+        <button id="bp-mode-bohr" class="bp-tool" title="Bohr model">Bohr</button>
+      </div>
+    </div>
 
     <aside id="left" class="msheet">
       <section class="panel grow">
@@ -51,6 +86,7 @@
     </aside>
 
     <main id="scene-wrap">
+      <canvas id="blueprint-canvas" style="display:none"></canvas>
       <div id="hint" data-i18n-html="hint.html">
         Click an element in the pool to place your first atom.<br />
         Drag atoms together to bond them &mdash; green ghost means a legal bond, red means forbidden.<br />
@@ -225,6 +261,23 @@
           <button type="submit" class="btn-primary" data-i18n="btn.create">Create</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Mobile Console Overlay -->
+  <div id="mobile-console" class="mobile-console" hidden>
+    <div class="console-header">
+      <span class="console-title">Console</span>
+      <div class="console-actions">
+        <button id="console-clear" class="console-btn" title="Clear">Clear</button>
+        <button id="console-close" class="console-btn" title="Close">×</button>
+      </div>
+    </div>
+    <div id="console-output" class="console-output"></div>
+    <div class="console-input-row">
+      <span class="console-prompt">></span>
+      <input type="text" id="console-input" class="console-input" placeholder="Type command..." autocomplete="off" />
+      <button id="console-run" class="console-btn-run">Run</button>
     </div>
   </div>
 

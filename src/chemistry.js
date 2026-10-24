@@ -165,7 +165,7 @@ export function upgradeCheck(atoms, bonds, bond) {
     return { ok: true };
   }
   const cap = pairOrderCap(atoms.get(bond.a).el, atoms.get(bond.b).el);
-  if (bond.order + 1 > cap) {
+  if (bond.order > cap) {
     const a = atoms.get(bond.a).el.sym, b = atoms.get(bond.b).el.sym;
     return { ok: false, reason: cap === 1
       ? { key: 'chem.pairCapSingle', p: { a, b } }

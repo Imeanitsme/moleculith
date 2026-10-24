@@ -22,7 +22,9 @@ import {
 import { initLang, applyStatic, t, trReason, elName, catLabel, isVi, otherLang, setLang, getLang } from './i18n.js';
 import { initTutorial, showTutorial } from './tutorial.js';
 import { AVOGADRO, setElementLookup, molarMass, compositionOf, limitingAnalysis, fmtAmount } from './stoich.js';
-import { createSimulation, compileNetwork, parseRateExpr, rk4Step } from './kinetics.js';
+import { createSimulation, compileNetwork, parseRateExpr, rk4Step, arrheniusK, temperatureSweep, R_GAS, DEFAULT_TEMPERATURE } from './kinetics.js';
+import { ALL_NETWORKS } from './data/reaction-networks.js';
+import { renderBlueprint, renderReactionBlueprint, BLUEPRINT_MODES, BLUEPRINT_GRID, ELECTRON_CONFIGS } from './blueprint.js';
 
 setElementLookup(elementBySym);
 
@@ -48,6 +50,28 @@ let selectedId = null;
 let hoverId = null;
 let fcVisible = true;
 let mayhemMode = false;
+let blueprintMode = false;
+let blueprintTool = 'select';
+let blueprintViewMode = 'structural';
+let blueprintDragAtom = null;
+let blueprintDragOffset = { x: 0, y: 0 };
+let blueprintAtomPositions = new Map();
+let blueprintSelectedAtoms = new Set();
+let blueprintBrackets = new Map();
+let blueprintPan = { x: 0, y: 0 };
+let blueprintZoom = 1.0;
+let blueprintIsPanning = false;
+let blueprintPanStart = { x: 0, y: 0 };
+let blueprintCurrentElement = 'C';
+let blueprintBondDrag = null; // { startAtom, startX, startY } for drag-to-bond
+let blueprintCanvasAtoms = new Map(); // atoms created in BluePrint mode (separate from 3D scene)
+let blueprintCanvasBonds = new Map(); // bonds created in BluePrint mode
+let blueprintNextId = 10000; // ID counter for canvas atoms
+let blueprintGridSnap = true;
+let blueprintAutoHydrogen = false;
+let blueprintUndoStack = [];
+let blueprintRedoStack = [];
+let blueprintMouseDownPlaced = false;
 const customElements = [];
 const completed = new Set();  // challenge keys
 const undoStack = [];
@@ -152,6 +176,14 @@ const atomMeshM = new THREE.InstancedMesh(sphereGeo, atomMatM, MAX_ATOMS);
 const atomMeshN = new THREE.InstancedMesh(sphereGeo, atomMatN, MAX_ATOMS);
 const bondMeshC = new THREE.InstancedMesh(cylGeo, bondMatC, MAX_CYLS);
 const bondMeshI = new THREE.InstancedMesh(cylGeo, bondMatI, MAX_CYLS);
+atomMeshM.instanceCount = 0;
+atomMeshN.instanceCount = 0;
+bondMeshC.instanceCount = 0;
+bondMeshI.instanceCount = 0;
+atomMeshM.visible = false;
+atomMeshN.visible = false;
+bondMeshC.visible = false;
+bondMeshI.visible = false;
 for (const m of [atomMeshM, atomMeshN, bondMeshC, bondMeshI]) {
   m.frustumCulled = false;
   m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -361,8 +393,10 @@ function syncInstances() {
     mesh.setColorAt(idx, _col);
     (metal ? atomIdM : atomIdN)[idx] = id;
   }
-  atomMeshM.count = mi;
-  atomMeshN.count = ni;
+  atomMeshM.instanceCount = mi;
+  atomMeshN.instanceCount = ni;
+  atomMeshM.visible = mi > 0;
+  atomMeshN.visible = ni > 0;
   atomMeshM.instanceMatrix.needsUpdate = true;
   atomMeshN.instanceMatrix.needsUpdate = true;
   if (atomMeshM.instanceColor) atomMeshM.instanceColor.needsUpdate = true;
@@ -409,8 +443,10 @@ function syncInstances() {
       }
     }
   }
-  bondMeshC.count = ci;
-  bondMeshI.count = ii;
+  bondMeshC.instanceCount = ci;
+  bondMeshI.instanceCount = ii;
+  bondMeshC.visible = ci > 0;
+  bondMeshI.visible = ii > 0;
   bondMeshC.instanceMatrix.needsUpdate = true;
   bondMeshI.instanceMatrix.needsUpdate = true;
   if (bondMeshC.instanceColor) bondMeshC.instanceColor.needsUpdate = true;
@@ -479,7 +515,8 @@ function reanalyze(pinnedIds = new Set()) {
   checkChallenges();
   save();
   syncSprites();
-  document.getElementById('hint').style.display = atoms.size ? 'none' : 'flex';
+  const hasAtoms = atoms.size > 0 || (blueprintMode && blueprintCanvasAtoms.size > 0);
+  document.getElementById('hint').style.display = hasAtoms ? 'none' : 'flex';
   invalidate();
   return lastComps;
 }
@@ -931,6 +968,7 @@ function clearAll() {
   selectedId = null; hoverId = null;
   clearReactionSel();
   reanalyze();
+  save(true);
   status(t('status.cleared'), 'info');
 }
 
@@ -1937,6 +1975,13 @@ function filterPool() {
 }
 
 function spawnFromPool(el) {
+  if (blueprintMode) {
+    blueprintCurrentElement = el.sym;
+    updateBlueprintElementDisplay();
+    status(`Element: ${el.sym} (${el.name}) — click on canvas to place`);
+    if (document.body.classList.contains('mobile')) closeMobileSheets();
+    return;
+  }
   spawnAtom(el);
   if (document.body.classList.contains('mobile')) closeMobileSheets();
 }
@@ -2757,6 +2802,223 @@ document.addEventListener('click', e => {
   }
 });
 
+// Mobile Console
+const mobileConsole = document.getElementById('mobile-console');
+const consoleOutput = document.getElementById('console-output');
+const consoleInput = document.getElementById('console-input');
+const consoleHistory = [];
+let consoleHistoryIndex = -1;
+let consoleSuggestions = [];
+let suggestionIndex = -1;
+
+// Create suggestions dropdown
+const suggestionsDiv = document.createElement('div');
+suggestionsDiv.className = 'console-suggestions';
+suggestionsDiv.hidden = true;
+consoleInput.parentElement.style.position = 'relative';
+consoleInput.parentElement.insertBefore(suggestionsDiv, consoleInput);
+
+// Available commands for autocomplete
+const availableCommands = [
+  '__mol3d.help()',
+  '__mol3d.status()',
+  '__mol3d.listAtoms()',
+  '__mol3d.listBonds()',
+  '__mol3d.findElement(',
+  '__mol3d.analyses()',
+  '__mol3d.comps()',
+  '__mol3d.discoveries()',
+  '__mol3d.spawnAtom(',
+  '__mol3d.removeAtom(',
+  '__mol3d.selectAtom(',
+  '__mol3d.devBond(',
+  '__mol3d.devUpgrade(',
+  '__mol3d.clearAll()',
+  '__mol3d.undo()',
+  '__mol3d.export()',
+  '__mol3d.import(',
+  '__mol3d.reset()',
+  '__mol3d.setQuality(',
+  '__mol3d.reanalyze()',
+  '__mol3d.hacks.godMode()',
+  '__mol3d.hacks.mortalMode()',
+  '__mol3d.hacks.chaos(',
+  '__mol3d.hacks.party()',
+  '__mol3d.hacks.matrix()',
+  '__mol3d.hacks.rainbow()',
+  '__mol3d.hacks.disco()',
+  '__mol3d.hacks.giant()',
+  '__mol3d.hacks.tiny()',
+  '__mol3d.hacks.explosion(',
+  '__mol3d.hacks.implode()',
+  '__mol3d.hacks.clone(',
+  '__mol3d.hacks.dna(',
+  '__mol3d.hacks.firework(',
+  '__mol3d.hacks.blackHole()',
+  '__mol3d.hacks.antiGravity()',
+  '__mol3d.hacks.quantum()',
+  '__mol3d.hacks.unlockAll()',
+  '__mol3d.hacks.spawnMolecule(',
+  '__mol3d.hacks.mirror()',
+  '__mol3d.hacks.slowmo()',
+  '__mol3d.hacks.fastforward()',
+  '__mol3d.hacks.normalSpeed()',
+];
+
+function updateSuggestions(input) {
+  if (!input.trim()) {
+    suggestionsDiv.hidden = true;
+    return;
+  }
+  
+  const matches = availableCommands.filter(cmd => cmd.toLowerCase().includes(input.toLowerCase()));
+  if (matches.length === 0) {
+    suggestionsDiv.hidden = true;
+    return;
+  }
+  
+  suggestionsDiv.innerHTML = '';
+  matches.slice(0, 5).forEach((match, idx) => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item' + (idx === suggestionIndex ? ' active' : '');
+    item.textContent = match;
+    item.addEventListener('click', () => {
+      consoleInput.value = match;
+      suggestionsDiv.hidden = true;
+      consoleInput.focus();
+    });
+    suggestionsDiv.appendChild(item);
+  });
+  suggestionsDiv.hidden = false;
+}
+
+// Override console methods to capture output
+const originalConsole = {
+  log: console.log.bind(console),
+  error: console.error.bind(console),
+  warn: console.warn.bind(console),
+  info: console.info.bind(console),
+};
+
+function addConsoleEntry(type, args) {
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  const text = Array.from(args).map(arg => {
+    if (typeof arg === 'object') {
+      try { return JSON.stringify(arg, null, 2); } catch { return String(arg); }
+    }
+    return String(arg);
+  }).join(' ');
+  entry.textContent = text;
+  consoleOutput.appendChild(entry);
+  consoleOutput.scrollTop = consoleOutput.scrollHeight;
+}
+
+console.log = function(...args) {
+  originalConsole.log(...args);
+  addConsoleEntry('log', args);
+};
+
+console.error = function(...args) {
+  originalConsole.error(...args);
+  addConsoleEntry('error', args);
+};
+
+console.warn = function(...args) {
+  originalConsole.warn(...args);
+  addConsoleEntry('warn', args);
+};
+
+console.info = function(...args) {
+  originalConsole.info(...args);
+  addConsoleEntry('info', args);
+};
+
+function executeConsoleCommand(cmd) {
+  if (!cmd.trim()) return;
+  
+  consoleHistory.push(cmd);
+  consoleHistoryIndex = consoleHistory.length;
+  
+  addConsoleEntry('info', [`> ${cmd}`]);
+  
+  try {
+    // Execute with window context to access __mol3d
+    const fn = new Function('return ' + cmd);
+    const result = fn();
+    if (result !== undefined) {
+      addConsoleEntry('result', [result]);
+    }
+  } catch (e) {
+    addConsoleEntry('error', [e.message]);
+  }
+}
+
+document.getElementById('btn-console').addEventListener('click', () => {
+  mobileConsole.hidden = !mobileConsole.hidden;
+  if (!mobileConsole.hidden) {
+    consoleInput.focus();
+    btnMenu.setAttribute('aria-expanded', 'false');
+    menuDropdown.hidden = true;
+  }
+});
+
+document.getElementById('console-close').addEventListener('click', () => {
+  mobileConsole.hidden = true;
+});
+
+document.getElementById('console-clear').addEventListener('click', () => {
+  consoleOutput.innerHTML = '';
+});
+
+document.getElementById('console-run').addEventListener('click', () => {
+  executeConsoleCommand(consoleInput.value);
+  consoleInput.value = '';
+});
+
+consoleInput.addEventListener('input', () => {
+  suggestionIndex = -1;
+  updateSuggestions(consoleInput.value);
+});
+
+consoleInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    executeConsoleCommand(consoleInput.value);
+    consoleInput.value = '';
+    suggestionsDiv.hidden = true;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!suggestionsDiv.hidden && suggestionsDiv.children.length > 0) {
+      suggestionIndex = Math.max(0, suggestionIndex - 1);
+      updateSuggestions(consoleInput.value);
+    } else if (consoleHistoryIndex > 0) {
+      consoleHistoryIndex--;
+      consoleInput.value = consoleHistory[consoleHistoryIndex];
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (!suggestionsDiv.hidden && suggestionsDiv.children.length > 0) {
+      suggestionIndex = Math.min(suggestionsDiv.children.length - 1, suggestionIndex + 1);
+      updateSuggestions(consoleInput.value);
+    } else if (consoleHistoryIndex < consoleHistory.length - 1) {
+      consoleHistoryIndex++;
+      consoleInput.value = consoleHistory[consoleHistoryIndex];
+    } else {
+      consoleHistoryIndex = consoleHistory.length;
+      consoleInput.value = '';
+    }
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    if (!suggestionsDiv.hidden && suggestionsDiv.children.length > 0) {
+      const idx = suggestionIndex >= 0 ? suggestionIndex : 0;
+      consoleInput.value = suggestionsDiv.children[idx].textContent;
+      suggestionsDiv.hidden = true;
+    }
+  } else if (e.key === 'Escape') {
+    suggestionsDiv.hidden = true;
+  }
+});
+
 document.getElementById('btn-fc').addEventListener('click', () => {
   fcVisible = !fcVisible;
   document.getElementById('btn-fc').classList.toggle('on', fcVisible);
@@ -2769,6 +3031,1103 @@ document.getElementById('btn-mayhem').addEventListener('click', () => {
   rebuildPool();
   status(mayhemMode ? 'Mayhem mode ON — exotic elements unlocked!' : 'Mayhem mode OFF');
 });
+
+// BluePrint mode toggle
+document.getElementById('btn-blueprint-mode').addEventListener('click', () => {
+  blueprintMode = !blueprintMode;
+  document.getElementById('btn-blueprint-mode').classList.toggle('active', blueprintMode);
+  document.getElementById('blueprint-toolbar').hidden = !blueprintMode;
+  document.getElementById('blueprint-canvas').style.display = blueprintMode ? 'block' : 'none';
+  renderer.domElement.style.display = blueprintMode ? 'none' : 'block';
+  
+  const modeIndicator = document.getElementById('mode-indicator');
+  if (blueprintMode) {
+    modeIndicator.textContent = 'BluePrint';
+    modeIndicator.classList.add('blueprint');
+    document.title = 'Molecule Builder BluePrint';
+    initBlueprintCanvas();
+    clearBlueprintCanvas();
+    renderBlueprintScene();
+  } else {
+    modeIndicator.textContent = '3D';
+    modeIndicator.classList.remove('blueprint');
+    document.title = 'Molecule Builder 3D';
+  }
+  
+  status(blueprintMode ? 'BluePrint mode ON — 2D molecule builder' : 'BluePrint mode OFF — 3D visualization');
+  invalidate();
+});
+
+// BluePrint toolbar handlers
+function updateBlueprintElementDisplay() {
+  const display = document.getElementById('bp-element-display');
+  if (display) display.textContent = blueprintCurrentElement;
+}
+
+document.getElementById('bp-select').addEventListener('click', () => setBlueprintTool('select'));
+document.getElementById('bp-eraser').addEventListener('click', () => setBlueprintTool('eraser'));
+document.getElementById('bp-bracket').addEventListener('click', () => setBlueprintTool('bracket'));
+document.getElementById('bp-bond-single').addEventListener('click', () => setBlueprintTool('bond-single'));
+document.getElementById('bp-bond-double').addEventListener('click', () => setBlueprintTool('bond-double'));
+document.getElementById('bp-bond-triple').addEventListener('click', () => setBlueprintTool('bond-triple'));
+document.getElementById('bp-bond-coordinate').addEventListener('click', () => setBlueprintTool('bond-coordinate'));
+document.getElementById('bp-electron').addEventListener('click', () => setBlueprintTool('electron'));
+document.getElementById('bp-to-3d').addEventListener('click', () => exportBlueprintTo3D());
+document.getElementById('bp-export-png').addEventListener('click', () => exportBlueprintPNG());
+document.getElementById('bp-clear').addEventListener('click', () => clearBlueprintCanvas());
+document.getElementById('bp-undo').addEventListener('click', () => blueprintUndo());
+document.getElementById('bp-redo').addEventListener('click', () => blueprintRedo());
+document.getElementById('bp-clean').addEventListener('click', () => blueprintCleanLayout());
+document.getElementById('bp-center').addEventListener('click', () => blueprintZoomToFit());
+document.getElementById('bp-mode-structural').addEventListener('click', () => setBlueprintViewMode('structural'));
+document.getElementById('bp-mode-bohr').addEventListener('click', () => setBlueprintViewMode('bohr'));
+
+document.getElementById('bp-grid').addEventListener('click', () => {
+  blueprintGridSnap = !blueprintGridSnap;
+  document.getElementById('bp-grid').classList.toggle('active', blueprintGridSnap);
+  status(`Grid snap: ${blueprintGridSnap ? 'ON' : 'OFF'}`);
+});
+
+document.getElementById('bp-add-h').addEventListener('click', () => {
+  blueprintAutoHydrogen = !blueprintAutoHydrogen;
+  document.getElementById('bp-add-h').classList.toggle('active', blueprintAutoHydrogen);
+  if (blueprintAutoHydrogen) {
+    blueprintAddHydrogens();
+    status('Auto-added hydrogens to satisfy valences');
+  } else {
+    status('Auto-hydrogen OFF');
+  }
+});
+
+function setBlueprintTool(tool) {
+  blueprintTool = tool;
+  blueprintSelectedAtoms.clear();
+  document.querySelectorAll('.bp-tool').forEach(btn => btn.classList.remove('active'));
+  const toolBtn = document.getElementById(`bp-${tool}`);
+  if (toolBtn) toolBtn.classList.add('active');
+
+  const toolNames = {
+    'select': 'Select — click atom to select, drag to move. Click bond to cycle order.',
+    'eraser': 'Eraser — click atom or bond to delete',
+    'bracket': 'Brackets — click transition metal for auto-detect, or click 2 atoms for manual group',
+    'bond-single': 'Single bond — drag from atom to atom',
+    'bond-double': 'Double bond — drag from atom to atom',
+    'bond-triple': 'Triple bond — drag from atom to atom',
+    'bond-coordinate': 'Coordinate bond — drag from donor to acceptor',
+    'electron': 'Electron shells — click atom to show configuration',
+  };
+  status(toolNames[tool] || `Tool: ${tool}`);
+  const canvas = document.getElementById('blueprint-canvas');
+  if (canvas) canvas.style.cursor = tool === 'eraser' ? 'crosshair' : 'default';
+}
+
+function setBlueprintViewMode(mode) {
+  blueprintViewMode = mode;
+  document.querySelectorAll('[id^="bp-mode-"]').forEach(btn => btn.classList.remove('active'));
+  const modeBtn = document.getElementById(`bp-mode-${mode}`);
+  if (modeBtn) modeBtn.classList.add('active');
+  renderBlueprintScene();
+  status(`View: ${mode}`);
+}
+
+function autoDetectCoordinationComplexes() {
+  const transitionMetals = new Set(['Fe', 'Cu', 'Zn', 'Ag', 'Au', 'Pt', 'Pd', 'Ni', 'Co', 'Cr', 'Mn', 'V', 'Ti', 'Mo', 'W', 'Ru', 'Rh', 'Ir', 'Os']);
+
+  for (const [id, atom] of blueprintCanvasAtoms) {
+    if (!transitionMetals.has(atom.el.sym)) continue;
+
+    const ligandIds = new Set();
+    for (const [, bond] of blueprintCanvasBonds) {
+      if (bond.a === id) ligandIds.add(bond.b);
+      if (bond.b === id) ligandIds.add(bond.a);
+    }
+
+    if (ligandIds.size > 0) {
+      const groupAtoms = [id, ...ligandIds];
+      const groupKey = groupAtoms.sort((a, b) => a - b).join(',');
+      blueprintBrackets.set(groupKey, groupAtoms);
+    }
+  }
+}
+
+function initBlueprintCanvas() {
+  const canvas = document.getElementById('blueprint-canvas');
+  const wrap = document.getElementById('scene-wrap');
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  
+  canvas.addEventListener('mousedown', handleBlueprintMouseDown);
+  canvas.addEventListener('mousemove', handleBlueprintMouseMove);
+  canvas.addEventListener('mouseup', handleBlueprintMouseUp);
+  canvas.addEventListener('click', handleBlueprintClick);
+  canvas.addEventListener('wheel', handleBlueprintWheel, { passive: false });
+}
+
+function handleBlueprintMouseDown(e) {
+  const canvas = document.getElementById('blueprint-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const screenX = e.clientX - rect.left;
+  const screenY = e.clientY - rect.top;
+  
+  // Middle mouse button or space+click for panning
+  if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+    blueprintIsPanning = true;
+    blueprintPanStart = { x: e.clientX - blueprintPan.x, y: e.clientY - blueprintPan.y };
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+    return;
+  }
+  
+  // Convert screen to canvas coordinates
+  const canvasX = (screenX - blueprintPan.x) / blueprintZoom;
+  const canvasY = (screenY - blueprintPan.y) / blueprintZoom;
+  
+  const clickedAtom = findBlueprintCanvasAtomAt(canvasX, canvasY);
+  blueprintMouseDownPlaced = false;
+
+  if (blueprintTool === 'eraser') {
+    if (clickedAtom) {
+      blueprintPushUndo();
+      for (const [bondId, bond] of blueprintCanvasBonds) {
+        if (bond.a === clickedAtom.id || bond.b === clickedAtom.id) blueprintCanvasBonds.delete(bondId);
+      }
+      blueprintCanvasAtoms.delete(clickedAtom.id);
+      blueprintAtomPositions.delete(clickedAtom.id);
+      blueprintSelectedAtoms.delete(clickedAtom.id);
+      status(`Erased ${clickedAtom.el.sym}`);
+    } else {
+      const clickedBond = findBlueprintCanvasBondAt(canvasX, canvasY);
+      if (clickedBond) {
+        blueprintPushUndo();
+        blueprintCanvasBonds.delete(clickedBond.id);
+        status('Erased bond');
+      }
+    }
+  } else if (blueprintTool === 'select') {
+    if (clickedAtom) {
+      blueprintDragAtom = clickedAtom;
+      const pos = blueprintAtomPositions.get(clickedAtom.id);
+      blueprintDragOffset = { x: canvasX - pos.x, y: canvasY - pos.y };
+    } else {
+      const snappedX = blueprintGridSnap ? Math.round(canvasX / 40) * 40 : canvasX;
+      const snappedY = blueprintGridSnap ? Math.round(canvasY / 40) * 40 : canvasY;
+      placeBlueprintAtom(snappedX, snappedY);
+      blueprintMouseDownPlaced = true;
+    }
+  } else if (blueprintTool.startsWith('bond-')) {
+    if (clickedAtom) {
+      // Start drag-to-bond from this atom
+      blueprintBondDrag = { startAtom: clickedAtom, startX: canvasX, startY: canvasY };
+    } else {
+      // Click on empty space with bond tool - place atom and start bond
+      const newAtom = placeBlueprintAtom(canvasX, canvasY);
+      if (newAtom) {
+        blueprintBondDrag = { startAtom: newAtom, startX: canvasX, startY: canvasY };
+        blueprintMouseDownPlaced = true;
+      }
+    }
+  } else if (blueprintTool === 'bracket') {
+    if (clickedAtom) {
+      toggleBlueprintBracket(clickedAtom);
+    }
+  } else if (blueprintTool === 'electron') {
+    if (clickedAtom) {
+      showBlueprintElectrons(clickedAtom);
+    }
+  }
+  
+  renderBlueprintScene();
+}
+
+function handleBlueprintMouseMove(e) {
+  if (blueprintIsPanning) {
+    blueprintPan.x = e.clientX - blueprintPanStart.x;
+    blueprintPan.y = e.clientY - blueprintPanStart.y;
+    renderBlueprintScene();
+    return;
+  }
+  
+  if (blueprintDragAtom && blueprintTool === 'select') {
+    const canvas = document.getElementById('blueprint-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const canvasX = (screenX - blueprintPan.x) / blueprintZoom;
+    const canvasY = (screenY - blueprintPan.y) / blueprintZoom;
+
+    let finalX = canvasX - blueprintDragOffset.x;
+    let finalY = canvasY - blueprintDragOffset.y;
+    if (blueprintGridSnap) {
+      finalX = Math.round(finalX / 40) * 40;
+      finalY = Math.round(finalY / 40) * 40;
+    }
+
+    blueprintAtomPositions.set(blueprintDragAtom.id, { x: finalX, y: finalY });
+    renderBlueprintScene();
+  }
+  
+  if (blueprintBondDrag) {
+    renderBlueprintScene();
+    // Draw preview bond line
+    const canvas = document.getElementById('blueprint-canvas');
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    
+    const startPos = blueprintAtomPositions.get(blueprintBondDrag.startAtom.id);
+    ctx.save();
+    ctx.translate(blueprintPan.x, blueprintPan.y);
+    ctx.scale(blueprintZoom, blueprintZoom);
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(startPos.x, startPos.y);
+    const endX = (screenX - blueprintPan.x) / blueprintZoom;
+    const endY = (screenY - blueprintPan.y) / blueprintZoom;
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+}
+
+function handleBlueprintMouseUp(e) {
+  if (blueprintIsPanning) {
+    blueprintIsPanning = false;
+    const canvas = document.getElementById('blueprint-canvas');
+    canvas.style.cursor = 'default';
+    return;
+  }
+  
+  if (blueprintDragAtom && blueprintTool === 'select') {
+    blueprintDragAtom = null;
+  }
+  
+  if (blueprintBondDrag) {
+    const canvas = document.getElementById('blueprint-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    const canvasX = (screenX - blueprintPan.x) / blueprintZoom;
+    const canvasY = (screenY - blueprintPan.y) / blueprintZoom;
+    
+    const endAtom = findBlueprintCanvasAtomAt(canvasX, canvasY);
+    
+    if (endAtom && endAtom.id !== blueprintBondDrag.startAtom.id) {
+      // Create bond between start and end atoms
+      createBlueprintBond(blueprintBondDrag.startAtom.id, endAtom.id);
+    } else if (!blueprintMouseDownPlaced) {
+      // Only place new atom if one wasn't already placed in mousedown
+      let snappedX = canvasX;
+      let snappedY = canvasY;
+      if (blueprintGridSnap) {
+        snappedX = Math.round(snappedX / 40) * 40;
+        snappedY = Math.round(snappedY / 40) * 40;
+      }
+      const newAtom = placeBlueprintAtom(snappedX, snappedY);
+      if (newAtom) {
+        createBlueprintBond(blueprintBondDrag.startAtom.id, newAtom.id);
+      }
+    }
+    
+    blueprintBondDrag = null;
+    renderBlueprintScene();
+  }
+}
+
+function handleBlueprintWheel(e) {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  blueprintZoom = Math.max(0.3, Math.min(3.0, blueprintZoom * delta));
+  renderBlueprintScene();
+}
+
+function handleBlueprintClick(e) {
+  const canvas = document.getElementById('blueprint-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const screenX = e.clientX - rect.left;
+  const screenY = e.clientY - rect.top;
+
+  const canvasX = (screenX - blueprintPan.x) / blueprintZoom;
+  const canvasY = (screenY - blueprintPan.y) / blueprintZoom;
+  const clickedAtom = findBlueprintCanvasAtomAt(canvasX, canvasY);
+
+  if (!clickedAtom) {
+    if (blueprintTool === 'select') {
+      const clickedBond = findBlueprintCanvasBondAt(canvasX, canvasY);
+      if (clickedBond) {
+        let newOrder;
+        if (clickedBond.order === 0) newOrder = 'delete';
+        else if (clickedBond.order === 1) newOrder = 2;
+        else if (clickedBond.order === 2) newOrder = 3;
+        else if (clickedBond.order === 3) newOrder = 2;
+
+        if (newOrder === 'delete') {
+          blueprintPushUndo();
+          blueprintCanvasBonds.delete(clickedBond.id);
+          status('Bond removed');
+        } else {
+          const testBond = { ...clickedBond, order: newOrder };
+          const up = upgradeCheck(blueprintCanvasAtoms, blueprintCanvasBonds, testBond);
+          if (!up.ok) { status(trReason(up.reason), 'err'); renderBlueprintScene(); return; }
+          blueprintPushUndo();
+          clickedBond.order = newOrder;
+          status(`Bond → ${newOrder === 2 ? 'double' : 'triple'}`);
+        }
+        renderBlueprintScene();
+        return;
+      }
+    }
+    blueprintSelectedAtoms.clear();
+    renderBlueprintScene();
+    return;
+  }
+
+  switch (blueprintTool) {
+    case 'select':
+      if (e.ctrlKey || e.metaKey) {
+        if (blueprintSelectedAtoms.has(clickedAtom.id)) {
+          blueprintSelectedAtoms.delete(clickedAtom.id);
+        } else {
+          blueprintSelectedAtoms.add(clickedAtom.id);
+        }
+      } else {
+        blueprintSelectedAtoms.clear();
+        blueprintSelectedAtoms.add(clickedAtom.id);
+        selectAtom(clickedAtom.id);
+      }
+      break;
+      
+    case 'bracket':
+      toggleBlueprintBracket(clickedAtom);
+      break;
+
+    case 'electron':
+      showBlueprintElectrons(clickedAtom);
+      break;
+  }
+  
+  renderBlueprintScene();
+}
+
+function findBond(atomId1, atomId2) {
+  for (const [bondId, bond] of bonds) {
+    if ((bond.a === atomId1 && bond.b === atomId2) ||
+        (bond.a === atomId2 && bond.b === atomId1)) {
+      return bond;
+    }
+  }
+  return null;
+}
+
+function toggleBlueprintBracket(atom) {
+  const isTransitionMetal = ['Fe', 'Cu', 'Zn', 'Ag', 'Au', 'Pt', 'Pd', 'Ni', 'Co', 'Cr', 'Mn', 'V', 'Ti', 'Mo', 'W', 'Ru', 'Rh', 'Ir', 'Os'].includes(atom.el.sym);
+
+  if (isTransitionMetal) {
+    const ligandIds = new Set();
+    for (const [, bond] of blueprintCanvasBonds) {
+      if (bond.a === atom.id) ligandIds.add(bond.b);
+      if (bond.b === atom.id) ligandIds.add(bond.a);
+    }
+
+    if (ligandIds.size > 0) {
+      const groupAtoms = [atom.id, ...ligandIds];
+      const groupKey = groupAtoms.sort((a, b) => a - b).join(',');
+
+      if (blueprintBrackets.has(groupKey)) {
+        blueprintBrackets.delete(groupKey);
+        status('Coordination complex bracket removed');
+      } else {
+        blueprintBrackets.set(groupKey, groupAtoms);
+        status(`Coordination complex: [${atom.el.sym}(${ligandIds.size} ligands)]`);
+      }
+      return;
+    }
+  }
+
+  if (blueprintSelectedAtoms.has(atom.id)) {
+    blueprintSelectedAtoms.delete(atom.id);
+  } else {
+    blueprintSelectedAtoms.add(atom.id);
+  }
+
+  if (blueprintSelectedAtoms.size >= 2) {
+    const groupKey = [...blueprintSelectedAtoms].sort((a, b) => a - b).join(',');
+    if (blueprintBrackets.has(groupKey)) {
+      blueprintBrackets.delete(groupKey);
+      status('Bracket group removed');
+    } else {
+      blueprintBrackets.set(groupKey, [...blueprintSelectedAtoms]);
+      status(`Bracket group: ${blueprintSelectedAtoms.size} atoms`);
+    }
+    blueprintSelectedAtoms.clear();
+  } else {
+    status(`Selected ${blueprintSelectedAtoms.size}/2 atoms for bracket`);
+  }
+}
+
+function showBlueprintElectrons(atom) {
+  status(`Electron config: ${atom.el.sym} - ${ELECTRON_CONFIGS[atom.el.sym]?.join(', ') || 'Unknown'}`);
+}
+
+function findBlueprintCanvasAtomAt(canvasX, canvasY) {
+  const atomRadius = 20;
+  
+  for (const [id, atom] of blueprintCanvasAtoms) {
+    const pos = blueprintAtomPositions.get(id);
+    if (!pos) continue;
+    
+    const dx = pos.x - canvasX;
+    const dy = pos.y - canvasY;
+    if (dx * dx + dy * dy < atomRadius * atomRadius) {
+      return atom;
+    }
+  }
+  return null;
+}
+
+function placeBlueprintAtom(x, y) {
+  const el = elementBySym(blueprintCurrentElement);
+  if (!el) return null;
+
+  blueprintPushUndo();
+  const id = blueprintNextId++;
+  const atom = { id, el, pos: { x: 0, y: 0, z: 0 } };
+  blueprintCanvasAtoms.set(id, atom);
+  blueprintAtomPositions.set(id, { x, y });
+
+  status(`Placed ${el.sym} on canvas`);
+  return atom;
+}
+
+function findBlueprintCanvasBond(id1, id2) {
+  for (const [bondId, bond] of blueprintCanvasBonds) {
+    if ((bond.a === id1 && bond.b === id2) || (bond.a === id2 && bond.b === id1)) {
+      return bond;
+    }
+  }
+  return null;
+}
+
+function createBlueprintBond(id1, id2) {
+  if (id1 === id2) return;
+  const existing = findBlueprintCanvasBond(id1, id2);
+  const targetOrder = blueprintTool === 'bond-single' ? 1 :
+                      blueprintTool === 'bond-double' ? 2 :
+                      blueprintTool === 'bond-triple' ? 3 :
+                      blueprintTool === 'bond-coordinate' ? 0 : 1;
+
+  const a1 = blueprintCanvasAtoms.get(id1);
+  const a2 = blueprintCanvasAtoms.get(id2);
+  if (!a1 || !a2) return;
+
+  if (existing) {
+    if (existing.order === targetOrder) {
+      blueprintPushUndo();
+      blueprintCanvasBonds.delete(existing.id);
+      status('Bond removed');
+    } else {
+      if (targetOrder > 0) {
+        const testBond = { ...existing, order: targetOrder };
+        const up = upgradeCheck(blueprintCanvasAtoms, blueprintCanvasBonds, testBond);
+        if (!up.ok) { status(trReason(up.reason), 'err'); return; }
+      }
+      blueprintPushUndo();
+      existing.order = targetOrder;
+      status(`Bond order: ${targetOrder === 0 ? 'coordinate' : targetOrder}`);
+    }
+  } else {
+    const chk = bondCheck(blueprintCanvasAtoms, blueprintCanvasBonds, id1, id2);
+    if (!chk.ok) { status(trReason(chk.reason), 'err'); return; }
+
+    if (targetOrder > 1) {
+      const tempBond = { id: -1, a: id1, b: id2, order: targetOrder, ionic: false };
+      const up = upgradeCheck(blueprintCanvasAtoms, blueprintCanvasBonds, tempBond);
+      if (!up.ok) { status(trReason(up.reason), 'err'); return; }
+    }
+
+    blueprintPushUndo();
+    const bondId = blueprintNextId++;
+    blueprintCanvasBonds.set(bondId, { id: bondId, a: id1, b: id2, order: targetOrder, ionic: false });
+    const sym1 = a1.el.sym;
+    const sym2 = a2.el.sym;
+    status(`Bond: ${sym1} ${targetOrder === 0 ? '←' : targetOrder === 1 ? '─' : targetOrder === 2 ? '═' : '≡'} ${sym2}`);
+  }
+}
+
+function exportBlueprintTo3D() {
+  if (blueprintCanvasAtoms.size === 0) {
+    status('Nothing to export — place atoms on the canvas first', 'err');
+    return;
+  }
+  
+  // Map canvas atom IDs to 3D scene atom IDs
+  const idMap = new Map();
+  const canvasCenter = { x: 0, y: 0 };
+  
+  // Calculate center of canvas atoms
+  for (const [id] of blueprintCanvasAtoms) {
+    const pos = blueprintAtomPositions.get(id);
+    if (pos) { canvasCenter.x += pos.x; canvasCenter.y += pos.y; }
+  }
+  canvasCenter.x /= blueprintCanvasAtoms.size || 1;
+  canvasCenter.y /= blueprintCanvasAtoms.size || 1;
+  
+  // Create 3D atoms from canvas atoms
+  for (const [canvasId, atom] of blueprintCanvasAtoms) {
+    const pos = blueprintAtomPositions.get(canvasId);
+    const x3d = (pos ? pos.x - canvasCenter.x : 0) / 40;
+    const z3d = (pos ? -(pos.y - canvasCenter.y) : 0) / 40;
+    const id3d = spawnAtom(atom.el);
+    if (id3d !== undefined) {
+      const a = atoms.get(id3d);
+      if (a) { a.pos.x = x3d; a.pos.y = 0; a.pos.z = z3d; }
+      idMap.set(canvasId, id3d);
+    }
+  }
+  
+  // Create 3D bonds from canvas bonds
+  for (const [canvasBondId, bond] of blueprintCanvasBonds) {
+    const id3dA = idMap.get(bond.a);
+    const id3dB = idMap.get(bond.b);
+    if (id3dA !== undefined && id3dB !== undefined) {
+      createBond(id3dA, id3dB);
+      // Set bond order
+      if (bond.order !== 1) {
+        const newBond = findBond(id3dA, id3dB);
+        if (newBond) setBondOrder(newBond.id, bond.order === 0 ? 1 : bond.order);
+      }
+    }
+  }
+  
+  // Clear canvas
+  clearBlueprintCanvas();
+  
+  // Switch to 3D mode
+  blueprintMode = false;
+  document.getElementById('btn-blueprint-mode').classList.remove('active');
+  document.getElementById('blueprint-toolbar').hidden = true;
+  document.getElementById('blueprint-canvas').style.display = 'none';
+  document.getElementById('mode-indicator').textContent = '3D';
+  document.getElementById('mode-indicator').classList.remove('blueprint');
+  document.title = 'Molecule Builder 3D';
+  renderer.domElement.style.display = 'block';
+  
+  invalidate();
+  status('Exported to 3D scene!');
+}
+
+function clearBlueprintCanvas() {
+  blueprintPushUndo();
+  blueprintCanvasAtoms.clear();
+  blueprintCanvasBonds.clear();
+  blueprintAtomPositions.clear();
+  blueprintSelectedAtoms.clear();
+  blueprintBrackets.clear();
+  blueprintPan = { x: 0, y: 0 };
+  blueprintZoom = 1.0;
+  blueprintUndoStack = [];
+  blueprintRedoStack = [];
+  renderBlueprintScene();
+  status('Canvas cleared');
+}
+
+function blueprintPushUndo() {
+  const state = {
+    atoms: new Map(),
+    bonds: new Map(),
+    positions: new Map(),
+    brackets: new Map(),
+  };
+  for (const [id, atom] of blueprintCanvasAtoms) {
+    state.atoms.set(id, { id, el: atom.el, pos: { ...atom.pos } });
+  }
+  for (const [id, bond] of blueprintCanvasBonds) {
+    state.bonds.set(id, { id, a: bond.a, b: bond.b, order: bond.order, ionic: bond.ionic });
+  }
+  for (const [id, pos] of blueprintAtomPositions) {
+    state.positions.set(id, { ...pos });
+  }
+  for (const [key, val] of blueprintBrackets) {
+    state.brackets.set(key, [...val]);
+  }
+  blueprintUndoStack.push(state);
+  blueprintRedoStack = [];
+  if (blueprintUndoStack.length > 50) blueprintUndoStack.shift();
+}
+
+function blueprintRestoreState(state) {
+  blueprintCanvasAtoms.clear();
+  blueprintCanvasBonds.clear();
+  blueprintAtomPositions.clear();
+  blueprintBrackets.clear();
+  for (const [id, atom] of state.atoms) blueprintCanvasAtoms.set(id, { ...atom, el: atom.el, pos: { ...atom.pos } });
+  for (const [id, bond] of state.bonds) blueprintCanvasBonds.set(id, { ...bond });
+  for (const [id, pos] of state.positions) blueprintAtomPositions.set(id, { ...pos });
+  for (const [key, val] of state.brackets) blueprintBrackets.set(key, [...val]);
+}
+
+function blueprintUndo() {
+  if (blueprintUndoStack.length === 0) { status('Nothing to undo', 'err'); return; }
+  const current = {
+    atoms: new Map(), bonds: new Map(), positions: new Map(), brackets: new Map(),
+  };
+  for (const [id, atom] of blueprintCanvasAtoms) current.atoms.set(id, { id, el: atom.el, pos: { ...atom.pos } });
+  for (const [id, bond] of blueprintCanvasBonds) current.bonds.set(id, { id, a: bond.a, b: bond.b, order: bond.order, ionic: bond.ionic });
+  for (const [id, pos] of blueprintAtomPositions) current.positions.set(id, { ...pos });
+  for (const [key, val] of blueprintBrackets) current.brackets.set(key, [...val]);
+  blueprintRedoStack.push(current);
+  const prev = blueprintUndoStack.pop();
+  blueprintRestoreState(prev);
+  renderBlueprintScene();
+  status('Undo');
+}
+
+function blueprintRedo() {
+  if (blueprintRedoStack.length === 0) { status('Nothing to redo', 'err'); return; }
+  const current = {
+    atoms: new Map(), bonds: new Map(), positions: new Map(), brackets: new Map(),
+  };
+  for (const [id, atom] of blueprintCanvasAtoms) current.atoms.set(id, { id, el: atom.el, pos: { ...atom.pos } });
+  for (const [id, bond] of blueprintCanvasBonds) current.bonds.set(id, { id, a: bond.a, b: bond.b, order: bond.order, ionic: bond.ionic });
+  for (const [id, pos] of blueprintAtomPositions) current.positions.set(id, { ...pos });
+  for (const [key, val] of blueprintBrackets) current.brackets.set(key, [...val]);
+  blueprintUndoStack.push(current);
+  const next = blueprintRedoStack.pop();
+  blueprintRestoreState(next);
+  renderBlueprintScene();
+  status('Redo');
+}
+
+function blueprintCleanLayout() {
+  if (blueprintCanvasAtoms.size === 0) return;
+  blueprintPushUndo();
+  const bondLen = 80;
+  const placed = new Set();
+  const queue = [];
+  const startId = blueprintCanvasAtoms.keys().next().value;
+  queue.push(startId);
+  placed.add(startId);
+  blueprintAtomPositions.set(startId, { x: 0, y: 0 });
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    const currentPos = blueprintAtomPositions.get(currentId);
+    const neighbors = [];
+    for (const [, bond] of blueprintCanvasBonds) {
+      if (bond.a === currentId && !placed.has(bond.b)) { neighbors.push(bond.b); placed.add(bond.b); blueprintAtomPositions.set(bond.b, { x: 0, y: 0 }); queue.push(bond.b); }
+      if (bond.b === currentId && !placed.has(bond.a)) { neighbors.push(bond.a); placed.add(bond.a); blueprintAtomPositions.set(bond.a, { x: 0, y: 0 }); queue.push(bond.a); }
+    }
+    const count = neighbors.length;
+    if (count === 0) continue;
+    const existingNeighbors = [];
+    for (const [, bond] of blueprintCanvasBonds) {
+      if (bond.a === currentId && placed.has(bond.b) && bond.b !== currentId) existingNeighbors.push(bond.b);
+      if (bond.b === currentId && placed.has(bond.a) && bond.a !== currentId) existingNeighbors.push(bond.a);
+    }
+    let baseAngle = 0;
+    if (existingNeighbors.length > 0) {
+      const lastPlaced = existingNeighbors.find(id => blueprintAtomPositions.has(id));
+      if (lastPlaced !== undefined) {
+        const lp = blueprintAtomPositions.get(lastPlaced);
+        baseAngle = Math.atan2(lp.y - currentPos.y, lp.x - currentPos.x) + Math.PI;
+      }
+    }
+    const spread = count === 1 ? 0 : (2 * Math.PI) / count;
+    const startAngle = count === 1 ? baseAngle : baseAngle - spread * (count - 1) / 2;
+    neighbors.forEach((nId, i) => {
+      const angle = startAngle + i * spread;
+      blueprintAtomPositions.set(nId, {
+        x: Math.round((currentPos.x + Math.cos(angle) * bondLen) / 40) * 40,
+        y: Math.round((currentPos.y + Math.sin(angle) * bondLen) / 40) * 40,
+      });
+    });
+  }
+
+  for (const [id] of blueprintCanvasAtoms) {
+    if (!placed.has(id)) {
+      const angle = Math.random() * Math.PI * 2;
+      blueprintAtomPositions.set(id, { x: Math.round(Math.cos(angle) * 200 / 40) * 40, y: Math.round(Math.sin(angle) * 200 / 40) * 40 });
+    }
+  }
+  blueprintZoomToFit();
+  status('Layout cleaned');
+}
+
+function blueprintZoomToFit() {
+  if (blueprintCanvasAtoms.size === 0) {
+    blueprintPan = { x: 0, y: 0 };
+    blueprintZoom = 1.0;
+    renderBlueprintScene();
+    return;
+  }
+  const canvas = document.getElementById('blueprint-canvas');
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [id] of blueprintCanvasAtoms) {
+    const pos = blueprintAtomPositions.get(id);
+    if (!pos) continue;
+    minX = Math.min(minX, pos.x); minY = Math.min(minY, pos.y);
+    maxX = Math.max(maxX, pos.x); maxY = Math.max(maxY, pos.y);
+  }
+  if (minX === Infinity) return;
+  const padding = 80;
+  const w = maxX - minX + padding * 2 || 1;
+  const h = maxY - minY + padding * 2 || 1;
+  const zoomX = canvas.width / w;
+  const zoomY = canvas.height / h;
+  blueprintZoom = Math.min(zoomX, zoomY, 3.0);
+  blueprintZoom = Math.max(blueprintZoom, 0.3);
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  blueprintPan.x = canvas.width / 2 - centerX * blueprintZoom;
+  blueprintPan.y = canvas.height / 2 - centerY * blueprintZoom;
+  renderBlueprintScene();
+}
+
+function blueprintAddHydrogens() {
+  blueprintPushUndo();
+  const prevElement = blueprintCurrentElement;
+  blueprintCurrentElement = 'H';
+  const toAdd = [];
+  for (const [id, atom] of blueprintCanvasAtoms) {
+    const pos = blueprintAtomPositions.get(id);
+    if (!pos) continue;
+    let bondSum = 0;
+    for (const [, bond] of blueprintCanvasBonds) {
+      if (bond.a === id || bond.b === id) bondSum += Math.max(bond.order, 1);
+    }
+    const needed = atom.el.maxBonds - bondSum;
+    if (needed <= 0) continue;
+    const hEl = elementBySym('H');
+    if (!hEl) continue;
+    const existingBonds = [];
+    for (const [, bond] of blueprintCanvasBonds) {
+      if (bond.a === id) existingBonds.push(bond.b);
+      if (bond.b === id) existingBonds.push(bond.a);
+    }
+    const spread = (2 * Math.PI) / Math.max(needed, existingBonds.length + needed);
+    let startAngle = 0;
+    if (existingBonds.length > 0) {
+      const firstNeighbor = blueprintAtomPositions.get(existingBonds[0]);
+      if (firstNeighbor) startAngle = Math.atan2(firstNeighbor.y - pos.y, firstNeighbor.x - pos.x) + Math.PI;
+    }
+    for (let i = 0; i < needed; i++) {
+      const angle = startAngle + (i + 1) * spread;
+      const hx = Math.round((pos.x + Math.cos(angle) * 80) / 40) * 40;
+      const hy = Math.round((pos.y + Math.sin(angle) * 80) / 40) * 40;
+      toAdd.push({ x: hx, y: hy, parentId: id });
+    }
+  }
+  for (const h of toAdd) {
+    const hAtom = placeBlueprintAtom(h.x, h.y);
+    if (hAtom) {
+      createBlueprintBond(h.parentId, hAtom.id);
+    }
+  }
+  blueprintCurrentElement = prevElement;
+  updateBlueprintElementDisplay();
+  renderBlueprintScene();
+  if (toAdd.length > 0) status(`Added ${toAdd.length} hydrogen atoms`);
+  else status('No hydrogens needed');
+}
+
+function exportBlueprintPNG() {
+  const srcCanvas = document.getElementById('blueprint-canvas');
+  const link = document.createElement('a');
+  link.download = 'molecule-blueprint.png';
+  link.href = srcCanvas.toDataURL('image/png');
+  link.click();
+  status('Exported PNG');
+}
+
+function findBlueprintCanvasBondAt(canvasX, canvasY) {
+  const threshold = 10;
+  for (const [bondId, bond] of blueprintCanvasBonds) {
+    const pos1 = blueprintAtomPositions.get(bond.a);
+    const pos2 = blueprintAtomPositions.get(bond.b);
+    if (!pos1 || !pos2) continue;
+    const dx = pos2.x - pos1.x;
+    const dy = pos2.y - pos1.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) continue;
+    let t = ((canvasX - pos1.x) * dx + (canvasY - pos1.y) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const projX = pos1.x + t * dx;
+    const projY = pos1.y + t * dy;
+    const distSq = (canvasX - projX) ** 2 + (canvasY - projY) ** 2;
+    if (distSq < threshold * threshold) return bond;
+  }
+  return null;
+}
+
+function renderBlueprintScene() {
+  if (!blueprintMode) return;
+  
+  const canvas = document.getElementById('blueprint-canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Apply pan and zoom transformations
+  ctx.save();
+  ctx.translate(blueprintPan.x, blueprintPan.y);
+  ctx.scale(blueprintZoom, blueprintZoom);
+  
+  // Draw grid
+  drawBlueprintGrid(ctx, canvas);
+  
+  // Draw brackets first (behind everything)
+  drawBlueprintBrackets(ctx);
+  
+  // Draw bonds
+  drawBlueprintBonds(ctx);
+  
+  // Draw atoms
+  drawBlueprintAtoms(ctx);
+  
+  // Draw electron shells if in bohr mode or electron tool active
+  if (blueprintViewMode === 'bohr' || blueprintTool === 'electron') {
+    drawBlueprintElectrons(ctx);
+  }
+  
+  // Draw selection highlights
+  drawBlueprintSelection(ctx);
+  
+  ctx.restore();
+}
+
+function drawBlueprintGrid(ctx, canvas) {
+  if (!blueprintGridSnap) return;
+  ctx.strokeStyle = 'rgba(88, 166, 255, 0.08)';
+  ctx.lineWidth = 1;
+
+  const gridSize = 40;
+  const startX = Math.floor(-blueprintPan.x / blueprintZoom / gridSize) * gridSize - gridSize;
+  const startY = Math.floor(-blueprintPan.y / blueprintZoom / gridSize) * gridSize - gridSize;
+  const endX = startX + canvas.width / blueprintZoom + gridSize * 2;
+  const endY = startY + canvas.height / blueprintZoom + gridSize * 2;
+
+  for (let x = startX; x <= endX; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x, startY);
+    ctx.lineTo(x, endY);
+    ctx.stroke();
+  }
+  for (let y = startY; y <= endY; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(startX, y);
+    ctx.lineTo(endX, y);
+    ctx.stroke();
+  }
+}
+
+function drawBlueprintBrackets(ctx) {
+  for (const [groupKey, atomIds] of blueprintBrackets) {
+    // Calculate bounding box of all atoms in the group
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    for (const atomId of atomIds) {
+      const pos = blueprintAtomPositions.get(atomId);
+      if (!pos) continue;
+      
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x);
+      maxY = Math.max(maxY, pos.y);
+    }
+    
+    if (minX === Infinity) continue;
+    
+    // Add padding
+    const padding = 40;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+    
+    // Draw bracket rectangle
+    ctx.strokeStyle = '#ffa657';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+    ctx.setLineDash([]);
+    
+    // Draw bracket symbols on left and right
+    const bracketHeight = maxY - minY;
+    const bracketWidth = 15;
+    const midY = (minY + maxY) / 2;
+    
+    ctx.strokeStyle = '#ffa657';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([]);
+    
+    // Left bracket [
+    ctx.beginPath();
+    ctx.moveTo(minX - bracketWidth, minY);
+    ctx.lineTo(minX - bracketWidth - 10, minY);
+    ctx.lineTo(minX - bracketWidth - 10, maxY);
+    ctx.lineTo(minX - bracketWidth, maxY);
+    ctx.stroke();
+    
+    // Right bracket ]
+    ctx.beginPath();
+    ctx.moveTo(maxX + bracketWidth, minY);
+    ctx.lineTo(maxX + bracketWidth + 10, minY);
+    ctx.lineTo(maxX + bracketWidth + 10, maxY);
+    ctx.lineTo(maxX + bracketWidth, maxY);
+    ctx.stroke();
+  }
+}
+
+function drawBlueprintBonds(ctx) {
+  for (const [bondId, bond] of blueprintCanvasBonds) {
+    const pos1 = blueprintAtomPositions.get(bond.a);
+    const pos2 = blueprintAtomPositions.get(bond.b);
+    if (!pos1 || !pos2) continue;
+    
+    const order = bond.order;
+    ctx.strokeStyle = '#58a6ff';
+    
+    if (order === 0) {
+      // Coordinate bond - dashed line with arrow
+      ctx.setLineDash([5, 5]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pos1.x, pos1.y);
+      ctx.lineTo(pos2.x, pos2.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Arrowhead
+      const angle = Math.atan2(pos2.y - pos1.y, pos2.x - pos1.x);
+      const arrowSize = 10;
+      ctx.beginPath();
+      ctx.moveTo(pos2.x, pos2.y);
+      ctx.lineTo(pos2.x - arrowSize * Math.cos(angle - Math.PI/6), pos2.y - arrowSize * Math.sin(angle - Math.PI/6));
+      ctx.lineTo(pos2.x - arrowSize * Math.cos(angle + Math.PI/6), pos2.y - arrowSize * Math.sin(angle + Math.PI/6));
+      ctx.closePath();
+      ctx.fillStyle = '#58a6ff';
+      ctx.fill();
+    } else {
+      const offset = order === 1 ? 0 : order === 2 ? 4 : 6;
+      ctx.lineWidth = order === 1 ? 2 : order === 2 ? 2 : 2;
+      
+      if (order === 1) {
+        ctx.beginPath();
+        ctx.moveTo(pos1.x, pos1.y);
+        ctx.lineTo(pos2.x, pos2.y);
+        ctx.stroke();
+      } else {
+        // Multiple parallel lines
+        const angle = Math.atan2(pos2.y - pos1.y, pos2.x - pos1.x);
+        const perpX = -Math.sin(angle) * 3;
+        const perpY = Math.cos(angle) * 3;
+        
+        for (let i = 0; i < order; i++) {
+          const off = (i - (order - 1) / 2) * 6;
+          ctx.beginPath();
+          ctx.moveTo(pos1.x + perpX * off / 3, pos1.y + perpY * off / 3);
+          ctx.lineTo(pos2.x + perpX * off / 3, pos2.y + perpY * off / 3);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+}
+
+function drawBlueprintAtoms(ctx) {
+  const CPK = {
+    'alkali': '#ff6b6b', 'alkaline': '#ffa657', 'transition': '#d2a8ff',
+    'post-transition': '#79c0ff', 'metalloid': '#56d364', 'reactive-nonmetal': '#3fb950',
+    'halogen': '#a5d6ff', 'noble': '#bc8cff', 'lanthanide': '#f0883e',
+    'actinide': '#db6d28', 'exotic': '#8b949e',
+  };
+
+  for (const [id, atom] of blueprintCanvasAtoms) {
+    const pos = blueprintAtomPositions.get(id);
+    if (!pos) continue;
+
+    const isSelected = blueprintSelectedAtoms.has(id);
+    const catColor = CPK[atom.el.cat] || '#ffffff';
+
+    ctx.fillStyle = isSelected ? '#ffa657' : catColor;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = isSelected ? '#ffa657' : '#30363d';
+    ctx.lineWidth = isSelected ? 3 : 2;
+    ctx.stroke();
+
+    const isDark = ['transition', 'lanthanide', 'actinide', 'exotic'].includes(atom.el.cat);
+    ctx.fillStyle = isDark && !isSelected ? '#ffffff' : '#000000';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(atom.el.sym, pos.x, pos.y);
+  }
+}
+
+function drawBlueprintElectrons(ctx) {
+  for (const [id, atom] of blueprintCanvasAtoms) {
+    const pos = blueprintAtomPositions.get(id);
+    if (!pos) continue;
+    
+    const config = ELECTRON_CONFIGS[atom.el.sym] || [0];
+    
+    // Draw electron shells
+    for (let shell = 0; shell < config.length; shell++) {
+      const radius = 30 + shell * 15;
+      ctx.strokeStyle = 'rgba(88, 166, 255, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Draw electrons on shell
+      const electrons = config[shell];
+      for (let e = 0; e < electrons; e++) {
+        const angle = (e / electrons) * Math.PI * 2 - Math.PI / 2;
+        const ex = pos.x + Math.cos(angle) * radius;
+        const ey = pos.y + Math.sin(angle) * radius;
+        
+        ctx.fillStyle = '#58a6ff';
+        ctx.beginPath();
+        ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function drawBlueprintSelection(ctx) {
+  for (const atomId of blueprintSelectedAtoms) {
+    const pos = blueprintAtomPositions.get(atomId);
+    if (!pos) continue;
+    
+    ctx.strokeStyle = '#ffa657';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 25, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function exportBlueprint() {
+  const canvas = document.getElementById('blueprint-canvas');
+  const dataURL = canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = `blueprint-${Date.now()}.png`;
+  link.href = dataURL;
+  link.click();
+  status('Blueprint exported as PNG');
+}
+
 document.getElementById('btn-tutorial').addEventListener('click', () => {
   showTutorial();
   document.getElementById('menu-dropdown').hidden = true;
@@ -2866,6 +4225,31 @@ document.getElementById('ch-reset').addEventListener('click', () => {
 });
 window.addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) return;
+  if (blueprintMode) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); blueprintUndo(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); blueprintRedo(); return; }
+    if (e.key.toLowerCase() === 'v') { setBlueprintTool('select'); return; }
+    if (e.key.toLowerCase() === 'e') { setBlueprintTool('eraser'); return; }
+    if (e.key === '1') { setBlueprintTool('bond-single'); return; }
+    if (e.key === '2') { setBlueprintTool('bond-double'); return; }
+    if (e.key === '3') { setBlueprintTool('bond-triple'); return; }
+    if (e.key === '4') { setBlueprintTool('bond-coordinate'); return; }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (blueprintSelectedAtoms.size > 0) {
+        blueprintPushUndo();
+        for (const atomId of blueprintSelectedAtoms) {
+          for (const [bondId, bond] of blueprintCanvasBonds) {
+            if (bond.a === atomId || bond.b === atomId) blueprintCanvasBonds.delete(bondId);
+          }
+          blueprintCanvasAtoms.delete(atomId);
+          blueprintAtomPositions.delete(atomId);
+        }
+        blueprintSelectedAtoms.clear();
+        renderBlueprintScene();
+      }
+      return;
+    }
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateMolecule(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -3079,12 +4463,78 @@ function frame(now) {
 }
 
 // ---------------------------------------------------------------------------
+// Helper functions for console hack commands
+// ---------------------------------------------------------------------------
+function computeInitialPositions(atomList) {
+  // Place atoms in a reasonable 3D arrangement
+  // First atom at center, others distributed around it
+  const positions = [];
+  const n = atomList.length;
+  if (n === 1) {
+    positions.push({ x: 0, y: 0, z: 0 });
+  } else if (n === 2) {
+    positions.push({ x: -0.75, y: 0, z: 0 });
+    positions.push({ x: 0.75, y: 0, z: 0 });
+  } else {
+    // Distribute atoms in 3D space using fibonacci sphere
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const radius = Math.max(1.2, n * 0.25);
+    for (let i = 0; i < n; i++) {
+      const y = 1 - (i / (n - 1)) * 2;
+      const radiusAtY = Math.sqrt(1 - y * y);
+      const theta = goldenAngle * i;
+      positions.push({
+        x: Math.cos(theta) * radiusAtY * radius,
+        y: y * radius,
+        z: Math.sin(theta) * radiusAtY * radius
+      });
+    }
+  }
+  return positions;
+}
+
+function autoBondAtoms(atomIds) {
+  // Auto-bond atoms based on proximity and valence rules
+  // Try to create bonds between nearby atoms
+  const maxBondDist = 2.5; // Maximum distance for automatic bonding
+  let bonded = true;
+  while (bonded) {
+    bonded = false;
+    for (let i = 0; i < atomIds.length && !bonded; i++) {
+      for (let j = i + 1; j < atomIds.length && !bonded; j++) {
+        const aId = atomIds[i];
+        const bId = atomIds[j];
+        const a = atoms.get(aId);
+        const b = atoms.get(bId);
+        if (!a || !b) continue;
+        // Check if already bonded
+        const alreadyBonded = [...bonds.values()].some(
+          bond => (bond.a === aId && bond.b === bId) || (bond.a === bId && bond.b === aId)
+        );
+        if (alreadyBonded) continue;
+        // Check distance
+        const dist = Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y, a.pos.z - b.pos.z);
+        if (dist > maxBondDist) continue;
+        // Try to create bond
+        const chk = bondCheck(atoms, bonds, aId, bId);
+        if (chk.ok) {
+          const id = nextId++;
+          bonds.set(id, { id, a: aId, b: bId, order: 1, ionic: chk.type === 'ionic' });
+          bonded = true;
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
 window.__mol3d = {
   atoms, bonds, overrides,
   movement, camera, controls,
-  kinetics: { createSimulation, compileNetwork, parseRateExpr, rk4Step },
+  kinetics: { createSimulation, compileNetwork, parseRateExpr, rk4Step, arrheniusK, temperatureSweep, R_GAS, DEFAULT_TEMPERATURE, networks: ALL_NETWORKS },
+  blueprint: { renderBlueprint, renderReactionBlueprint, BLUEPRINT_MODES, BLUEPRINT_GRID, ELECTRON_CONFIGS },
   analyses: () => analyses,
   comps: () => lastComps,
   spawnAtom, reanalyze, selectAtom, undo, clearAll,
@@ -3135,7 +4585,466 @@ window.__mol3d = {
     renderer.render(scene, camera);
     return { drift: a, lerp: l };
   },
+  help: () => {
+    console.log(`%c🧪 Mol3D Console API`, 'font-size: 16px; font-weight: bold; color: #4CAF50;');
+    console.log(`%cState & Inspection:`, 'font-weight: bold; color: #2196F3;');
+    console.log(`  __mol3d.status() - Show current app state`);
+    console.log(`  __mol3d.listAtoms() - List all atoms`);
+    console.log(`  __mol3d.listBonds() - List all bonds`);
+    console.log(`  __mol3d.findElement(sym) - Find atoms by element (e.g., 'C', 'O')`);
+    console.log(`  __mol3d.analyses() - Get current analyses`);
+    console.log(`  __mol3d.comps() - Get current components`);
+    console.log(`  __mol3d.discoveries() - Get discovered molecules`);
+    console.log(`%cManipulation:`, 'font-weight: bold; color: #2196F3;');
+    console.log(`  __mol3d.spawnAtom(el) - Spawn atom (pass element object or symbol)`);
+    console.log(`  __mol3d.removeAtom(id) - Remove atom by ID`);
+    console.log(`  __mol3d.selectAtom(id) - Select atom by ID`);
+    console.log(`  __mol3d.devBond(a, b) - Create bond between atom IDs`);
+    console.log(`  __mol3d.devUpgrade(bid) - Upgrade bond order`);
+    console.log(`  __mol3d.clearAll() - Clear all atoms and bonds`);
+    console.log(`  __mol3d.undo() - Undo last action`);
+    console.log(`%cImport/Export:`, 'font-weight: bold; color: #2196F3;');
+    console.log(`  __mol3d.export() - Export state as JSON`);
+    console.log(`  __mol3d.import(json) - Import state from JSON`);
+    console.log(`%cUtilities:`, 'font-weight: bold; color: #2196F3;');
+    console.log(`  __mol3d.reset() - Clear and reload page`);
+    console.log(`  __mol3d.setQuality(mode) - Set quality: 'low', 'med', 'high', 'auto'`);
+    console.log(`  __mol3d.reanalyze() - Force reanalyze`);
+    console.log(`%cThree.js Debug:`, 'font-weight: bold; color: #2196F3;');
+    console.log(`  __mol3d.scene - Access Three.js scene`);
+    console.log(`  __mol3d.renderer - Access renderer`);
+    console.log(`  __mol3d.camera - Access camera`);
+    console.log(`  __mol3d.ELEMENTS - Access element data array`);
+    console.log(`%c🔥 HACK COMMANDS (use __mol3d.hacks.*):`, 'font-weight: bold; color: #ff5722;');
+    console.log(`  __mol3d.hacks.godMode() - Disable all chemistry validation`);
+    console.log(`  __mol3d.hacks.mortalMode() - Re-enable validation`);
+    console.log(`  __mol3d.hacks.chaos(count) - Spawn random atoms (default: 20)`);
+    console.log(`  __mol3d.hacks.party() - Make atoms dance for 5s`);
+    console.log(`  __mol3d.hacks.matrix() - Matrix visual effect for 10s`);
+    console.log(`  __mol3d.hacks.rainbow() - Rainbow colors for 10s`);
+    console.log(`  __mol3d.hacks.disco() - Disco flashing for 5s`);
+    console.log(`  __mol3d.hacks.giant() - Scale atoms 3x`);
+    console.log(`  __mol3d.hacks.tiny() - Scale atoms 1/3x`);
+    console.log(`  __mol3d.hacks.explosion(force) - Push atoms apart`);
+    console.log(`  __mol3d.hacks.implode() - Pull atoms to center`);
+    console.log(`  __mol3d.hacks.clone(times) - Clone selected atom`);
+    console.log(`  __mol3d.hacks.dna(length) - Create DNA helix`);
+    console.log(`  __mol3d.hacks.firework(count) - Explosion pattern`);
+    console.log(`  __mol3d.hacks.blackHole() - Attract to center for 5s`);
+    console.log(`  __mol3d.hacks.antiGravity() - Float upward for 5s`);
+    console.log(`  __mol3d.hacks.quantum() - Random teleportation for 6s`);
+    console.log(`  __mol3d.hacks.unlockAll() - Unlock all discoveries`);
+    console.log(`  __mol3d.hacks.spawnMolecule(formula) - Spawn specific molecule`);
+    console.log(`  __mol3d.hacks.mirror() - Create mirror copy`);
+    console.log(`  __mol3d.hacks.slowmo() - 0.2x time scale`);
+    console.log(`  __mol3d.hacks.fastforward() - 3x time scale`);
+    console.log(`  __mol3d.hacks.normalSpeed() - Reset time scale`);
+  },
+  status: () => {
+    const info = {
+      atoms: atoms.size,
+      bonds: bonds.size,
+      mode: blueprintMode ? 'BluePrint' : '3D',
+      quality: qualityMode,
+      tier: TIER_ORDER[tierIndex],
+      discoveries: discoveries.length,
+      selected: selectedId,
+      hover: hoverId,
+      fps: Math.round(fpsSampler.fps),
+    };
+    console.log(`%c🧪 Mol3D Status`, 'font-size: 14px; font-weight: bold; color: #4CAF50;');
+    console.table(info);
+    return info;
+  },
+  listAtoms: () => {
+    const list = [...atoms.values()].map(a => ({
+      id: a.id,
+      element: a.el.sym,
+      name: a.el.name,
+      x: a.pos.x.toFixed(2),
+      y: a.pos.y.toFixed(2),
+      z: a.pos.z.toFixed(2),
+    }));
+    console.table(list);
+    return list;
+  },
+  listBonds: () => {
+    const list = [...bonds.values()].map(b => ({
+      id: b.id,
+      from: b.a,
+      to: b.b,
+      order: b.order,
+      ionic: b.ionic ? 'yes' : 'no',
+    }));
+    console.table(list);
+    return list;
+  },
+  findElement: (sym) => {
+    const found = [...atoms.values()].filter(a => a.el.sym === sym.toUpperCase());
+    console.log(`Found ${found.length} ${sym} atom(s):`);
+    console.table(found.map(a => ({ id: a.id, element: a.el.sym, pos: a.pos })));
+    return found;
+  },
+  removeAtom: (id) => {
+    if (!atoms.has(id)) {
+      console.error(`Atom ${id} not found`);
+      return false;
+    }
+    removeAtom(id);
+    console.log(`Removed atom ${id}`);
+    return true;
+  },
+  export: () => {
+    const data = {
+      atoms: [...atoms.values()].map(a => ({ id: a.id, z: a.el.z, pos: a.pos })),
+      bonds: [...bonds.values()].map(b => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic })),
+      nextId,
+      overrides: [...overrides],
+      isoF: [...isoSel],
+      fc: [...completed],
+    };
+    const json = JSON.stringify(data, null, 2);
+    console.log('Exported state:');
+    console.log(json);
+    return data;
+  },
+  import: (json) => {
+    try {
+      const data = typeof json === 'string' ? JSON.parse(json) : json;
+      if (!data.atoms || !Array.isArray(data.atoms)) {
+        console.error('Invalid data format');
+        return false;
+      }
+      clearAll();
+      for (const a of data.atoms) {
+        const el = ELEMENTS.find(e => e.z === a.z);
+        if (el) atoms.set(a.id, { id: a.id, el, pos: { x: +a.pos.x || 0, y: +a.pos.y || 0, z: +a.pos.z || 0 } });
+      }
+      for (const b of data.bonds || []) {
+        if (atoms.has(b.a) && atoms.has(b.b)) bonds.set(b.id, { ...b });
+      }
+      nextId = data.nextId || Math.max(0, ...atoms.keys(), ...bonds.keys()) + 1;
+      reanalyze();
+      console.log(`Imported ${atoms.size} atoms and ${bonds.size} bonds`);
+      return true;
+    } catch (e) {
+      console.error('Import failed:', e);
+      return false;
+    }
+  },
+  reset: () => {
+    localStorage.clear();
+    location.reload();
+  },
+  // ─ Bizarre/Hack Commands ─
+  hacks: {
+    unlimitedBonds: () => {
+      window.__mol3d._godMode = true;
+      console.log(`%c🔓 UNLIMITED BONDS ENABLED! Chemistry rules no longer apply.`, 'color: #ff9800; font-weight: bold; font-size: 14px;');
+      console.log(`Warning: Molecules may become impossible. Use at your own risk!`);
+      return 'God mode activated';
+    },
+    godMode: () => {
+      window.__mol3d._godMode = true;
+      console.log(`%c⚡ GOD MODE ACTIVATED!`, 'color: #ff0000; font-weight: bold; font-size: 16px; text-shadow: 2px 2px #000;');
+      console.log(`All validation disabled. Spawn impossible molecules!`);
+      return 'God mode on';
+    },
+    mortalMode: () => {
+      window.__mol3d._godMode = false;
+      console.log(`%c✓ Back to normal chemistry rules`, 'color: #4CAF50; font-weight: bold;');
+      return 'God mode off';
+    },
+    chaos: (count = 20) => {
+      console.log(`%c🌪 CHAOS MODE! Spawning ${count} random atoms...`, 'color: #9c27b0; font-weight: bold; font-size: 14px;');
+      for (let i = 0; i < count; i++) {
+        const el = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
+        spawnAtom(el);
+      }
+      return `Spawned ${count} random atoms`;
+    },
+    party: () => {
+      console.log(`%c🎉 PARTY MODE! Let's dance!`, 'color: #e91e63; font-weight: bold; font-size: 16px;');
+      let angle = 0;
+      const interval = setInterval(() => {
+        for (const [id, at] of atoms) {
+          at.pos.x += Math.sin(angle + id) * 0.1;
+          at.pos.y += Math.cos(angle + id) * 0.1;
+        }
+        angle += 0.2;
+        reanalyze();
+      }, 50);
+      setTimeout(() => clearInterval(interval), 5000);
+      return 'Party for 5 seconds!';
+    },
+    matrix: () => {
+      console.log(`%c💚 MATRIX MODE - Welcome to the Matrix, Neo...`, 'color: #00ff00; font-weight: bold; font-size: 14px; font-family: monospace;');
+      document.body.style.filter = 'hue-rotate(90deg) saturate(3) brightness(0.8)';
+      setTimeout(() => document.body.style.filter = '', 10000);
+      return 'Matrix mode for 10 seconds';
+    },
+    rainbow: () => {
+      console.log(`%c🌈 RAINBOW MODE!`, 'color: #ff0000; font-weight: bold; font-size: 16px; text-shadow: 1px 1px #ff0, -1px -1px #0f0, 1px -1px #00f;');
+      let hue = 0;
+      const interval = setInterval(() => {
+        document.body.style.filter = `hue-rotate(${hue}deg)`;
+        hue = (hue + 10) % 360;
+      }, 100);
+      setTimeout(() => { clearInterval(interval); document.body.style.filter = ''; }, 10000);
+      return 'Rainbow for 10 seconds';
+    },
+    giant: () => {
+      console.log(`%c🦣 GIANT MODE!`, 'color: #795548; font-weight: bold; font-size: 16px;');
+      for (const [id, at] of atoms) {
+        at.pos.x *= 3;
+        at.pos.y *= 3;
+        at.pos.z *= 3;
+      }
+      reanalyze();
+      return 'Atoms scaled 3x';
+    },
+    tiny: () => {
+      console.log(`%c🔬 TINY MODE!`, 'color: #2196f3; font-weight: bold; font-size: 16px;');
+      for (const [id, at] of atoms) {
+        at.pos.x /= 3;
+        at.pos.y /= 3;
+        at.pos.z /= 3;
+      }
+      reanalyze();
+      return 'Atoms scaled 1/3x';
+    },
+    explosion: (force = 5) => {
+      console.log(`%c💥 EXPLOSION! Force: ${force}`, 'color: #ff5722; font-weight: bold; font-size: 16px;');
+      for (const [id, at] of atoms) {
+        const dx = at.pos.x || 0.1;
+        const dy = at.pos.y || 0.1;
+        const dz = at.pos.z || 0.1;
+        const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1;
+        at.pos.x += (dx / dist) * force;
+        at.pos.y += (dy / dist) * force;
+        at.pos.z += (dz / dist) * force;
+      }
+      reanalyze();
+      return 'BOOM!';
+    },
+    implode: () => {
+      console.log(`%c🕳️ IMPLODE! All atoms to center!`, 'color: #000000; font-weight: bold; font-size: 16px; background: #fff;');
+      for (const [id, at] of atoms) {
+        at.pos.x *= 0.1;
+        at.pos.y *= 0.1;
+        at.pos.z *= 0.1;
+      }
+      reanalyze();
+      return 'Collapsed to center';
+    },
+    clone: (times = 5) => {
+      if (selectedId === null) {
+        console.error('No atom selected! Select an atom first.');
+        return 'Error: no selection';
+      }
+      console.log(`%c👯 CLONING atom ${selectedId} x${times}!`, 'color: #00bcd4; font-weight: bold; font-size: 14px;');
+      const orig = atoms.get(selectedId);
+      for (let i = 0; i < times; i++) {
+        const newAtom = spawnAtom(orig.el);
+        const nat = atoms.get(newAtom);
+        nat.pos.x = orig.pos.x + (Math.random() - 0.5) * 2;
+        nat.pos.y = orig.pos.y + (Math.random() - 0.5) * 2;
+        nat.pos.z = orig.pos.z + (Math.random() - 0.5) * 2;
+      }
+      reanalyze();
+      return `Cloned ${times} times`;
+    },
+    dna: (length = 20) => {
+      console.log(`%c🧬 DNA MODE! Creating helix with ${length} atoms...`, 'color: #3f51b5; font-weight: bold; font-size: 14px;');
+      clearAll();
+      const atomIds = [];
+      for (let i = 0; i < length; i++) {
+        const angle = (i / length) * Math.PI * 4;
+        const el = i % 2 === 0 ? ELEMENTS.find(e => e.sym === 'C') : ELEMENTS.find(e => e.sym === 'O');
+        const id = nextId++;
+        const pos = {
+          x: Math.cos(angle) * 2,
+          y: i * 0.5,
+          z: Math.sin(angle) * 2
+        };
+        atoms.set(id, { id, el, pos });
+        atomIds.push(id);
+      }
+      // Create bonds between adjacent atoms
+      for (let i = 0; i < atomIds.length - 1; i++) {
+        const aId = atomIds[i];
+        const bId = atomIds[i + 1];
+        const chk = bondCheck(atoms, bonds, aId, bId);
+        if (chk.ok) {
+          const id = nextId++;
+          bonds.set(id, { id, a: aId, b: bId, order: 1, ionic: chk.type === 'ionic' });
+        }
+      }
+      reanalyze();
+      return `DNA helix created with ${atomIds.length} atoms and bonds`;
+    },
+    firework: (count = 30) => {
+      console.log(`%c🎆 FIREWORK! Spawning ${count} atoms in explosion pattern...`, 'color: #ff9800; font-weight: bold; font-size: 14px;');
+      const center = { x: 0, y: 0, z: 0 };
+      for (let i = 0; i < count; i++) {
+        const el = ELEMENTS[Math.floor(Math.random() * 5)];
+        const id = spawnAtom(el);
+        const at = atoms.get(id);
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+        const r = 2 + Math.random() * 3;
+        at.pos.x = center.x + r * Math.sin(phi) * Math.cos(theta);
+        at.pos.y = center.y + r * Math.sin(phi) * Math.sin(theta);
+        at.pos.z = center.z + r * Math.cos(phi);
+      }
+      reanalyze();
+      return 'Firework!';
+    },
+    blackHole: () => {
+      console.log(`%c🕳️ BLACK HOLE! All atoms attracted to center...`, 'color: #000; font-weight: bold; font-size: 16px; background: linear-gradient(45deg, #000, #333); padding: 5px;');
+      let step = 0;
+      const interval = setInterval(() => {
+        for (const [id, at] of atoms) {
+          at.pos.x *= 0.95;
+          at.pos.y *= 0.95;
+          at.pos.z *= 0.95;
+        }
+        reanalyze();
+        step++;
+        if (step > 50) clearInterval(interval);
+      }, 100);
+      return 'Black hole active for 5 seconds';
+    },
+    antiGravity: () => {
+      console.log(`%c🚀 ANTI-GRAVITY! Atoms float upward!`, 'color: #00bcd4; font-weight: bold; font-size: 14px;');
+      let step = 0;
+      const interval = setInterval(() => {
+        for (const [id, at] of atoms) {
+          at.pos.y += 0.2;
+        }
+        reanalyze();
+        step++;
+        if (step > 50) clearInterval(interval);
+      }, 100);
+      return 'Anti-gravity for 5 seconds';
+    },
+    quantum: () => {
+      console.log(`%c⚛️ QUANTUM MODE! Atoms teleport randomly!`, 'color: #9c27b0; font-weight: bold; font-size: 14px;');
+      let step = 0;
+      const interval = setInterval(() => {
+        for (const [id, at] of atoms) {
+          if (Math.random() < 0.3) {
+            at.pos.x += (Math.random() - 0.5) * 2;
+            at.pos.y += (Math.random() - 0.5) * 2;
+            at.pos.z += (Math.random() - 0.5) * 2;
+          }
+        }
+        reanalyze();
+        step++;
+        if (step > 30) clearInterval(interval);
+      }, 200);
+      return 'Quantum teleportation for 6 seconds';
+    },
+    unlockAll: () => {
+      console.log(`%c🔓 UNLOCKING ALL DISCOVERIES!`, 'color: #ffd700; font-weight: bold; font-size: 16px;');
+      for (const challenge of CHALLENGES) {
+        if (!completed.has(challenge.formula)) {
+          completed.add(challenge.formula);
+          discoveries.push({ formula: challenge.formula, charge: 0, saved: true });
+        }
+      }
+      updateDiscList();
+      saveDiscoveries();
+      return `Unlocked ${CHALLENGES.length} discoveries!`;
+    },
+    spawnMolecule: (formula) => {
+      console.log(`%c🧪 Spawning molecule: ${formula}`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+      clearAll();
+      // Parse formula to get atoms (e.g., "C2H6O" -> ["C", "C", "H", "H", "H", "H", "H", "H", "O"])
+      const atomList = [];
+      const regex = /([A-Z][a-z]?)(\d*)/g;
+      let match;
+      while ((match = regex.exec(formula)) !== null) {
+        if (!match[1]) continue;
+        const sym = match[1];
+        const count = match[2] ? parseInt(match[2]) : 1;
+        for (let i = 0; i < count; i++) atomList.push(sym);
+      }
+      if (atomList.length === 0) {
+        console.error(`Could not parse formula: ${formula}`);
+        return 'Parse error';
+      }
+      // Place atoms in a reasonable initial arrangement
+      // Central atom first (the one with highest typical valence), others around it
+      const atomIds = [];
+      const positions = computeInitialPositions(atomList);
+      for (let i = 0; i < atomList.length; i++) {
+        const sym = atomList[i];
+        const el = ELEMENTS.find(e => e.sym === sym);
+        if (!el) {
+          console.warn(`Element ${sym} not found, skipping`);
+          continue;
+        }
+        const id = nextId++;
+        const pos = positions[i] || { x: (i % 5) * 1.5 - 3, y: 0, z: Math.floor(i / 5) * 1.5 };
+        atoms.set(id, { id, el, pos });
+        atomIds.push(id);
+      }
+      // Auto-bond: connect atoms based on proximity and valence rules
+      autoBondAtoms(atomIds);
+      reanalyze();
+      const bondCount = [...bonds.values()].filter(b => atomIds.includes(b.a) && atomIds.includes(b.b)).length;
+      return `Spawned ${formula} with ${atomIds.length} atoms and ${bondCount} bonds`;
+    },
+    mirror: () => {
+      if (atoms.size === 0) {
+        console.error('No atoms to mirror!');
+        return 'Error: empty';
+      }
+      console.log(`%c🪞 MIRROR MODE! Creating mirror copy...`, 'color: #607d8b; font-weight: bold; font-size: 14px;');
+      const originalAtoms = [...atoms.values()];
+      for (const orig of originalAtoms) {
+        const id = spawnAtom(orig.el);
+        const at = atoms.get(id);
+        at.pos.x = -orig.pos.x;
+        at.pos.y = orig.pos.y;
+        at.pos.z = orig.pos.z;
+      }
+      reanalyze();
+      return 'Mirror created (X-axis flip)';
+    },
+    disco: () => {
+      console.log(`%c🕺 DISCO MODE! Flashing colors!`, 'color: #ff00ff; font-weight: bold; font-size: 16px;');
+      const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+      let i = 0;
+      const interval = setInterval(() => {
+        document.body.style.backgroundColor = colors[i % colors.length];
+        i++;
+      }, 200);
+      setTimeout(() => { clearInterval(interval); document.body.style.backgroundColor = ''; }, 5000);
+      return 'Disco for 5 seconds!';
+    },
+    slowmo: () => {
+      console.log(`%c🐌 SLOW-MO MODE!`, 'color: #2196f3; font-weight: bold; font-size: 14px;');
+      window.__mol3d._timeScale = 0.2;
+      return 'Time scale: 0.2x';
+    },
+    fastforward: () => {
+      console.log(`%c⚡ FAST-FORWARD MODE!`, 'color: #ff9800; font-weight: bold; font-size: 14px;');
+      window.__mol3d._timeScale = 3.0;
+      return 'Time scale: 3x';
+    },
+    normalSpeed: () => {
+      window.__mol3d._timeScale = 1.0;
+      console.log(`%c✓ Normal speed restored`, 'color: #4CAF50; font-weight: bold;');
+      return 'Time scale: 1x';
+    },
+  },
+  scene,
+  renderer,
+  ELEMENTS,
 };
+console.log(`%c🧪 Mol3D loaded! Type %c__mol3d.help()%c for console API`, 'color: #4CAF50; font-weight: bold;', 'color: #2196F3; font-weight: bold;', 'color: #4CAF50;');
 
 applyStatic();
 load();

@@ -6,20 +6,31 @@
 //   {
 //     species?: string[],                          // inferred from reactions when omitted
 //     initialConcentrations?: Record<string, number>,
+//     temperature?: number,                        // Kelvin, default 298.15
 //     reactions: Reaction[],
 //   }
 //   Reaction = {
 //     reactants?: ({ speciesId, stoichiometry? } | string)[],  // string shorthand = 1
 //     products?:  ({ speciesId, stoichiometry? } | string)[],
 //     rateConstant: number,                        // k (also exposed to customRateExpr)
+//     arrhenius?: { A: number, Ea: number },       // overrides rateConstant: k = A·exp(-Ea/RT)
+//     temperature?: number,                        // per-reaction override (Kelvin)
 //     customRateExpr?: string | ((C, ctx) => number),
 //   }
 //
 // Rate of progress for reaction j:
 //   elementary:  r_j = k_j · ∏ [R_i]^(stoichiometry_i)
+//   arrhenius:   k_j = A_j · exp(-Ea_j / (R · T))
 //   custom:      r_j = customRateExpr
 // Net change (stoichiometry matrix ν, rows = species, cols = reactions):
 //   d[C_i]/dt = Σ_j ν_ij · r_j ,   ν_ij = Σ products stoich − Σ reactants stoich
+
+export const R_GAS = 8.314; // J/(mol·K)
+export const DEFAULT_TEMPERATURE = 298.15;
+
+export function arrheniusK(A, Ea, T) {
+  return A * Math.exp(-Ea / (R_GAS * T));
+}
 
 export class KineticsError extends Error {
   constructor(message) {
@@ -157,6 +168,10 @@ export function compileNetwork(network) {
   requireCond(Array.isArray(network.reactions) && network.reactions.length > 0,
     'network.reactions must be a non-empty array');
 
+  const globalT = network.temperature ?? DEFAULT_TEMPERATURE;
+  requireCond(Number.isFinite(globalT) && globalT > 0,
+    'network.temperature must be a finite positive number (Kelvin)');
+
   const referenced = new Set();
   for (const [j, r] of network.reactions.entries()) {
     requireCond(r && typeof r === 'object' && !Array.isArray(r),
@@ -207,9 +222,26 @@ export function compileNetwork(network) {
     const products = normalizeSide(r.products, label, 'products');
     requireCond(reactants.length + products.length > 0,
       `${label}: must have at least one reactant or product`);
-    const k = r.rateConstant;
-    requireCond(Number.isFinite(k) && k >= 0,
-      `${label}: rateConstant must be a finite non-negative number`);
+
+    const rxT = r.temperature ?? globalT;
+    requireCond(Number.isFinite(rxT) && rxT > 0,
+      `${label}: temperature must be a finite positive number (Kelvin)`);
+
+    let k;
+    if (r.arrhenius != null) {
+      requireCond(typeof r.arrhenius === 'object' && !Array.isArray(r.arrhenius),
+        `${label}: arrhenius must be { A, Ea }`);
+      const { A, Ea } = r.arrhenius;
+      requireCond(Number.isFinite(A) && A >= 0,
+        `${label}: arrhenius.A must be a finite non-negative number`);
+      requireCond(Number.isFinite(Ea) && Ea >= 0,
+        `${label}: arrhenius.Ea must be a finite non-negative number (J/mol)`);
+      k = arrheniusK(A, Ea, rxT);
+    } else {
+      k = r.rateConstant;
+      requireCond(Number.isFinite(k) && k >= 0,
+        `${label}: rateConstant must be a finite non-negative number`);
+    }
 
     let rate;
     if (r.customRateExpr != null) {
@@ -336,4 +368,18 @@ export function createSimulation(network) {
     },
   };
   return sim;
+}
+
+// ── Temperature sweep ──────────────────────────────────────────────────
+// Run the same network at multiple temperatures and return the final
+// concentrations at each. Useful for studying Arrhenius effects.
+
+export function temperatureSweep(network, temperatures, duration, opts) {
+  requireCond(Array.isArray(temperatures) && temperatures.length > 0,
+    'temperatures must be a non-empty array');
+  return temperatures.map(T => {
+    const sim = createSimulation({ ...network, temperature: T });
+    sim.advance(duration, opts);
+    return { T, concentrations: sim.concentrations(), time: sim.time };
+  });
 }

@@ -4,10 +4,15 @@
 //
 // Product template: { atoms: [elementSymbol], bonds: [[i, j, order, ionic?]] }.
 // `charge` forces the product component's ion charge (e.g. NH4+ / Cl-).
-import { elementBySym, isMetal } from './elements.js';
-import { MAYHEM_ELEMENTS, MAYHEM_REACTIONS } from './mayhem.js';
+import { elementBySym, isMetal as isMetalObj } from './elements.js';
+import { MAYHEM_REACTIONS } from './mayhem.js';
 import { structuralFingerprint, formulaOf } from './chemistry.js';
 import { classifyMolecule, nameMolecule } from './names.js';
+import { inferOxidationState, detectRedoxChanges, OXIDATION_STATES, isMetal } from './data/oxidation-states.js';
+import { tagFunctionalGroups, GROUP_TYPES, buildAdj, alcoholClass, haloalkaneClass } from './data/functional-groups.js';
+import { DECOMPOSITION_RULES } from './data/decomposition-rules.js';
+import { KNOWN_HYDRATES, predictHydrateWater, formsHydrate, hydrateFormula, buildHydrateTemplate } from './data/hydrate-rules.js';
+import { COMMON_CATIONS, COMMON_ANIONS, isSoluble } from './data/solubility-rules.js';
 const T = {
   H2O:   { atoms: ['O', 'H', 'H'], bonds: [[0, 1, 1], [0, 2, 1]] },
   HCl:   { atoms: ['H', 'Cl'], bonds: [[0, 1, 1]] },
@@ -1178,7 +1183,7 @@ function tryCombustion(formulas) {
 // Metal + acid detection: M + acid -> salt + H2
 function isSingleMetal(formula) {
   const el = elementBySym(formula);
-  return el && isMetal(el);
+  return el && isMetalObj(el);
 }
 
 function getMetalCharge(formula) {
@@ -1271,7 +1276,7 @@ function tryMetalWaterReaction(formulas) {
   if (!other) return null;
   
   const el = elementBySym(other);
-  if (!el || !isMetal(el) || !el.charges || el.charges.length === 0) return null;
+  if (!el || !isMetalObj(el) || !el.charges || el.charges.length === 0) return null;
   
   const charge = el.charges[0];
   const isAlkali = el.cat === 'alkali';
@@ -1346,7 +1351,7 @@ function getCarbonateCation(formula) {
   const metalKeys = [...counts.keys()].filter(k => {
     if (k === 'C' || k === 'O') return false;
     const el = elementBySym(k);
-    return el && isMetal(el);
+    return el && isMetalObj(el);
   });
 
   if (metalKeys.length !== 1) return null;
@@ -1437,7 +1442,7 @@ function isMetalOxide(formula) {
 
   const metals = keys.filter(k => {
     const el = elementBySym(k);
-    return el && isMetal(el);
+    return el && isMetalObj(el);
   });
 
   if (metals.length !== 1 || keys.length !== 2 || !counts.has('O')) return null;
@@ -1496,7 +1501,7 @@ function tryMetalOxideReduction(formulas) {
     if (info) { oxideFormula = f; oxideInfo = info; }
     else {
       const el = elementBySym(f);
-      if (el && isMetal(el) && el.charges && el.charges.length > 0) reducingMetal = f;
+      if (el && isMetalObj(el) && el.charges && el.charges.length > 0) reducingMetal = f;
     }
   }
 
@@ -1554,7 +1559,7 @@ function detectAnion(compCounts, metalSym, metalCount) {
   const nonMetalKeys = [...compCounts.keys()].filter(k => {
     if (k === metalSym) return false;
     const el = elementBySym(k);
-    return el && !isMetal(el);
+    return el && !isMetalObj(el);
   });
 
   const hasO = compCounts.has('O');
@@ -1596,7 +1601,7 @@ function trySingleDisplacement(formulas) {
 
   for (const f of keys) {
     const el = elementBySym(f);
-    if (el && isMetal(el) && el.charges && el.charges.length > 0) {
+    if (el && isMetalObj(el) && el.charges && el.charges.length > 0) {
       pureMetal = f;
     } else {
       compound = f;
@@ -1609,7 +1614,7 @@ function trySingleDisplacement(formulas) {
   const compKeys = [...compCounts.keys()];
   const metalsInCompound = compKeys.filter(k => {
     const el = elementBySym(k);
-    return el && isMetal(el);
+    return el && isMetalObj(el);
   });
 
   if (metalsInCompound.length !== 1) return null;
@@ -1673,7 +1678,7 @@ function tryMetalHalogenSynthesis(formulas) {
 
   for (const f of keys) {
     const el = elementBySym(f);
-    if (el && isMetal(el) && el.charges && el.charges.length > 0) {
+    if (el && isMetalObj(el) && el.charges && el.charges.length > 0) {
       metal = f;
     } else if (f === 'Cl2' || f === 'Br2' || f === 'F2' || f === 'I2') {
       halogen = f;
@@ -1740,7 +1745,7 @@ function tryMetalDimerFormation(formulas) {
   if (count < 2) return null;
 
   const el = elementBySym(metal);
-  if (!el || !isMetal(el)) return null;
+  if (!el || !isMetalObj(el)) return null;
 
   // Only transition metals form stable dimers with quadruple bonds
   const transitionMetals = new Set([
@@ -1788,7 +1793,7 @@ function tryMetalDimerDecomposition(formulas) {
 
   const metal = m[1];
   const el = elementBySym(metal);
-  if (!el || !isMetal(el)) return null;
+  if (!el || !isMetalObj(el)) return null;
 
   const transitionMetals = new Set([
     'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
@@ -2477,7 +2482,7 @@ function structBaseOH(tpl) {
     if (!b[3]) continue;
     for (const [x, y] of [[b[0], b[1]], [b[1], b[0]]]) {
       const el = elementBySym(tpl.atoms[x]);
-      if (el && isMetal(el)) ionicUnits.set(x, (ionicUnits.get(x) || 0) + b[2]);
+      if (el && isMetalObj(el)) ionicUnits.set(x, (ionicUnits.get(x) || 0) + b[2]);
     }
   }
   if (!ionicUnits.size) return null;
@@ -2758,9 +2763,384 @@ function tryAlkeneAdditionHXStruct(comps, have) {
 
 // Structure-aware checks run before the formula-based ones whenever the
 // caller supplies selected component structures.
+// ── Organic Functional Group Reactions (structure-aware) ────────────────
+// These handlers use tagFunctionalGroups() to identify reactive sites
+// in actual molecular structures, then transform them to products.
+
+function tryNucleophilicSubstitution(comps, have) {
+  if (comps.length < 2) return null;
+
+  for (let i = 0; i < comps.length; i++) {
+    const tags = tagFunctionalGroups(comps[i]);
+    const halideTag = tags.find(t => t.group === GROUP_TYPES.HALIDE);
+    if (!halideTag) continue;
+
+    const halClass = haloalkaneClass(comps[i], halideTag);
+    if (!halClass || halClass === 'aryl') continue;
+
+    for (let j = 0; j < comps.length; j++) {
+      if (i === j) continue;
+      const nucTags = tagFunctionalGroups(comps[j]);
+      const isNucleophile = nucTags.some(t =>
+        t.group === GROUP_TYPES.ALCOHOL ||
+        t.group === GROUP_TYPES.AMINE_PRIMARY ||
+        t.group === GROUP_TYPES.AMINE_SECONDARY
+      ) || normalizeFormula(formulaOf(comps[j].atoms.map(s => elementBySym(s)))) === 'NaOH'
+        || normalizeFormula(formulaOf(comps[j].atoms.map(s => elementBySym(s)))) === 'KOH'
+        || normalizeFormula(formulaOf(comps[j].atoms.map(s => elementBySym(s)))) === 'NaCN';
+
+      if (!isNucleophile) continue;
+
+      const mechanism = (halClass === 'tertiary') ? 'SN1' : 'SN2';
+      const cIdx = halideTag.atomIndices.find(k => comps[i].atoms[k] === 'C');
+      const xIdx = halideTag.atomIndices.find(k => comps[i].atoms[k] !== 'C');
+      const halSym = comps[i].atoms[xIdx];
+
+      const productAtoms = [...comps[i].atoms];
+      productAtoms[xIdx] = 'O';
+      const hIdx = productAtoms.length;
+      productAtoms.push('H');
+
+      const productBonds = comps[i].bonds.filter(b => b[0] !== xIdx && b[1] !== xIdx);
+      productBonds.push([cIdx, xIdx, 1]);
+      productBonds.push([xIdx, hIdx, 1]);
+
+      const productFormula = orderingToFormula(productAtoms);
+      const halAcidFormula = `H${halSym}`;
+
+      if (!T[productFormula]) T[productFormula] = { atoms: productAtoms, bonds: productBonds };
+      if (!T[halAcidFormula]) T[halAcidFormula] = { atoms: ['H', halSym], bonds: [[0, 1, 1]] };
+
+      return {
+        reactants: Object.fromEntries([[formulaOf(comps[i].atoms.map(s => elementBySym(s))), 1], [formulaOf(comps[j].atoms.map(s => elementBySym(s))), 1]]),
+        condition: 'rt',
+        products: [[productFormula, 1], [halAcidFormula, 1]],
+        equation: `${formulaOf(comps[i].atoms.map(s => elementBySym(s)))} + ${formulaOf(comps[j].atoms.map(s => elementBySym(s)))} -> ${productFormula} + H${halSym}`,
+        dynamic: true,
+        mechanism,
+        organic: true,
+      };
+    }
+  }
+  return null;
+}
+
+function tryElimination(comps, have) {
+  if (comps.length < 2) return null;
+
+  for (let i = 0; i < comps.length; i++) {
+    const tags = tagFunctionalGroups(comps[i]);
+    const halideTag = tags.find(t => t.group === GROUP_TYPES.HALIDE);
+    if (!halideTag) continue;
+
+    const halClass = haloalkaneClass(comps[i], halideTag);
+    if (!halClass || halClass === 'methyl') continue;
+
+    for (let j = 0; j < comps.length; j++) {
+      if (i === j) continue;
+      const baseFormula = normalizeFormula(formulaOf(comps[j].atoms.map(s => elementBySym(s))));
+      const isBase = baseFormula === 'NaOH' || baseFormula === 'KOH' || baseFormula === 'NaOEt';
+      if (!isBase) continue;
+
+      const cIdx = halideTag.atomIndices.find(k => comps[i].atoms[k] === 'C');
+      const xIdx = halideTag.atomIndices.find(k => comps[i].atoms[k] !== 'C');
+      const halSym = comps[i].atoms[xIdx];
+
+      const adj = buildAdj(comps[i].atoms, comps[i].bonds);
+      const cNeighbors = adj[cIdx].map(nb => nb.j !== undefined ? nb.j : nb.i);
+      const betaC = cNeighbors.find(k => comps[i].atoms[k] === 'C' && k !== xIdx);
+      if (betaC === undefined) continue;
+
+      const productAtoms = [...comps[i].atoms];
+      const productBonds = comps[i].bonds.map(b => [...b]);
+      const existingBond = productBonds.find(b =>
+        (b[0] === cIdx && b[1] === betaC) || (b[0] === betaC && b[1] === cIdx)
+      );
+      if (existingBond) {
+        existingBond[2] = Math.min((existingBond[2] || 1) + 1, 3);
+      } else {
+        productBonds.push([cIdx, betaC, 2]);
+      }
+
+      const productFormula = orderingToFormula(productAtoms);
+      if (!T[productFormula]) T[productFormula] = { atoms: productAtoms, bonds: productBonds };
+
+      const mechanism = (halClass === 'tertiary') ? 'E1' : 'E2';
+      const baseCation = baseFormula.startsWith('K') ? 'K' : 'Na';
+      const saltFormula = `${baseCation}${halSym}`;
+      if (!T[saltFormula]) T[saltFormula] = { atoms: [baseCation, halSym], bonds: [[0, 1, 1, true]] };
+
+      return {
+        reactants: Object.fromEntries([[formulaOf(comps[i].atoms.map(s => elementBySym(s))), 1], [formulaOf(comps[j].atoms.map(s => elementBySym(s))), 1]]),
+        condition: 'heat',
+        products: [[productFormula, 1], [saltFormula, 1], ['H2O', 1]],
+        equation: `${formulaOf(comps[i].atoms.map(s => elementBySym(s)))} + ${formulaOf(comps[j].atoms.map(s => elementBySym(s)))} -> ${productFormula} + ${saltFormula} + H2O`,
+        dynamic: true,
+        mechanism,
+        organic: true,
+      };
+    }
+  }
+  return null;
+}
+
+function tryAlcoholOxidation(comps, have) {
+  if (comps.length < 2) return null;
+
+  const oxidizers = new Set(['KMnO4', 'K2Cr2O7', 'CrO3', 'MnO2']);
+
+  for (let i = 0; i < comps.length; i++) {
+    const tags = tagFunctionalGroups(comps[i]);
+    const alcoholTag = tags.find(t => t.group === GROUP_TYPES.ALCOHOL);
+    if (!alcoholTag) continue;
+
+    const aClass = alcoholClass(comps[i], alcoholTag);
+    if (!aClass || aClass === 'tertiary') continue;
+
+    for (let j = 0; j < comps.length; j++) {
+      if (i === j) continue;
+      const oxFormula = normalizeFormula(formulaOf(comps[j].atoms.map(s => elementBySym(s))));
+      if (!oxidizers.has(oxFormula)) continue;
+
+      const adj = buildAdj(comps[i].atoms, comps[i].bonds);
+      const oIdx = alcoholTag.atomIndices.find(k => comps[i].atoms[k] === 'O');
+      const cNb = adj[oIdx].find(nb => {
+        const other = nb.j !== undefined ? nb.j : nb.i;
+        return comps[i].atoms[other] === 'C';
+      });
+      const cIdx = cNb ? (cNb.j !== undefined ? cNb.j : cNb.i) : undefined;
+      if (cIdx === undefined) continue;
+
+      const productAtoms = [...comps[i].atoms];
+      const productBonds = comps[i].bonds.map(b => [...b]);
+
+      if (aClass === 'primary') {
+        const existingCO = productBonds.find(b =>
+          ((b[0] === cIdx && b[1] === oIdx) || (b[0] === oIdx && b[1] === cIdx))
+        );
+        if (existingCO) existingCO[2] = 2;
+        else productBonds.push([cIdx, oIdx, 2]);
+
+        const hOnC = adj[cIdx].filter(nb => {
+          const other = nb.j !== undefined ? nb.j : nb.i;
+          return comps[i].atoms[other] === 'H';
+        });
+        if (hOnC.length > 0) {
+          productAtoms[hOnC[0].j !== undefined ? hOnC[0].j : hOnC[0].i] = 'O';
+          productBonds.push([cIdx, hOnC[0].j !== undefined ? hOnC[0].j : hOnC[0].i, 2]);
+        }
+      } else {
+        const existingCO = productBonds.find(b =>
+          ((b[0] === cIdx && b[1] === oIdx) || (b[0] === oIdx && b[1] === cIdx))
+        );
+        if (existingCO) existingCO[2] = 2;
+        else productBonds.push([cIdx, oIdx, 2]);
+      }
+
+      const productFormula = orderingToFormula(productAtoms);
+      if (!T[productFormula]) T[productFormula] = { atoms: productAtoms, bonds: productBonds };
+
+      const productType = aClass === 'primary' ? 'carboxylic acid' : 'ketone';
+
+      return {
+        reactants: Object.fromEntries([[formulaOf(comps[i].atoms.map(s => elementBySym(s))), 1], [formulaOf(comps[j].atoms.map(s => elementBySym(s))), 1]]),
+        condition: 'catalyst',
+        products: [[productFormula, 1]],
+        equation: `${formulaOf(comps[i].atoms.map(s => elementBySym(s)))} + ${oxFormula} -> ${productFormula} (oxidation: ${productType})`,
+        dynamic: true,
+        organic: true,
+        oxidation: true,
+      };
+    }
+  }
+  return null;
+}
+
+function tryAmideFormation(comps, have) {
+  if (comps.length < 2) return null;
+
+  for (let i = 0; i < comps.length; i++) {
+    const tagsI = tagFunctionalGroups(comps[i]);
+    const carboxylTag = tagsI.find(t => t.group === GROUP_TYPES.CARBOXYL);
+    if (!carboxylTag) continue;
+
+    for (let j = 0; j < comps.length; j++) {
+      if (i === j) continue;
+      const tagsJ = tagFunctionalGroups(comps[j]);
+      const amineTag = tagsJ.find(t =>
+        t.group === GROUP_TYPES.AMINE_PRIMARY || t.group === GROUP_TYPES.AMINE_SECONDARY
+      );
+      if (!amineTag) continue;
+
+      const cIdx = carboxylTag.atomIndices.find(k => comps[i].atoms[k] === 'C');
+      const nIdx = amineTag.atomIndices.find(k => comps[j].atoms[k] === 'N');
+
+      const productAtoms = [...comps[i].atoms, ...comps[j].atoms];
+      const productBonds = [...comps[i].bonds.map(b => [...b])];
+      const offset = comps[i].atoms.length;
+      for (const b of comps[j].bonds) {
+        productBonds.push([b[0] + offset, b[1] + offset, b[2] || 1, b[3]]);
+      }
+      productBonds.push([cIdx, nIdx + offset, 1]);
+
+      const productFormula = orderingToFormula(productAtoms);
+      if (!T[productFormula]) T[productFormula] = { atoms: productAtoms, bonds: productBonds };
+
+      return {
+        reactants: Object.fromEntries([[formulaOf(comps[i].atoms.map(s => elementBySym(s))), 1], [formulaOf(comps[j].atoms.map(s => elementBySym(s))), 1]]),
+        condition: 'heat',
+        products: [[productFormula, 1], ['H2O', 1]],
+        equation: `${formulaOf(comps[i].atoms.map(s => elementBySym(s)))} + ${formulaOf(comps[j].atoms.map(s => elementBySym(s)))} -> amide + H2O`,
+        dynamic: true,
+        organic: true,
+        condensation: true,
+      };
+    }
+  }
+  return null;
+}
+
+// ── Aromatic Substitution ───────────────────────────────────────────────
+// Detect aromatic rings and perform electrophilic aromatic substitution.
+
+function findAromaticRing(tpl) {
+  const tags = tagFunctionalGroups(tpl);
+  return tags.find(t => t.group === GROUP_TYPES.ARYL) || null;
+}
+
+function tryNitration(comps, have) {
+  if (comps.length < 2) return null;
+
+  for (let i = 0; i < comps.length; i++) {
+    const arylTag = findAromaticRing(comps[i]);
+    if (!arylTag) continue;
+
+    for (let j = 0; j < comps.length; j++) {
+      if (i === j) continue;
+      const fFormula = normalizeFormula(formulaOf(comps[j].atoms.map(s => elementBySym(s))));
+      if (fFormula !== 'HNO3') continue;
+
+      const productAtoms = [...comps[i].atoms];
+      const ringH = arylTag.atomIndices.find(k => {
+        const adj = buildAdj(comps[i].atoms, comps[i].bonds);
+        return adj[k].some(nb => {
+          const other = nb.j !== undefined ? nb.j : nb.i;
+          return comps[i].atoms[other] === 'H';
+        });
+      });
+
+      if (ringH !== undefined) {
+        const adj = buildAdj(comps[i].atoms, comps[i].bonds);
+        const hNeighbor = adj[ringH].find(nb => {
+          const other = nb.j !== undefined ? nb.j : nb.i;
+          return comps[i].atoms[other] === 'H';
+        });
+        if (hNeighbor) {
+          const hIdx = hNeighbor.j !== undefined ? hNeighbor.j : hNeighbor.i;
+          productAtoms[hIdx] = 'N';
+          const o1Idx = productAtoms.length;
+          const o2Idx = productAtoms.length + 1;
+          productAtoms.push('O', 'O');
+          const productBonds = [...comps[i].bonds];
+          productBonds.push([ringH, hIdx, 1]);
+          productBonds.push([hIdx, o1Idx, 2]);
+          productBonds.push([hIdx, o2Idx, 1]);
+
+          const productFormula = orderingToFormula(productAtoms);
+          if (!T[productFormula]) T[productFormula] = { atoms: productAtoms, bonds: productBonds };
+
+          return {
+            reactants: Object.fromEntries([[formulaOf(comps[i].atoms.map(s => elementBySym(s))), 1], ['HNO3', 1]]),
+            condition: 'heat',
+            products: [[productFormula, 1], ['H2O', 1]],
+            equation: `${formulaOf(comps[i].atoms.map(s => elementBySym(s)))} + HNO3 -> nitro${formulaOf(comps[i].atoms.map(s => elementBySym(s)))} + H2O`,
+            dynamic: true,
+            organic: true,
+            aromatic: true,
+            substitution: 'nitration',
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function tryFriedelCraftsAlkylation(comps, have) {
+  if (comps.length < 2) return null;
+
+  for (let i = 0; i < comps.length; i++) {
+    const arylTag = findAromaticRing(comps[i]);
+    if (!arylTag) continue;
+
+    for (let j = 0; j < comps.length; j++) {
+      if (i === j) continue;
+      const tagsJ = tagFunctionalGroups(comps[j]);
+      const halideTag = tagsJ.find(t => t.group === GROUP_TYPES.HALIDE);
+      if (!halideTag) continue;
+
+      const cIdx = halideTag.atomIndices.find(k => comps[j].atoms[k] === 'C');
+      const xIdx = halideTag.atomIndices.find(k => comps[j].atoms[k] !== 'C');
+      if (cIdx === undefined || xIdx === undefined) continue;
+      const halSym = comps[j].atoms[xIdx];
+
+      const adj = buildAdj(comps[i].atoms, comps[i].bonds);
+      const ringH = arylTag.atomIndices.find(k =>
+        adj[k].some(nb => {
+          const other = nb.j !== undefined ? nb.j : nb.i;
+          return comps[i].atoms[other] === 'H';
+        })
+      );
+      if (ringH === undefined) continue;
+
+      const hNeighbor = adj[ringH].find(nb => {
+        const other = nb.j !== undefined ? nb.j : nb.i;
+        return comps[i].atoms[other] === 'H';
+      });
+      if (!hNeighbor) continue;
+      const hIdx = hNeighbor.j !== undefined ? hNeighbor.j : hNeighbor.i;
+
+      const alkylAtoms = [...comps[j].atoms];
+      alkylAtoms.splice(xIdx, 1);
+
+      const productAtoms = [...comps[i].atoms];
+      productAtoms[hIdx] = alkylAtoms[0];
+      for (let k = 1; k < alkylAtoms.length; k++) {
+        productAtoms.push(alkylAtoms[k]);
+      }
+
+      const productBonds = [...comps[i].bonds];
+      const baseIdx = comps[i].atoms.length;
+      for (let k = 0; k < alkylAtoms.length - 1; k++) {
+        productBonds.push([baseIdx + k, baseIdx + k + 1, 1]);
+      }
+      productBonds.push([ringH, baseIdx, 1]);
+
+      const productFormula = orderingToFormula(productAtoms);
+      if (!T[productFormula]) T[productFormula] = { atoms: productAtoms, bonds: productBonds };
+
+      const hxFormula = `H${halSym}`;
+      if (!T[hxFormula]) T[hxFormula] = { atoms: ['H', halSym], bonds: [[0, 1, 1]] };
+
+      return {
+        reactants: Object.fromEntries([[formulaOf(comps[i].atoms.map(s => elementBySym(s))), 1], [formulaOf(comps[j].atoms.map(s => elementBySym(s))), 1]]),
+        condition: 'catalyst',
+        products: [[productFormula, 1], [hxFormula, 1]],
+        equation: `${formulaOf(comps[i].atoms.map(s => elementBySym(s)))} + ${formulaOf(comps[j].atoms.map(s => elementBySym(s)))} -> alkylated + H${halSym}`,
+        dynamic: true,
+        organic: true,
+        aromatic: true,
+        substitution: 'friedel-crafts',
+      };
+    }
+  }
+  return null;
+}
+
 const STRUCT_CHECKS = {
-  rt: [tryAcidBaseStruct, tryAlkeneHalogenationStruct, tryAlkeneAdditionHXStruct],
-  catalyst: [tryEsterificationStruct, tryEsterHydrolysisStruct, tryAlkeneHydrationStruct],
+  rt: [tryAcidBaseStruct, tryAlkeneHalogenationStruct, tryAlkeneAdditionHXStruct, tryNucleophilicSubstitution, tryAlcoholOxidation],
+  catalyst: [tryEsterificationStruct, tryEsterHydrolysisStruct, tryAlkeneHydrationStruct, tryFriedelCraftsAlkylation, tryAmideFormation],
+  heat: [tryNitration, tryElimination],
 };
 
 function candidatesOf(r) {
@@ -2795,77 +3175,6 @@ function matchDynamic(rx, have) {
 
 // ========== PRECIPITATION & DOUBLE DISPLACEMENT ==========
 
-const COMMON_CATIONS = {
-  'Li': { sym: 'Li', charge: 1, group: 1 }, 'Na': { sym: 'Na', charge: 1, group: 1 },
-  'K': { sym: 'K', charge: 1, group: 1 }, 'Rb': { sym: 'Rb', charge: 1, group: 1 },
-  'Cs': { sym: 'Cs', charge: 1, group: 1 }, 'NH4': { sym: 'NH4', charge: 1, group: -1 },
-  'Ag': { sym: 'Ag', charge: 1, group: -2 }, 'Pb': { sym: 'Pb', charge: 2, group: -2 },
-  'Hg2': { sym: 'Hg2', charge: 2, group: -2 },
-  'Ba': { sym: 'Ba', charge: 2, group: 2 }, 'Sr': { sym: 'Sr', charge: 2, group: 2 },
-  'Ca': { sym: 'Ca', charge: 2, group: 2 }, 'Mg': { sym: 'Mg', charge: 2, group: 2 },
-  'Fe': { sym: 'Fe', charge: 3, group: -3 }, 'Fe2': { sym: 'Fe', charge: 2, group: -3 },
-  'Cu': { sym: 'Cu', charge: 2, group: -3 }, 'Cu1': { sym: 'Cu', charge: 1, group: -3 },
-  'Zn': { sym: 'Zn', charge: 2, group: -3 }, 'Al': { sym: 'Al', charge: 3, group: -3 },
-  'Cr': { sym: 'Cr', charge: 3, group: -3 }, 'Ni': { sym: 'Ni', charge: 2, group: -3 },
-  'Co': { sym: 'Co', charge: 2, group: -3 }, 'Mn': { sym: 'Mn', charge: 2, group: -3 },
-};
-
-const COMMON_ANIONS = {
-  'NO3': { sym: 'NO3', charge: -1, type: 'nitrate' },
-  'NO2': { sym: 'NO2', charge: -1, type: 'nitrite' },
-  'C2H3O2': { sym: 'C2H3O2', charge: -1, type: 'acetate' },
-  'Cl': { sym: 'Cl', charge: -1, type: 'halide' },
-  'Br': { sym: 'Br', charge: -1, type: 'halide' },
-  'I': { sym: 'I', charge: -1, type: 'halide' },
-  'SO4': { sym: 'SO4', charge: -2, type: 'sulfate' },
-  'SO3': { sym: 'SO3', charge: -2, type: 'sulfite' },
-  'HSO4': { sym: 'HSO4', charge: -1, type: 'hydrogenSulfate' },
-  'HCO3': { sym: 'HCO3', charge: -1, type: 'hydrogenCarbonate' },
-  'H2PO4': { sym: 'H2PO4', charge: -1, type: 'dihydrogenPhosphate' },
-  'OH': { sym: 'OH', charge: -1, type: 'hydroxide' },
-  'S': { sym: 'S', charge: -2, type: 'sulfide' },
-  'CO3': { sym: 'CO3', charge: -2, type: 'carbonate' },
-  'PO4': { sym: 'PO4', charge: -3, type: 'phosphate' },
-  'CrO4': { sym: 'CrO4', charge: -2, type: 'chromate' },
-  'SiO3': { sym: 'SiO3', charge: -2, type: 'silicate' },
-  'ClO': { sym: 'ClO', charge: -1, type: 'hypochlorite' },
-  'ClO2': { sym: 'ClO2', charge: -1, type: 'chlorite' },
-  'ClO3': { sym: 'ClO3', charge: -1, type: 'chlorate' },
-  'ClO4': { sym: 'ClO4', charge: -1, type: 'perchlorate' },
-  'MnO4': { sym: 'MnO4', charge: -1, type: 'permanganate' },
-  'AlO2': { sym: 'AlO2', charge: -1, type: 'metalate' },
-  'ZnO2': { sym: 'ZnO2', charge: -2, type: 'metalate' },
-  'CN': { sym: 'CN', charge: -1, type: 'cyanide' },
-};
-
-function isSoluble(cation, anion) {
-  if (!cation || !anion) return true;
-  if (cation.group === 1 || cation.sym === 'NH4') return true;
-  if (anion.type === 'nitrate' || anion.type === 'acetate') return true;
-  if (anion.type === 'halide') {
-    if (cation.sym === 'Ag' || cation.sym === 'Pb' || cation.sym === 'Hg2') return false;
-    return true;
-  }
-  if (anion.type === 'sulfate') {
-    if (cation.sym === 'Ba' || cation.sym === 'Sr' || cation.sym === 'Pb') return false;
-    if (cation.sym === 'Ca') return true;
-    return true;
-  }
-  if (anion.type === 'hydrogenCarbonate' || anion.type === 'hydrogenSulfate' ||
-      anion.type === 'dihydrogenPhosphate' || anion.type === 'metalate' ||
-      anion.type === 'permanganate' || anion.type === 'chlorate' ||
-      anion.type === 'perchlorate' || anion.type === 'hypochlorite' ||
-      anion.type === 'chlorite' || anion.type === 'nitrite') return true;
-  if (anion.type === 'cyanide') {
-    return !(cation.sym === 'Ag' || cation.sym === 'Pb');
-  }
-  if (anion.type === 'hydroxide' || anion.type === 'sulfide' ||
-      anion.type === 'carbonate' || anion.type === 'phosphate' || anion.type === 'chromate' ||
-      anion.type === 'sulfite' || anion.type === 'silicate') {
-    return false;
-  }
-  return true;
-}
 
 function parseIonicCompound(formula) {
   const f = normalizeFormula(formula);
@@ -3027,6 +3336,91 @@ function tryAdvancedDecomposition(formulas) {
   return null;
 }
 
+// ── Generic Thermal Decomposition (rule-based) ──────────────────────────
+// Uses DECOMPOSITION_RULES from data/decomposition-rules.js instead of
+// hardcoded per-compound patterns.
+
+function tryGenericDecomposition(formulas) {
+  if (formulas.length !== 1) return null;
+  const f = formulas[0];
+  const parsed = parseFormula(f);
+  if (!parsed || parsed.size === 0) return null;
+
+  for (const rule of DECOMPOSITION_RULES) {
+    if (rule.match(parsed, parsed)) {
+      const productFormulas = rule.products(parsed, parsed);
+      if (!productFormulas || productFormulas.length < 2) continue;
+
+      const validProducts = productFormulas.filter(pf => {
+        const pp = parseFormula(pf);
+        return pp && pp.size > 0;
+      });
+      if (validProducts.length < 2) continue;
+
+      const coeffs = balanceEquation([f], validProducts);
+      if (!coeffs) continue;
+
+      for (const pf of validProducts) {
+        if (!T[pf]) T[pf] = generateSingleAtomTemplate(pf.split(/(?=[A-Z])/)[0]) || { atoms: [], bonds: [] };
+      }
+
+      return {
+        reactants: { [f]: 1 },
+        condition: 'heat',
+        products: validProducts.map((pf, i) => [pf, coeffs[1 + i]]),
+        equation: eqParts([f], validProducts, coeffs),
+        dynamic: true,
+        decompositionRule: rule.id,
+      };
+    }
+  }
+  return null;
+}
+
+// ── Hydrate Formation ───────────────────────────────────────────────────
+// Anhydrous salt + nH2O → hydrated salt
+// Uses data from data/hydrate-rules.js
+
+function tryHydrateFormation(formulas) {
+  if (formulas.length !== 2) return null;
+
+  let salt = null, waterCount = 0;
+  for (const f of formulas) {
+    if (normalizeFormula(f) === 'H2O') {
+      waterCount = formulas.filter(x => normalizeFormula(x) === 'H2O').length;
+    } else {
+      salt = f;
+    }
+  }
+  if (!salt || waterCount === 0) return null;
+
+  const saltNorm = normalizeFormula(salt);
+  if (!formsHydrate(saltNorm)) return null;
+
+  const waterNeeded = predictHydrateWater(saltNorm, parseFormula(salt));
+  if (waterNeeded <= 0) return null;
+
+  const hydrateF = hydrateFormula(saltNorm, waterNeeded);
+  const known = KNOWN_HYDRATES[saltNorm];
+  const saltTpl = T[saltNorm] || T[salt];
+  const hydrateTpl = saltTpl ? buildHydrateTemplate(saltTpl, waterNeeded) : { atoms: [], bonds: [] };
+
+  if (!T[hydrateF]) T[hydrateF] = hydrateTpl;
+
+  const coeffs = balanceEquation([salt, 'H2O'], [hydrateF]);
+  if (!coeffs) return null;
+
+  return {
+    reactants: { [salt]: 1, H2O: 1 },
+    condition: 'rt',
+    products: [[hydrateF, coeffs[2]]],
+    equation: `${coeffs[0] > 1 ? coeffs[0] : ''}${salt} + ${coeffs[1] > 1 ? coeffs[1] : ''}H2O -> ${coeffs[2] > 1 ? coeffs[2] : ''}${hydrateF}`,
+    dynamic: true,
+    hydrate: true,
+    hydrateName: known ? known.name : null,
+  };
+}
+
 // ========== EXTENDED GAS EVOLUTION REACTIONS ==========
 
 function tryGasEvolution(formulas) {
@@ -3116,165 +3510,396 @@ function tryGasEvolution(formulas) {
 
 // ========== COMPLEX REDOX BALANCING ==========
 
-const OXIDATION_STATES = {
-  'H': [1, -1], 'O': [-2, -1], 'F': [-1],
-  'Li': [1], 'Na': [1], 'K': [1], 'Rb': [1], 'Cs': [1],
-  'Be': [2], 'Mg': [2], 'Ca': [2], 'Sr': [2], 'Ba': [2],
-  'Al': [3], 'Zn': [2], 'Ag': [1], 'Cu': [2, 1], 'Fe': [3, 2],
-  'Mn': [7, 4, 2], 'Cr': [6, 3], 'Ni': [2], 'Co': [2, 3],
-  'Pb': [2, 4], 'Sn': [2, 4], 'Cl': [-1, 1, 3, 5, 7],
-  'Br': [-1, 1, 3, 5], 'I': [-1, 1, 3, 5, 7],
-  'S': [-2, 4, 6], 'N': [-3, 3, 5], 'P': [3, 5],
-  'C': [4, 2, -4], 'W': [6], 'Mo': [6], 'V': [5, 4, 3, 2],
-};
-
-function getOxidationState(sym, formula) {
-  const parsed = parseFormula(formula);
-  const states = OXIDATION_STATES[sym];
-  if (!states || states.length === 0) return 0;
-
-  if (sym === 'O') return parsed.has('H') && parsed.get('H') === 2 && parsed.size === 2 ? -1 : -2;
-  if (sym === 'H') return parsed.has('O') ? 1 : (states.includes(-1) ? -1 : 1);
-
-  let totalCharge = 0;
-  for (const [s, count] of parsed) {
-    if (s === sym) continue;
-    const sStates = OXIDATION_STATES[s];
-    if (sStates && sStates.length > 0) {
-      totalCharge += sStates[0] * count;
-    }
-  }
-
-  for (const state of states) {
-    const symCount = parsed.get(sym) || 1;
-    if (state * symCount + totalCharge === 0) return state;
-  }
-
-  return states[0];
-}
-
-function detectRedoxPairs(formulas) {
-  if (formulas.length < 2) return null;
-
-  const allElements = new Set();
-  for (const f of formulas) {
-    const parsed = parseFormula(f);
-    for (const sym of parsed.keys()) allElements.add(sym);
-  }
-
-  const oxidized = [];
-  const reduced = [];
-
-  for (const sym of allElements) {
-    if (sym === 'H' || sym === 'O') continue;
-    const states = new Set();
-    for (const f of formulas) {
-      const parsed = parseFormula(f);
-      if (parsed.has(sym)) {
-        states.add(getOxidationState(sym, f));
-      }
-    }
-    if (states.size > 1) {
-      const stateArray = [...states].sort((a, b) => a - b);
-      reduced.push({ sym, from: stateArray[stateArray.length - 1], to: stateArray[0] });
-      oxidized.push({ sym, from: stateArray[0], to: stateArray[stateArray.length - 1] });
-    }
-  }
-
-  if (oxidized.length === 0 || reduced.length === 0) return null;
-  return { oxidized: oxidized[0], reduced: reduced[0] };
-}
+// ── Universal Redox Engine ──────────────────────────────────────────────
+// Uses oxidation state inference from data/oxidation-states.js to detect
+// which elements change state, then generates balanced products dynamically.
 
 function tryRedoxBalancing(formulas) {
   if (formulas.length < 2) return null;
+  const have = new Map();
+  for (const f of formulas) {
+    const norm = normalizeFormula(f);
+    have.set(norm, (have.get(norm) || 0) + 1);
+  }
 
-  const redoxPatterns = [
-    {
-      reactants: ['Fe2O3', 'CO'],
-      condition: 'heat',
-      products: [['Fe', 2], ['CO2', 3]],
-      equation: 'Fe2O3 + 3CO -> 2Fe + 3CO2',
-    },
-    {
-      reactants: ['CuO', 'H2'],
-      condition: 'heat',
-      products: [['Cu', 1], ['H2O', 1]],
-      equation: 'CuO + H2 -> Cu + H2O',
-    },
-    {
-      reactants: ['WO3', 'H2'],
-      condition: 'heat',
-      products: [['W', 1], ['H2O', 3]],
-      equation: 'WO3 + 3H2 -> W + 3H2O',
-    },
-    {
-      reactants: ['Cr2O3', 'Al'],
-      condition: 'heat',
-      products: [['Cr', 2], ['Al2O3', 1]],
-      equation: 'Cr2O3 + 2Al -> 2Cr + Al2O3',
-    },
-    {
-      reactants: ['KMnO4', 'HCl'],
-      condition: 'rt',
-      products: [['KCl', 1], ['MnCl2', 1], ['Cl2', 5], ['H2O', 8]],
-      equation: '2KMnO4 + 16HCl -> 2KCl + 2MnCl2 + 5Cl2 + 8H2O',
-    },
-    {
-      reactants: ['K2Cr2O7', 'HCl'],
-      condition: 'rt',
-      products: [['KCl', 2], ['CrCl3', 2], ['Cl2', 3], ['H2O', 7]],
-      equation: 'K2Cr2O7 + 14HCl -> 2KCl + 2CrCl3 + 3Cl2 + 7H2O',
-    },
-    {
-      reactants: ['Zn', 'HCl'],
-      condition: 'rt',
-      products: [['ZnCl2', 1], ['H2', 1]],
-      equation: 'Zn + 2HCl -> ZnCl2 + H2',
-    },
-    {
-      reactants: ['Fe', 'HCl'],
-      condition: 'rt',
-      products: [['FeCl2', 1], ['H2', 1]],
-      equation: 'Fe + 2HCl -> FeCl2 + H2',
-    },
-    {
-      reactants: ['Mg', 'HCl'],
-      condition: 'rt',
-      products: [['MgCl2', 1], ['H2', 1]],
-      equation: 'Mg + 2HCl -> MgCl2 + H2',
-    },
-    {
-      reactants: ['Al', 'HCl'],
-      condition: 'rt',
-      products: [['AlCl3', 2], ['H2', 3]],
-      equation: '2Al + 6HCl -> 2AlCl3 + 3H2',
-    },
-  ];
+  const parsedAll = formulas.map(f => ({ formula: f, parsed: parseFormula(f) }));
+  const allElements = new Set();
+  for (const { parsed: p } of parsedAll) {
+    if (!p) continue;
+    for (const sym of p.keys()) {
+      if (sym !== 'H' && sym !== 'O') allElements.add(sym);
+    }
+  }
 
-  for (const pattern of redoxPatterns) {
-    const patternSet = new Set(pattern.reactants.map(normalizeFormula));
-    const inputSet = new Set(formulas.map(normalizeFormula));
-    if (patternSet.size === inputSet.size && [...patternSet].every(f => inputSet.has(f))) {
-      for (const [prod, count] of pattern.products) {
-        if (!T[prod]) T[prod] = { atoms: [], bonds: [] };
+  const candidates = [];
+  for (const sym of allElements) {
+    const states = new Set();
+    for (const { parsed: p } of parsedAll) {
+      if (p && p.has(sym)) states.add(inferOxidationState(sym, p));
+    }
+    if (states.size > 0) candidates.push({ sym, states: [...states] });
+  }
+
+  let oxidized = null;
+  let reduced = null;
+  for (const c of candidates) {
+    const entry = OXIDATION_STATES[c.sym];
+    const knownStates = entry ? (Array.isArray(entry) ? entry : entry.states || []) : [];
+    const currentState = c.states[0];
+    const canOxidize = knownStates.some(s => s > currentState);
+    const canReduce = knownStates.some(s => s < currentState);
+    if (canOxidize && !oxidized) {
+      oxidized = { sym: c.sym, from: currentState };
+    }
+    if (canReduce && !reduced) {
+      reduced = { sym: c.sym, from: currentState };
+    }
+    if (oxidized && reduced) break;
+  }
+
+  if (!oxidized || !reduced) return null;
+  if (oxidized.sym === reduced.sym) return null;
+
+  return tryBuildRedoxProducts(formulas, have, oxidized, reduced);
+}
+
+function tryBuildRedoxProducts(formulas, have, oxidized, reduced) {
+  const parsed = formulas.map(f => ({ formula: f, parsed: parseFormula(f) }));
+
+  for (const entry of parsed) {
+    const { formula, parsed: p } = entry;
+    const metals = [...p.keys()].filter(s => isMetal(s));
+
+    if (metals.length > 0 && (formula.includes('O') || formula.includes('Cl') || formula.includes('Br'))) {
+      const metal = metals[0];
+      const metalState = inferOxidationState(metal, p);
+      if (metalState > 0) {
+        const reducedMetal = metal;
+        const oxideOrHalide = buildReductionProduct(formula, metal);
+        if (oxideOrHalide) {
+          const otherFormulas = formulas.filter(f => normalizeFormula(f) !== normalizeFormula(formula));
+          const reducingAgent = otherFormulas[0];
+          if (reducingAgent) {
+            const products = generateRedoxProducts(formula, reducingAgent, oxidized, reduced);
+            if (products) {
+              const lhs = formulas.slice();
+              const coeffs = balanceEquation(lhs, products.map(p => p.formula));
+              if (coeffs) {
+                const reactantObj = {};
+                for (const f of lhs) reactantObj[f] = 1;
+                return {
+                  reactants: reactantObj,
+                  condition: 'heat',
+                  products: products.map((p, i) => [p.formula, coeffs[lhs.length + i]]),
+                  equation: eqParts(lhs, products.map(p => p.formula), coeffs),
+                  dynamic: true,
+                  redox: true,
+                };
+              }
+            }
+          }
+        }
       }
+    }
+  }
+
+  if (reduced.sym === oxidized.sym) return null;
+
+  for (const f1 of formulas) {
+    for (const f2 of formulas) {
+      if (normalizeFormula(f1) === normalizeFormula(f2)) continue;
+      const products = generateRedoxProducts(f1, f2, oxidized, reduced);
+      if (!products) continue;
+      const lhs = [f1, f2];
+      const coeffs = balanceEquation(lhs, products.map(p => p.formula));
+      if (!coeffs) continue;
       const reactantObj = {};
-      for (const r of pattern.reactants) reactantObj[r] = 1;
+      for (const f of lhs) reactantObj[f] = 1;
       return {
         reactants: reactantObj,
-        condition: pattern.condition,
-        products: pattern.products,
-        equation: pattern.equation,
+        condition: 'heat',
+        products: products.map((p, i) => [p.formula, coeffs[lhs.length + i]]),
+        equation: eqParts(lhs, products.map(p => p.formula), coeffs),
         dynamic: true,
         redox: true,
       };
     }
   }
 
-  const pairs = detectRedoxPairs(formulas);
-  if (!pairs) return null;
+  return null;
+}
+
+function buildReductionProduct(oxideFormula, metalSym) {
+  const p = parseFormula(oxideFormula);
+  const nonMetal = [...p.keys()].find(s => s !== metalSym && s !== 'O' && s !== 'H');
+  if (nonMetal) return { formula: `${metalSym}${nonMetal}`, metal: metalSym };
+  return { formula: metalSym, metal: metalSym };
+}
+
+function generateRedoxProducts(reactant1, reactant2, oxidized, reduced) {
+  const p1 = parseFormula(reactant1);
+  const p2 = parseFormula(reactant2);
+  if (!p1 || !p2) return null;
+
+  const allElements = new Set([...p1.keys(), ...p2.keys()]);
+  const metals = [...allElements].filter(s => isMetal(s));
+  const nonMetals = [...allElements].filter(s => !isMetal(s) && s !== 'H' && s !== 'O');
+
+  if (metals.length === 0 && nonMetals.length === 0) return null;
+
+  const products = [];
+
+  const redSym = reduced.sym;
+  const oxSym = oxidized.sym;
+
+  if (p1.has(redSym) || (!p1.has(oxSym) && p2.has(redSym))) {
+    const sourceFormula = p1.has(redSym) ? reactant1 : reactant2;
+    const sourceParsed = p1.has(redSym) ? p1 : p2;
+    const redState = inferOxidationState(redSym, sourceParsed);
+    if (redState > 0) {
+      products.push({ formula: redSym });
+    }
+  }
+
+  if (p1.has(oxSym)) {
+    const oxState = inferOxidationState(oxSym, p1);
+    const maxState = Math.max(...(p2.has(oxSym) ? [oxState, inferOxidationState(oxSym, p2)] : [oxState]));
+    const oxProduct = buildOxidizedProduct(oxSym, maxState, p1, p2);
+    if (oxProduct) products.push(oxProduct);
+  } else if (p2.has(oxSym)) {
+    const oxState = inferOxidationState(oxSym, p2);
+    const oxProduct = buildOxidizedProduct(oxSym, oxState, p2, p1);
+    if (oxProduct) products.push(oxProduct);
+  }
+
+  if (products.length === 0) return null;
+
+  if (p1.has('O') || p2.has('O')) {
+    const otherMetal = metals.find(m => m !== redSym);
+    if (otherMetal) {
+      const charge = metalChargeFromSym(otherMetal);
+      const g = gcd(charge, 2);
+      const mSub = 2 / g;
+      const oSub = charge / g;
+      const oxide = `${mSub === 1 ? otherMetal : otherMetal + mSub}${oSub === 1 ? 'O' : 'O' + oSub}`;
+      if (!products.some(p => p.formula === oxide)) {
+        products.push({ formula: oxide });
+      }
+    } else if (!products.some(p => p.formula === 'CO2') && p1.has('C')) {
+      products.push({ formula: 'CO2' });
+    } else if (!products.some(p => p.formula === 'H2O')) {
+      products.push({ formula: 'H2O' });
+    }
+  }
+
+  if (p1.has('Cl') || p2.has('Cl')) {
+    if (!products.some(p => p.formula.includes('Cl'))) {
+      const metal = metals.find(m => m !== redSym) || metals[0];
+      if (metal) {
+        const charge = metalChargeFromSym(metal);
+        products.push({ formula: charge === 1 ? `${metal}Cl` : `${metal}Cl${charge}` });
+      }
+    }
+  }
+
+  return products.length >= 2 ? products : null;
+}
+
+function buildOxidizedProduct(sym, currentState, sourceParsed, otherParsed) {
+  const entry = OXIDATION_STATES[sym];
+  if (!entry) return null;
+  const states = Array.isArray(entry) ? entry : entry.states || [];
+  const higherStates = states.filter(s => s > currentState);
+  if (higherStates.length === 0) return null;
+  const targetState = higherStates[0];
+
+  if (sym === 'Cl') {
+    if (targetState === 1) return { formula: 'HClO' };
+    if (targetState === 3) return { formula: 'HClO2' };
+    if (targetState === 5) return { formula: 'HClO3' };
+    if (targetState === 7) return { formula: 'HClO4' };
+    return { formula: 'Cl2' };
+  }
+  if (sym === 'S') {
+    if (targetState === 4) return { formula: 'SO2' };
+    if (targetState === 6) return { formula: 'SO3' };
+  }
+  if (sym === 'N') {
+    if (targetState === 2) return { formula: 'NO' };
+    if (targetState === 4) return { formula: 'NO2' };
+    if (targetState === 5) return { formula: 'HNO3' };
+  }
+  if (sym === 'C') {
+    return { formula: 'CO2' };
+  }
+  if (sym === 'Fe') {
+    if (targetState === 3) return { formula: 'Fe2O3' };
+  }
+  if (sym === 'Mn') {
+    if (targetState === 4) return { formula: 'MnO2' };
+    if (targetState === 7) return { formula: 'KMnO4' };
+  }
+  if (sym === 'Cr') {
+    if (targetState === 3) return { formula: 'Cr2O3' };
+    if (targetState === 6) return { formula: 'CrO3' };
+  }
+
+  if (targetState > currentState) {
+    if (sourceParsed.has('O') || otherParsed.has('O')) {
+      const g = gcd(Math.abs(targetState), 2);
+      const metalSub = 2 / g;
+      const oSub = Math.abs(targetState) / g;
+      const metalPart = metalSub === 1 ? sym : `${sym}${metalSub}`;
+      const oPart = oSub === 1 ? 'O' : `O${oSub}`;
+      return { formula: `${metalPart}${oPart}` };
+    }
+  }
 
   return null;
+}
+
+function metalChargeFromSym(sym) {
+  const charges = { Li:1,Na:1,K:1,Rb:1,Cs:1,Be:2,Mg:2,Ca:2,Sr:2,Ba:2,
+    Al:3,Zn:2,Ag:1,Cu:2,Fe:3,Mn:2,Cr:3,Ni:2,Co:2,Pb:2,Sn:2,W:6,Mo:6,
+    V:5,Ti:4,Au:3,Pt:4,Pd:2,Hg:2,Cd:2,Bi:3 };
+  return charges[sym] || 2;
+}
+
+// ── Disproportionation ──────────────────────────────────────────────────
+// Single reactant where one element is simultaneously oxidized and reduced.
+// e.g., 3ClO- → 2Cl- + ClO3-
+
+function tryDisproportionation(formulas) {
+  if (formulas.length !== 1) return null;
+  const f = formulas[0];
+  const parsed = parseFormula(f);
+  if (!parsed) return null;
+
+  for (const sym of parsed.keys()) {
+    if (sym === 'H' || sym === 'O') continue;
+    const state = inferOxidationState(sym, parsed);
+    const entry = OXIDATION_STATES[sym];
+    const states = entry ? (Array.isArray(entry) ? entry : entry.states || []) : [];
+    const lower = states.filter(s => s < state);
+    const higher = states.filter(s => s > state);
+    if (lower.length > 0 && higher.length > 0) {
+      const products = buildDisproportionationProducts(sym, f, parsed, lower[0], higher[0]);
+      if (products) {
+        const coeffs = balanceEquation([f], products.map(p => p.formula));
+        if (coeffs) {
+          return {
+            reactants: { [f]: 1 },
+            condition: 'heat',
+            products: products.map((p, i) => [p.formula, coeffs[1 + i]]),
+            equation: eqParts([f], products.map(p => p.formula), coeffs),
+            dynamic: true,
+            redox: true,
+            disproportionation: true,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function buildDisproportionationProducts(sym, formula, parsed, lowerState, higherState) {
+  const products = [];
+
+  if (lowerState <= 0) {
+    products.push({ formula: sym === 'Cl' ? 'Cl' : sym });
+  } else {
+    const metal = [...parsed.keys()].find(s => isMetal(s));
+    if (metal) {
+      const charge = lowerState;
+      products.push({ formula: charge === 1 ? `${metal}${sym}` : `${metal}${sym}${charge}` });
+    }
+  }
+
+  if (higherState > 0 && parsed.has('O')) {
+    const oCount = Math.ceil(higherState);
+    products.push({ formula: `${sym}O${oCount > 1 ? oCount : ''}` });
+  } else if (higherState > 0) {
+    products.push({ formula: `${sym}2O${higherState}` });
+  }
+
+  return products.length >= 2 ? products : null;
+}
+
+// ── Comproportionation ──────────────────────────────────────────────────
+// Two reactants with same element at different oxidation states converge.
+// e.g., 2Fe3+ + Fe → 3Fe2+
+
+function tryComproportionation(formulas) {
+  if (formulas.length !== 2) return null;
+  const [f1, f2] = formulas;
+  const p1 = parseFormula(f1);
+  const p2 = parseFormula(f2);
+  if (!p1 || !p2) return null;
+
+  const allElements = new Set([...p1.keys(), ...p2.keys()]);
+  for (const sym of allElements) {
+    if (sym === 'H' || sym === 'O') continue;
+    if (!p1.has(sym) || !p2.has(sym)) continue;
+    const state1 = inferOxidationState(sym, p1);
+    const state2 = inferOxidationState(sym, p2);
+    if (state1 === state2) continue;
+
+    const highState = Math.max(state1, state2);
+    const lowState = Math.min(state1, state2);
+    const midState = (highState + lowState) / 2;
+
+    const entry = OXIDATION_STATES[sym];
+    const states = entry ? (Array.isArray(entry) ? entry : entry.states || []) : [];
+    if (states.includes(midState) || Number.isInteger(midState)) {
+      const product = buildComproportionationProduct(sym, midState, p1, p2);
+      if (product) {
+        const coeffs = balanceEquation([f1, f2], [product.formula]);
+        if (coeffs) {
+          return {
+            reactants: { [f1]: 1, [f2]: 1 },
+            condition: 'rt',
+            products: [[product.formula, coeffs[2]]],
+            equation: eqParts([f1, f2], [product.formula], coeffs),
+            dynamic: true,
+            redox: true,
+            comproportionation: true,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function buildComproportionationProduct(sym, targetState, p1, p2) {
+  if (targetState === 0) return { formula: sym };
+
+  const metals1 = [...p1.keys()].filter(s => isMetal(s));
+  const metals2 = [...p2.keys()].filter(s => isMetal(s));
+  const allMetals = new Set([...metals1, ...metals2]);
+
+  if (allMetals.size > 0 && (p1.has('O') || p2.has('O'))) {
+    const metal = metals1[0] || metals2[0];
+    const charge = Math.abs(targetState);
+    if (charge === 2) return { formula: `${metal}O` };
+    if (charge === 1) return { formula: `${metal}2O` };
+    return { formula: `${metal}2O${charge}` };
+  }
+
+  if (p1.has('Cl') || p2.has('Cl')) {
+    const metal = metals1[0] || metals2[0];
+    if (metal) {
+      const charge = Math.abs(targetState);
+      return { formula: charge === 1 ? `${metal}Cl` : `${metal}Cl${charge}` };
+    }
+  }
+
+  if (targetState > 0 && p1.has('O')) {
+    return { formula: `${sym}O${Math.ceil(targetState / 2)}` };
+  }
+
+  return { formula: sym };
 }
 
 // ========== COORDINATION CHEMISTRY ==========
@@ -3324,10 +3949,10 @@ function tryCoordinationComplex(formulas) {
   if (!metal || ligands.length === 0) return null;
 
   const totalLigandCharge = ligands.reduce((sum, l) => sum + l.charge, 0);
-  const metalOxidationStates = OXIDATION_STATES[metal.sym];
-  if (!metalOxidationStates || metalOxidationStates.length === 0) return null;
+  const metalOxidationEntry = OXIDATION_STATES[metal.sym];
+  if (!metalOxidationEntry || !metalOxidationEntry.states || metalOxidationEntry.states.length === 0) return null;
 
-  const metalCharge = metalOxidationStates[0];
+  const metalCharge = metalOxidationEntry.states[0];
   const complexCharge = metalCharge + totalLigandCharge;
 
   const coordinationNumber = ligands.reduce((sum, l) => sum + l.denticity, 0);
@@ -3531,9 +4156,9 @@ export function findReaction(formulas, conditionKey, comps = null) {
 
   // Then try dynamic reaction patterns
   const dynamicChecks = {
-    'rt': [tryAcidBaseReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryRedoxBalancing, tryCoordinationComplex, tryBiochemicalReaction],
+    'rt': [tryAcidBaseReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction],
     'spark': [tryCombustion],
-    'heat': [tryCombustion, tryMetalOxideReduction, tryMetalHalogenSynthesis, tryMetalDimerFormation, tryMetalDimerDecomposition, tryDehydration, tryAdvancedDecomposition],
+    'heat': [tryCombustion, tryMetalOxideReduction, tryMetalHalogenSynthesis, tryMetalDimerFormation, tryMetalDimerDecomposition, tryDehydration, tryAdvancedDecomposition, tryGenericDecomposition, tryDisproportionation],
     'catalyst': [tryEsterification, tryHydrogenation, tryAlkeneHydration, tryEsterHydrolysis, tryBiochemicalReaction],
     'uv': [tryHalogenation],
   };
@@ -3616,6 +4241,10 @@ export function conditionsFor(formulas, comps = null) {
     { fn: tryPrecipitation, cond: 'rt' },
     { fn: tryGasEvolution, cond: 'rt' },
     { fn: tryRedoxBalancing, cond: 'rt' },
+    { fn: tryComproportionation, cond: 'rt' },
+    { fn: tryHydrateFormation, cond: 'rt' },
+    { fn: tryDisproportionation, cond: 'heat' },
+    { fn: tryGenericDecomposition, cond: 'heat' },
     { fn: tryAdvancedDecomposition, cond: 'heat' },
     { fn: tryCoordinationComplex, cond: 'rt' },
     { fn: tryBiochemicalReaction, cond: 'rt' },

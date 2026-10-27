@@ -24,90 +24,7 @@
         <button class="sidebar-tab" data-panel="dex">DEX</button>
       </div>
       <div class="sidebar-body">
-        <!-- POOL panel -->
-        <div id="side-pool" class="side-tab-panel active">
-          <div id="pool-tools">
-            <input id="pool-search" type="search" data-i18n-ph="pool.searchPh" placeholder="Search 118 elements..." autocomplete="off" spellcheck="false" />
-            <button id="pool-view" data-i18n="pool.viewTable" data-i18n-title="pool.view.title">Table</button>
-          </div>
-          <p class="panel-hint" data-i18n="pool.hint">Click an element to place an atom. Metals bond ionically (electron transfer). Noble gases are inert &mdash; Kr, Xe and Rn react only with F or O.</p>
-          <div id="pool-list"></div>
-          <div id="ptable" hidden></div>
-          <div id="legend"></div>
-        </div>
-
-        <!-- INFO panel -->
-        <div id="side-info" class="side-tab-panel">
-          <section class="panel">
-            <h2 data-i18n="sel.title">Selection</h2>
-            <div id="sel-info" class="muted" data-i18n="sel.empty">Click an atom to inspect it.</div>
-            <button id="bohr-toggle" class="bohr-toggle" hidden data-i18n="bohr.toggle">Bohr Model</button>
-            <div id="bohr-container" class="bohr-container" hidden>
-              <canvas id="bohr-canvas" width="280" height="280"></canvas>
-              <div id="bohr-stats" class="bohr-stats"></div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <h2 data-i18n="mol.title">Molecule</h2>
-            <div id="mol-info" class="muted" data-i18n="mol.empty">Build a molecule to analyze it.</div>
-            <div id="mol-warn"></div>
-            <div id="charge-row">
-              <span class="lbl" data-i18n="mol.chargeLbl">Ion charge</span>
-              <div class="charge-btns">
-                <button id="chg-minus" data-i18n-title="chg.minus.title" title="Set ion charge one unit lower">&minus;1</button>
-                <button id="chg-auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
-                <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
-              </div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <h2 data-i18n="stoich.title">Stoichiometry</h2>
-            <div id="stoich-empty" class="muted" data-i18n="stoich.empty">Select an atom or molecule to compute molar mass.</div>
-            <div id="stoich-body" hidden>
-              <div id="stoich-formula" class="mol-formula"></div>
-              <div id="stoich-molar"></div>
-              <table class="stoich-table"><thead><tr>
-                <th data-i18n="stoich.el">Element</th>
-                <th data-i18n="stoich.atoms">Atoms</th>
-                <th data-i18n="stoich.atomic">g/mol</th>
-                <th data-i18n="stoich.subtotal">Subtotal</th>
-                <th data-i18n="stoich.pct">Mass %</th>
-              </tr></thead><tbody id="stoich-comp"></tbody></table>
-              <div class="stoich-convert">
-                <label><span data-i18n="stoich.massLbl">Mass (g)</span><input id="stoich-g" type="number" min="0" step="any" /></label>
-                <label><span data-i18n="stoich.molLbl">Moles</span><input id="stoich-mol" type="number" min="0" step="any" /></label>
-                <label><span data-i18n="stoich.partLbl">Particles</span><input id="stoich-n" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" /></label>
-              </div>
-              <div id="stoich-note" class="muted"></div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <h2 data-i18n="list.title">Molecules in scene</h2>
-            <div id="mol-list" class="muted" data-i18n="list.empty">No molecules yet.</div>
-          </section>
-
-          <section class="panel now-playing-panel">
-            <div id="now-playing" class="now-playing"></div>
-          </section>
-        </div>
-
-        <!-- DEX panel -->
-        <div id="side-dex" class="side-tab-panel">
-          <section class="panel">
-            <h2><span data-i18n="dex.disc">Discoveries</span> <span id="disc-count" class="muted"></span></h2>
-            <div id="disc-list" class="muted" data-i18n="dex.discEmpty">Nothing discovered yet.</div>
-            <button id="btn-save-disc" class="linklike" disabled data-i18n="btn.saveDisc">Save discoveries</button>
-          </section>
-
-          <section class="panel">
-            <h2><span data-i18n="dex.chal">Challenges</span> <span id="ch-progress" class="muted"></span></h2>
-            <div id="ch-list"></div>
-            <button id="ch-reset" class="linklike" data-i18n="btn.reset">Reset progress</button>
-          </section>
-        </div>
+        <!-- Panels moved to #app root for mobile visibility -->
       </div>
     </aside>
 
@@ -135,6 +52,16 @@
         </div>
       </div>
       <div id="toast"></div>
+
+      <!-- Meltdown Warning Overlay (inside scene for proper positioning) -->
+      <div id="meltdown-overlay">
+        <div class="meltdown-tape top">
+          <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
+        </div>
+        <div class="meltdown-tape bottom">
+          <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
+        </div>
+      </div>
     </main>
 
     <!-- Right sidebar (action buttons) -->
@@ -235,6 +162,89 @@
       <button data-tab="side-info" data-i18n="tab.info">Info</button>
       <button data-tab="side-dex" data-i18n="tab.dex">Dex</button>
     </nav>
+
+    <!-- Side panels (moved to #app root for mobile visibility) -->
+    <div id="side-pool" class="side-tab-panel active">
+      <div id="pool-tools">
+        <input id="pool-search" type="search" data-i18n-ph="pool.searchPh" placeholder="Search 118 elements..." autocomplete="off" spellcheck="false" />
+        <button id="pool-view" data-i18n="pool.viewTable" data-i18n-title="pool.view.title">Table</button>
+      </div>
+      <p class="panel-hint" data-i18n="pool.hint">Click an element to place an atom. Metals bond ionically (electron transfer). Noble gases are inert &mdash; Kr, Xe and Rn react only with F or O.</p>
+      <div id="pool-list"></div>
+      <div id="ptable" hidden></div>
+      <div id="legend"></div>
+    </div>
+
+    <div id="side-info" class="side-tab-panel">
+      <section class="panel">
+        <h2 data-i18n="sel.title">Selection</h2>
+        <div id="sel-info" class="muted" data-i18n="sel.empty">Click an atom to inspect it.</div>
+        <button id="bohr-toggle" class="bohr-toggle" hidden data-i18n="bohr.toggle">Bohr Model</button>
+        <div id="bohr-container" class="bohr-container" hidden>
+          <canvas id="bohr-canvas" width="280" height="280"></canvas>
+          <div id="bohr-stats" class="bohr-stats"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 data-i18n="mol.title">Molecule</h2>
+        <div id="mol-info" class="muted" data-i18n="mol.empty">Build a molecule to analyze it.</div>
+        <div id="mol-warn"></div>
+        <div id="charge-row">
+          <span class="lbl" data-i18n="mol.chargeLbl">Ion charge</span>
+          <div class="charge-btns">
+            <button id="chg-minus" data-i18n-title="chg.minus.title" title="Set ion charge one unit lower">&minus;1</button>
+            <button id="chg-auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
+            <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 data-i18n="stoich.title">Stoichiometry</h2>
+        <div id="stoich-empty" class="muted" data-i18n="stoich.empty">Select an atom or molecule to compute molar mass.</div>
+        <div id="stoich-body" hidden>
+          <div id="stoich-formula" class="mol-formula"></div>
+          <div id="stoich-molar"></div>
+          <table class="stoich-table"><thead><tr>
+            <th data-i18n="stoich.el">Element</th>
+            <th data-i18n="stoich.atoms">Atoms</th>
+            <th data-i18n="stoich.atomic">g/mol</th>
+            <th data-i18n="stoich.subtotal">Subtotal</th>
+            <th data-i18n="stoich.pct">Mass %</th>
+          </tr></thead><tbody id="stoich-comp"></tbody></table>
+          <div class="stoich-convert">
+            <label><span data-i18n="stoich.massLbl">Mass (g)</span><input id="stoich-g" type="number" min="0" step="any" /></label>
+            <label><span data-i18n="stoich.molLbl">Moles</span><input id="stoich-mol" type="number" min="0" step="any" /></label>
+            <label><span data-i18n="stoich.partLbl">Particles</span><input id="stoich-n" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" /></label>
+          </div>
+          <div id="stoich-note" class="muted"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 data-i18n="list.title">Molecules in scene</h2>
+        <div id="mol-list" class="muted" data-i18n="list.empty">No molecules yet.</div>
+      </section>
+
+      <section class="panel now-playing-panel">
+        <div id="now-playing" class="now-playing"></div>
+      </section>
+    </div>
+
+    <div id="side-dex" class="side-tab-panel">
+      <section class="panel">
+        <h2><span data-i18n="dex.disc">Discoveries</span> <span id="disc-count" class="muted"></span></h2>
+        <div id="disc-list" class="muted" data-i18n="dex.discEmpty">Nothing discovered yet.</div>
+        <button id="btn-save-disc" class="linklike" disabled data-i18n="btn.saveDisc">Save discoveries</button>
+      </section>
+
+      <section class="panel">
+        <h2><span data-i18n="dex.chal">Challenges</span> <span id="ch-progress" class="muted"></span></h2>
+        <div id="ch-list"></div>
+        <button id="ch-reset" class="linklike" data-i18n="btn.reset">Reset progress</button>
+      </section>
+    </div>
   </div>
 
   <div id="rxn-overlay" class="rxn-overlay" aria-hidden="true">
@@ -339,15 +349,6 @@
   </div>
 
   <!-- Meltdown Warning Overlay -->
-  <div id="meltdown-overlay">
-    <div class="meltdown-tape top">
-      <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
-    </div>
-    <div class="meltdown-tape bottom">
-      <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
-    </div>
-  </div>
-
   <script src="https://js.puter.com/v2/"></script>
   <script type="module" src="./src/main.js"></script>
 </body>

@@ -1055,7 +1055,7 @@ body.mobile:has(.msheet.open) #joy { display: none; }
 
   .app-name-box {
     top: 6px;
-    right: 50px;
+    left: 6px;
     padding: 3px 8px;
   }
   .app-name { font-size: 11px; }
@@ -1220,7 +1220,7 @@ body.mobile:has(.msheet.open) #joy { display: none; }
     height: 100dvh;
   }
 
-  .app-name-box { top: 4px; right: 50px; padding: 2px 6px; }
+  .app-name-box { top: 4px; left: 4px; padding: 2px 6px; }
   .app-name { font-size: 10px; }
 
   .right-sidebar {
@@ -2125,7 +2125,7 @@ body.mobile:has(.msheet.open) #joy { display: none; }
 
 /* ── Meltdown Warning Overlay ── */
 #meltdown-overlay {
-  position: fixed;
+  position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   pointer-events: none;
   z-index: 9999;
@@ -2143,7 +2143,7 @@ body.mobile:has(.msheet.open) #joy { display: none; }
 }
 
 .meltdown-tape {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
   height: 48px;
@@ -2158,8 +2158,8 @@ body.mobile:has(.msheet.open) #joy { display: none; }
   box-shadow: 0 0 20px rgba(255, 200, 0, 0.6);
 }
 
-.meltdown-tape.top { top: 48px; }
-.meltdown-tape.bottom { bottom: 48px; }
+.meltdown-tape.top { top: 0; }
+.meltdown-tape.bottom { bottom: 0; }
 
 @keyframes tape-scroll {
   0% { background-position: 0 0; }

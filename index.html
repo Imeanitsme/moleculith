@@ -3,90 +3,116 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0d1117" />
+  <meta name="theme-color" content="#050810" />
   <title>Molecule Builder 3D</title>
   <link rel="stylesheet" href="./style.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
   <div id="app">
-    <header>
-      <div class="brand-wrap">
-        <div class="brand">Molecule Builder <span id="mode-indicator">3D</span></div>
-        <span class="credit">Made by Nguyen Thien Quan. Warning: All right reserved @2026</span>
-      </div>
-      <div class="toolbar">
-        <button id="btn-blueprint-mode" class="toggle" title="Switch to BluePrint 2D mode">BluePrint</button>
-        <button id="btn-undo" title="Ctrl+Z" data-i18n="btn.undo">Undo</button>
-        <button id="btn-delete" title="Del" data-i18n="btn.delete" disabled>Delete</button>
-        <button id="btn-duplicate" title="Ctrl+D" data-i18n="btn.duplicate">Duplicate</button>
-        <button id="btn-clear" data-i18n="btn.clear">Clear all</button>
-        <button id="btn-fc" class="toggle" data-i18n="btn.fc" data-i18n-title="btn.fc.title">Formal charges</button>
-        <button id="btn-menu" class="menu-toggle" aria-expanded="false" aria-controls="menu-dropdown">&#9776;</button>
-        <div id="menu-dropdown" class="menu-dropdown" hidden>
-          <button id="btn-tutorial" data-i18n="btn.tutorial">Tutorial</button>
-          <button id="btn-mayhem" class="toggle" data-i18n="btn.mayhem" data-i18n-title="btn.mayhem.title">Mayhem</button>
-          <button id="btn-import" data-i18n="btn.import" data-i18n-title="btn.import.title" hidden>Custom Elements</button>
-          <button id="btn-quality" data-i18n-title="btn.quality.title">Quality: Auto</button>
-          <button id="btn-theme" data-i18n-title="btn.theme.title">Theme: Dark</button>
-          <div class="volume-row">
-            <span class="volume-label" data-i18n="menu.volume">Volume</span>
-            <input type="range" id="volume-slider" min="0" max="100" value="50" />
-          </div>
-          <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
-          <button id="btn-console" data-i18n="btn.console">Console</button>
-        </div>
-      </div>
-    </header>
-
-    <!-- BluePrint Mode Toolbar -->
-    <div id="blueprint-toolbar" class="blueprint-toolbar" hidden>
-      <div class="blueprint-tools">
-        <span id="bp-element-display" class="bp-element-display" title="Selected element — click an element in the pool to change">C</span>
-        <div class="bp-separator"></div>
-        <button id="bp-select" class="bp-tool active" title="Select / move atoms (V)">Select</button>
-        <button id="bp-eraser" class="bp-tool" title="Eraser — click atom or bond to delete (E)">Eraser</button>
-        <div class="bp-separator"></div>
-        <button id="bp-bond-single" class="bp-tool" title="Single bond (1)">─</button>
-        <button id="bp-bond-double" class="bp-tool" title="Double bond (2)">═</button>
-        <button id="bp-bond-triple" class="bp-tool" title="Triple bond (3)">≡</button>
-        <button id="bp-bond-coordinate" class="bp-tool" title="Coordinate bond (←)">←</button>
-        <div class="bp-separator"></div>
-        <button id="bp-bracket" class="bp-tool" title="Coordination brackets [ ]">[ ]</button>
-        <button id="bp-electron" class="bp-tool" title="Show electron shells">e⁻</button>
-        <div class="bp-separator"></div>
-        <button id="bp-undo" class="bp-tool" title="Undo (Ctrl+Z)">↩</button>
-        <button id="bp-redo" class="bp-tool" title="Redo (Ctrl+Y)">↪</button>
-        <div class="bp-separator"></div>
-        <button id="bp-clean" class="bp-tool" title="Auto-layout molecule">Clean</button>
-        <button id="bp-center" class="bp-tool" title="Zoom to fit">Center</button>
-        <button id="bp-grid" class="bp-tool active" title="Toggle grid snap">Grid</button>
-        <button id="bp-add-h" class="bp-tool" title="Auto-add hydrogens">+H</button>
-        <div class="bp-separator"></div>
-        <button id="bp-to-3d" class="bp-tool bp-primary" title="Export molecule to 3D scene">→ 3D</button>
-        <button id="bp-export-png" class="bp-tool" title="Export as PNG image">PNG</button>
-        <button id="bp-clear" class="bp-tool bp-danger" title="Clear 2D canvas">Clear</button>
-        <div class="bp-separator"></div>
-        <button id="bp-mode-structural" class="bp-tool active" title="Structural view">Structural</button>
-        <button id="bp-mode-bohr" class="bp-tool" title="Bohr model">Bohr</button>
-      </div>
+    <!-- App name box (top-left, small) -->
+    <div class="app-name-box">
+      <span class="app-name">Molecule Builder</span>
+      <span id="mode-indicator">3D</span>
     </div>
 
-    <aside id="left" class="msheet">
-      <section class="panel grow">
-        <h2 data-i18n="pool.title">Element pool</h2>
-        <div id="pool-tools">
-          <input id="pool-search" type="search" data-i18n-ph="pool.searchPh" placeholder="Search 118 elements..." autocomplete="off" spellcheck="false" />
-          <button id="pool-view" data-i18n="pool.viewTable" data-i18n-title="pool.view.title">Table</button>
+    <!-- Left sidebar with tabs: POOL / INFO / DEX -->
+    <aside id="left-sidebar" class="left-sidebar">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" data-panel="pool">POOL</button>
+        <button class="sidebar-tab" data-panel="info">INFO</button>
+        <button class="sidebar-tab" data-panel="dex">DEX</button>
+      </div>
+      <div class="sidebar-body">
+        <!-- POOL panel -->
+        <div id="side-pool" class="side-tab-panel active">
+          <div id="pool-tools">
+            <input id="pool-search" type="search" data-i18n-ph="pool.searchPh" placeholder="Search 118 elements..." autocomplete="off" spellcheck="false" />
+            <button id="pool-view" data-i18n="pool.viewTable" data-i18n-title="pool.view.title">Table</button>
+          </div>
+          <p class="panel-hint" data-i18n="pool.hint">Click an element to place an atom. Metals bond ionically (electron transfer). Noble gases are inert &mdash; Kr, Xe and Rn react only with F or O.</p>
+          <div id="pool-list"></div>
+          <div id="ptable" hidden></div>
+          <div id="legend"></div>
         </div>
-        <p class="panel-hint" data-i18n="pool.hint">Click an element to place an atom. Metals bond ionically (electron transfer). Noble gases are inert &mdash; Kr, Xe and Rn react only with F or O.</p>
-        <div id="pool-list"></div>
-        <div id="ptable" hidden></div>
-        <div id="legend"></div>
-      </section>
+
+        <!-- INFO panel -->
+        <div id="side-info" class="side-tab-panel">
+          <section class="panel">
+            <h2 data-i18n="sel.title">Selection</h2>
+            <div id="sel-info" class="muted" data-i18n="sel.empty">Click an atom to inspect it.</div>
+            <button id="bohr-toggle" class="bohr-toggle" hidden data-i18n="bohr.toggle">Bohr Model</button>
+            <div id="bohr-container" class="bohr-container" hidden>
+              <canvas id="bohr-canvas" width="280" height="280"></canvas>
+              <div id="bohr-stats" class="bohr-stats"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2 data-i18n="mol.title">Molecule</h2>
+            <div id="mol-info" class="muted" data-i18n="mol.empty">Build a molecule to analyze it.</div>
+            <div id="mol-warn"></div>
+            <div id="charge-row">
+              <span class="lbl" data-i18n="mol.chargeLbl">Ion charge</span>
+              <div class="charge-btns">
+                <button id="chg-minus" data-i18n-title="chg.minus.title" title="Set ion charge one unit lower">&minus;1</button>
+                <button id="chg-auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
+                <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2 data-i18n="stoich.title">Stoichiometry</h2>
+            <div id="stoich-empty" class="muted" data-i18n="stoich.empty">Select an atom or molecule to compute molar mass.</div>
+            <div id="stoich-body" hidden>
+              <div id="stoich-formula" class="mol-formula"></div>
+              <div id="stoich-molar"></div>
+              <table class="stoich-table"><thead><tr>
+                <th data-i18n="stoich.el">Element</th>
+                <th data-i18n="stoich.atoms">Atoms</th>
+                <th data-i18n="stoich.atomic">g/mol</th>
+                <th data-i18n="stoich.subtotal">Subtotal</th>
+                <th data-i18n="stoich.pct">Mass %</th>
+              </tr></thead><tbody id="stoich-comp"></tbody></table>
+              <div class="stoich-convert">
+                <label><span data-i18n="stoich.massLbl">Mass (g)</span><input id="stoich-g" type="number" min="0" step="any" /></label>
+                <label><span data-i18n="stoich.molLbl">Moles</span><input id="stoich-mol" type="number" min="0" step="any" /></label>
+                <label><span data-i18n="stoich.partLbl">Particles</span><input id="stoich-n" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" /></label>
+              </div>
+              <div id="stoich-note" class="muted"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2 data-i18n="list.title">Molecules in scene</h2>
+            <div id="mol-list" class="muted" data-i18n="list.empty">No molecules yet.</div>
+          </section>
+
+          <section class="panel now-playing-panel">
+            <div id="now-playing" class="now-playing"></div>
+          </section>
+        </div>
+
+        <!-- DEX panel -->
+        <div id="side-dex" class="side-tab-panel">
+          <section class="panel">
+            <h2><span data-i18n="dex.disc">Discoveries</span> <span id="disc-count" class="muted"></span></h2>
+            <div id="disc-list" class="muted" data-i18n="dex.discEmpty">Nothing discovered yet.</div>
+            <button id="btn-save-disc" class="linklike" disabled data-i18n="btn.saveDisc">Save discoveries</button>
+          </section>
+
+          <section class="panel">
+            <h2><span data-i18n="dex.chal">Challenges</span> <span id="ch-progress" class="muted"></span></h2>
+            <div id="ch-list"></div>
+            <button id="ch-reset" class="linklike" data-i18n="btn.reset">Reset progress</button>
+          </section>
+        </div>
+      </div>
     </aside>
 
+    <!-- Center scene -->
     <main id="scene-wrap">
-      <canvas id="blueprint-canvas" style="display:none"></canvas>
       <div id="hint" data-i18n-html="hint.html">
         Click an element in the pool to place your first atom.<br />
         Drag atoms together to bond them &mdash; green ghost means a legal bond, red means forbidden.<br />
@@ -104,95 +130,110 @@
       <div id="joy" aria-hidden="true">
         <div id="joy-stick"><div id="joy-knob"></div></div>
         <div id="joy-vert">
-          <button id="joy-up" aria-label="Move camera up">&#9650;</button>
-          <button id="joy-down" aria-label="Move camera down">&#9660;</button>
+          <button id="joy-up" aria-label="Move camera up"><i data-lucide="chevron-up"></i></button>
+          <button id="joy-down" aria-label="Move camera down"><i data-lucide="chevron-down"></i></button>
         </div>
       </div>
       <div id="toast"></div>
     </main>
 
-    <aside id="right">
-      <div id="tab-info" class="msheet">
-        <section class="panel">
-          <h2 data-i18n="sel.title">Selection</h2>
-          <div id="sel-info" class="muted" data-i18n="sel.empty">Click an atom to inspect it.</div>
-          <button id="bohr-toggle" class="bohr-toggle" hidden data-i18n="bohr.toggle">Bohr Model</button>
-          <div id="bohr-container" class="bohr-container" hidden>
-            <canvas id="bohr-canvas" width="280" height="280"></canvas>
-            <div id="bohr-stats" class="bohr-stats"></div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2 data-i18n="mol.title">Molecule</h2>
-          <div id="mol-info" class="muted" data-i18n="mol.empty">Build a molecule to analyze it.</div>
-          <div id="mol-warn"></div>
-          <div id="charge-row">
-            <span class="lbl" data-i18n="mol.chargeLbl">Ion charge</span>
-            <div class="charge-btns">
-              <button id="chg-minus" data-i18n-title="chg.minus.title" title="Set ion charge one unit lower">&minus;1</button>
-              <button id="chg-auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
-              <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2 data-i18n="stoich.title">Stoichiometry</h2>
-          <div id="stoich-empty" class="muted" data-i18n="stoich.empty">Select an atom or molecule to compute molar mass.</div>
-          <div id="stoich-body" hidden>
-            <div id="stoich-formula" class="mol-formula"></div>
-            <div id="stoich-molar"></div>
-            <table class="stoich-table"><thead><tr>
-              <th data-i18n="stoich.el">Element</th>
-              <th data-i18n="stoich.atoms">Atoms</th>
-              <th data-i18n="stoich.atomic">g/mol</th>
-              <th data-i18n="stoich.subtotal">Subtotal</th>
-              <th data-i18n="stoich.pct">Mass %</th>
-            </tr></thead><tbody id="stoich-comp"></tbody></table>
-            <div class="stoich-convert">
-              <label><span data-i18n="stoich.massLbl">Mass (g)</span><input id="stoich-g" type="number" min="0" step="any" /></label>
-              <label><span data-i18n="stoich.molLbl">Moles</span><input id="stoich-mol" type="number" min="0" step="any" /></label>
-              <label><span data-i18n="stoich.partLbl">Particles</span><input id="stoich-n" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" /></label>
-            </div>
-            <div id="stoich-note" class="muted"></div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2 data-i18n="list.title">Molecules in scene</h2>
-          <div id="mol-list" class="muted" data-i18n="list.empty">No molecules yet.</div>
-        </section>
-
-        <section class="panel now-playing-panel">
-          <div id="now-playing" class="now-playing"></div>
-        </section>
-      </div>
-
-      <div id="tab-dex" class="msheet">
-        <section class="panel">
-          <h2><span data-i18n="dex.disc">Discoveries</span> <span id="disc-count" class="muted"></span></h2>
-          <div id="disc-list" class="muted" data-i18n="dex.discEmpty">Nothing discovered yet.</div>
-          <button id="btn-save-disc" class="linklike" disabled data-i18n="btn.saveDisc">Save discoveries</button>
-        </section>
-
-        <section class="panel">
-          <h2><span data-i18n="dex.chal">Challenges</span> <span id="ch-progress" class="muted"></span></h2>
-          <div id="ch-list"></div>
-          <button id="ch-reset" class="linklike" data-i18n="btn.reset">Reset progress</button>
-        </section>
-      </div>
+    <!-- Right sidebar (action buttons) -->
+    <aside id="right-sidebar" class="right-sidebar">
+      <button id="btn-quest" class="action-btn" title="AI Quest Mode"><i data-lucide="bot"></i></button>
+      <button id="btn-undo" class="action-btn" title="Undo (Ctrl+Z)"><i data-lucide="undo-2"></i></button>
+      <button id="btn-delete" class="action-btn" title="Delete" disabled><i data-lucide="trash-2"></i></button>
+      <button id="btn-duplicate" class="action-btn" title="Duplicate (Ctrl+D)"><i data-lucide="copy"></i></button>
+      <button id="btn-clear" class="action-btn" title="Clear All"><i data-lucide="x"></i></button>
+      <button id="btn-fc" class="action-btn toggle" title="Formal Charge"><i data-lucide="plus-minus"></i></button>
     </aside>
 
-    <footer id="status-bar">
-      <span id="status-text" class="info"></span>
-      <span id="keys-hint" data-i18n="keys.hint">WASD/arrows = move camera &middot; drag = move / bond &middot; click bond = raise order &middot; Shift+click = lower &middot; double-click molecule = select for reaction &middot; Del = remove &middot; Ctrl+Z = undo</span>
-    </footer>
+    <!-- Bottom bar: TIME BOARD + MENU -->
+    <div class="bottom-bar">
+      <div class="bottom-left">
+        <span id="status-text" class="info"></span>
+      </div>
+      <div class="time-controls">
+        <button id="btn-time-rewind" class="time-btn" title="Rewind"><i data-lucide="rewind"></i></button>
+        <button id="btn-time-freeze" class="time-btn" title="Freeze/Unfreeze Time"><i data-lucide="snowflake"></i></button>
+        <button id="btn-time-forward" class="time-btn" title="Forward"><i data-lucide="fast-forward"></i></button>
+        <div class="time-display-box">
+          <span id="time-display">0s</span>
+          <span class="time-speed" id="time-speed-label">1×</span>
+        </div>
+        <button id="btn-time-speed" class="time-btn" title="Time Speed"><i data-lucide="gauge"></i></button>
+      </div>
+      <div class="bottom-right">
+        <span id="keys-hint" data-i18n="keys.hint">WASD/arrows = move · drag = move/bond · click bond = raise order</span>
+        <button id="btn-menu" class="menu-tab-btn" aria-expanded="false" aria-controls="menu-dropdown" title="Menu"><i data-lucide="menu"></i></button>
+      </div>
+    </div>
 
+    <!-- Menu dropdown -->
+    <div id="menu-dropdown" class="menu-dropdown" hidden>
+      <button id="btn-tutorial" data-i18n="btn.tutorial">Tutorial</button>
+      <button id="btn-mayhem" class="toggle" data-i18n="btn.mayhem" data-i18n-title="btn.mayhem.title">Mayhem</button>
+      <button id="btn-import" data-i18n="btn.import" data-i18n-title="btn.import.title" hidden>Custom Elements</button>
+      <button id="btn-quality" data-i18n-title="btn.quality.title">Quality: Auto</button>
+      <button id="btn-theme" data-i18n-title="btn.theme.title">Theme: Dark</button>
+      <div class="volume-row">
+        <span class="volume-label" data-i18n="menu.volume">Volume</span>
+        <input type="range" id="volume-slider" min="0" max="100" value="50" />
+      </div>
+      <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
+      <button id="btn-credits" data-i18n="btn.credits">Credits</button>
+      <button id="btn-console" data-i18n="btn.console">Console</button>
+    </div>
+
+    <!-- Credits Modal (movie-style scrolling) -->
+    <div id="credits-modal" class="credits-modal" hidden>
+      <div class="credits-backdrop"></div>
+      <div class="credits-container">
+        <button id="credits-close" class="credits-close-btn" title="Close">&times;</button>
+        <div class="credits-scroll">
+          <div class="credits-content">
+            <div class="credits-title-block">
+              <div class="credits-app-name">Molecule Builder 3D</div>
+              <div class="credits-subtitle" data-i18n="credits.subtitle">An Interactive Chemistry Playground</div>
+            </div>
+            <div class="credits-section">
+              <div class="credits-role" data-i18n="credits.createdBy">Created &amp; Directed by</div>
+              <div class="credits-name">Nguyễn Thiên Quân</div>
+            </div>
+            <div class="credits-section">
+              <div class="credits-role" data-i18n="credits.owner">Owner &amp; Lead Developer</div>
+              <div class="credits-name">Nguyễn Thiên Quân</div>
+            </div>
+            <div class="credits-divider"></div>
+            <div class="credits-section">
+              <div class="credits-heading" data-i18n="credits.originTitle">Origin Story</div>
+              <div class="credits-text" data-i18n="credits.originText">The application originated as a random thought when first introduced to the game BEAKER. Exploring its interactive mechanics sparked an idea that gradually evolved from a simple concept into a full-fledged software application.</div>
+            </div>
+            <div class="credits-divider"></div>
+            <div class="credits-section">
+              <div class="credits-heading" data-i18n="credits.qaTitle">Quality Assurance &amp; Debugging</div>
+              <div class="credits-role" data-i18n="credits.testers">Testers &amp; Debuggers</div>
+              <div class="credits-name">Vũ Nguyễn Nhật Anh</div>
+              <div class="credits-name">Đoàn Thế Hiển</div>
+              <div class="credits-name">Mai Ngọc An Hòa</div>
+            </div>
+            <div class="credits-divider"></div>
+            <div class="credits-section">
+              <div class="credits-heading" data-i18n="credits.thanksTitle">Special Thanks</div>
+              <div class="credits-name">BEAKER <span class="credits-note" data-i18n="credits.inspiration">(Interactive Game — Inspiration)</span></div>
+            </div>
+            <div class="credits-footer">
+              <div class="credits-copy">&copy; Nguyễn Thiên Quân. <span data-i18n="credits.rights">All Rights Reserved.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile tab bar -->
     <nav id="mtabs" aria-label="Panels">
-      <button data-tab="left" data-i18n="tab.pool">Pool</button>
-      <button data-tab="tab-info" data-i18n="tab.info">Info</button>
-      <button data-tab="tab-dex" data-i18n="tab.dex">Dex</button>
+      <button data-tab="side-pool" data-i18n="tab.pool">Pool</button>
+      <button data-tab="side-info" data-i18n="tab.info">Info</button>
+      <button data-tab="side-dex" data-i18n="tab.dex">Dex</button>
     </nav>
   </div>
 
@@ -269,18 +310,45 @@
     <div class="console-header">
       <span class="console-title">Console</span>
       <div class="console-actions">
-        <button id="console-clear" class="console-btn" title="Clear">Clear</button>
-        <button id="console-close" class="console-btn" title="Close">×</button>
+        <button id="console-clear" class="console-btn" data-i18n="console.clear" data-i18n-title="console.clear" title="Clear">Clear</button>
+        <button id="console-close" class="console-btn" data-i18n-title="console.close" title="Close">×</button>
       </div>
     </div>
     <div id="console-output" class="console-output"></div>
     <div class="console-input-row">
       <span class="console-prompt">></span>
-      <input type="text" id="console-input" class="console-input" placeholder="Type command..." autocomplete="off" />
+      <input type="text" id="console-input" class="console-input" data-i18n-ph="console.placeholder" placeholder="Type command..." autocomplete="off" />
       <button id="console-run" class="console-btn-run">Run</button>
     </div>
   </div>
 
+  <!-- Quest Mode AI Panel -->
+  <div id="quest-panel" class="quest-panel" hidden>
+    <div class="quest-header">
+      <span class="quest-title" data-i18n="quest.title">🧪 AI Quest Guide</span>
+      <div class="quest-actions">
+        <button id="quest-clear" class="quest-btn" data-i18n="quest.clear" data-i18n-title="quest.clear" title="Clear chat">Clear</button>
+        <button id="quest-close" class="quest-btn" data-i18n-title="quest.close" title="Close">×</button>
+      </div>
+    </div>
+    <div id="quest-messages" class="quest-messages"></div>
+    <div class="quest-input-row">
+      <input type="text" id="quest-input" class="quest-input" data-i18n-ph="quest.placeholder" placeholder="Ask the AI chemist..." autocomplete="off" />
+      <button id="quest-send" class="quest-btn-send" data-i18n="quest.send">Send</button>
+    </div>
+  </div>
+
+  <!-- Meltdown Warning Overlay -->
+  <div id="meltdown-overlay">
+    <div class="meltdown-tape top">
+      <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
+    </div>
+    <div class="meltdown-tape bottom">
+      <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
+    </div>
+  </div>
+
+  <script src="https://js.puter.com/v2/"></script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

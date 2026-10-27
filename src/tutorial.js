@@ -39,7 +39,7 @@ const STEPS = [
     titleKey: 'tut.info.title',
     bodyKey: 'tut.info.body',
     icon: '📋',
-    highlight: '[data-tab="tab-info"]',
+    highlight: '[data-tab="side-info"]',
     cardPos: 'above',
   },
   {
@@ -51,7 +51,7 @@ const STEPS = [
     titleKey: 'tut.dex.title',
     bodyKey: 'tut.dex.body',
     icon: '📖',
-    highlight: '[data-tab="tab-dex"]',
+    highlight: '[data-tab="side-dex"]',
     cardPos: 'above',
   },
   {

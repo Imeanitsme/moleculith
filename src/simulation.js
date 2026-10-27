@@ -106,8 +106,10 @@ export class ThermodynamicSystem {
    */
   calculateEntropyChange(atoms, bonds) {
     // Simplified: more bonds = lower entropy
-    const baseEntropy = atoms.length * 150; // J/(mol·K) per atom
-    const bondPenalty = bonds.length * 50; // Each bond reduces entropy
+    const atomCount = atoms instanceof Map ? atoms.size : atoms.length;
+    const bondCount = bonds instanceof Map ? bonds.size : bonds.length;
+    const baseEntropy = atomCount * 150; // J/(mol·K) per atom
+    const bondPenalty = bondCount * 50; // Each bond reduces entropy
     return baseEntropy - bondPenalty;
   }
 
@@ -445,7 +447,8 @@ export class StructuralStrain {
     const atomA = atomsMap.get(bond.a);
     const atomB = atomsMap.get(bond.b);
     if (!atomA || !atomB) return false;
-    return atomA.el.sym === 'O' && atomB.el.sym === 'O';
+    // Peroxide bonds are O-O single bonds, not O=O double bonds
+    return atomA.el.sym === 'O' && atomB.el.sym === 'O' && bond.order === 1;
   }
 
   isRadicalBond(bond, atomsMap) {
@@ -513,7 +516,7 @@ export class QMInterface {
       basisSet,
       homoLumoGap, // eV
       dipoleMoment, // Debye
-      numOrbitals: atoms.length * this.basisSets[basisSet].functions,
+      numOrbitals: (atoms instanceof Map ? atoms.size : atoms.length) * this.basisSets[basisSet].functions,
       // Future: MO coefficients, overlap integrals, electron densities
     };
 

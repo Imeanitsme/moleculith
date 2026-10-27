@@ -25,6 +25,20 @@ import { AVOGADRO, setElementLookup, molarMass, compositionOf, limitingAnalysis,
 import { createSimulation, compileNetwork, parseRateExpr, rk4Step } from './kinetics.js';
 import { SimulationEngine, simulation } from './simulation.js';
 
+// Log simulation events to console
+simulation.on('decompose', ({ molecule, probability }) => {
+  addConsoleEntry('warn', [`⚠ Molecule decomposed (prob: ${(probability * 100).toFixed(1)}%)`]);
+});
+simulation.on('start', ({ time }) => {
+  addConsoleEntry('info', [`▶ Simulation started at t=${time.toFixed(1)}s`]);
+});
+simulation.on('stop', ({ time }) => {
+  addConsoleEntry('info', [`⏸ Simulation stopped at t=${time.toFixed(1)}s`]);
+});
+simulation.on('reset', () => {
+  addConsoleEntry('info', ['↺ Simulation reset']);
+});
+
 setElementLookup(elementBySym);
 
 // Tolerate hand-edited challenge entries: skip malformed ones with a warning

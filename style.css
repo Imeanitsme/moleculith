@@ -639,7 +639,7 @@ button.linklike:hover { color: var(--err); }
 
 /* ── Touch joystick ── */
 #joy {
-  position: absolute;
+  position: fixed;
   left: 16px;
   bottom: 16px;
   z-index: 7;
@@ -648,7 +648,9 @@ button.linklike:hover { color: var(--err); }
   gap: 10px;
 }
 body.joy #joy { display: flex; }
-body.mobile:has(.msheet.open) #joy { display: none; }
+body.mobile:has(.side-tab-panel.open) #joy {
+  bottom: calc(140px + 50vh + 16px);
+}
 #joy-stick {
   position: relative;
   width: 112px;

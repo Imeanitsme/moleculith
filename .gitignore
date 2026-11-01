@@ -1,5 +1,12 @@
-node_modules
-.DS_Store
-*.local
-.env
-.env.*
+# Ignore everything
+*
+
+# But track these built files
+!.gitignore
+!index.html
+!game.html
+!decomposition.html
+!assets/
+!music/
+!sfx/
+!rank/

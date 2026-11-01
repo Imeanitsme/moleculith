@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#050810" />
-  <title>Molecule Builder 3D</title>
-  <link rel="stylesheet" href="./style.css" />
+  <title>Molecule Builder 3D</title>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script type="module" crossorigin src="./assets/main-Dkz1I1xu.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/i18n-BFAjGBH7.js">
+  <link rel="stylesheet" crossorigin href="./assets/i18n-B6h4cWKj.css">
 </head>
 <body>
   <!-- Main Menu Overlay -->
@@ -56,15 +58,14 @@
       <button id="settings-back" class="modal-btn primary" data-i18n="settings.back">Back</button>
     </div>
   </div>
-
-  <script type="module" src="./src/modes.js"></script>
+
   <script>
     lucide.createIcons();
   </script>
 
   <!-- Sound Effects -->
-  <audio id="sfx-timestop" src="/sfx/timestop.mp3" preload="auto"></audio>
-  <audio id="sfx-timeresume" src="/sfx/timeresume.mp3" preload="auto"></audio>
-  <audio id="sfx-acceleration" src="/sfx/acceleration.mp3" preload="auto"></audio>
+  <audio id="sfx-timestop" src="./sfx/timestop.mp3" preload="auto"></audio>
+  <audio id="sfx-timeresume" src="./sfx/timeresume.mp3" preload="auto"></audio>
+  <audio id="sfx-acceleration" src="./sfx/acceleration.mp3" preload="auto"></audio>
 </body>
 </html>

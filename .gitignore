@@ -7,6 +7,10 @@
 !game.html
 !decomposition.html
 !assets/
+!assets/**
 !music/
+!music/**
 !sfx/
+!sfx/**
 !rank/
+!rank/**

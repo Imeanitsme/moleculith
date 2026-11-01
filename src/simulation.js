@@ -17,6 +17,21 @@ export const R_GAS = 8.314;
 // Standard temperature (298.15 K = 25°C)
 export const T_STANDARD = 298.15;
 
+// Boltzmann constant (J/K)
+export const K_BOLTZMANN = 1.380649e-23;
+
+// Coulomb constant (N·m²/C²)
+export const K_COULOMB = 8.9875517923e9;
+
+// Elementary charge (C)
+export const E_CHARGE = 1.602176634e-19;
+
+// Planck constant (J·s)
+export const H_PLANCK = 6.62607015e-34;
+
+// Avogadro's number (mol^-1)
+export const N_AVOGADRO = 6.02214076e23;
+
 // ============================================================================
 // Module 1: Thermodynamic & Potential Energy System
 // ============================================================================
@@ -83,11 +98,106 @@ export class ThermodynamicSystem {
 
   /**
    * Check if molecule is thermodynamically unstable
-   * Returns true if ΔG < 0 for decomposition
+   * Uses valence electron verification and bond energy analysis
+   * Returns true only if molecule has unpaired radicals or violates octet rule
    */
   isThermodynamicallyUnstable(atoms, bonds, temperature = T_STANDARD) {
+    // First check: valence electron and octet verification
+    const octetViolation = this.checkOctetViolation(atoms, bonds);
+    if (octetViolation) return true;
+
+    // Second check: radical detection (unpaired electrons)
+    const hasRadicals = this.checkRadicals(atoms, bonds);
+    if (hasRadicals) return true;
+
+    // Third check: thermodynamic feasibility using bond energies
     const { dG } = this.calculateFreeEnergy(atoms, bonds, temperature);
-    return dG < -50; // Threshold for significant instability (kJ/mol)
+    // Only flag as unstable if dG is extremely positive (>200 kJ/mol)
+    // This threshold allows stable organic molecules like C2H4, C2H6O
+    return dG > 200;
+  }
+
+  /**
+   * Check if any atom violates the octet rule (or duplet for H, He)
+   * Returns true if violation detected
+   */
+  checkOctetViolation(atoms, bonds) {
+    const atomList = atoms instanceof Map ? Array.from(atoms.values()) : atoms;
+    
+    for (const atom of atomList) {
+      if (!atom || !atom.el) continue;
+      
+      const z = atom.el.z;
+      const valenceElectrons = atom.el.valenceElectrons || 0;
+      
+      // Hydrogen and Helium follow duplet rule (max 2 electrons)
+      if (z <= 2) {
+        const bondedElectrons = this.countBondedElectrons(atom, bonds, atoms);
+        const totalElectrons = valenceElectrons + bondedElectrons;
+        if (totalElectrons > 2) return true;
+      }
+      // Period 2 elements (Li through Ne) follow octet rule strictly
+      else if (z >= 3 && z <= 10) {
+        const bondedElectrons = this.countBondedElectrons(atom, bonds, atoms);
+        const totalElectrons = valenceElectrons + bondedElectrons;
+        if (totalElectrons > 8) return true;
+      }
+      // Period 3+ elements can expand octet (P, S, Cl, etc.)
+      // Only flag if severely exceeded (>12 electrons)
+      else if (z > 10) {
+        const bondedElectrons = this.countBondedElectrons(atom, bonds, atoms);
+        const totalElectrons = valenceElectrons + bondedElectrons;
+        if (totalElectrons > 12) return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
+   * Count electrons an atom has from bonds
+   * For octet/duplet rule: count 1 electron per bond order (atom's share of shared pair)
+   */
+  countBondedElectrons(atom, bonds, atoms) {
+    let count = 0;
+    const bondList = bonds instanceof Map ? Array.from(bonds.values()) : bonds;
+    
+    for (const bond of bondList) {
+      if (bond.a === atom.id || bond.b === atom.id) {
+        // Count atom's share: 1 electron per bond order (not 2)
+        count += (bond.order || 1);
+      }
+    }
+    
+    return count;
+  }
+
+  /**
+   * Check for unpaired electrons (radicals)
+   * Returns true if radicals detected
+   * Only checks molecules with at least one bond (single atoms are not radicals)
+   */
+  checkRadicals(atoms, bonds) {
+    const atomList = atoms instanceof Map ? Array.from(atoms.values()) : atoms;
+    const bondList = bonds instanceof Map ? Array.from(bonds.values()) : bonds;
+    
+    // Skip radical check for single atoms or molecules with no bonds
+    if (atomList.length <= 1 || bondList.length === 0) return false;
+    
+    for (const atom of atomList) {
+      if (!atom || !atom.el) continue;
+      
+      const valenceElectrons = atom.el.valenceElectrons || 0;
+      const bondedElectrons = this.countBondedElectrons(atom, bonds, atoms);
+      
+      // Total electrons around atom
+      const totalElectrons = valenceElectrons + bondedElectrons;
+      
+      // If total is odd, there's an unpaired electron (radical)
+      if (totalElectrons % 2 !== 0) return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -121,12 +231,13 @@ export class ThermodynamicSystem {
       1: { 'H-H': 436, 'C-H': 413, 'C-C': 348, 'C-O': 358, 'O-H': 463,
            'N-H': 391, 'C-N': 305, 'O-O': 146, 'C-F': 485, 'C-Cl': 339 },
       2: { 'C=C': 614, 'C=O': 799, 'N=N': 418, 'O=O': 498 },
-      3: { 'CC': 839, 'C≡N': 891, 'N≡N': 945 },
+      3: { 'C≡C': 839, 'CN': 891, 'N≡N': 945 },
     };
 
     const order = bond.order || 1;
-    const atomA = atomsMap.get(bond.a);
-    const atomB = atomsMap.get(bond.b);
+    // Handle both Map and array
+    const atomA = atomsMap instanceof Map ? atomsMap.get(bond.a) : atomsMap.find(a => a.id === bond.a);
+    const atomB = atomsMap instanceof Map ? atomsMap.get(bond.b) : atomsMap.find(a => a.id === bond.b);
     if (!atomA || !atomB) return 350; // Default if atoms not found
     
     const syms = [atomA.el.sym, atomB.el.sym].sort();
@@ -158,6 +269,103 @@ export class ThermodynamicSystem {
 
   clearCache() {
     this.energyCache.clear();
+  }
+
+  /**
+   * Calculate electrostatic force between two charged particles using Coulomb's Law
+   * F = k_e * |q1 * q2| / r^2
+   * @param {number} q1 - Charge of particle 1 (in elementary charges)
+   * @param {number} q2 - Charge of particle 2 (in elementary charges)
+   * @param {number} r - Distance between particles (in meters)
+   * @returns {number} Force in Newtons
+   */
+  calculateCoulombForce(q1, q2, r) {
+    if (r <= 0) return Infinity;
+    const charge1 = q1 * E_CHARGE;
+    const charge2 = q2 * E_CHARGE;
+    return K_COULOMB * Math.abs(charge1 * charge2) / (r * r);
+  }
+
+  /**
+   * Calculate electrostatic potential energy using Coulomb's Law
+   * U = k_e * q1 * q2 / r
+   * @param {number} q1 - Charge of particle 1 (in elementary charges)
+   * @param {number} q2 - Charge of particle 2 (in elementary charges)
+   * @param {number} r - Distance between particles (in meters)
+   * @returns {number} Potential energy in Joules
+   */
+  calculateCoulombEnergy(q1, q2, r) {
+    if (r <= 0) return Infinity;
+    const charge1 = q1 * E_CHARGE;
+    const charge2 = q2 * E_CHARGE;
+    return K_COULOMB * charge1 * charge2 / r;
+  }
+
+  /**
+   * Calculate Lennard-Jones potential energy between two neutral atoms/molecules
+   * V(r) = 4ε[(σ/r)^12 - (σ/r)^6]
+   * @param {number} r - Distance between particles (in Angstroms)
+   * @param {number} sigma - Distance at which V=0 (in Angstroms), default 3.4
+   * @param {number} epsilon - Depth of potential well (in kJ/mol), default 0.996
+   * @returns {number} Potential energy in kJ/mol
+   */
+  calculateLennardJonesPotential(r, sigma = 3.4, epsilon = 0.996) {
+    if (r <= 0) return Infinity;
+    const ratio = sigma / r;
+    const ratio6 = Math.pow(ratio, 6);
+    const ratio12 = Math.pow(ratio6, 2);
+    return 4 * epsilon * (ratio12 - ratio6);
+  }
+
+  /**
+   * Calculate Lennard-Jones force between two particles
+   * F(r) = 24ε/r * [2(σ/r)^12 - (σ/r)^6]
+   * @param {number} r - Distance between particles (in Angstroms)
+   * @param {number} sigma - Distance at which V=0 (in Angstroms)
+   * @param {number} epsilon - Depth of potential well (in kJ/mol)
+   * @returns {number} Force in kJ/(mol·Å)
+   */
+  calculateLennardJonesForce(r, sigma = 3.4, epsilon = 0.996) {
+    if (r <= 0) return Infinity;
+    const ratio = sigma / r;
+    const ratio6 = Math.pow(ratio, 6);
+    const ratio12 = Math.pow(ratio6, 2);
+    return 24 * epsilon / r * (2 * ratio12 - ratio6);
+  }
+
+  /**
+   * Calculate total intermolecular potential energy (Coulomb + Lennard-Jones)
+   * @param {Array} atoms - Array of atoms with charge and position
+   * @returns {number} Total potential energy in kJ/mol
+   */
+  calculateIntermolecularEnergy(atoms) {
+    let totalEnergy = 0;
+    const atomList = atoms instanceof Map ? Array.from(atoms.values()) : atoms;
+
+    for (let i = 0; i < atomList.length; i++) {
+      for (let j = i + 1; j < atomList.length; j++) {
+        const a1 = atomList[i];
+        const a2 = atomList[j];
+
+        // Calculate distance
+        const dx = a2.pos.x - a1.pos.x;
+        const dy = a2.pos.y - a1.pos.y;
+        const dz = a2.pos.z - a1.pos.z;
+        const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // Coulomb interaction (if charges present)
+        const q1 = a1.charge || 0;
+        const q2 = a2.charge || 0;
+        if (q1 !== 0 || q2 !== 0) {
+          totalEnergy += this.calculateCoulombEnergy(q1, q2, r * 1e-10) * N_AVOGADRO / 1000;
+        }
+
+        // Lennard-Jones interaction (van der Waals)
+        totalEnergy += this.calculateLennardJonesPotential(r);
+      }
+    }
+
+    return totalEnergy;
   }
 }
 
@@ -256,6 +464,56 @@ export class KineticsEngine {
     const scaleFactor = Math.exp((T - TRef) / 100);
     return ea / scaleFactor;
   }
+
+  /**
+   * Calculate average kinetic energy per molecule
+   * KE = 3/2 * k_B * T
+   * @param {number} temperature - Temperature in Kelvin
+   * @returns {number} Kinetic energy in Joules
+   */
+  calculateKineticEnergy(temperature = null) {
+    const T = temperature || this.globalTemperature;
+    return 1.5 * K_BOLTZMANN * T;
+  }
+
+  /**
+   * Calculate root-mean-square velocity of molecules
+   * v_rms = sqrt(3RT/M)
+   * @param {number} molarMass - Molar mass in kg/mol
+   * @param {number} temperature - Temperature in Kelvin
+   * @returns {number} RMS velocity in m/s
+   */
+  calculateRMSVelocity(molarMass, temperature = null) {
+    const T = temperature || this.globalTemperature;
+    if (molarMass <= 0) return 0;
+    return Math.sqrt(3 * R_GAS * T / molarMass);
+  }
+
+  /**
+   * Calculate most probable velocity
+   * v_mp = sqrt(2RT/M)
+   * @param {number} molarMass - Molar mass in kg/mol
+   * @param {number} temperature - Temperature in Kelvin
+   * @returns {number} Most probable velocity in m/s
+   */
+  calculateMostProbableVelocity(molarMass, temperature = null) {
+    const T = temperature || this.globalTemperature;
+    if (molarMass <= 0) return 0;
+    return Math.sqrt(2 * R_GAS * T / molarMass);
+  }
+
+  /**
+   * Calculate average velocity
+   * v_avg = sqrt(8RT/πM)
+   * @param {number} molarMass - Molar mass in kg/mol
+   * @param {number} temperature - Temperature in Kelvin
+   * @returns {number} Average velocity in m/s
+   */
+  calculateAverageVelocity(molarMass, temperature = null) {
+    const T = temperature || this.globalTemperature;
+    if (molarMass <= 0) return 0;
+    return Math.sqrt(8 * R_GAS * T / (Math.PI * molarMass));
+  }
 }
 
 // ============================================================================
@@ -266,7 +524,7 @@ export class StructuralStrain {
   constructor() {
     // Bond dissociation energy modifiers
     this.bdeModifiers = {
-      peroxide: 0.3,    // O-O bonds are weak
+      peroxide: 0.82,   // O-O bonds: H2O2 Ea ~120 kJ/mol, half-life ~2 years
       radical: 0.5,     // Radical bonds are unstable
       strained: 0.7,    // Strained ring bonds
     };
@@ -428,7 +686,7 @@ export class StructuralStrain {
       if (this.isPeroxideBond(bond, atoms)) {
         modifiedEa *= this.bdeModifiers.peroxide;
       }
-      if (this.isRadicalBond(bond, atoms)) {
+      if (this.isRadicalBond(bond, atoms, bonds)) {
         modifiedEa *= this.bdeModifiers.radical;
       }
     }
@@ -440,23 +698,40 @@ export class StructuralStrain {
       modifiedEa -= strain * 0.5; // Strain lowers activation barrier
     }
 
-    return Math.max(0, modifiedEa); // Ea can't be negative
+    return Math.max(50, modifiedEa); // Ea minimum 50 kJ/mol for stability
   }
 
   isPeroxideBond(bond, atomsMap) {
-    const atomA = atomsMap.get(bond.a);
-    const atomB = atomsMap.get(bond.b);
+    const atomA = atomsMap instanceof Map ? atomsMap.get(bond.a) : atomsMap.find(a => a.id === bond.a);
+    const atomB = atomsMap instanceof Map ? atomsMap.get(bond.b) : atomsMap.find(a => a.id === bond.b);
     if (!atomA || !atomB) return false;
     // Peroxide bonds are O-O single bonds, not O=O double bonds
     return atomA.el.sym === 'O' && atomB.el.sym === 'O' && bond.order === 1;
   }
 
-  isRadicalBond(bond, atomsMap) {
-    // Simplified radical detection
-    const atomA = atomsMap.get(bond.a);
-    if (!atomA) return false;
-    return atomA.el.sym === 'C' && bond.order === 1 && 
-           (atomA.bonds?.length || 0) < 4;
+  isRadicalBond(bond, atomsMap, bonds) {
+    // Check if either atom in the bond is a radical (has unpaired electrons)
+    const atomA = atomsMap instanceof Map ? atomsMap.get(bond.a) : atomsMap.find(a => a.id === bond.a);
+    const atomB = atomsMap instanceof Map ? atomsMap.get(bond.b) : atomsMap.find(a => a.id === bond.b);
+    if (!atomA || !atomB) return false;
+    
+    // Count bonds for each atom
+    const bondList = bonds instanceof Map ? Array.from(bonds.values()) : bonds;
+    const bondsForA = bondList.filter(b => b.a === atomA.id || b.b === atomA.id).length;
+    const bondsForB = bondList.filter(b => b.a === atomB.id || b.b === atomB.id).length;
+    
+    // Count bonded electrons (1 per bond order)
+    const bondedElectronsA = bondList.filter(b => b.a === atomA.id || b.b === atomA.id)
+      .reduce((sum, b) => sum + (b.order || 1), 0);
+    const bondedElectronsB = bondList.filter(b => b.a === atomB.id || b.b === atomB.id)
+      .reduce((sum, b) => sum + (b.order || 1), 0);
+    
+    // Total electrons around atom
+    const totalElectronsA = (atomA.el.valenceElectrons || 0) + bondedElectronsA;
+    const totalElectronsB = (atomB.el.valenceElectrons || 0) + bondedElectronsB;
+    
+    // If either atom has odd total electrons, it's a radical
+    return (totalElectronsA % 2 !== 0 || totalElectronsB % 2 !== 0);
   }
 }
 
@@ -614,6 +889,86 @@ export class QMInterface {
     throw new Error('DFT calculation not yet implemented. Use empirical methods.');
   }
 
+  /**
+   * Calculate energy of an electron in a hydrogen-like atom using Bohr model
+   * E_n = -13.6 eV * Z^2 / n^2
+   * @param {number} n - Principal quantum number
+   * @param {number} Z - Atomic number (default 1 for hydrogen)
+   * @returns {number} Energy in eV
+   */
+  calculateBohrEnergy(n, Z = 1) {
+    if (n <= 0) return 0;
+    return -13.6 * Z * Z / (n * n);
+  }
+
+  /**
+   * Calculate energy difference for electron transition (Bohr model)
+   * ΔE = -13.6 eV * Z^2 * (1/nf^2 - 1/ni^2)
+   * @param {number} ni - Initial principal quantum number
+   * @param {number} nf - Final principal quantum number
+   * @param {number} Z - Atomic number (default 1 for hydrogen)
+   * @returns {number} Energy difference in eV (positive = absorption, negative = emission)
+   */
+  calculateTransitionEnergy(ni, nf, Z = 1) {
+    if (ni <= 0 || nf <= 0) return 0;
+    const Ei = this.calculateBohrEnergy(ni, Z);
+    const Ef = this.calculateBohrEnergy(nf, Z);
+    return Ef - Ei;
+  }
+
+  /**
+   * Calculate wavelength of photon emitted/absorbed during transition
+   * λ = hc / ΔE
+   * @param {number} deltaE - Energy difference in eV
+   * @returns {number} Wavelength in nanometers
+   */
+  calculatePhotonWavelength(deltaE) {
+    if (deltaE === 0) return Infinity;
+    const hc = 1240; // hc in eV·nm
+    return Math.abs(hc / deltaE);
+  }
+
+  /**
+   * Calculate frequency of photon emitted/absorbed during transition
+   * ν = ΔE / h
+   * @param {number} deltaE - Energy difference in eV
+   * @returns {number} Frequency in Hz
+   */
+  calculatePhotonFrequency(deltaE) {
+    if (deltaE === 0) return 0;
+    const eVtoJ = 1.602176634e-19;
+    return Math.abs(deltaE * eVtoJ / H_PLANCK);
+  }
+
+  /**
+   * Determine spectral series for hydrogen transition
+   * @param {number} ni - Initial quantum number
+   * @param {number} nf - Final quantum number
+   * @returns {string} Series name (Lyman, Balmer, Paschen, etc.)
+   */
+  getSpectralSeries(ni, nf) {
+    const nLower = Math.min(ni, nf);
+    if (nLower === 1) return 'Lyman (UV)';
+    if (nLower === 2) return 'Balmer (Visible)';
+    if (nLower === 3) return 'Paschen (IR)';
+    if (nLower === 4) return 'Brackett (IR)';
+    if (nLower === 5) return 'Pfund (IR)';
+    return 'Humphreys (Far IR)';
+  }
+
+  /**
+   * Calculate orbital radius for hydrogen-like atom
+   * r_n = n^2 * a_0 / Z
+   * @param {number} n - Principal quantum number
+   * @param {number} Z - Atomic number
+   * @returns {number} Radius in Angstroms
+   */
+  calculateOrbitalRadius(n, Z = 1) {
+    if (n <= 0 || Z <= 0) return 0;
+    const a0 = 0.529; // Bohr radius in Angstroms
+    return n * n * a0 / Z;
+  }
+
   getCacheKey(atoms, bonds) {
     // Handle both Map and array
     const atomList = atoms instanceof Map ? Array.from(atoms.values()) : atoms;
@@ -690,7 +1045,7 @@ export class SimulationEngine {
     };
 
     molecule.stability = {
-      thermodynamicallyUnstable: dG > 50,
+      thermodynamicallyUnstable: this.thermo.isThermodynamicallyUnstable(atoms, bonds, this.kinetics.getTemperature(molecule.id)),
       kineticallyUnstable: decompProb > 0.1,
       decompositionProbability: decompProb,
     };
@@ -774,7 +1129,16 @@ export class SimulationEngine {
     
     const thermo = this.thermo.calculateFreeEnergy(atomsMap, bonds);
     const strainEnergy = this.strain.calculateStrainEnergy(atomsMap, bonds);
-    const baseEa = 200;
+    
+    // Calculate base activation energy from actual bond dissociation energies
+    // Use the weakest bond as the rate-determining step for decomposition
+    const bondList = bonds instanceof Map ? Array.from(bonds.values()) : bonds;
+    let baseEa = 200; // Default fallback
+    if (bondList.length > 0) {
+      const bondEnergies = bondList.map(b => this.thermo.getBondDissociationEnergy(b, atomsMap));
+      baseEa = Math.min(...bondEnergies); // Weakest bond determines decomposition Ea
+    }
+    
     const effectiveEa = this.strain.getModifiedActivationEnergy(baseEa, atomsMap, bonds);
     const temp = this.kinetics.getTemperature(moleculeId);
     const decompProb = this.kinetics.calculateDecompositionProbability(effectiveEa, temp);
@@ -796,7 +1160,7 @@ export class SimulationEngine {
       },
       quantum: mo,
       stability: {
-        thermodynamicallyUnstable: thermo.dG > 50,
+        thermodynamicallyUnstable: this.thermo.isThermodynamicallyUnstable(atomsMap, bonds, temp),
         kineticallyUnstable: decompProb > 0.1,
       },
     };

@@ -3,7 +3,7 @@ import { formulaOf } from './chemistry.js';
 import { isVi, elName } from './i18n.js';
 
 // formula (Hill, no charge) + charge -> trivial name
-const COMMON = {
+export const COMMON = {
   'H2O': 'Water', 'CO2': 'Carbon dioxide', 'CO': 'Carbon monoxide',
   'CH4': 'Methane', 'NH3': 'Ammonia', 'H2O2': 'Hydrogen peroxide',
   'SO2': 'Sulfur dioxide', 'SO3': 'Sulfur trioxide',
@@ -59,7 +59,7 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
 // Vietnamese mirrors (used when the app language is VI). Nomenclature follows
 // the common textbook style; rare species may differ slightly in spelling.
-const COMMON_VI = {
+export const COMMON_VI = {
   'H2O': 'Nước', 'CO2': 'Cacbon dioxit', 'CO': 'Cacbon monooxit',
   'CH4': 'Metan', 'NH3': 'Amoniac', 'H2O2': 'Hiđro peroxit',
   'SO2': 'Lưu huỳnh dioxit', 'SO3': 'Lưu huỳnh trioxit',

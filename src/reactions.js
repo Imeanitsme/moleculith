@@ -129,30 +129,71 @@ const T = {
 };
 
 const ISOMERS = {};
+
+// Convert atom ordering + bonds to condensed structural formula (e.g., "C2H5OH")
+function orderingToCondensedFormula(atoms, bonds) {
+  if (!atoms || atoms.length === 0) return '';
+  
+  // Build adjacency list
+  const adj = atoms.map(() => []);
+  for (const bond of bonds) {
+    const [a, b] = bond;
+    adj[a].push(b);
+    adj[b].push(a);
+  }
+  
+  // Count hydrogens attached to each heavy atom
+  const heavyAtoms = [];
+  const hCount = new Map();
+  
+  for (let i = 0; i < atoms.length; i++) {
+    if (atoms[i] === 'H') continue;
+    heavyAtoms.push(i);
+    let h = 0;
+    for (const neighbor of adj[i]) {
+      if (atoms[neighbor] === 'H') h++;
+    }
+    hCount.set(i, h);
+  }
+  
+  // Build condensed formula by traversing heavy atoms in order
+  // Group consecutive same-element atoms (e.g., C-C becomes C2)
+  let result = '';
+  let i = 0;
+  
+  while (i < heavyAtoms.length) {
+    const idx = heavyAtoms[i];
+    const sym = atoms[idx];
+    const h = hCount.get(idx);
+    
+    // Check if next heavy atom is the same element
+    let count = 1;
+    let totalH = h;
+    while (i + count < heavyAtoms.length && atoms[heavyAtoms[i + count]] === sym) {
+      count++;
+      totalH += hCount.get(heavyAtoms[i + count]);
+    }
+    
+    // Add to result
+    result += sym;
+    if (count > 1) result += count;
+    if (totalH > 0) result += totalH > 1 ? `H${totalH}` : 'H';
+    
+    i += count;
+  }
+  
+  return result;
+}
+
 function registerIsomer(formula, key, tpl, displayName) {
   if (!ISOMERS[formula]) ISOMERS[formula] = [];
-  ISOMERS[formula].push({ 
-    key, 
-    tpl, 
-    displayFormula: orderingToFormulaStatic(tpl.atoms),
+  ISOMERS[formula].push({
+    key,
+    tpl,
+    displayFormula: orderingToCondensedFormula(tpl.atoms, tpl.bonds),
     displayName: displayName || key.split('_').pop()
   });
   T[key] = tpl;
-}
-
-// Static version for use before orderingToFormula is defined
-function orderingToFormulaStatic(atoms) {
-  const count = new Map();
-  for (const sym of atoms) count.set(sym, (count.get(sym) || 0) + 1);
-  let result = '';
-  const used = new Set();
-  for (const sym of atoms) {
-    if (used.has(sym)) continue;
-    used.add(sym);
-    const c = count.get(sym);
-    result += sym + (c > 1 ? c : '');
-  }
-  return result;
 }
 
 registerIsomer('C2H6O', 'C2H6O_ethanol', {
@@ -172,6 +213,12 @@ registerIsomer('C3H6O', 'C3H6O_propanal', {
   atoms: ['C','C','C','O','H','H','H','H','H','H'],
   bonds: [[0,1,1],[1,2,1],[2,3,2],[0,4,1],[0,5,1],[0,6,1],[1,7,1],[1,8,1],[2,9,1]]
 }, 'Propanal');
+
+// Carbonic acid: O=C(OH)2
+registerIsomer('CH2O3', 'CH2O3_carbonic', {
+  atoms: ['O','C','O','H','O','H'],
+  bonds: [[0,1,2],[1,2,1],[2,3,1],[1,4,1],[4,5,1]]
+}, 'Carbonic acid');
 
 const isoCache = new Map();
 
@@ -391,20 +438,9 @@ function generateIsomerName(atoms, bonds, formula) {
   return orderingToFormula(atoms);
 }
 
-// Convert an atom ordering to a formula string (e.g., [H,C,N] -> "HCN")
+// Convert an atom ordering to a canonical formula string (Hill system for organic compounds)
 function orderingToFormula(atoms) {
-  const count = new Map();
-  for (const sym of atoms) count.set(sym, (count.get(sym) || 0) + 1);
-  
-  let result = '';
-  const used = new Set();
-  for (const sym of atoms) {
-    if (used.has(sym)) continue;
-    used.add(sym);
-    const c = count.get(sym);
-    result += sym + (c > 1 ? c : '');
-  }
-  return result;
+  return formulaOf(atoms.map(sym => elementBySym(sym)));
 }
 
 // Build a valid structure for a given atom ordering. Plan: single-bond the
@@ -1105,7 +1141,7 @@ function generateSaltFormula(cation, anion) {
 }
 
 // General formula parser handling parentheses: Ca(OH)2 -> {Ca:1, O:2, H:2}
-function parseFormula(f) {
+export function parseFormula(f) {
   const counts = new Map();
   const stack = [counts];
   const re = /([A-Z][a-z]?)(\d*)|(\()|(\))(\d*)/g;
@@ -3150,13 +3186,23 @@ function candidatesOf(r) {
 
 // Scale a dynamic reaction to the selection when every reactant count is an
 // exact integer multiple (4 NaOH + 2 CO2 -> 2 NaHCO3 via 2x scaling).
-function matchDynamic(rx, have) {
-  if (matches(rx, have)) return rx;
-  const reactantKeys = Object.keys(rx.reactants);
+function matchDynamic(rx, have, bonusReactants = new Set()) {
+  if (matches(rx, have, bonusReactants)) return rx;
+  
+  // For scaled matching, only count non-bonus reactants in have
+  const reactantKeys = Object.keys(rx.reactants).filter(f => !bonusReactants.has(normalizeFormula(f)));
   if (reactantKeys.length !== have.size) return null;
+  
   let s = 0;
   for (const [f, n] of Object.entries(rx.reactants)) {
     const norm = normalizeFormula(f);
+    const isBonus = bonusReactants.has(norm);
+    
+    if (isBonus) {
+      // Bonus reactants are unlimited, skip scaling check
+      continue;
+    }
+    
     let hc = 0;
     for (const [hf, hn] of have) if (normalizeFormula(hf) === norm) hc = hn;
     if (hc === 0 || hc % n !== 0) return null;
@@ -3165,6 +3211,7 @@ function matchDynamic(rx, have) {
     s = k;
   }
   if (s <= 1) return null;
+  
   const reactants = {};
   for (const [f, n] of Object.entries(rx.reactants)) reactants[f] = n * s;
   const products = rx.products.map(([f, n]) => [f, n * s]);
@@ -4089,6 +4136,230 @@ export const REACTIONS = [
   { reactants: { MgCl2: 1 }, condition: 'electricity', products: [['Mg', 1], ['Cl2', 1]], equation: 'MgCl2 -> Mg + Cl2' },
 ];
 
+// ========== METAL OXIDE + ACID ==========
+// Basic metal oxides (MgO, CuO, Fe2O3) react with acids to form salt + water.
+// Unlike tryAcidBaseReaction which requires -OH groups, this handles bare oxides.
+function tryMetalOxideAcidReaction(formulas) {
+  const have = multisetOf(formulas);
+  if (have.size !== 2) return null;
+
+  const keys = [...have.keys()];
+  let oxideF = null, oxideInfo = null, acidF = null;
+
+  for (const f of keys) {
+    const mo = isMetalOxide(f);
+    if (mo) { oxideF = f; oxideInfo = mo; }
+    if (isAcid(f)) acidF = f;
+  }
+  if (!oxideF || !acidF) return null;
+
+  const anion = getAcidAnion(acidF);
+  if (!anion) return null;
+
+  const cat = { sym: oxideInfo.metalSym, charge: oxideInfo.oxidationState };
+  const saltF = generateSaltFormula(cat, anion);
+  const coeffs = balanceEquation([oxideF, acidF], [saltF, 'H2O']);
+  if (!coeffs) return null;
+
+  if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, anion);
+  const phases = { [saltF]: phaseOfSalt(saltF) };
+
+  return {
+    reactants: { [oxideF]: coeffs[0], [acidF]: coeffs[1] },
+    condition: 'rt',
+    products: [[saltF, coeffs[2]], ['H2O', coeffs[3]]],
+    equation: eqParts([oxideF, acidF], [saltF, 'H2O'], coeffs, phases),
+    dynamic: true,
+  };
+}
+
+// ========== NON-METAL ELEMENTAL COMBUSTION ==========
+// Elemental non-metals (S, P, C, Si) burn in O2 to form oxides.
+// Unlike tryCombustion which requires C+H (hydrocarbons), this handles pure elements.
+function tryElementalCombustion(formulas) {
+  const have = multisetOf(formulas);
+  if (have.size !== 2 || !have.has('O2')) return null;
+
+  const others = [...have.keys()].filter(f => f !== 'O2');
+  if (others.length !== 1) return null;
+  const fuel = others[0];
+
+  const fuelParsed = parseFormula(fuel);
+  if (fuelParsed.size !== 1) return null;
+
+  const elSym = [...fuelParsed.keys()][0];
+  const el = elementBySym(elSym);
+  if (!el || isMetalObj(el)) return null;
+
+  const oxEntries = Object.entries(OXYACID[el.sym] || {})
+    .sort(([a], [b]) => parseInt(a) - parseInt(b));
+  const oxEntry = oxEntries.find(([v]) => {
+    const oxV = parseInt(v);
+    const oxideF = generateOxideFormula(el.sym, oxV);
+    return acidicOxideOf(oxideF) != null;
+  });
+  if (!oxEntry) return null;
+
+  const oxV = parseInt(oxEntry[0]);
+  const oxideF = generateOxideFormula(el.sym, oxV);
+
+  if (!T[oxideF]) T[oxideF] = generateOxideTemplate(el.sym, oxV);
+
+  const coeffs = balanceEquation([fuel, 'O2'], [oxideF]);
+  if (!coeffs) return null;
+
+  return {
+    reactants: { [fuel]: coeffs[0], O2: coeffs[1] },
+    condition: 'spark',
+    products: [[oxideF, coeffs[2]]],
+    equation: eqParts([fuel, 'O2'], [oxideF], coeffs),
+    dynamic: true,
+  };
+}
+
+// ========== NON-METAL HALIDE HYDROLYSIS ==========
+// Covalent halides (PCl3, SiCl4, SF6) react with water to form oxyacids + HX.
+// The central atom's oxidation state is preserved; halogens are replaced by OH/O.
+function tryNonMetalHalideHydrolysis(formulas, have) {
+  if (have.size !== 2 || !have.has('H2O')) return [];
+  const out = [];
+  const keys = [...have.keys()];
+  const halideF = keys.find(f => f !== 'H2O');
+  if (!halideF) return [];
+
+  const parsed = parseFormula(halideF);
+  const halogens = ['Cl', 'Br', 'F', 'I'];
+  const presentHalogens = halogens.filter(x => parsed.has(x));
+  if (presentHalogens.length === 0) return [];
+
+  const nonHalogen = [...parsed.keys()].filter(k => !presentHalogens.includes(k));
+  if (nonHalogen.length !== 1) return [];
+
+  const central = nonHalogen[0];
+  const centralEl = elementBySym(central);
+  if (!centralEl || isMetalObj(centralEl)) return [];
+  if (central === 'H' || central === 'O') return [];
+
+  const halCount = presentHalogens.reduce((s, x) => s + (parsed.get(x) || 0), 0);
+  const oxState = halCount;
+
+  const acidEntry = OXYACID[central];
+  if (!acidEntry || !acidEntry[oxState]) return [];
+  const [acidH, acidO] = acidEntry[oxState];
+
+  const waterNeeded = acidO - (parsed.get('O') || 0);
+  if (waterNeeded <= 0) return [];
+
+  const oxyacidF = oxoanionFormulaSym(central, acidH, acidO);
+  if (!T[oxyacidF]) T[oxyacidF] = buildOxoacidTemplate(central, acidH, acidO);
+
+  const hxProducts = presentHalogens.map(x => {
+    const hxF = `H${x}`;
+    if (!T[hxF]) T[hxF] = { atoms: ['H', x], bonds: [[0, 1, 1]] };
+    return hxF;
+  });
+
+  const allProducts = [oxyacidF, ...hxProducts];
+  const allReactants = { [halideF]: 1, H2O: waterNeeded };
+  const coeffs = balanceEquation([halideF, 'H2O'], allProducts);
+  if (!coeffs) return [];
+
+  const reactants = { [halideF]: coeffs[0], H2O: coeffs[1] };
+  const products = allProducts.map((f, i) => [f, coeffs[2 + i]]);
+
+  out.push({
+    reactants,
+    condition: 'rt',
+    products,
+    equation: eqParts([halideF, 'H2O'], allProducts, coeffs),
+    dynamic: true,
+  });
+
+  return out;
+}
+
+// ========== WEAK ACID DISPLACEMENT ==========
+// Strong acid + salt of weak acid → weak acid + new salt.
+// Covers volatile/weak acid displacement: carbonates→CO2, sulfites→SO2,
+// sulfides→H2S, cyanides→HCN, acetates→CH3COOH, silicates→H2SiO3.
+const WEAK_ACID_ANIONS = {
+  'CO3':  { acidF: 'H2CO3', decomposes: true, gas: 'CO2' },
+  'SO3':  { acidF: 'H2SO3', decomposes: true, gas: 'SO2' },
+  'S':    { acidF: 'H2S',   decomposes: false },
+  'CN':   { acidF: 'HCN',   decomposes: false },
+  'C2H3O2': { acidF: 'HC2H3O2', decomposes: false },
+  'SiO3': { acidF: 'H2SiO3', decomposes: false },
+};
+
+function tryWeakAcidDisplacement(formulas) {
+  const have = multisetOf(formulas);
+  if (have.size !== 2) return null;
+
+  const keys = [...have.keys()];
+  let acidF = null, saltF = null;
+  for (const f of keys) {
+    if (isAcid(f)) acidF = f;
+    else saltF = f;
+  }
+  if (!acidF || !saltF) return null;
+
+  const ions = parseIonicCompound(saltF);
+  if (!ions) return null;
+
+  const weakInfo = WEAK_ACID_ANIONS[ions.anion.sym];
+  if (!weakInfo) return null;
+
+  const anionCharge = Math.abs(ions.anion.charge);
+  const acidHCount = anionCharge;
+  const acidParsed = parseFormula(weakInfo.acidF);
+  const acidActualH = acidParsed.get('H') || 0;
+  const hMult = acidActualH > 0 ? acidHCount / acidActualH : 1;
+
+  if (weakInfo.decomposes) {
+    const newSaltF = buildIonicFormula(ions.cation, getAcidAnion(acidF));
+    const allProducts = [weakInfo.gas, 'H2O', newSaltF];
+    if (!T[newSaltF]) T[newSaltF] = generateSaltTemplate(ions.cation, getAcidAnion(acidF));
+    const coeffs = balanceEquation([saltF, acidF], allProducts);
+    if (!coeffs) return null;
+    const phases = { [newSaltF]: phaseOfSalt(newSaltF) };
+    return {
+      reactants: { [saltF]: coeffs[0], [acidF]: coeffs[1] },
+      condition: 'rt',
+      products: allProducts.map((f, i) => [f, coeffs[2 + i]]),
+      equation: eqParts([saltF, acidF], allProducts, coeffs, phases),
+      dynamic: true,
+      gas: weakInfo.gas,
+    };
+  } else {
+    const weakAcidActualF = weakInfo.acidF;
+    if (!T[weakAcidActualF]) {
+      const ap = parseFormula(weakAcidActualF);
+      const central = [...ap.keys()].find(k => k !== 'H' && k !== 'O');
+      const oCount = ap.get('O') || 0;
+      const hCount = ap.get('H') || 0;
+      if (central && oCount > 0) {
+        T[weakAcidActualF] = buildOxoacidTemplate(central, hCount, oCount);
+      } else {
+        const atoms = [...ap.entries()].flatMap(([sym, n]) => Array(n).fill(sym));
+        T[weakAcidActualF] = { atoms, bonds: [] };
+      }
+    }
+    const newSaltF = buildIonicFormula(ions.cation, getAcidAnion(acidF));
+    const allProducts = [weakAcidActualF, newSaltF];
+    if (!T[newSaltF]) T[newSaltF] = generateSaltTemplate(ions.cation, getAcidAnion(acidF));
+    const coeffs = balanceEquation([saltF, acidF], allProducts);
+    if (!coeffs) return null;
+    const phases = { [newSaltF]: phaseOfSalt(newSaltF) };
+    return {
+      reactants: { [saltF]: coeffs[0], [acidF]: coeffs[1] },
+      condition: 'rt',
+      products: allProducts.map((f, i) => [f, coeffs[2 + i]]),
+      equation: eqParts([saltF, acidF], allProducts, coeffs, phases),
+      dynamic: true,
+    };
+  }
+}
+
 function multisetOf(formulas) {
   const m = new Map();
   for (const f of formulas) m.set(f, (m.get(f) || 0) + 1);
@@ -4106,9 +4377,8 @@ function normalizeFormula(f) {
     .join('');
 }
 
-function matches(rx, have) {
+function matches(rx, have, bonusReactants = new Set()) {
   const need = Object.entries(rx.reactants);
-  if (need.length !== have.size) return false;
 
   // Build normalized multiset for have
   const haveNorm = new Map();
@@ -4117,26 +4387,220 @@ function matches(rx, have) {
     haveNorm.set(norm, (haveNorm.get(norm) || 0) + n);
   }
 
-  // Check each reactant
+  // Check each reactant - can come from have or bonus (atmosphere)
   for (const [f, n] of need) {
     const norm = normalizeFormula(f);
-    if (haveNorm.get(norm) !== n) return false;
+    const haveCount = haveNorm.get(norm) || 0;
+    const isBonus = bonusReactants.has(norm);
+    if (haveCount === 0 && !isBonus) return false;
+    if (haveCount > n) return false;
   }
+
+  // All non-bonus items in have must be consumed by the reaction
+  for (const [f, n] of have) {
+    const norm = normalizeFormula(f);
+    if (bonusReactants.has(norm)) continue;
+    let needed = 0;
+    for (const [rf, rn] of need) {
+      if (normalizeFormula(rf) === norm) needed = rn;
+    }
+    if (n !== needed) return false;
+  }
+
   return true;
+}
+
+// ========== WEAK ACID DISSOCIATION, FLUORINE + WATER, HALOGEN DISPROPORTIONATION ==========
+
+// Strong acids fully dissociate — skip weak acid dissociation for these
+const STRONG_ACIDS = new Set(['HCl', 'HBr', 'HI', 'HNO3', 'H2SO4', 'HClO4', 'HClO3']);
+
+function tryWeakAcidDissociation(formulas) {
+  const have = multisetOf(formulas);
+  if (have.size !== 2 || !have.has('H2O')) return null;
+
+  const acid = [...have.keys()].find(f => f !== 'H2O');
+  if (!acid) return null;
+
+  // Must be classified as an acid
+  if (!isAcid(acid)) return null;
+  // Skip strong acids — they fully dissociate, not equilibrium
+  if (STRONG_ACIDS.has(acid)) return null;
+
+  // Must have at least one H to donate
+  const comp = parseFormula(acid);
+  const hCount = comp.get('H') || 0;
+  if (hCount < 1) return null;
+
+  // Build conjugate base formula: remove one H from the acid
+  // e.g., HF -> F⁻ (as "F"), CH3COOH -> CH3COO⁻ (as "C2H3O2")
+  const conjBase = buildConjugateBase(acid, comp);
+  if (!conjBase) return null;
+
+  // Store H3O+ template if not already present
+  if (!T['H3O']) {
+    T['H3O'] = { atoms: ['O', 'H', 'H', 'H'], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1]] };
+  }
+
+  // Store conjugate base template
+  const cbTemplate = buildConjugateBaseTemplate(conjBase, acid);
+  if (cbTemplate) T[conjBase] = cbTemplate;
+
+  const acidCoeff = have.get(acid) || 1;
+  const h2oCoeff = have.get('H2O') || 1;
+
+  return {
+    reactants: { [acid]: acidCoeff, H2O: h2oCoeff },
+    condition: 'rt',
+    products: [[conjBase, acidCoeff], ['H3O', acidCoeff]],
+    equation: `${acidCoeff === 1 ? '' : acidCoeff}${acid} + ${h2oCoeff === 1 ? '' : h2oCoeff}H2O ⇌ ${acidCoeff === 1 ? '' : acidCoeff}${conjBase} + ${acidCoeff === 1 ? '' : acidCoeff}H3O⁺`,
+    dynamic: true
+  };
+}
+
+function buildConjugateBase(acid, comp) {
+  // Remove one H from the formula
+  const newComp = new Map(comp);
+  const h = newComp.get('H') || 0;
+  if (h <= 0) return null;
+  newComp.set('H', h - 1);
+  if (newComp.get('H') === 0) newComp.delete('H');
+
+  // Build formula string from remaining elements
+  // Preserve the original ordering style: central atom first, then others
+  const parts = [];
+  // For organic acids like CH3COOH -> C2H3O2 (Hill system without H prefix for conjugate base)
+  // For simple acids like HF -> F
+  const hasC = newComp.has('C');
+  if (hasC) {
+    // Hill system: C first, then H, then others alphabetically
+    if (newComp.has('C')) { const c = newComp.get('C'); parts.push(c > 1 ? `C${c}` : 'C'); }
+    if (newComp.has('H')) { const h2 = newComp.get('H'); parts.push(h2 > 1 ? `H${h2}` : 'H'); }
+    const others = [...newComp.entries()].filter(([k]) => k !== 'C' && k !== 'H').sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [sym, count] of others) parts.push(count > 1 ? `${sym}${count}` : sym);
+  } else {
+    // Inorganic: alphabetical
+    const sorted = [...newComp.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [sym, count] of sorted) parts.push(count > 1 ? `${sym}${count}` : sym);
+  }
+  return parts.join('');
+}
+
+function buildConjugateBaseTemplate(conjBaseFormula, acidFormula) {
+  // Build a simple linear template for the conjugate base
+  const comp = parseFormula(conjBaseFormula);
+  const atoms = [];
+  const bonds = [];
+  let idx = 0;
+  let centralIdx = -1;
+
+  // First atom is the central atom (non-H, non-O if possible)
+  const entries = [...comp.entries()];
+  // Find central atom: prefer non-H, non-O
+  const centralEntry = entries.find(([sym]) => sym !== 'H' && sym !== 'O') || entries[0];
+  atoms.push(centralEntry[0]);
+  centralIdx = 0;
+  for (let i = 1; i < centralEntry[1]; i++) {
+    atoms.push(centralEntry[0]);
+    bonds.push([0, idx, 1]);
+    idx++;
+  }
+  idx = atoms.length;
+
+  // Add remaining atoms bonded to central
+  for (const [sym, count] of entries) {
+    if (sym === centralEntry[0]) continue;
+    for (let i = 0; i < count; i++) {
+      atoms.push(sym);
+      bonds.push([centralIdx, idx, sym === 'O' ? 2 : 1]);
+      idx++;
+    }
+  }
+
+  return { atoms, bonds };
+}
+
+// Fluorine oxidizes water directly: 2F2 + 2H2O -> 4HF + O2
+function tryFluorineWaterReaction(formulas) {
+  const have = multisetOf(formulas);
+  if (have.size !== 2 || !have.has('H2O') || !have.has('F2')) return null;
+
+  const f2Count = have.get('F2') || 0;
+  const h2oCount = have.get('H2O') || 0;
+
+  // Need at least 1 F2 and 1 H2O; balanced as 2:2 -> 4:1
+  if (f2Count < 1 || h2oCount < 1) return null;
+
+  // Scale: 2F2 + 2H2O -> 4HF + O2
+  // Find the limiting scale factor
+  const scale = Math.min(Math.floor(f2Count / 2), Math.floor(h2oCount / 2));
+  if (scale < 1) return null;
+
+  const f2Used = 2 * scale;
+  const h2oUsed = 2 * scale;
+  const hfProduced = 4 * scale;
+  const o2Produced = 1 * scale;
+
+  return {
+    reactants: { F2: f2Used, H2O: h2oUsed },
+    condition: 'rt',
+    products: [['HF', hfProduced], ['O2', o2Produced]],
+    equation: `${f2Used}F2 + ${h2oUsed}H2O -> ${hfProduced}HF + ${o2Produced === 1 ? 'O2' : o2Produced + 'O2'}`,
+    dynamic: true
+  };
+}
+
+// Halogen disproportionation in water: X2 + H2O ⇌ HX + HOX (X = Cl, Br, I)
+// Fluorine is excluded — it oxidizes water directly (see tryFluorineWaterReaction)
+function tryHalogenDisproportionation(formulas) {
+  const have = multisetOf(formulas);
+  if (have.size !== 2 || !have.has('H2O')) return null;
+
+  const other = [...have.keys()].find(f => f !== 'H2O');
+  if (!other) return null;
+
+  // Must be a diatomic halogen (Cl2, Br2, I2) — NOT F2
+  const halogenMatch = other.match(/^([A-Z][a-z]?)2$/);
+  if (!halogenMatch) return null;
+  const halogenSym = halogenMatch[1];
+  if (!['Cl', 'Br', 'I'].includes(halogenSym)) return null;
+
+  const x2Count = have.get(other) || 0;
+  const h2oCount = have.get('H2O') || 0;
+  const scale = Math.min(x2Count, h2oCount);
+  if (scale < 1) return null;
+
+  const hxFormula = `${halogenSym === 'Cl' ? 'HCl' : halogenSym === 'Br' ? 'HBr' : 'HI'}`;
+  const hoxFormula = `${halogenSym === 'Cl' ? 'HClO' : halogenSym === 'Br' ? 'HBrO' : 'HIO'}`;
+
+  // Store HOX template if not present
+  const hoxKey = hoxFormula;
+  if (!T[hoxKey]) {
+    T[hoxKey] = { atoms: ['H', 'O', halogenSym], bonds: [[0, 1, 1], [1, 2, 1]] };
+  }
+
+  return {
+    reactants: { [other]: scale, H2O: scale },
+    condition: 'rt',
+    products: [[hxFormula, scale], [hoxKey, scale]],
+    equation: `${scale === 1 ? '' : scale}${other} + ${scale === 1 ? '' : scale}H2O ⇌ ${scale === 1 ? '' : scale}${hxFormula} + ${scale === 1 ? '' : scale}${hoxFormula}`,
+    dynamic: true
+  };
 }
 
 // Exact match for a chosen condition, or null. `comps` optionally supplies
 // the selected components' structures ({atoms, bonds}) enabling the
 // structure-aware organic/acid-base checkers (isomer-exact products).
-export function findReaction(formulas, conditionKey, comps = null) {
+export function findReaction(formulas, conditionKey, comps = null, atmosphereGases = []) {
   const have = multisetOf(formulas);
+  const bonusReactants = new Set(atmosphereGases.map(f => normalizeFormula(f)));
   const structsValid = Array.isArray(comps) && comps.length > 0 &&
     comps.every(c => c && Array.isArray(c.atoms));
 
   if (structsValid) {
     for (const tryFn of STRUCT_CHECKS[conditionKey] || []) {
       for (const rx of candidatesOf(tryFn(comps, have))) {
-        const m = matchDynamic(rx, have);
+        const m = matchDynamic(rx, have, bonusReactants);
         if (m) return m;
       }
     }
@@ -4145,19 +4609,19 @@ export function findReaction(formulas, conditionKey, comps = null) {
   // First check static reactions
   for (const rx of REACTIONS) {
     if (rx.condition !== conditionKey) continue;
-    if (matches(rx, have)) return rx;
+    if (matches(rx, have, bonusReactants)) return rx;
   }
 
   // Check mayhem reactions
   for (const rx of MAYHEM_REACTIONS) {
     if (rx.condition !== conditionKey) continue;
-    if (matches(rx, have)) return rx;
+    if (matches(rx, have, bonusReactants)) return rx;
   }
 
   // Then try dynamic reaction patterns
   const dynamicChecks = {
-    'rt': [tryAcidBaseReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction],
-    'spark': [tryCombustion],
+    'rt': [tryAcidBaseReaction, tryMetalOxideAcidReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryWeakAcidDisplacement, tryNonMetalHalideHydrolysis, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction, tryWeakAcidDissociation, tryFluorineWaterReaction, tryHalogenDisproportionation],
+    'spark': [tryCombustion, tryElementalCombustion],
     'heat': [tryCombustion, tryMetalOxideReduction, tryMetalHalogenSynthesis, tryMetalDimerFormation, tryMetalDimerDecomposition, tryDehydration, tryAdvancedDecomposition, tryGenericDecomposition, tryDisproportionation],
     'catalyst': [tryEsterification, tryHydrogenation, tryAlkeneHydration, tryEsterHydrolysis, tryBiochemicalReaction],
     'uv': [tryHalogenation],
@@ -4166,7 +4630,7 @@ export function findReaction(formulas, conditionKey, comps = null) {
   const checks = dynamicChecks[conditionKey] || [];
   for (const tryFn of checks) {
     for (const rx of candidatesOf(tryFn([...have.keys()], have))) {
-      const m = matchDynamic(rx, have);
+      const m = matchDynamic(rx, have, bonusReactants);
       if (m) return m;
     }
   }
@@ -4178,8 +4642,9 @@ export function findReaction(formulas, conditionKey, comps = null) {
 // Subset semantics — every selected formula must be a reactant, with counts
 // not exceeding what the reaction needs — so partial selections still hint
 // at the right condition. Execution itself stays exact (findReaction).
-export function conditionsFor(formulas, comps = null) {
+export function conditionsFor(formulas, comps = null, atmosphereGases = []) {
   const have = multisetOf(formulas);
+  const bonusReactants = new Set(atmosphereGases.map(f => normalizeFormula(f)));
   const set = new Set();
 
   const subsetOk = (reactants) => {
@@ -4249,6 +4714,13 @@ export function conditionsFor(formulas, comps = null) {
     { fn: tryCoordinationComplex, cond: 'rt' },
     { fn: tryBiochemicalReaction, cond: 'rt' },
     { fn: tryBiochemicalReaction, cond: 'catalyst' },
+    { fn: tryMetalOxideAcidReaction, cond: 'rt' },
+    { fn: tryElementalCombustion, cond: 'spark' },
+    { fn: tryNonMetalHalideHydrolysis, cond: 'rt' },
+    { fn: tryWeakAcidDisplacement, cond: 'rt' },
+    { fn: tryWeakAcidDissociation, cond: 'rt' },
+    { fn: tryFluorineWaterReaction, cond: 'rt' },
+    { fn: tryHalogenDisproportionation, cond: 'rt' },
   ];
 
   for (const { fn, cond } of allChecks) {
@@ -4264,8 +4736,9 @@ export function conditionsFor(formulas, comps = null) {
 
 // Shortfall for reactions under `condKey` that this partial selection could
 // still complete, e.g. "2H2" or "Cl2", or null when nothing applies.
-export function missingFor(formulas, condKey) {
+export function missingFor(formulas, condKey, atmosphereGases = []) {
   const have = multisetOf(formulas);
+  const bonusReactants = new Set(atmosphereGases.map(f => normalizeFormula(f)));
   const options = [];
   for (const rx of REACTIONS) {
     if (rx.condition !== condKey) continue;
@@ -4282,6 +4755,8 @@ export function missingFor(formulas, condKey) {
     const missing = [];
     for (const [f, n] of Object.entries(rx.reactants)) {
       const fNorm = normalizeFormula(f);
+      // Skip if available from atmosphere
+      if (bonusReactants.has(fNorm)) continue;
       let haveCount = 0;
       for (const [hf, hn] of have) {
         if (normalizeFormula(hf) === fNorm) haveCount = hn;

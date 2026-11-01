@@ -1,29 +1,107 @@
+import '../style.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ELEMENTS, CAT_COLOR, isMetalCat, gridPos, elementBySym as elementBySymBase } from './elements.js';
-
-function elementBySym(sym) {
-  return elementBySymBase(sym) || getMayhemElement(sym) || customElements.find(e => e.sym === sym);
-}
 import {
   bondsOf, partnerId, bondCheck, upgradeCheck, componentsOf, componentOf,
   analyzeComponent, formulaWithCharge, prettyFormula, displayRadius, bondLength,
-  structuralFingerprint,
+  structuralFingerprint, pairOrderCap,
 } from './chemistry.js';
 import { solveAll } from './vsepr.js';
-import { nameMolecule, classifyMolecule } from './names.js';
+import { nameMolecule, classifyMolecule, COMMON, COMMON_VI } from './names.js';
 import { CHALLENGES } from './challenges.js';
 import { MAYHEM_ELEMENTS, MAYHEM_REACTIONS, isMayhemElement, getMayhemElement } from './mayhem.js';
 import { TIERS, TIER_ORDER, AutoThrottle, FpsSampler } from './quality.js';
 import { createMovement } from './movement.js';
 import {
-  CONDITIONS, findReaction, conditionsFor, missingFor, productTemplate, isomerTemplates,
+  CONDITIONS, findReaction, conditionsFor, missingFor, productTemplate, isomerTemplates, parseFormula,
 } from './reactions.js';
 import { initLang, applyStatic, t, trReason, elName, catLabel, isVi, otherLang, setLang, getLang } from './i18n.js';
 import { initTutorial, showTutorial } from './tutorial.js';
 import { AVOGADRO, setElementLookup, molarMass, compositionOf, limitingAnalysis, fmtAmount } from './stoich.js';
 import { createSimulation, compileNetwork, parseRateExpr, rk4Step } from './kinetics.js';
 import { SimulationEngine, simulation } from './simulation.js';
+import { questManager } from './quests.js';
+import { rankManager, RANKS, isElementUnlocked, getUnlockedElementCount, checkDailyReward, claimDailyReward, getDailyStreak, isFeatureUnlocked, getRequiredRankForFeature } from './ranks.js';
+import { tagFunctionalGroups, buildAdj, GROUP_TYPES } from './data/functional-groups.js';
+import { ReactionVFXManager } from './ReactionVFXManager.js';
+import { CatalystFX, isCatalystFormula, getCatalystData, drawEnergyDiagram } from './CatalystFX.js';
+import { ElectricityFX } from './ElectricityFX.js';
+import { DECOMPOSITION_RULES } from './data/decomposition-rules.js';
+import { initMenu } from './menu.js';
+import { network } from './networking.js';
+import { playerSync } from './playerSync.js';
+import { chatManager } from './chat.js';
+import { voiceChat } from './voiceChat.js';
+
+function elementBySym(sym) {
+  return elementBySymBase(sym) || getMayhemElement(sym) || customElements.find(e => e.sym === sym);
+}
+
+// ─ UI Scale-to-Fit ──
+const REF_W = 1920;
+const REF_H = 1080;
+let uiZoom = 1;
+
+function calcZoom() {
+  const wRatio = window.innerWidth / REF_W;
+  const hRatio = window.innerHeight / REF_H;
+  uiZoom = Math.max(1, Math.min(wRatio, hRatio));
+  document.documentElement.style.setProperty('--ui-zoom', uiZoom.toFixed(3));
+}
+
+calcZoom();
+window.addEventListener('resize', calcZoom);
+
+// ── Draggable Panels ──
+const DRAGGABLES = ['left-sidebar', 'right-sidebar', 'bottom-bar'];
+const dragState = { el: null, offsetX: 0, offsetY: 0 };
+
+function initDraggable(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const handle = el.querySelector('.drag-handle');
+  if (!handle) return;
+
+  handle.style.cursor = 'grab';
+
+  const onDown = (e) => {
+    const rect = el.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    dragState.el = el;
+    dragState.offsetX = clientX - rect.left;
+    dragState.offsetY = clientY - rect.top;
+    el.style.position = 'fixed';
+    el.style.zIndex = '100';
+    handle.style.cursor = 'grabbing';
+    e.preventDefault();
+  };
+
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown, { passive: false });
+}
+
+function onDragMove(e) {
+  if (!dragState.el) return;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  dragState.el.style.left = `${(clientX - dragState.offsetX) / uiZoom}px`;
+  dragState.el.style.top = `${(clientY - dragState.offsetY) / uiZoom}px`;
+}
+
+function onDragEnd() {
+  if (!dragState.el) return;
+  const handle = dragState.el.querySelector('.drag-handle');
+  if (handle) handle.style.cursor = 'grab';
+  dragState.el = null;
+}
+
+window.addEventListener('mousemove', onDragMove);
+window.addEventListener('touchmove', onDragMove, { passive: false });
+window.addEventListener('mouseup', onDragEnd);
+window.addEventListener('touchend', onDragEnd);
 
 // Log simulation events to console
 simulation.on('decompose', ({ molecule, probability }) => {
@@ -56,6 +134,9 @@ if (typeof lucide !== 'undefined') {
   lucide.createIcons();
 }
 
+// Initialize draggable panels
+DRAGGABLES.forEach(initDraggable);
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -68,6 +149,18 @@ let selectedId = null;
 let hoverId = null;
 let fcVisible = true;
 let mayhemMode = false;
+
+// Player health system
+let playerHealth = 100;
+const MAX_HEALTH = 100;
+const RADIATION_DAMAGE_RATE = 3; // HP per second per radioactive atom within range (increased from 2)
+const RADIATION_RANGE = 8; // units (increased from 5 - base hitbox now bigger)
+const EXPLOSION_DAMAGE_BASE = 10;
+const EXPLOSION_DAMAGE_RANGE = 8; // units
+
+// Game mode system
+let gameMode = 'survival'; // 'creative' or 'survival'
+let isPlayerDead = false;
 const customElements = [];
 const completed = new Set();  // challenge keys
 const undoStack = [];
@@ -118,12 +211,13 @@ function updateTimeDisplay() {
   }
   const label = document.getElementById('time-speed-label');
   if (label) {
-    label.textContent = `${timeSpeed}×`;
+    label.textContent = formatSpeed(timeSpeed);
   }
 }
 
 function toggleFreeze() {
   timeFrozen = !timeFrozen;
+  document.body.classList.toggle('time-stopped', timeFrozen);
   const btn = document.getElementById('btn-time-freeze');
   if (btn) {
     btn.classList.toggle('frozen', timeFrozen);
@@ -133,22 +227,46 @@ function toggleFreeze() {
     lastRealTime = performance.now();
   }
   updateTimeDisplay();
+  
+  // Broadcast time freeze/resume to other players
+  if (network.roomId) {
+    network.broadcast(null, timeFrozen ? MSG.TIME_FREEZE : MSG.TIME_RESUME, {
+      playerId: network.playerId,
+      timestamp: Date.now(),
+    });
+  }
 }
 
 function cycleSpeed() {
-  const speeds = [1, 2, 5, 10, 50, 100];
+  const speeds = [1, 2, 5, 10, 50, 100, 1000, 10000, 100000, 1e6, 1e7, 1e8, 1e9];
   const idx = speeds.indexOf(timeSpeed);
   timeSpeed = speeds[(idx + 1) % speeds.length];
   const btn = document.getElementById('btn-time-speed');
   if (btn) {
-    btn.textContent = `${timeSpeed}×`;
+    btn.textContent = formatSpeed(timeSpeed);
     btn.classList.toggle('active', timeSpeed > 1);
   }
   const label = document.getElementById('time-speed-label');
   if (label) {
-    label.textContent = `${timeSpeed}×`;
+    label.textContent = formatSpeed(timeSpeed);
   }
   updateTimeDisplay();
+  
+  // Broadcast speed change to other players
+  if (network.roomId) {
+    network.broadcast(null, MSG.TIME_SPEED, {
+      playerId: network.playerId,
+      speed: timeSpeed,
+      timestamp: Date.now(),
+    });
+  }
+}
+
+function formatSpeed(speed) {
+  if (speed >= 1e9) return `${(speed/1e9).toFixed(0)}B×`;
+  if (speed >= 1e6) return `${(speed/1e6).toFixed(0)}M×`;
+  if (speed >= 1e3) return `${(speed/1e3).toFixed(0)}K×`;
+  return `${speed}×`;
 }
 
 function updateSimulationTime(now) {
@@ -177,11 +295,11 @@ const DECAY_HALF_LIFE = {
   95: 2.304e11,  // Am-243: 7,370 years
   96: 4.944e8,   // Cm-247: 1.56e7 years
   97: 4.320e6,   // Bk-247: 138 years
-  98: 1.128e7,   // Cf-251: 898 years
+  98: 2.834e10,  // Cf-251: 898 years
   99: 4.080e5,   // Es-252: 472 days
   100: 3.240e4,  // Fm-257: 100.5 days
   101: 1.860e4,  // Md-258: 51.5 days
-  102: 3.510e4,  // No-259: 9.75 hours
+  102: 3.480e3,   // No-259: 58 minutes
   103: 1.100e2,  // Lr-266: 11 hours
   104: 4.200e1,  // Rf-267: 42 seconds
   105: 1.000e1,  // Db-268: 10 seconds
@@ -275,20 +393,544 @@ function trackRadioactiveAtom(id, atom, now) {
 }
 
 // ---------------------------------------------------------------------------
+// Molecular decomposition kinetics. Every molecule already carries the rate
+// constant shown in the inspector (k = A·e^(-Ea/RT), t½ = ln2/k); this rolls
+// the first-order law each frame: P(split) = 1 - e^(-k·Δt_sim), where Δt_sim
+// includes the time-speed multiplier and halts during THE WORLD freeze. No
+// elapsed-time tracking is needed — the exponential distribution is
+// memoryless, and removeBond() rebuilds the component list on every split.
+function weakestBondIdOf(comp) {
+  const atomSet = new Set(comp.atoms);
+  let worstId = null, worstE = Infinity;
+  for (const [bid, b] of bonds) {
+    if (!atomSet.has(b.a) || !atomSet.has(b.b)) continue;
+    const e = simulation.thermo.getBondDissociationEnergy(b, atoms);
+    if (e < worstE) { worstE = e; worstId = bid; }
+  }
+  return worstId;
+}
+
+// Decomposition cascade control: prevent runaway chain reactions
+let decompositionCount = 0;
+let decompositionCountReset = 0;
+const MAX_DECOMPOSITIONS_PER_SECOND = 3; // Cap decompositions to prevent lag
+
+function updateMolecularDecay(now, realDt) {
+  if (timeFrozen || lastComps.length === 0) return;
+  const simDt = realDt * timeSpeed;
+  if (simDt <= 0) return;
+
+  // Reset decomposition counter every second
+  if (now - decompositionCountReset > 1000) {
+    decompositionCount = 0;
+    decompositionCountReset = now;
+  }
+
+  // Hard cap: stop decomposing if we've hit the limit this second
+  if (decompositionCount >= MAX_DECOMPOSITIONS_PER_SECOND) return;
+
+  const victims = [];
+  for (const comp of lastComps) {
+    if (comp.bonds.length === 0) continue;
+    const kin = comp.simulation && comp.simulation.kinetics;
+    if (!kin || !isFinite(kin.rateConstant) || kin.rateConstant <= 0) continue;
+
+    // Energy decay: child fragments from recent decompositions have lower probability
+    // This prevents immediate chain reactions
+    const age = now - (comp.decompositionTime || 0);
+    const decayFactor = age < 500 ? 0.3 : 1.0; // 70% reduction for first 500ms
+
+    if (Math.random() < (1 - Math.exp(-kin.rateConstant * simDt)) * decayFactor) {
+      victims.push(comp);
+    }
+  }
+  // One split per frame: removeBond triggers reanalyze and rebuilds lastComps,
+  // so the other victims get re-rolled next frame.
+  if (victims.length) {
+    decompositionCount++;
+    decomposeMolecule(victims[0], now);
+  }
+}
+
+function updateHealth(now, dt) {
+  if (timeFrozen || gameMode === 'creative') return;
+
+  // Radiation damage from radioactive atoms (z > 82)
+  const camPos = camera.position;
+  let radiationDamage = 0;
+  const processedMolecules = new Set(); // Track which molecules we've already processed
+
+  for (const [id, atom] of atoms) {
+    if (atom.el.z <= 82) continue; // Only radioactive elements
+
+    // Get the molecule component this atom belongs to
+    const comp = componentOf(atoms, bonds, id);
+    const compKey = comp.atoms.sort().join(',');
+    
+    // Skip if we've already processed this molecule
+    if (processedMolecules.has(compKey)) continue;
+    processedMolecules.add(compKey);
+
+    // Calculate molecule size (number of atoms)
+    const moleculeSize = comp.atoms.length;
+    
+    // Calculate radioactivity level (count of radioactive atoms and their z values)
+    let radioactiveCount = 0;
+    let totalZ = 0;
+    for (const atomId of comp.atoms) {
+      const a = atoms.get(atomId);
+      if (a && a.el.z > 82) {
+        radioactiveCount++;
+        totalZ += a.el.z;
+      }
+    }
+
+    // Use the center of mass of the molecule for distance calculation
+    let centerX = 0, centerY = 0, centerZ = 0;
+    for (const atomId of comp.atoms) {
+      const a = atoms.get(atomId);
+      if (a) {
+        centerX += a.pos.x;
+        centerY += a.pos.y;
+        centerZ += a.pos.z;
+      }
+    }
+    centerX /= moleculeSize;
+    centerY /= moleculeSize;
+    centerZ /= moleculeSize;
+
+    const dx = centerX - camPos.x;
+    const dy = centerY - camPos.y;
+    const dz = centerZ - camPos.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    // Scale hitbox (radiation range) based on molecule size and radioactivity
+    // Bigger molecule = bigger hitbox, more radioactive atoms = bigger hitbox
+    const sizeMultiplier = 1 + (moleculeSize - 1) * 0.15; // 15% larger per additional atom
+    const radioactivityMultiplier = 1 + radioactiveCount * 0.3 + (totalZ - 82) * 0.01; // Higher z = more dangerous
+    const effectiveRange = RADIATION_RANGE * sizeMultiplier * radioactivityMultiplier;
+
+    if (dist < effectiveRange) {
+      // Damage scales with proximity (closer = more damage)
+      const proximityFactor = 1 - (dist / effectiveRange);
+      
+      // Scale damage rate based on molecule size and radioactivity
+      // Bigger molecule = more damage, more radioactive = more damage
+      const damageMultiplier = sizeMultiplier * radioactivityMultiplier;
+      const damageRate = RADIATION_DAMAGE_RATE * damageMultiplier;
+      
+      radiationDamage += damageRate * proximityFactor * dt;
+    }
+  }
+
+  if (radiationDamage > 0) {
+    const oldHealth = playerHealth;
+    playerHealth = Math.max(0, playerHealth - radiationDamage);
+    updateHealthBar();
+
+    // Warning messages
+    if (oldHealth > 25 && playerHealth <= 25) {
+      status(t('status.healthLow'), 'warn');
+    }
+    if (oldHealth > 0 && playerHealth <= 0) {
+      triggerPlayerDeath();
+    }
+  }
+
+  // Natural regeneration when no radiation (0.5 HP/sec)
+  if (radiationDamage === 0 && playerHealth < MAX_HEALTH && !isPlayerDead) {
+    playerHealth = Math.min(MAX_HEALTH, playerHealth + 0.5 * dt);
+    updateHealthBar();
+  }
+}
+
+function applyExplosionDamage(center, scale, moleculeSize = 1) {
+  if (gameMode === 'creative') return; // No damage in creative mode
+
+  const camPos = camera.position;
+  const dx = center.x - camPos.x;
+  const dy = center.y - camPos.y;
+  const dz = center.z - camPos.z;
+  const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+  // Scale hitbox (damage range) based on explosion scale and molecule size
+  // Bigger molecule = bigger hitbox
+  const sizeMultiplier = 1 + (moleculeSize - 1) * 0.2; // 20% larger per additional atom
+  const effectiveRange = EXPLOSION_DAMAGE_RANGE * scale * sizeMultiplier;
+  
+  if (dist < effectiveRange) {
+    // Damage scales with proximity, explosion scale, and molecule size
+    // Bigger molecule = more damage
+    const proximityFactor = 1 - (dist / effectiveRange);
+    const damage = EXPLOSION_DAMAGE_BASE * scale * sizeMultiplier * proximityFactor;
+    playerHealth = Math.max(0, playerHealth - damage);
+    updateHealthBar();
+
+    if (playerHealth <= 0) {
+      triggerPlayerDeath();
+    }
+  }
+}
+
+function triggerPlayerDeath() {
+  if (isPlayerDead) return;
+  isPlayerDead = true;
+  status(t('status.healthZero'), 'error');
+  showDeathScreen();
+  
+  // Broadcast death to other players
+  if (network.roomId) {
+    network.broadcast(null, MSG.PLAYER_DEAD, {
+      playerId: network.playerId,
+      timestamp: Date.now(),
+    });
+  }
+}
+
+function respawnPlayer() {
+  isPlayerDead = false;
+  playerHealth = MAX_HEALTH;
+  updateHealthBar();
+  hideDeathScreen();
+  status(t('status.respawned'), 'ok');
+}
+
+function showDeathScreen() {
+  const deathScreen = document.getElementById('death-screen');
+  if (deathScreen) deathScreen.style.display = 'flex';
+}
+
+function hideDeathScreen() {
+  const deathScreen = document.getElementById('death-screen');
+  if (deathScreen) deathScreen.style.display = 'none';
+}
+
+function setGameMode(mode) {
+  gameMode = mode;
+  const healthBar = document.getElementById('health-bar-container');
+  const deathScreen = document.getElementById('death-screen');
+  const joyVert = document.getElementById('joy-vert');
+  const joyJump = document.getElementById('joy-jump');
+
+  if (mode === 'creative') {
+    if (healthBar) healthBar.style.display = 'none';
+    if (deathScreen) deathScreen.style.display = 'none';
+    isPlayerDead = false;
+    playerHealth = MAX_HEALTH;
+    controls.minPolarAngle = 0.05;
+    controls.maxPolarAngle = Math.PI - 0.05;
+    controls.enabled = true;
+    if (joyVert) joyVert.style.display = 'flex';
+    if (joyJump) joyJump.classList.remove('visible');
+    // Sync OrbitControls target to current camera position
+    controls.target.copy(camera.position).add(new THREE.Vector3(0, 0, -2).applyQuaternion(camera.quaternion));
+    status(t('status.creativeMode'), 'ok');
+  } else {
+    if (healthBar) healthBar.style.display = 'flex';
+    controls.minPolarAngle = Math.PI * 0.1;
+    controls.maxPolarAngle = Math.PI * 0.75;
+    controls.enabled = false;
+    if (joyVert) joyVert.style.display = 'none';
+    if (joyJump) joyJump.classList.add('visible');
+    status(t('status.survivalMode'), 'ok');
+  }
+  invalidate();
+}
+
+function updateHealthBar() {
+  const fill = document.getElementById('health-bar-fill');
+  const text = document.getElementById('health-text');
+  if (fill && text) {
+    const pct = (playerHealth / MAX_HEALTH) * 100;
+    fill.style.width = pct + '%';
+    text.textContent = Math.round(playerHealth);
+  }
+}
+
+function decomposeMolecule(comp, now) {
+  const an = analyses[lastComps.indexOf(comp)];
+  const formula = (an && an.formula) || '?';
+
+  // Guard: check if component's atoms still exist (prevents double-processing)
+  if (!comp.atoms.every(id => atoms.has(id))) return;
+
+  // Check if there's a rule-based decomposition for this molecule
+  const parsed = parseFormula(formula);
+  if (parsed && parsed.size > 0) {
+    for (const rule of DECOMPOSITION_RULES) {
+      if (rule.match(parsed, parsed)) {
+        const productFormulas = rule.products(parsed, parsed);
+        if (productFormulas && productFormulas.length >= 2) {
+          // Execute rule-based decomposition: remove molecule and spawn products
+          const cen = new THREE.Vector3();
+          for (const id of comp.atoms) {
+            const p = atoms.get(id).pos;
+            cen.x += p.x; cen.y += p.y; cen.z += p.z;
+          }
+          cen.divideScalar(comp.atoms.length);
+
+          // Remove all atoms and bonds of this molecule
+          for (const id of comp.atoms) {
+            atoms.delete(id);
+            for (const [bid, b] of bonds) {
+              if (b.a === id || b.b === id) bonds.delete(bid);
+            }
+          }
+
+          // Spawn product molecules
+          for (const pf of productFormulas) {
+            const tpl = productTemplate(pf);
+            if (tpl && tpl.atoms && tpl.atoms.length > 0) {
+              const offset = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2
+              );
+              buildMoleculeAt(tpl, cen.x + offset.x, cen.y + offset.y, cen.z + offset.z);
+            }
+          }
+
+          reactionVFX.explode(cen, 1.2, new THREE.Color(0xff6600));
+          applyExplosionDamage(cen, 1.2, comp.atoms.length);
+          status(t('status.decomposed', { formula }), 'warn');
+          reanalyze();
+          return;
+        }
+      }
+    }
+  }
+
+  // Fallback to bond-breaking decomposition
+  const bid = weakestBondIdOf(comp);
+  if (bid === null) return;
+  const cen = new THREE.Vector3();
+  for (const id of comp.atoms) {
+    const p = atoms.get(id).pos;
+    cen.x += p.x; cen.y += p.y; cen.z += p.z;
+  }
+  cen.divideScalar(comp.atoms.length);
+  reactionVFX.explode(cen, 0.9, new THREE.Color(0xff8830));
+  applyExplosionDamage(cen, 0.9, comp.atoms.length);
+  removeBond(bid, false);
+
+  // Mark child fragments with decomposition time for energy decay
+  const childComps = lastComps.filter(c =>
+    c.atoms.some(id => comp.atoms.includes(id)) && c !== comp
+  );
+  for (const child of childComps) {
+    child.decompositionTime = now;
+  }
+
+  const strays = lastComps
+    .filter(c => c.atoms.length === 1 && c.bonds.length === 0 && comp.atoms.includes(c.atoms[0]))
+    .map(c => c.atoms[0]);
+  if (strays.length) stabilizeStrays(strays, now);
+  else status(t('status.decomposed', { formula }), 'warn');
+}
+
+// ---------------------------------------------------------------------------
+// Homeless-atom stabilization: cleavage must never strand a lone, unbonded
+// atom. Each stray bonds to the nearest atom with spare valence using the
+// app's own rules (bondCheck, pairOrderCap, upgradeCheck) — spreading single
+// bonds to fresh partners before raising bond order (C + 2 O → O=C=O, not
+// C≡O–O). Valence targets follow the octet rule for nonmetals (C=4, O=2,
+// N=3, H=1) instead of the app's lenient maxBonds; metals bond ionically up
+// to maxBonds. When the scene has no spare capacity left, hydrogen cappers
+// are spawned to complete the valence (C→CH4, N→NH3, S→H2S, ...). Noble
+// gases (maxBonds 0) are chemically stable monatomic and stay exempt.
+const targetValenceOf = el => isMetalCat(el.cat)
+  ? el.maxBonds
+  : Math.max(0, Math.min(8 - (el.valenceElectrons || 0), el.maxBonds));
+const usedOrderOf = id => bondsOf(atoms, bonds, id).reduce((s, b) => s + (b.order || 1), 0);
+const freeValenceOf = id => Math.max(0, targetValenceOf(atoms.get(id).el) - usedOrderOf(id));
+const bondBetween = (aId, bId) => bondsOf(atoms, bonds, aId).find(b => partnerId(b, aId) === bId);
+
+function stabilizeStrays(strayIds, now) {
+  const stabilized = [];
+  for (const sid of strayIds) {
+    const sEl = atoms.get(sid).el;
+    if (sEl.maxBonds <= 0) continue;
+    let guard = 0;
+    while (freeValenceOf(sid) > 0 && guard++ < 12) {
+      const sPos = atoms.get(sid).pos;
+      const candidates = [...atoms.keys()]
+        .filter(id => id !== sid && freeValenceOf(id) > 0)
+        .sort((a, b) => {
+          const pa = atoms.get(a).pos, pb = atoms.get(b).pos;
+          return Math.hypot(pa.x - sPos.x, pa.y - sPos.y, pa.z - sPos.z)
+               - Math.hypot(pb.x - sPos.x, pb.y - sPos.y, pb.z - sPos.z);
+        });
+      let acted = false;
+      // Spread first: single bond to the nearest partner not yet bonded to.
+      for (const pid of candidates) {
+        if (bondBetween(sid, pid)) continue;
+        const chk = bondCheck(atoms, bonds, sid, pid);
+        if (!chk.ok) continue;
+        const nb = nextId++;
+        bonds.set(nb, { id: nb, a: sid, b: pid, order: 1, ionic: chk.type === 'ionic' });
+        acted = true;
+        break;
+      }
+      // No fresh partners left — raise the order of the nearest existing bond.
+      if (!acted) {
+        for (const pid of candidates) {
+          const existing = bondBetween(sid, pid);
+          if (!existing) continue;
+          const nextOrder = existing.order + 1;
+          if (nextOrder > pairOrderCap(sEl, atoms.get(pid).el)) continue;
+          const up = upgradeCheck(atoms, bonds, { ...existing, order: nextOrder });
+          if (!up.ok) continue;
+          existing.order = nextOrder;
+          acted = true;
+          break;
+        }
+      }
+      if (acted) continue;
+      // No spare capacity anywhere in the scene: quench with hydrogen cappers.
+      // Only available in atmosphere mode (vacuum has no free H2 to cap with).
+      if (!atmosphere.enabled) break;
+      // EXCEPTION: Don't create H cappers for elements that form stable structures
+      // without hydrogen (O2, N2, F2, Cl2, graphite, diamond, fullerenes, etc.)
+      if (sEl.sym === 'O' || sEl.sym === 'N' || sEl.sym === 'F' || sEl.sym === 'Cl' ||
+          sEl.sym === 'Br' || sEl.sym === 'I' || sEl.sym === 'C') {
+        break; // Leave the atom as-is, don't force hydrogen capping
+      }
+      const hEl = ELEMENTS.find(e => e.z === 1);
+      const hid = nextId++;
+      const ang = Math.random() * Math.PI * 2, rad = 0.8 + Math.random() * 0.5;
+      atoms.set(hid, {
+        id: hid, el: hEl,
+        pos: { x: sPos.x + Math.cos(ang) * rad, y: sPos.y + (Math.random() - 0.5) * 0.6, z: sPos.z + Math.sin(ang) * rad },
+      });
+      spawnAnim.set(hid, now);
+      const chk = bondCheck(atoms, bonds, sid, hid);
+      if (!chk.ok) { atoms.delete(hid); spawnAnim.delete(hid); break; }
+      const nb = nextId++;
+      bonds.set(nb, { id: nb, a: sid, b: hid, order: 1, ionic: chk.type === 'ionic' });
+    }
+    if (freeValenceOf(sid) === 0) stabilized.push(sid);
+  }
+  if (!stabilized.length) return;
+  reanalyze();
+  const formulas = [...new Set(stabilized
+    .map(sid => {
+      const comp = lastComps.find(c => c.atoms.includes(sid));
+      const idx = lastComps.indexOf(comp);
+      return (idx >= 0 && analyses[idx] && analyses[idx].formula) || null;
+    })
+    .filter(Boolean))];
+  if (formulas.length) status(t('status.stabilized', { formula: formulas.join(' + ') }), 'ok');
+}
+
+// ---------------------------------------------------------------------------
 // Three.js scene
 // ---------------------------------------------------------------------------
 const sceneWrap = document.getElementById('scene-wrap');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
 renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
-renderer.setSize(sceneWrap.clientWidth, sceneWrap.clientHeight);
+
+const camera = new THREE.PerspectiveCamera(50, sceneWrap.clientWidth / sceneWrap.clientHeight, 0.1, 200);
+camera.position.set(0, 4.2, 10.5);
+
+function updateRendererSize() {
+  const cssW = sceneWrap.clientWidth;
+  const cssH = sceneWrap.clientHeight;
+  renderer.domElement.style.width = `${cssW}px`;
+  renderer.domElement.style.height = `${cssH}px`;
+  renderer.setSize(cssW * uiZoom, cssH * uiZoom, false);
+  camera.aspect = cssW / cssH;
+  camera.updateProjectionMatrix();
+}
+
+updateRendererSize();
 sceneWrap.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0d1117);
 scene.fog = new THREE.Fog(0x0d1117, 34, 80);
 
-const camera = new THREE.PerspectiveCamera(50, sceneWrap.clientWidth / sceneWrap.clientHeight, 0.1, 200);
-camera.position.set(0, 4.2, 10.5);
+// Initialize player synchronization
+playerSync.init(scene);
+
+// Handle incoming time control messages from other players
+network.onMessage = (peerId, msgType, payload) => {
+  const data = payload[0];
+  if (!data) return;
+  
+  if (msgType === MSG.TIME_FREEZE) {
+    // Another player froze time - apply locally
+    if (!timeFrozen) {
+      timeFrozen = true;
+      document.body.classList.add('time-stopped');
+      const btn = document.getElementById('btn-time-freeze');
+      if (btn) {
+        btn.classList.add('frozen');
+        btn.textContent = '▶️';
+      }
+      updateTimeDisplay();
+      triggerTheWorld();
+      status(' Time frozen by another player', 'ok');
+    }
+  } else if (msgType === MSG.TIME_RESUME) {
+    // Another player resumed time - apply locally
+    if (timeFrozen) {
+      timeFrozen = false;
+      document.body.classList.remove('time-stopped');
+      const btn = document.getElementById('btn-time-freeze');
+      if (btn) {
+        btn.classList.remove('frozen');
+        btn.textContent = '❄️';
+      }
+      lastRealTime = performance.now();
+      updateTimeDisplay();
+      triggerTimeResume();
+      status(' Time resumed by another player', 'ok');
+    }
+  } else if (msgType === MSG.TIME_SPEED) {
+    // Another player changed speed - apply locally
+    if (data.speed && data.speed !== timeSpeed) {
+      timeSpeed = data.speed;
+      const btn = document.getElementById('btn-time-speed');
+      if (btn) {
+        btn.textContent = formatSpeed(timeSpeed);
+        btn.classList.toggle('active', timeSpeed > 1);
+      }
+      const label = document.getElementById('time-speed-label');
+      if (label) {
+        label.textContent = formatSpeed(timeSpeed);
+      }
+      updateTimeDisplay();
+      status(` Speed changed to ${formatSpeed(timeSpeed)} by another player`, 'ok');
+    }
+  } else if (msgType === MSG.PLAYER_DEAD) {
+    // Another player died - mark them as dead
+    if (data && data.playerId) {
+      const remotePlayer = playerSync.remotePlayers.get(data.playerId);
+      if (remotePlayer) {
+        remotePlayer.isDead = true;
+        remotePlayer.updateVisuals();
+        status(`${remotePlayer.username} has died`, 'err');
+      }
+    }
+  } else if (msgType === MSG.PLAYER_REVIVE) {
+    // Another player was revived
+    if (data && data.playerId) {
+      // If this is the local player, respawn
+      if (data.playerId === network.playerId && isPlayerDead) {
+        respawnPlayer();
+        status(`You were revived by another player`, 'ok');
+      } else {
+        // Update remote player
+        const remotePlayer = playerSync.remotePlayers.get(data.playerId);
+        if (remotePlayer) {
+          remotePlayer.isDead = false;
+          remotePlayer.updateVisuals();
+          status(`${remotePlayer.username} has been revived`, 'ok');
+        }
+      }
+    }
+  }
+};
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x33404f, 1.05));
 const sun = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -311,19 +953,78 @@ controls.dampingFactor = 0.08;
 controls.target.set(0, 1.6, 0);
 controls.minDistance = 2.5;
 controls.maxDistance = 45;
-controls.maxPolarAngle = Math.PI * 0.55;
+controls.maxPolarAngle = Math.PI * 0.75;
+controls.minPolarAngle = Math.PI * 0.1;
 controls.addEventListener('change', invalidate);
-const movement = createMovement({ camera, controls });
+const movement = createMovement({ camera, controls, getGameMode: () => gameMode, isPlayerDead: () => isPlayerDead });
+
+// Mouse drag look for camera (survival mode, desktop)
+// Only start camera drag if not dragging an atom
+movement.initMouseLook(renderer.domElement, () => drag === null);
+
+// Touch-based look for mobile (survival mode)
+movement.initTouchLook(renderer.domElement);
 window.addEventListener('pointermove', onPointerMove);
 window.addEventListener('pointerup', onPointerUp);
 window.addEventListener('pointercancel', onPointerUp);
 window.addEventListener('pointerleave', onPointerUp);
 window.addEventListener('resize', () => {
-  camera.aspect = sceneWrap.clientWidth / sceneWrap.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(sceneWrap.clientWidth, sceneWrap.clientHeight);
+  updateRendererSize();
   invalidate();
 });
+
+// Observe scene-wrap size changes (when panels toggle)
+if (window.ResizeObserver) {
+  const sceneResizeObserver = new ResizeObserver(() => {
+    updateRendererSize();
+    invalidate();
+  });
+  sceneResizeObserver.observe(sceneWrap);
+}
+
+// ---------------------------------------------------------------------------
+// VFX Managers
+// ---------------------------------------------------------------------------
+const reactionVFX = new ReactionVFXManager(scene, camera);
+const catalystFX = new CatalystFX(scene);
+const electricityFX = new ElectricityFX(scene);
+
+// ---------------------------------------------------------------------------
+// Player Avatar
+// ---------------------------------------------------------------------------
+function createPlayerAvatar() {
+  const avatar = new THREE.Group();
+
+  // Pill-shaped body (capsule)
+  const bodyGeo = new THREE.CapsuleGeometry(0.4, 0.8, 8, 16);
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0x4a90e2,
+    roughness: 0.6,
+    metalness: 0.2,
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 0.8;
+  avatar.add(body);
+
+  // Head (sphere)
+  const headGeo = new THREE.SphereGeometry(0.35, 16, 12);
+  const headMat = new THREE.MeshStandardMaterial({
+    color: 0xffdbac,
+    roughness: 0.7,
+    metalness: 0.1,
+  });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 1.75;
+  avatar.add(head);
+
+  // Position avatar at origin (will follow camera in game loop)
+  avatar.position.set(0, 0, 0);
+
+  return avatar;
+}
+
+const playerAvatar = createPlayerAvatar();
+scene.add(playerAvatar);
 
 // ---------------------------------------------------------------------------
 // Shared geometry / materials / instanced meshes
@@ -731,6 +1432,41 @@ function runSimulationAnalysis() {
   }
 }
 
+function updateCatalystTracking() {
+  const currentCatalystKeys = new Set();
+
+  for (let i = 0; i < lastComps.length; i++) {
+    const comp = lastComps[i];
+    const an = analyses[i];
+    if (!an) continue;
+    const formula = an.formula;
+    if (!isCatalystFormula(formula)) continue;
+
+    const key = compKey(comp);
+    currentCatalystKeys.add(key);
+
+    if (catalystFX.auras.has(key)) continue;
+
+    const catData = getCatalystData(formula);
+    if (!catData) continue;
+
+    const center = new THREE.Vector3();
+    for (const id of comp.atoms) {
+      const p = atoms.get(id).pos;
+      center.x += p.x; center.y += p.y; center.z += p.z;
+    }
+    center.divideScalar(comp.atoms.length);
+
+    catalystFX.registerCatalyst(key, center, catData);
+  }
+
+  for (const id of [...catalystFX.auras.keys()]) {
+    if (!currentCatalystKeys.has(id)) {
+      catalystFX.removeCatalyst(id);
+    }
+  }
+}
+
 function reanalyze(pinnedIds = new Set()) {
   lastComps = componentsOf(atoms, bonds);
   const keySet = new Set(lastComps.map(compKey));
@@ -782,8 +1518,16 @@ function discKeyOf(f, charge) { return `${f}|${charge}`; }
 function safeName(comp, an) {
   if (!an.feasible) return null;
   try {
-    return nameMolecule(comp.atoms.map(id => atoms.get(id)), comp.bonds, an.formula, an.charge, an.per) || null;
-  } catch {
+    const formulaToName = an.displayFormula || an.formula;
+    const name = nameMolecule(comp.atoms.map(id => atoms.get(id)), comp.bonds, formulaToName, an.charge, an.per);
+    // Fallback: if nameMolecule returns null, try looking up in COMMON table directly
+    if (!name) {
+      const common = isVi() ? COMMON_VI : COMMON;
+      return common[formulaToName] || null;
+    }
+    return name || null;
+  } catch (e) {
+    console.error('safeName error:', e);
     return null;
   }
 }
@@ -816,6 +1560,9 @@ function recordDiscoveries() {
         const df = isoSel.get(cKey);
         if (df) existing.displayFormula = df;
         else delete existing.displayFormula;
+        // Regenerate name based on new displayFormula
+        const newFormula = existing.displayFormula || existing.formula;
+        existing.name = nameMolecule(comp.atoms.map(id => atoms.get(id)), comp.bonds, newFormula, existing.charge, an.per) || null;
         if (existing.saved) persistSavedDiscoveries();
       }
       continue;
@@ -832,6 +1579,13 @@ function recordDiscoveries() {
     discoveries.push(d);
     discUnsaved = true;
     toast(t('toast.newDisc', { f: prettyFormula(an.formula) + formulaWithCharge('', an.charge), name: nm ? ` — ${nm}` : '' }));
+    
+    // Check quest completion
+    questManager.checkDiscovery(an.formula);
+    
+    // Award star for discovery
+    const rankInfo = rankManager.addStars(1);
+    updateRankWidget();
   }
   updateDiscList();
 }
@@ -842,6 +1596,27 @@ function loadDiscoveries() {
     for (const d of arr) {
       if (!d || !d.formula) continue;
       d.saved = true;
+      // Regenerate name if missing (for old discoveries or after naming fixes)
+      if (!d.name && d.tpl) {
+        const tpl = d.tpl;
+        // Create fake atom objects from template
+        const fakeAtoms = tpl.atoms.map((sym, i) => ({
+          id: i,
+          el: elementBySymBase(sym),
+        }));
+        const fakeBonds = tpl.bonds.map(([a, b, order, ionic]) => ({
+          a, b, order, ionic: !!ionic,
+        }));
+        const fakeComp = { atoms: fakeAtoms, bonds: fakeBonds };
+        const fakeAn = {
+          feasible: true,
+          formula: d.formula,
+          displayFormula: d.displayFormula,
+          charge: d.charge ?? 0,
+          per: null,
+        };
+        d.name = safeName(fakeComp, fakeAn);
+      }
       discoveries.push(d);
       seenDisc.add(discKeyOf(d.formula, d.charge ?? 0));
     }
@@ -948,7 +1723,7 @@ function updateDiscList() {
     row.className = 'disc-row';
     const f = document.createElement('span');
     f.className = 'd-f';
-    f.textContent = prettyFormula(d.formula) + formulaWithCharge('', d.charge ?? 0);
+    f.textContent = prettyFormula(d.displayFormula || d.formula) + formulaWithCharge('', d.charge ?? 0);
     const n = document.createElement('span');
     n.className = 'd-n';
     n.textContent = d.name || t('dex.unknown');
@@ -1377,10 +2152,11 @@ function updateRxnStoich() {
   rxnStoichBox.style.display = 'none';
   if (reactionSel.size === 0) return;
   const formulas = selectedFormulas();
+  const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
   const seen = new Set();
   const matched = [];
   for (const c of CONDITIONS) {
-    const rx = findReaction(formulas, c.key, selectedStructures());
+    const rx = findReaction(formulas, c.key, selectedStructures(), atmosphereGases);
     if (!rx || rx.effect) continue;
     const k = `${rx.equation}|${rx.condition}`;
     if (seen.has(k)) continue;
@@ -1533,12 +2309,13 @@ function buildRxnPanel() {
 
 function onConditionPick(cond) {
   const formulas = selectedFormulas();
-  const rx = findReaction(formulas, cond, selectedStructures());
+  const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
+  const rx = findReaction(formulas, cond, selectedStructures(), atmosphereGases);
   if (rx) { executeReaction(rx); return; }
-  const valid = conditionsFor(formulas, selectedStructures());
+  const valid = conditionsFor(formulas, selectedStructures(), atmosphereGases);
   if (!valid.size) { status(t('status.noReaction'), 'err'); return; }
   if (valid.has(cond)) {
-    const more = missingFor(formulas, cond);
+    const more = missingFor(formulas, cond, atmosphereGases);
     status(more
       ? t('status.notEnough', { more: prettyEq(more), cond: condLabel(cond).toLowerCase() })
       : t('status.nothingHappens', { cond: condLabel(cond) }), 'err');
@@ -1566,12 +2343,17 @@ function showRxnOverlay(rx) {
 function executeReaction(rx) {
   const selComps = lastComps.filter(c => reactionSel.has(compKey(c)));
   if (!selComps.length) return;
+  
+  // Track catalysts only during reaction execution
+  updateCatalystTracking();
+  
   const formulas = selComps.map(c => {
     const an = analyses[lastComps.indexOf(c)];
     return an ? (an.displayFormula || an.formula) : '';
   });
+  const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
   const structs = selComps.map(c => structureTplOf(c, analyses[lastComps.indexOf(c)]).tpl);
-  if (!findReaction(formulas, rx.condition, structs)) {
+  if (!findReaction(formulas, rx.condition, structs, atmosphereGases)) {
     status(t('status.sceneChanged'), 'err');
     clearReactionSel();
     return;
@@ -1603,6 +2385,7 @@ function executeReaction(rx) {
 
   if (rx.effect) {
     executeMayhemEffect(rx, consumedIds, cen);
+    catalystFX.dispose();
     return;
   }
 
@@ -1684,6 +2467,9 @@ function executeReaction(rx) {
   clearReactionSel();
   selectedId = null;
   reanalyze();
+  
+  // Clean up catalyst auras after reaction
+  catalystFX.dispose();
 
   for (const { key, center, i } of newCompKeys) {
     if (i === mainIdx) { driftState.delete(key); continue; }
@@ -1697,6 +2483,41 @@ function executeReaction(rx) {
 
   status(t('status.reactionDone', { cond: condLabel(rx.condition), eq: prettyEq(rx.equation) }), 'ok');
   showRxnOverlay(rx);
+  
+  // Trigger reaction effects
+  if (rx.condition === 'spark' || rx.condition === 'heat') {
+    // Exothermic reactions get explosion effect
+    reactionVFX.explode(cen, 0.8, new THREE.Color(0xff6600));
+    applyExplosionDamage(cen, 0.8, consumedIds.length);
+    triggerExplosionEffect(cen, 0.8);
+  }
+  if (rx.condition === 'uv') {
+    // UV reactions get beam effect
+    const sourcePos = cen.clone().add(new THREE.Vector3(0, 3, 0));
+    const targetPositions = newCompKeys.map(c => c.center.clone());
+    triggerUVBeamEffect(sourcePos, targetPositions);
+  }
+  if (rx.condition === 'electricity') {
+    // Electrolysis reactions get lightning arcs
+    const arcCount = Math.min(newCompKeys.length, 4);
+    for (let i = 0; i < arcCount; i++) {
+      const target = newCompKeys[i].center.clone();
+      const start = cen.clone().add(new THREE.Vector3(0, 2, 0));
+      electricityFX.strike(start, target, {
+        intensity: 1.2,
+        segments: 6,
+        branches: 2,
+        sparks: true,
+        sparkCount: 15,
+      });
+    }
+    triggerScreenShake(0.2, 300);
+  }
+  
+  // Check quest completion for reaction type
+  if (rx.type) {
+    questManager.checkReaction(rx.type);
+  }
 }
 
 const mayhemParticles = [];
@@ -1735,9 +2556,20 @@ function executeMayhemEffect(rx, consumedIds, cen) {
     });
   }
 
-  if (rx.effect === 'explode') triggerScreenShake(0.4, 600);
-  if (rx.effect === 'annihilate') triggerFlash(0xffffff, 500);
-  if (rx.effect === 'plasma') triggerFlash(0x8800ff, 300);
+  if (rx.effect === 'explode') {
+    triggerScreenShake(0.4, 600);
+    reactionVFX.explode(cen, 1.2, new THREE.Color(color));
+    applyExplosionDamage(cen, 1.2, consumedIds.length);
+  }
+  if (rx.effect === 'annihilate') {
+    triggerFlash(0xffffff, 500);
+    reactionVFX.explode(cen, 2.0, new THREE.Color(0xffffff));
+    applyExplosionDamage(cen, 2.0, consumedIds.length);
+  }
+  if (rx.effect === 'plasma') {
+    triggerFlash(0x8800ff, 300);
+    reactionVFX.exothermicGlow(cen, 1.5, new THREE.Color(0x8800ff));
+  }
   if (rx.effect === 'merge') {
     const geo = new THREE.SphereGeometry(0.5, 16, 12);
     const mat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.9 });
@@ -1807,6 +2639,177 @@ function updateMayhemParticles(dt) {
       p.mesh.position.x += (Math.random() - 0.5) * 0.1;
       p.mesh.position.y += (Math.random() - 0.5) * 0.1;
       p.mesh.position.z += (Math.random() - 0.5) * 0.1;
+    }
+  }
+}
+
+// ── Reaction Effects Engine ──
+
+const reactionParticles = [];
+const uvBeams = [];
+
+/**
+ * Trigger explosion burst effect for exothermic reactions
+ * High-velocity particle emitters with screen flash and camera shake
+ */
+function triggerExplosionEffect(center, intensity = 1.0) {
+  const count = Math.floor(40 * intensity);
+  const colors = [0xff4400, 0xff6600, 0xff8800, 0xffaa00, 0xffcc00];
+
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.SphereGeometry(0.06 + Math.random() * 0.1, 6, 4);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(center);
+    const dir = randUnit();
+    const speed = (2 + Math.random() * 5) * intensity;
+    scene.add(mesh);
+    reactionParticles.push({
+      mesh, geo, mat,
+      v: dir.multiplyScalar(speed),
+      life: 1.0,
+      decay: 0.6 + Math.random() * 0.8,
+      gravity: true,
+    });
+  }
+
+  // Smoke particles (slower, darker)
+  for (let i = 0; i < Math.floor(15 * intensity); i++) {
+    const geo = new THREE.SphereGeometry(0.15 + Math.random() * 0.2, 6, 4);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.6 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(center).add(new THREE.Vector3(
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5,
+      (Math.random() - 0.5) * 0.5
+    ));
+    scene.add(mesh);
+    reactionParticles.push({
+      mesh, geo, mat,
+      v: new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.5 + Math.random() * 0.5, (Math.random() - 0.5) * 0.5),
+      life: 1.0,
+      decay: 0.2 + Math.random() * 0.3,
+      expand: true,
+    });
+  }
+
+  // Screen flash
+  triggerFlash(0xff6600, 300 * intensity);
+  // Camera shake
+  triggerScreenShake(0.3 * intensity, 500 * intensity);
+}
+
+/**
+ * Trigger UV light beam effect for photolysis reactions
+ * Raycasting lines with additive blending
+ */
+function triggerUVBeamEffect(source, targets) {
+  const beamColor = 0x8800ff;
+  const beamCount = targets.length;
+
+  for (let i = 0; i < beamCount; i++) {
+    const target = targets[i];
+    const points = [source.clone(), target.clone()];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+      color: beamColor,
+      transparent: true,
+      opacity: 0.8,
+      linewidth: 2,
+      blending: THREE.AdditiveBlending,
+    });
+    const line = new THREE.Line(geometry, material);
+    scene.add(line);
+
+    // Glow sphere at target
+    const glowGeo = new THREE.SphereGeometry(0.3, 12, 8);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0xaa44ff,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.copy(target);
+    scene.add(glow);
+
+    uvBeams.push({
+      line, geometry, material,
+      glow, glowGeo, glowMat,
+      life: 1.0,
+      decay: 0.5,
+      pulse: true,
+    });
+  }
+
+  // UV flash at source
+  const flashGeo = new THREE.SphereGeometry(0.4, 12, 8);
+  const flashMat = new THREE.MeshBasicMaterial({
+    color: 0xcc66ff,
+    transparent: true,
+    opacity: 0.9,
+    blending: THREE.AdditiveBlending,
+  });
+  const flash = new THREE.Mesh(flashGeo, flashMat);
+  flash.position.copy(source);
+  scene.add(flash);
+
+  reactionParticles.push({
+    mesh: flash, geo: flashGeo, mat: flashMat,
+    v: new THREE.Vector3(0, 0, 0),
+    life: 1.0,
+    decay: 1.5,
+    expand: true,
+  });
+}
+
+/**
+ * Update reaction effect particles and beams
+ */
+function updateReactionEffects(dt) {
+  // Update explosion/smoke particles
+  for (let i = reactionParticles.length - 1; i >= 0; i--) {
+    const p = reactionParticles[i];
+    p.life -= dt * p.decay;
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      p.geo.dispose();
+      p.mat.dispose();
+      reactionParticles.splice(i, 1);
+      continue;
+    }
+    p.mesh.position.addScaledVector(p.v, dt);
+    if (p.gravity) {
+      p.v.y -= dt * 3; // gravity
+    }
+    p.v.multiplyScalar(1 - dt * 2);
+    p.mat.opacity = p.life;
+    if (p.expand) {
+      const s = 1 + (1 - p.life) * 2;
+      p.mesh.scale.setScalar(s);
+    }
+  }
+
+  // Update UV beams
+  for (let i = uvBeams.length - 1; i >= 0; i--) {
+    const b = uvBeams[i];
+    b.life -= dt * b.decay;
+    if (b.life <= 0) {
+      scene.remove(b.line);
+      b.geometry.dispose();
+      b.material.dispose();
+      scene.remove(b.glow);
+      b.glowGeo.dispose();
+      b.glowMat.dispose();
+      uvBeams.splice(i, 1);
+      continue;
+    }
+    b.material.opacity = b.life * 0.8;
+    b.glowMat.opacity = b.life * 0.6;
+    if (b.pulse) {
+      const pulse = 0.8 + Math.sin(performance.now() * 0.01) * 0.2;
+      b.glow.scale.setScalar(pulse);
     }
   }
 }
@@ -2067,8 +3070,54 @@ function trackDoubleTap(e) {
 
 renderer.domElement.addEventListener('dblclick', e => {
   if (lastPointerType === 'touch') return; // already handled by trackDoubleTap
+  
+  // Check if clicking on a remote player
+  const remotePlayer = pickRemotePlayer(e);
+  if (remotePlayer && remotePlayer.isDead && !isPlayerDead) {
+    // Show revive modal for dead remote player
+    showReviveModal(remotePlayer);
+    return;
+  }
+  
   handleReactionPick(e);
 });
+
+function pickRemotePlayer(e) {
+  setNDC(e);
+  raycaster.setFromCamera(ndc, camera);
+  
+  // Collect all remote player meshes
+  const meshes = [];
+  playerSync.remotePlayers.forEach(player => {
+    if (!player.isDead) return; // Only allow clicking dead players
+    player.mesh.traverse(child => {
+      if (child.isMesh) {
+        child.userData.remotePlayer = player;
+        meshes.push(child);
+      }
+    });
+  });
+  
+  const intersects = raycaster.intersectObjects(meshes, false);
+  if (intersects.length > 0) {
+    return intersects[0].object.userData.remotePlayer;
+  }
+  return null;
+}
+
+function showReviveModal(remotePlayer) {
+  const modal = document.getElementById('revive-modal');
+  const nameEl = document.getElementById('revive-player-name');
+  
+  if (modal && nameEl) {
+    nameEl.textContent = remotePlayer.username;
+    modal.hidden = false;
+    modal.style.display = 'flex';
+    
+    // Store the player to revive
+    modal.dataset.targetPlayerId = remotePlayer.peerId;
+  }
+}
 
 function handleReactionPick(e) {
   setNDC(e);
@@ -2098,18 +3147,31 @@ function handleReactionPick(e) {
 function buildPeriodicTable() {
   const wrap = document.getElementById('ptable');
   wrap.innerHTML = '';
+  const rankInfo = rankManager.getCurrentRank();
   for (let z = 1; z <= 118; z++) {
     const el = ELEMENTS.find(e => e.z === z);
     const g = gridPos(z);
     const b = document.createElement('button');
-    b.className = 'el';
+    const unlocked = isElementUnlocked(z, rankInfo);
+    b.className = 'el' + (unlocked ? '' : ' locked');
     b.style.gridColumn = g.col;
     b.style.gridRow = g.row;
-    b.style.borderColor = el.color;
+    b.style.borderColor = unlocked ? el.color : '#555';
     b.dataset.sym = el.sym;
-    b.title = t('el.title', { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
-    b.innerHTML = `<span class="z">${z}</span><span class="s">${el.sym}</span>`;
-    b.addEventListener('click', () => spawnAtom(el));
+    b.dataset.z = z;
+    b.title = unlocked 
+      ? t('el.title', { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds })
+      : `🔒 ${t('rank.locked')} — ${t('rank.requires')} ${RANKS.find(r => getUnlockedElementCount({rank: r}) >= z)?.name || ''}`;
+    b.innerHTML = unlocked 
+      ? `<span class="z">${z}</span><span class="s">${el.sym}</span>`
+      : `<span class="lock">🔒</span><span class="s">${el.sym}</span>`;
+    b.addEventListener('click', () => {
+      if (!isElementUnlocked(z, rankManager.getCurrentRank())) {
+        status(`🔒 ${t('rank.elementLocked')}`, 'err');
+        return;
+      }
+      spawnAtom(el);
+    });
     wrap.appendChild(b);
   }
   const ph = document.createElement('div');
@@ -2136,16 +3198,25 @@ function buildLegend() {
 const fold = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
 
 function renderPoolNames() {
+  const rankInfo = rankManager.getCurrentRank();
   for (const b of document.querySelectorAll('#pool-list .el-chip')) {
     const el = elementBySym(b.dataset.sym);
     if (!el) continue;
+    const unlocked = isElementUnlocked(el.z || 0, rankInfo);
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)} ${fold(el.name)} ${fold(elName(el))}`.toLowerCase();
-    b.title = t('el.title', { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
+    b.title = unlocked
+      ? t('el.title', { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds })
+      : `🔒 ${t('rank.locked')}`;
     b.querySelector('.n').textContent = elName(el);
   }
   for (const b of document.querySelectorAll('#ptable .el[data-sym]')) {
     const el = elementBySym(b.dataset.sym);
-    if (el) b.title = t('el.title', { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
+    if (el) {
+      const unlocked = isElementUnlocked(el.z || 0, rankInfo);
+      b.title = unlocked
+        ? t('el.title', { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds })
+        : `🔒 ${t('rank.locked')}`;
+    }
   }
 }
 
@@ -2155,14 +3226,18 @@ function buildPool() {
   const allElements = [...ELEMENTS];
   if (mayhemMode) allElements.push(...MAYHEM_ELEMENTS);
   allElements.push(...customElements);
+  const rankInfo = rankManager.getCurrentRank();
   for (const el of allElements) {
     const b = document.createElement('button');
-    b.className = 'el-chip';
+    const unlocked = el.z ? isElementUnlocked(el.z, rankInfo) : true;
+    b.className = 'el-chip' + (unlocked ? '' : ' locked');
     b.dataset.sym = el.sym;
     b.dataset.search = `${el.sym} ${el.name} ${el.z}`.toLowerCase();
-    b.title = `${el.name} · ${el.cat} · max bonds ${el.maxBonds}`;
+    b.title = unlocked
+      ? `${el.name} · ${el.cat} · max bonds ${el.maxBonds}`
+      : `🔒 ${t('rank.locked')} — ${t('rank.requires')} ${RANKS.find(r => getUnlockedElementCount({rank: r}) >= (el.z || 0))?.name || ''}`;
     const dot = document.createElement('i');
-    dot.style.background = el.color;
+    dot.style.background = unlocked ? el.color : '#555';
     const s = document.createElement('span');
     s.className = 's';
     s.textContent = el.sym;
@@ -2170,6 +3245,14 @@ function buildPool() {
     n.className = 'n';
     n.textContent = el.name;
     b.append(dot, s, n);
+    
+    // Add lock icon for locked elements
+    if (!unlocked) {
+      const lock = document.createElement('span');
+      lock.className = 'el-lock';
+      lock.textContent = '🔒';
+      b.appendChild(lock);
+    }
     
     // Add delete button for custom elements
     const isCustom = customElements.includes(el);
@@ -2186,7 +3269,13 @@ function buildPool() {
       b.classList.add('custom-element');
     }
     
-    b.addEventListener('click', () => spawnFromPool(el));
+    b.addEventListener('click', () => {
+      if (!isElementUnlocked(el.z || 0, rankManager.getCurrentRank())) {
+        status(`🔒 ${t('rank.elementLocked')}`, 'err');
+        return;
+      }
+      spawnFromPool(el);
+    });
     wrap.appendChild(b);
   }
   renderPoolNames();
@@ -2235,6 +3324,36 @@ function currentComp() {
   return { comp, an: analyses[lastComps.indexOf(comp)] };
 }
 
+/**
+ * Build a template object from a component for functional group detection
+ * Returns { atoms: string[], bonds: [[i, j, order, ionic]] }
+ */
+function buildTemplateFromComponent(comp) {
+  if (!comp || comp.atoms.length === 0) return null;
+  
+  // Map atom IDs to indices
+  const idToIdx = new Map();
+  const atomSymbols = [];
+  for (let i = 0; i < comp.atoms.length; i++) {
+    const at = atoms.get(comp.atoms[i]);
+    if (!at) return null;
+    idToIdx.set(comp.atoms[i], i);
+    atomSymbols.push(at.el.sym);
+  }
+  
+  // Build bonds array with indices
+  const bondTuples = [];
+  for (const b of comp.bonds) {
+    const ai = idToIdx.get(b.a);
+    const bi = idToIdx.get(b.b);
+    if (ai !== undefined && bi !== undefined) {
+      bondTuples.push([ai, bi, b.order || 1, b.ionic || false]);
+    }
+  }
+  
+  return { atoms: atomSymbols, bonds: bondTuples };
+}
+
 function updateInspector() {
   updateStoichPanel();
   const sel = document.getElementById('sel-info');
@@ -2252,6 +3371,9 @@ function updateInspector() {
     bohrActive = false;
     bohrBtn.classList.remove('active');
     if (bohrAnimFrame) cancelAnimationFrame(bohrAnimFrame);
+    // Also reset kinetics panel
+    if (kineticsBody) kineticsBody.hidden = true;
+    if (kineticsEmpty) kineticsEmpty.style.display = '';
     return;
   }
   const at = atoms.get(selectedId);
@@ -2274,8 +3396,42 @@ function updateInspector() {
   const name = safeName(comp, an);
   const type = classifyMolecule(an.formula, an.charge, comp);
   const fHtml = `${prettyFormula(an.displayFormula || an.formula)}<span class="muted">${formulaWithCharge('', an.charge)}</span>`;
+  
+  // Build template for functional group detection
+  const tpl = buildTemplateFromComponent(comp);
+  const groups = tpl ? tagFunctionalGroups(tpl) : [];
+  const groupLabels = {
+    [GROUP_TYPES.ALCOHOL]: '🧪 Alcohol (-OH)',
+    [GROUP_TYPES.PHENOL]: '🧪 Phenol (Ar-OH)',
+    [GROUP_TYPES.ALDEHYDE]: '🧪 Aldehyde (-CHO)',
+    [GROUP_TYPES.KETONE]: '🧪 Ketone (C=O)',
+    [GROUP_TYPES.CARBOXYL]: '🧪 Carboxyl (-COOH)',
+    [GROUP_TYPES.ESTER]: '🧪 Ester (-COO-)',
+    [GROUP_TYPES.ETHER]: '🧪 Ether (-O-)',
+    [GROUP_TYPES.AMINE_PRIMARY]: '🧪 Primary Amine (-NH₂)',
+    [GROUP_TYPES.AMINE_SECONDARY]: '🧪 Secondary Amine (-NH-)',
+    [GROUP_TYPES.AMINE_TERTIARY]: '🧪 Tertiary Amine (-N<)',
+    [GROUP_TYPES.AMIDE]: '🧪 Amide (-CONH-)',
+    [GROUP_TYPES.ALKENE]: '🧪 Alkene (C=C)',
+    [GROUP_TYPES.ALKYNE]: '🧪 Alkyne (C≡C)',
+    [GROUP_TYPES.ARYL]: '🧪 Aryl (aromatic ring)',
+    [GROUP_TYPES.HALIDE]: '🧪 Halide (C-X)',
+    [GROUP_TYPES.NITRILE]: '🧪 Nitrile (-C≡N)',
+    [GROUP_TYPES.NITRO]: '🧪 Nitro (-NO₂)',
+    [GROUP_TYPES.THIOL]: '🧪 Thiol (-SH)',
+    [GROUP_TYPES.EPOXIDE]: '🧪 Epoxide (cyclic ether)',
+  };
+  
+  let groupHtml = '';
+  if (groups.length > 0) {
+    const uniqueGroups = [...new Set(groups.map(g => g.group))];
+    groupHtml = `<div class="mol-groups">${uniqueGroups.map(g => 
+      `<span class="group-tag">${groupLabels[g] || g}</span>`
+    ).join('')}</div>`;
+  }
+  
   mol.innerHTML = `<div class="mol-formula">${fHtml}</div><div id="mol-name">${name || t('mol.unnamed')}<span class="mol-type">${type.label}</span></div>
-    <span class="muted">${t('mol.stats', { a: comp.atoms.length, b: comp.bonds.length })}</span>`;
+    <span class="muted">${t('mol.stats', { a: comp.atoms.length, b: comp.bonds.length })}</span>${groupHtml}`;
   if (!an.feasible) {
     warn.style.display = 'block';
     warn.textContent = trReason(an.reason) || t('chem.lewis.charge');
@@ -2285,7 +3441,8 @@ function updateInspector() {
     const partial = comp.atoms.find(id => {
       const p = an.per.get(id);
       if (!p || p.isMetal || !p.bonded || !p.ionU) return false;
-      const V = atoms.get(id).el.valenceElectrons;
+      const at = atoms.get(id);
+      const V = calcValenceFromShells(at.el.z);
       return (V + p.ionU - p.covSum) % 2 !== 0;
     });
     if (partial) {
@@ -2295,6 +3452,245 @@ function updateInspector() {
       warn.style.display = 'none';
     }
   }
+  
+  // Update kinetics panel
+  updateKineticsPanel(comp, an);
+}
+
+// ─ Kinetics panel ──
+
+const kineticsBody = document.getElementById('kinetics-body');
+const kineticsEmpty = document.getElementById('kinetics-empty');
+const kineticTempEl = document.getElementById('kinetic-temp');
+const kineticEaEl = document.getElementById('kinetic-ea');
+const kineticRateEl = document.getElementById('kinetic-rate');
+const kineticHalflifeEl = document.getElementById('kinetic-halflife');
+const kineticDecompEl = document.getElementById('kinetic-decomp');
+const kineticsCanvas = document.getElementById('kinetics-canvas');
+
+function updateKineticsPanel(comp, an) {
+  if (!comp || comp.bonds.length === 0 || !an) {
+    kineticsBody.hidden = true;
+    kineticsEmpty.style.display = '';
+    return;
+  }
+  
+  // Get simulation analysis for this component
+  const simAnalysis = comp.simulation;
+  if (!simAnalysis) {
+    kineticsBody.hidden = true;
+    kineticsEmpty.style.display = '';
+    return;
+  }
+  
+  kineticsBody.hidden = false;
+  kineticsEmpty.style.display = 'none';
+  
+  const temp = simAnalysis.kinetics.temperature || 298.15;
+  const ea = simAnalysis.kinetics.activationEnergy || 200;
+  const rateConstant = simAnalysis.kinetics.rateConstant;
+  const halfLife = simAnalysis.kinetics.halfLife;
+  const decompProb = simAnalysis.kinetics.decompositionProbability;
+  
+  kineticTempEl.textContent = `${temp.toFixed(1)} K`;
+  kineticEaEl.textContent = `${ea.toFixed(1)} kJ/mol`;
+  kineticRateEl.textContent = rateConstant ? `${rateConstant.toExponential(2)} s¹` : '—';
+  kineticHalflifeEl.textContent = halfLife ? formatTime(halfLife) : '—';
+  kineticDecompEl.textContent = `${(decompProb * 100).toFixed(1)}%`;
+  
+  // Draw decay graph
+  drawKineticsGraph(ea, temp);
+}
+
+function formatTime(seconds) {
+  if (seconds < 0.001) return `${(seconds * 1000000).toFixed(1)} μs`;
+  if (seconds < 1) return `${(seconds * 1000).toFixed(1)} ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  if (seconds < 3600) return `${(seconds / 60).toFixed(1)} min`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} h`;
+  if (seconds < 3.156e7) return `${(seconds / 86400).toFixed(1)} d`;
+  const y = seconds / 3.156e7;
+  return y < 1e4 ? `${y.toFixed(1)} y` : `${y.toExponential(1)} y`;
+}
+
+function drawKineticsGraph(ea, temp) {
+  if (!kineticsCanvas) return;
+  const ctx = kineticsCanvas.getContext('2d');
+  const width = kineticsCanvas.width;
+  const height = kineticsCanvas.height;
+  
+  // Get theme colors
+  const styles = getComputedStyle(document.documentElement);
+  const accentColor = styles.getPropertyValue('--accent').trim() || '#4a9eff';
+  const borderColor = styles.getPropertyValue('--border').trim() || 'rgba(60, 120, 200, 0.25)';
+  const textColor = styles.getPropertyValue('--muted').trim() || '#5a7090';
+  const bgColor = styles.getPropertyValue('--panel-2').trim() || 'rgba(14, 22, 40, 0.92)';
+  
+  ctx.clearRect(0, 0, width, height);
+  
+  // Calculate rate constant
+  const R = 8.314e-3; // kJ/(mol·K)
+  const A = 1e13; // Pre-exponential factor (s⁻¹)
+  const k = A * Math.exp(-ea / (R * temp));
+  
+  // Graph dimensions with padding
+  const pad = { left: 45, right: 15, top: 20, bottom: 35 };
+  const graphW = width - pad.left - pad.right;
+  const graphH = height - pad.top - pad.bottom;
+  const numTicks = 4; // Number of intervals for grid and labels
+  
+  // Draw grid lines
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([2, 3]);
+  
+  // Horizontal grid (concentration levels)
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (graphH * i / 4);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(width - pad.right, y);
+    ctx.stroke();
+  }
+  
+  // Vertical grid (time markers) - match the 4 ticks
+  for (let i = 0; i <= numTicks; i++) {
+    const x = pad.left + (graphW * i / numTicks);
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, height - pad.bottom);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  
+  // Draw axes with thicker lines
+  ctx.strokeStyle = textColor;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, height - pad.bottom);
+  ctx.lineTo(width - pad.right, height - pad.bottom);
+  ctx.stroke();
+  
+  // Draw axis ticks and labels
+  ctx.fillStyle = textColor;
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  
+  // X-axis ticks (time) - show only 4 labels to avoid crowding
+  const maxTime = 5 / k; // Show 5 half-lives worth
+  for (let i = 0; i <= numTicks; i++) {
+    const x = pad.left + (graphW * i / numTicks);
+    const t = (maxTime * i / numTicks);
+    ctx.beginPath();
+    ctx.moveTo(x, height - pad.bottom);
+    ctx.lineTo(x, height - pad.bottom + 3);
+    ctx.stroke();
+    const label = formatTimeShort(t);
+    ctx.fillText(label, x, height - pad.bottom + 14);
+  }
+  
+  // Y-axis ticks (concentration %)
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (graphH * i / 4);
+    const pct = 100 - (i * 25);
+    ctx.beginPath();
+    ctx.moveTo(pad.left - 3, y);
+    ctx.lineTo(pad.left, y);
+    ctx.stroke();
+    ctx.fillText(`${pct}%`, pad.left - 5, y + 3);
+  }
+  
+  // Draw curve with gradient fill
+  const timeScale = maxTime / graphW;
+  
+  // Create gradient for fill
+  const gradient = ctx.createLinearGradient(0, pad.top, 0, height - pad.bottom);
+  gradient.addColorStop(0, accentColor + '40'); // 25% opacity at top
+  gradient.addColorStop(1, accentColor + '05'); // 2% opacity at bottom
+  
+  // Fill area under curve
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, height - pad.bottom);
+  
+  for (let x = 0; x <= graphW; x++) {
+    const t = x * timeScale;
+    const concentration = Math.exp(-k * t);
+    const y = pad.top + graphH * (1 - concentration);
+    ctx.lineTo(pad.left + x, y);
+  }
+  
+  ctx.lineTo(pad.left + graphW, height - pad.bottom);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Draw curve line with glow effect
+  ctx.shadowColor = accentColor;
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  
+  for (let x = 0; x <= graphW; x++) {
+    const t = x * timeScale;
+    const concentration = Math.exp(-k * t);
+    const y = pad.top + graphH * (1 - concentration);
+    
+    if (x === 0) ctx.moveTo(pad.left, y);
+    else ctx.lineTo(pad.left + x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  
+  // Draw half-life marker
+  const halfLife = Math.LN2 / k;
+  const halfLifeX = pad.left + (halfLife / maxTime) * graphW;
+  if (halfLifeX < width - pad.right) {
+    ctx.strokeStyle = accentColor + '80';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(halfLifeX, pad.top);
+    ctx.lineTo(halfLifeX, height - pad.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Label
+    ctx.fillStyle = accentColor;
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('t½', halfLifeX, pad.top - 5);
+  }
+  
+  // Axis labels
+  ctx.fillStyle = textColor;
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Time', width / 2, height - 5);
+  
+  ctx.save();
+  ctx.translate(12, height / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Concentration', 0, 0);
+  ctx.restore();
+}
+
+function formatTimeShort(seconds) {
+  if (seconds < 1e-9) return '0';
+  if (seconds < 1e-6) return `${(seconds * 1e9).toFixed(0)}ns`;
+  if (seconds < 1e-3) return `${(seconds * 1e6).toFixed(0)}μs`;
+  if (seconds < 1) return `${(seconds * 1e3).toFixed(0)}ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
+  if (seconds < 3.15e7) return `${(seconds / 86400).toFixed(1)}d`;
+  if (seconds < 3.15e10) return `${(seconds / 3.15e7).toFixed(1)}y`;
+  // Use scientific notation for very large numbers
+  const exp = Math.floor(Math.log10(seconds));
+  const mantissa = seconds / Math.pow(10, exp);
+  return `${mantissa.toFixed(1)}e${exp}s`;
 }
 
 // ── Stoichiometry panel ──
@@ -2389,6 +3785,45 @@ function electronShells(z) {
     remaining -= n;
   }
   return shells;
+}
+
+/**
+ * Calculate valence electrons dynamically from electron shells
+ * For main group elements: outermost shell electrons
+ * For transition metals/lanthanides/actinides: outermost s + d/f electrons
+ */
+function calcValenceFromShells(z) {
+  const shells = electronShells(z);
+  if (shells.length === 0) return 0;
+  
+  // For H and He
+  if (z <= 2) return shells[0];
+  
+  // For main group elements (s and p blocks)
+  const outermost = shells[shells.length - 1];
+  
+  // For transition metals, include d electrons from previous shell
+  if (z >= 21 && z <= 30) {
+    const dElectrons = shells.length >= 2 ? shells[shells.length - 2] : 0;
+    return outermost + dElectrons;
+  }
+  
+  // For lanthanides/actinides, include f electrons
+  if ((z >= 57 && z <= 71) || (z >= 89 && z <= 103)) {
+    // Actinides commonly show +3, +4, +5, +6 oxidation states
+    // Use outermost s + d + f electrons for bonding capacity
+    const fElectrons = shells.length >= 3 ? shells[shells.length - 3] : 0;
+    const dElectrons = shells.length >= 2 ? shells[shells.length - 2] : 0;
+    return Math.min(outermost + dElectrons + fElectrons, 8);
+  }
+  
+  // For other transition metals (period 4-6 d-block)
+  if (z >= 39 && z <= 48 || z >= 72 && z <= 80) {
+    const dElectrons = shells.length >= 2 ? shells[shells.length - 2] : 0;
+    return outermost + dElectrons;
+  }
+  
+  return outermost;
 }
 
 let bohrActive = false;
@@ -2486,6 +3921,7 @@ function updateBohrStats(el) {
   const stats = document.getElementById('bohr-stats');
   const shells = electronShells(el.z);
   const neutrons = Math.round(el.mass) - el.z;
+  const valence = calcValenceFromShells(el.z);
 
   let shellHtml = shells.map((n, i) =>
     `<span class="shell-badge">${SHELL_NAMES[i]}: ${n}e⁻</span>`
@@ -2497,7 +3933,7 @@ function updateBohrStats(el) {
     <div><span class="stat-label">${t('bohr.protons')}</span><br><span class="stat-value">${el.z}</span></div>
     <div><span class="stat-label">${t('bohr.neutrons')}</span><br><span class="stat-value">${neutrons}</span></div>
     <div><span class="stat-label">${t('bohr.electrons')}</span><br><span class="stat-value">${el.z}</span></div>
-    <div><span class="stat-label">${t('bohr.valence')}</span><br><span class="stat-value">${el.valenceElectrons}</span></div>
+    <div><span class="stat-label">${t('bohr.valence')}</span><br><span class="stat-value">${valence}</span></div>
     <div class="shell-row"><span class="stat-label">${t('bohr.shells')}</span> ${shellHtml}</div>
   `;
 }
@@ -2554,7 +3990,7 @@ function updateMoleculeList() {
       btn.textContent = isVi() ? 'Đồng phân' : 'Isomers';
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openIsomerDrawer(i);
+        openIsomerPanel(i);
       });
       row.appendChild(btn);
     }
@@ -2564,75 +4000,143 @@ function updateMoleculeList() {
   if (!shown) list.textContent = t('list.empty');
 }
 
-let isomerDrawerCompIdx = null;
+let isomerPanelCompIdx = null;
 
-function openIsomerDrawer(compIdx) {
-  isomerDrawerCompIdx = compIdx;
+function openIsomerPanel(compIdx) {
+  isomerPanelCompIdx = compIdx;
   const an = analyses[compIdx];
-  const drawer = document.getElementById('isomer-drawer');
-  const title = document.getElementById('isomer-drawer-title');
-  const listEl = document.getElementById('isomer-drawer-list');
+  const panel = document.getElementById('isomer-panel');
+  const title = document.getElementById('isomer-panel-title');
+  const input = document.getElementById('isomer-input');
+  const result = document.getElementById('isomer-result');
 
-  title.textContent = (isVi() ? 'Đồng phân của ' : 'Isomers of ') + prettyFormula(an.displayFormula || an.formula);
-  listEl.textContent = '';
+  title.textContent = (isVi() ? 'Kiểm tra đồng phân của ' : 'Validate isomer of ') + prettyFormula(an.displayFormula || an.formula);
+  input.value = '';
+  result.innerHTML = '';
+  result.className = 'isomer-result';
+
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  input.focus();
+}
+
+function closeIsomerPanel() {
+  const panel = document.getElementById('isomer-panel');
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
+  isomerPanelCompIdx = null;
+}
+
+// Parse a condensed formula (e.g., "C2H5OH", "CH3CH2CH3") to an atom ordering
+// with heavy atoms first, then hydrogens (matching the app's isomer template format)
+function parseCondensedToOrdering(formula) {
+  const counts = parseFormula(formula);
+  if (counts.size === 0) return null;
+  
+  // Extract heavy atoms (non-H) in the order they appear in the formula
+  const heavyAtoms = [];
+  const re = /([A-Z][a-z]?)(\d*)/g;
+  let m;
+  while ((m = re.exec(formula)) !== null) {
+    const sym = m[1];
+    const count = m[2] ? parseInt(m[2]) : 1;
+    if (sym !== 'H') {
+      for (let i = 0; i < count; i++) heavyAtoms.push(sym);
+    }
+  }
+  
+  // Add all hydrogens at the end
+  const hCount = counts.get('H') || 0;
+  for (let i = 0; i < hCount; i++) heavyAtoms.push('H');
+  
+  return heavyAtoms;
+}
+
+// Check if two atom orderings match (same elements in same order)
+function orderingsMatch(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function checkIsomer() {
+  if (isomerPanelCompIdx === null) return;
+  const an = analyses[isomerPanelCompIdx];
+  const input = document.getElementById('isomer-input');
+  const result = document.getElementById('isomer-result');
+  const query = input.value.trim();
+
+  if (!query) {
+    result.innerHTML = '<div class="isomer-error">Please enter an arrangement</div>';
+    return;
+  }
 
   const isos = isomerTemplates(an.formula);
-  const currentFp = an.fingerprint;
-  const curDisplay = an.displayFormula || an.formula;
+  const queryUpper = query.toUpperCase();
 
-  const fps = isos.map(iso => structuralFingerprint(iso.tpl.atoms, iso.tpl.bonds, iso.tpl.atoms.map((_, i) => i)));
-  const exact = isos.findIndex((iso, k) => fps[k] === currentFp && (iso.displayFormula || an.formula) === curDisplay);
-  const activeSet = new Set(exact >= 0
-    ? [exact]
-    : isos.map((_, k) => fps[k] === currentFp ? k : -1).filter(k => k >= 0));
+  // Find matching isomer by display formula or key
+  let match = isos.find(iso => {
+    const df = (iso.displayFormula || an.formula).toUpperCase();
+    const key = (iso.key || '').toUpperCase();
+    return df === queryUpper || key === queryUpper;
+  });
 
-  for (let k = 0; k < isos.length; k++) {
-    const iso = isos[k];
-    const item = document.createElement('div');
-    item.className = 'isomer-item';
-    if (activeSet.has(k)) item.classList.add('active');
-
-    const info = document.createElement('div');
-    info.className = 'isomer-item-info';
-    const nameEl = document.createElement('div');
-    nameEl.className = 'isomer-item-name';
-    nameEl.textContent = iso.displayName || iso.key;
-    const formulaEl = document.createElement('div');
-    formulaEl.className = 'isomer-item-formula';
-    formulaEl.textContent = iso.displayFormula || an.formula;
-    info.append(nameEl, formulaEl);
-
-    const cls = classifyMolecule(an.formula, iso.tpl.charge || 0, null);
-    const badge = document.createElement('span');
-    badge.className = 'isomer-badge ' + (cls.key || '');
-    badge.textContent = cls.label;
-
-    item.append(info, badge);
-    item.addEventListener('click', () => swapToIsomer(compIdx, iso));
-    listEl.appendChild(item);
+  // If no direct match, try parsing as a condensed formula (e.g., "C2H5OH", "CH3CH2CH3")
+  if (!match) {
+    try {
+      const queryCounts = parseFormula(query);
+      const moleculeCounts = parseFormula(an.formula);
+      // Compare element counts
+      const sameFormula = queryCounts.size === moleculeCounts.size &&
+        [...queryCounts.entries()].every(([sym, count]) => moleculeCounts.get(sym) === count);
+      if (sameFormula) {
+        // Molecular formula matches — try to match the atom ordering
+        const queryOrdering = parseCondensedToOrdering(query);
+        if (queryOrdering) {
+          // Find isomer whose atom ordering matches
+          match = isos.find(iso => {
+            if (!iso.tpl || !iso.tpl.atoms) return false;
+            return orderingsMatch(iso.tpl.atoms, queryOrdering);
+          });
+        }
+        // If still no match, accept the first isomer (fallback)
+        if (!match) match = isos[0];
+      }
+    } catch (e) {
+      // parseFormula failed — not a valid formula
+    }
   }
 
-  if (isos.truncated) {
-    const note = document.createElement('div');
-    note.className = 'isomer-more-note';
-    note.textContent = t('iso.more', { n: isos.length });
-    listEl.appendChild(note);
+  if (!match) {
+    result.innerHTML = `<div class="isomer-error">Invalid arrangement. Valid isomers: ${isos.map(i => i.displayFormula || an.formula).join(', ')}</div>`;
+    return;
   }
 
-  drawer.classList.add('open');
-  drawer.setAttribute('aria-hidden', 'false');
+  // Show the valid isomer
+  const cls = classifyMolecule(an.formula, match.tpl.charge || 0, null);
+  result.innerHTML = `
+    <div class="isomer-valid">
+      <div class="isomer-valid-name">${match.displayName || match.key}</div>
+      <div class="isomer-valid-formula">${match.displayFormula || an.formula}</div>
+      <span class="isomer-badge ${cls.key || ''}">${cls.label}</span>
+      <button class="isomer-apply-btn">Apply</button>
+    </div>
+  `;
 
-  const search = document.getElementById('isomer-search');
-  search.value = '';
-  filterIsomers('');
+  const applyBtn = result.querySelector('.isomer-apply-btn');
+  applyBtn.addEventListener('click', () => {
+    swapToIsomer(isomerPanelCompIdx, match);
+    closeIsomerPanel();
+  });
 }
 
-function closeIsomerDrawer() {
-  const drawer = document.getElementById('isomer-drawer');
-  drawer.classList.remove('open');
-  drawer.setAttribute('aria-hidden', 'true');
-  isomerDrawerCompIdx = null;
-}
+document.getElementById('isomer-panel-close').addEventListener('click', closeIsomerPanel);
+document.getElementById('isomer-check-btn').addEventListener('click', checkIsomer);
+document.getElementById('isomer-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkIsomer();
+});
 
 // Build a molecule from a template ({atoms:[sym], bonds:[[ai,bi,order,ionic]], charge})
 // centered on (cx, cy, cz), using BFS layout with proper bond lengths.
@@ -2751,7 +4255,7 @@ function swapToIsomer(compIdx, iso) {
   else if (overrides.has(prevKey)) overrides.set(key, overrides.get(prevKey));
   if (iso.displayFormula) isoSel.set(key, iso.displayFormula);
 
-  closeIsomerDrawer();
+  closeIsomerPanel();
   reanalyze(new Set(newAtomIds));
 }
 
@@ -2848,32 +4352,6 @@ function normalize(v) {
   return { x: v.x / len, y: v.y / len, z: v.z / len };
 }
 
-document.getElementById('isomer-drawer-close').addEventListener('click', closeIsomerDrawer);
-document.getElementById('isomer-search').addEventListener('input', e => filterIsomers(e.target.value));
-
-function filterIsomers(query) {
-  const listEl = document.getElementById('isomer-drawer-list');
-  if (!listEl) return;
-  const q = query.trim().toLowerCase();
-  let visible = 0;
-  for (const item of listEl.children) {
-    if (!item.classList.contains('isomer-item')) continue;
-    const match = !q || item.textContent.toLowerCase().includes(q);
-    item.style.display = match ? '' : 'none';
-    if (match) visible++;
-  }
-  const note = listEl.querySelector('.isomer-more-note');
-  if (note) note.style.display = q ? 'none' : '';
-  let none = document.getElementById('isomer-no-match');
-  if (!none) {
-    none = document.createElement('div');
-    none.id = 'isomer-no-match';
-    none.className = 'isomer-more-note';
-    listEl.appendChild(none);
-  }
-  none.textContent = t('iso.none');
-  none.style.display = visible === 0 && listEl.querySelector('.isomer-item') ? '' : 'none';
-}
 
 function chDisplay(c) {
   return prettyFormula(c.formula) + formulaWithCharge('', c.charge ?? 0);
@@ -3196,6 +4674,12 @@ function executeConsoleCommand(cmd) {
 }
 
 document.getElementById('btn-console').addEventListener('click', () => {
+  const rankInfo = rankManager.getCurrentRank();
+  if (!isFeatureUnlocked('console', rankInfo)) {
+    const req = getRequiredRankForFeature('console');
+    status(t('rank.featureLocked', { rank: req?.name || 'Further Beyond' }), 'err');
+    return;
+  }
   mobileConsole.hidden = !mobileConsole.hidden;
   if (!mobileConsole.hidden) {
     consoleInput.focus();
@@ -3203,6 +4687,238 @@ document.getElementById('btn-console').addEventListener('click', () => {
     menuDropdown.hidden = true;
   }
 });
+
+// Return to Lobby button (multiplayer only)
+const btnReturnLobby = document.getElementById('btn-return-lobby');
+if (btnReturnLobby) {
+  btnReturnLobby.addEventListener('click', () => {
+    window.location.href = 'index.html';
+  });
+}
+
+// Export/Import Progress System
+document.getElementById('btn-export').addEventListener('click', () => {
+  try {
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      scene: {
+        atoms: [...atoms.values()].map(a => ({ id: a.id, z: a.el.z, pos: a.pos })),
+        bonds: [...bonds.values()].map(b => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic })),
+        nextId,
+      },
+      discoveries: discoveries.map(d => ({ ...d })),
+      completed: [...completed],
+      overrides: [...overrides],
+      isoSel: [...isoSel],
+      rank: { totalStars: rankManager.totalStars, currentRank: rankManager.getCurrentRank() },
+      quests: { stars: questManager.getStars(), completed: [...questManager.completedQuests] },
+      player: {
+        health: playerHealth,
+        cameraPosition: camera.position.toArray(),
+        cameraTarget: controls.target.toArray(),
+      },
+      settings: {
+        theme: document.documentElement.dataset.theme || 'dark',
+        lang: getLang(),
+        quality: qualityMode,
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chemistry_progress_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    status(t('status.exported', { count: discoveries.length }), 'ok');
+    btnMenu.setAttribute('aria-expanded', 'false');
+    menuDropdown.hidden = true;
+  } catch (err) {
+    console.error('Export failed:', err);
+    status(t('status.exportFailed', { error: err.message }), 'err');
+  }
+});
+
+document.getElementById('btn-import-progress').addEventListener('click', () => {
+  document.getElementById('import-file-input').click();
+  btnMenu.setAttribute('aria-expanded', 'false');
+  menuDropdown.hidden = true;
+});
+
+document.getElementById('import-file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+
+      // Validate schema
+      if (!data.version || !data.scene || !Array.isArray(data.scene.atoms)) {
+        throw new Error('Invalid file format');
+      }
+
+      // Clear current state
+      clearAll();
+
+      // Restore scene
+      for (const a of data.scene.atoms) {
+        if (!a || !Number.isInteger(a.id) || !a.pos) continue;
+        const el = ELEMENTS.find(e => e.z === a.z);
+        if (!el) continue;
+        atoms.set(a.id, { id: a.id, el, pos: { x: +a.pos.x || 0, y: +a.pos.y || 0, z: +a.pos.z || 0 } });
+      }
+      for (const b of Array.isArray(data.scene.bonds) ? data.scene.bonds : []) {
+        if (b && Number.isInteger(b.id) && atoms.has(b.a) && atoms.has(b.b)) {
+          bonds.set(b.id, { ...b });
+        }
+      }
+      if (data.scene.nextId) nextId = data.scene.nextId;
+
+      // Restore discoveries
+      if (Array.isArray(data.discoveries)) {
+        discoveries.length = 0;
+        for (const d of data.discoveries) {
+          discoveries.push({ ...d });
+        }
+      }
+
+      // Restore completed challenges
+      if (Array.isArray(data.completed)) {
+        completed.clear();
+        for (const c of data.completed) completed.add(c);
+      }
+
+      // Restore overrides and isoSel
+      if (Array.isArray(data.overrides)) {
+        overrides.clear();
+        for (const [k, v] of data.overrides) {
+          if (typeof k === 'string' && Number.isInteger(v)) overrides.set(k, v);
+        }
+      }
+      if (Array.isArray(data.isoSel)) {
+        isoSel.clear();
+        for (const [k, v] of data.isoSel) {
+          if (typeof k === 'string' && typeof v === 'string') isoSel.set(k, v);
+        }
+      }
+
+      // Restore rank and quests
+      if (data.rank) {
+        if (typeof data.rank.totalStars === 'number') {
+          rankManager.totalStars = data.rank.totalStars;
+          rankManager.saveProgress();
+          rankManager.emit('starsChanged', { totalStars: rankManager.totalStars, rank: rankManager.getCurrentRank() });
+        }
+      }
+      if (data.quests) {
+        if (typeof data.quests.stars === 'number') {
+          questManager.stars = data.quests.stars;
+        }
+        if (Array.isArray(data.quests.completed)) {
+          questManager.completedQuests.clear();
+          for (const qid of data.quests.completed) {
+            if (typeof qid === 'string') questManager.completedQuests.add(qid);
+          }
+        }
+        questManager.saveProgress();
+      }
+
+      // Restore player state
+      if (data.player) {
+        if (typeof data.player.health === 'number') {
+          playerHealth = Math.max(0, Math.min(MAX_HEALTH, data.player.health));
+          updateHealthBar();
+        }
+        if (Array.isArray(data.player.cameraPosition) && data.player.cameraPosition.length === 3) {
+          camera.position.fromArray(data.player.cameraPosition);
+        }
+        if (Array.isArray(data.player.cameraTarget) && data.player.cameraTarget.length === 3) {
+          controls.target.fromArray(data.player.cameraTarget);
+        }
+      }
+
+      // Restore settings
+      if (data.settings) {
+        if (data.settings.theme) {
+          themeMode = data.settings.theme;
+          applyTheme(themeMode);
+          try { localStorage.setItem(THEME_KEY, themeMode); } catch { /* session-only */ }
+        }
+        if (data.settings.lang) setLang(data.settings.lang);
+      }
+
+      reanalyze();
+      save(true);
+      status(t('status.imported', { atoms: atoms.size, discoveries: discoveries.length }), 'ok');
+    } catch (err) {
+      console.error('Import failed:', err);
+      status(t('status.importFailed', { error: err.message }), 'err');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = ''; // Reset input
+});
+
+// Respawn button handler
+document.getElementById('btn-respawn').addEventListener('click', () => {
+  respawnPlayer();
+});
+
+// Revive button handler
+document.getElementById('btn-revive').addEventListener('click', () => {
+  const modal = document.getElementById('revive-modal');
+  const targetPlayerId = modal?.dataset.targetPlayerId;
+  
+  if (targetPlayerId && network.roomId) {
+    // Broadcast revive to all players
+    network.broadcast(null, MSG.PLAYER_REVIVE, {
+      playerId: targetPlayerId,
+      reviverId: network.playerId,
+      timestamp: Date.now(),
+    });
+    
+    // Update local state
+    const remotePlayer = playerSync.remotePlayers.get(targetPlayerId);
+    if (remotePlayer) {
+      remotePlayer.isDead = false;
+      remotePlayer.updateVisuals();
+      status(`Revived ${remotePlayer.username}`, 'ok');
+    }
+  }
+  
+  // Hide modal
+  if (modal) {
+    modal.hidden = true;
+    modal.style.display = 'none';
+  }
+});
+
+// Game mode toggle button
+const btnGameMode = document.getElementById('btn-game-mode');
+if (btnGameMode) {
+  btnGameMode.addEventListener('click', () => {
+    const newMode = gameMode === 'survival' ? 'creative' : 'survival';
+    setGameMode(newMode);
+    btnGameMode.textContent = newMode === 'survival' ? t('btn.gameMode.survival') : t('btn.gameMode.creative');
+  });
+}
+
+// Game mode toggle (add to menu or keyboard shortcut)
+// For now, use console command or add a button to the menu
+window.setGameMode = setGameMode; // Expose for console access
+
+// Set initial UI state for default survival mode
+const joyJumpInit = document.getElementById('joy-jump');
+if (joyJumpInit) joyJumpInit.classList.add('visible');
+const joyVertInit = document.getElementById('joy-vert');
+if (joyVertInit) joyVertInit.style.display = 'none';
 
 document.getElementById('console-close').addEventListener('click', () => {
   mobileConsole.hidden = true;
@@ -3266,6 +4982,12 @@ document.getElementById('btn-fc').addEventListener('click', () => {
   invalidate();
 });
 document.getElementById('btn-mayhem').addEventListener('click', () => {
+  const rankInfo = rankManager.getCurrentRank();
+  if (!isFeatureUnlocked('mayhem', rankInfo)) {
+    const req = getRequiredRankForFeature('mayhem');
+    status(t('rank.featureLocked', { rank: req?.name || 'Experienced' }), 'err');
+    return;
+  }
   mayhemMode = !mayhemMode;
   document.getElementById('btn-mayhem').classList.toggle('on', mayhemMode);
   document.getElementById('btn-import').hidden = !mayhemMode;
@@ -3273,54 +4995,231 @@ document.getElementById('btn-mayhem').addEventListener('click', () => {
   status(mayhemMode ? 'Mayhem mode ON — exotic elements unlocked!' : 'Mayhem mode OFF');
 });
 
-// Time control buttons
-document.getElementById('btn-time-freeze').addEventListener('click', () => {
+
+// ─ Time Control Modal & Effects ──
+const SPEED_LEVELS = [1, 2, 5, 10, 50, 100, 1000, 10000, 100000, 1e6, 1e7, 1e8, 1e9];
+
+function playSFX(id) {
+  const audio = document.getElementById(id);
+  if (audio) {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }
+}
+
+function updateAnalogClock() {
+  const totalSeconds = simulationTime;
+  const hours = (totalSeconds / 3600) % 12;
+  const minutes = (totalSeconds / 60) % 60;
+  const seconds = totalSeconds % 60;
+
+  const hourHand = document.querySelector('.hour-hand');
+  const minuteHand = document.querySelector('.minute-hand');
+  const secondHand = document.querySelector('.second-hand');
+
+  if (hourHand) hourHand.style.transform = `rotate(${hours * 30}deg)`;
+  if (minuteHand) minuteHand.style.transform = `rotate(${minutes * 6}deg)`;
+  if (secondHand) secondHand.style.transform = `rotate(${seconds * 6}deg)`;
+}
+
+function openTimeModal() {
+  const modal = document.getElementById('time-modal');
+  if (modal) {
+    modal.hidden = false;
+    updateAnalogClock();
+    updateSpeedSlider();
+  }
+}
+
+function closeTimeModal() {
+  const modal = document.getElementById('time-modal');
+  if (modal) modal.hidden = true;
+}
+
+function updateSpeedSlider() {
+  const slider = document.getElementById('time-speed-range');
+  const value = document.getElementById('time-speed-value');
+  if (slider && value) {
+    const idx = SPEED_LEVELS.indexOf(timeSpeed);
+    slider.value = idx >= 0 ? idx : 0;
+    value.textContent = formatSpeed(timeSpeed);
+  }
+}
+
+document.getElementById('btn-time-menu').addEventListener('click', () => {
+  console.log('Time menu clicked');
+  openTimeModal();
+});
+document.getElementById('time-modal-close').addEventListener('click', closeTimeModal);
+
+document.getElementById('time-speed-range').addEventListener('input', (e) => {
+  const idx = parseInt(e.target.value);
+  if (idx >= 0 && idx < SPEED_LEVELS.length) {
+    timeSpeed = SPEED_LEVELS[idx];
+    updateSpeedSlider();
+    updateTimeDisplay();
+    status(`⏱ Speed: ${formatSpeed(timeSpeed)}`);
+  }
+});
+
+document.getElementById('btn-modal-freeze').addEventListener('click', () => {
   toggleFreeze();
-  status(timeFrozen ? '⏸ Time frozen' : '▶️ Time resumed');
-});
-
-document.getElementById('btn-time-speed').addEventListener('click', () => {
-  cycleSpeed();
-  status(`⏱ Time speed: ${timeSpeed}×`);
-});
-
-document.getElementById('btn-time-rewind').addEventListener('click', () => {
-  const speeds = [100, 50, 10, 5, 2, 1];
-  const idx = speeds.indexOf(timeSpeed);
-  if (idx < speeds.length - 1) {
-    timeSpeed = speeds[idx + 1];
+  if (timeFrozen) {
+    triggerTheWorld();
   } else {
-    timeSpeed = 1;
+    triggerTimeResume();
   }
-  const btn = document.getElementById('btn-time-speed');
-  if (btn) btn.textContent = `${timeSpeed}×`;
-  const label = document.getElementById('time-speed-label');
-  if (label) label.textContent = `${timeSpeed}×`;
-  status(`⏪ Speed: ${timeSpeed}×`);
+  status(timeFrozen ? ' Time frozen' : '▶️ Time resumed');
 });
 
-document.getElementById('btn-time-forward').addEventListener('click', () => {
-  const speeds = [1, 2, 5, 10, 50, 100];
-  const idx = speeds.indexOf(timeSpeed);
-  if (idx < speeds.length - 1) {
-    timeSpeed = speeds[idx + 1];
+document.getElementById('btn-modal-rewind').addEventListener('click', () => {
+  const idx = SPEED_LEVELS.indexOf(timeSpeed);
+  if (idx > 0) {
+    timeSpeed = SPEED_LEVELS[idx - 1];
+    updateSpeedSlider();
+    updateTimeDisplay();
+    status(` Speed: ${formatSpeed(timeSpeed)}`);
   }
-  const btn = document.getElementById('btn-time-speed');
-  if (btn) btn.textContent = `${timeSpeed}×`;
-  const label = document.getElementById('time-speed-label');
-  if (label) label.textContent = `${timeSpeed}×`;
-  status(`⏩ Speed: ${timeSpeed}×`);
 });
 
-// Desktop sidebar tab switching
+document.getElementById('btn-modal-forward').addEventListener('click', () => {
+  const idx = SPEED_LEVELS.indexOf(timeSpeed);
+  if (idx < SPEED_LEVELS.length - 1) {
+    triggerMadeInHeaven(SPEED_LEVELS[idx + 1]);
+  }
+});
+
+// ── THE WORLD Effect ──
+function triggerTheWorld() {
+  playSFX('sfx-timestop');
+
+  const overlay = document.getElementById('time-effect-overlay');
+  const sphere = overlay.querySelector('.effect-sphere');
+  const flash = overlay.querySelector('.effect-flash');
+  const sceneWrap = document.getElementById('scene-wrap');
+
+  overlay.hidden = false;
+  sphere.classList.remove('expanding', 'contracting');
+  flash.classList.remove('flash', 'release');
+
+  void sphere.offsetWidth;
+
+  sphere.classList.add('expanding');
+  setTimeout(() => flash.classList.add('flash'), 200);
+
+  sceneWrap.classList.remove('the-world-releasing');
+  sceneWrap.classList.add('the-world-active');
+
+  setTimeout(() => {
+    sphere.classList.remove('expanding');
+    flash.classList.remove('flash', 'release');
+    overlay.hidden = true;
+    sceneWrap.classList.remove('the-world-releasing');
+    if (!timeFrozen) sceneWrap.classList.remove('the-world-active');
+  }, 1500);
+}
+
+function triggerTimeResume() {
+  playSFX('sfx-timeresume');
+
+  const overlay = document.getElementById('time-effect-overlay');
+  const sphere = overlay.querySelector('.effect-sphere');
+  const flash = overlay.querySelector('.effect-flash');
+  const sceneWrap = document.getElementById('scene-wrap');
+
+  overlay.hidden = false;
+  sphere.classList.remove('expanding', 'contracting');
+  flash.classList.remove('flash', 'release');
+
+  void sphere.offsetWidth;
+
+  sphere.classList.add('contracting');
+  setTimeout(() => flash.classList.add('flash', 'release'), 300);
+
+  sceneWrap.classList.add('the-world-releasing');
+
+  setTimeout(() => {
+    sphere.classList.remove('contracting');
+    flash.classList.remove('flash', 'release');
+    overlay.hidden = true;
+    sceneWrap.classList.remove('the-world-releasing');
+    if (!timeFrozen) sceneWrap.classList.remove('the-world-active');
+  }, 1500);
+}
+
+// ── Made in Heaven Effect ──
+function triggerMadeInHeaven(targetSpeed) {
+  playSFX('sfx-acceleration');
+
+  const startSpeed = timeSpeed;
+  const duration = 2000;
+  const startTime = performance.now();
+
+  function accelerate(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    const speedRange = Math.log10(targetSpeed) - Math.log10(startSpeed);
+    const currentLog = Math.log10(startSpeed) + speedRange * eased;
+    timeSpeed = Math.pow(10, currentLog);
+
+    updateTimeDisplay();
+    updateSpeedSlider();
+
+    if (progress < 1) {
+      requestAnimationFrame(accelerate);
+    } else {
+      timeSpeed = targetSpeed;
+      updateTimeDisplay();
+      updateSpeedSlider();
+      status(`⏩ Speed: ${formatSpeed(timeSpeed)}`);
+    }
+  }
+
+  requestAnimationFrame(accelerate);
+}
+
+// Update analog clock every frame
+const origUpdateSimulationTime = updateSimulationTime;
+updateSimulationTime = function(now) {
+  origUpdateSimulationTime(now);
+  if (!document.getElementById('time-modal').hidden) {
+    updateAnalogClock();
+  }
+};
+
+// ── Atmosphere / Environment System ──
+const atmosphere = {
+  enabled: false,
+  composition: new Map([
+    ['N2', 0.78],
+    ['O2', 0.21],
+    ['Ar', 0.009],
+    ['CO2', 0.0004],
+  ]),
+};
+
+function toggleAtmosphere() {
+  atmosphere.enabled = !atmosphere.enabled;
+  const btn = document.getElementById('btn-atmosphere');
+  if (btn) {
+    btn.textContent = t('btn.atmosphere', { mode: atmosphere.enabled ? t('status.on') : t('status.off') });
+  }
+  status(atmosphere.enabled ? '🌍 Atmosphere ON — O2, N2, Ar, CO2 present' : ' Atmosphere OFF — vacuum');
+}
+
+document.getElementById('btn-atmosphere').addEventListener('click', toggleAtmosphere);
+
+// Desktop sidebar tab switching (toggleable - multiple panels can be open)
 {
   const tabs = document.querySelectorAll('.sidebar-tab');
-  const panels = document.querySelectorAll('.side-tab-panel');
   for (const tab of tabs) {
     tab.addEventListener('click', () => {
-      const target = tab.dataset.panel;
-      for (const t of tabs) t.classList.toggle('active', t === tab);
-      for (const p of panels) p.classList.toggle('active', p.id === 'side-' + target);
+      const panel = document.getElementById('side-' + tab.dataset.panel);
+      const willOpen = !panel.classList.contains('active');
+      panel.classList.toggle('active', willOpen);
+      tab.classList.toggle('active', willOpen);
     });
   }
 }
@@ -3512,16 +5411,26 @@ function refreshTranslations() {
 // Mobile: bottom-sheet tabs + touch joystick
 // ---------------------------------------------------------------------------
 const SHEET_IDS = ['side-pool', 'side-info', 'side-dex'];
+function syncSheetButtons() {
+  for (const id of SHEET_IDS) {
+    const sheet = document.getElementById(id);
+    const btn = document.querySelector(`#mtabs button[data-tab="${id}"]`);
+    if (sheet && btn) {
+      btn.classList.toggle('on', sheet.classList.contains('active') || sheet.classList.contains('open'));
+    }
+  }
+}
 function closeMobileSheets() {
   for (const id of SHEET_IDS) document.getElementById(id)?.classList.remove('open');
-  document.querySelectorAll('#mtabs button.on').forEach(b => b.classList.remove('on'));
+  syncSheetButtons();
 }
 {
   const tabs = document.getElementById('mtabs');
-  const mq = window.matchMedia('(max-width: 860px)');
+  const mq = window.matchMedia('(max-width: 640px)');
   const sync = () => {
     document.body.classList.toggle('mobile', mq.matches);
     if (!mq.matches) closeMobileSheets();
+    syncSheetButtons();
   };
   sync();
   mq.addEventListener('change', sync);
@@ -3529,9 +5438,10 @@ function closeMobileSheets() {
     const btn = e.target.closest('button[data-tab]');
     if (!btn) return;
     const sheet = document.getElementById(btn.dataset.tab);
-    const wasOpen = sheet.classList.contains('open');
-    closeMobileSheets();
-    if (!wasOpen) { sheet.classList.add('open'); btn.classList.add('on'); }
+    const willOpen = !sheet.classList.contains('active') && !sheet.classList.contains('open');
+    sheet.classList.toggle('open', willOpen);
+    sheet.classList.toggle('active', willOpen);
+    btn.classList.toggle('on', willOpen);
   });
 }
 
@@ -3575,6 +5485,14 @@ function closeMobileSheets() {
     for (const t of ['pointerup', 'pointercancel', 'pointerleave'])
       b.addEventListener(t, () => movement.setVertical(0));
   }
+
+  const jumpBtn = document.getElementById('joy-jump');
+  if (jumpBtn) {
+    jumpBtn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      movement.jump();
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -3611,24 +5529,69 @@ function frame(now) {
   // Update simulation time (respects freeze and speed)
   updateSimulationTime(now);
 
-  // Safety: if drag was cleared but controls stayed disabled, re-enable them
-  if (!drag && !controls.enabled) {
+  // Safety: if drag was cleared but controls stayed disabled, re-enable them (creative mode only)
+  if (!drag && !controls.enabled && gameMode !== 'survival') {
     controls.enabled = true;
   }
 
-  controls.update();
+  // In survival mode, disable OrbitControls entirely (we position camera directly)
+  const survivalCam = gameMode === 'survival';
+  controls.enabled = !survivalCam;
+  if (!survivalCam) {
+    controls.update();
+  }
+
   let active = false;
   active = movement.update(dt) || active;
-  active = updateDrift(dt) || active;
+  
+  // Sync player avatar with player position
+  if (gameMode === 'survival') {
+    const playerPos = movement.getPlayerPos();
+    playerAvatar.position.set(playerPos.x, playerPos.y, playerPos.z);
+  } else {
+    playerAvatar.position.set(camera.position.x, camera.position.y - 1.8, camera.position.z);
+  }
+  
+  // Rotate avatar to face camera direction
+  const camDir = new THREE.Vector3();
+  camera.getWorldDirection(camDir);
+  const angle = Math.atan2(camDir.x, camDir.z);
+  playerAvatar.rotation.y = angle;
+  
+  if (!timeFrozen) active = updateDrift(dt) || active;
   active = updateLerp(dt) || active;
   updateRadioactiveDecay(now);
   if (decayTrack.size) active = true;
+  updateMolecularDecay(now, dt);
+  updateHealth(now, dt);
   updateMayhemParticles(dt);
+  updateReactionEffects(dt);
   updateScreenShake(now);
+  if (reactionVFX.update(dt)) active = true;
+  if (catalystFX.update(dt)) active = true;
+  if (electricityFX.update(dt)) active = true;
   if (mayhemParticles.length) active = true;
+  if (reactionParticles.length || uvBeams.length) active = true;
   if (shakeDuration) active = true;
   if (spawnAnim.size) active = true;
   if (drag) active = true;
+  
+  // Update remote player positions
+  playerSync.update(now);
+  if (playerSync.getPlayerCount() > 0) active = true;
+  
+  // Send local player position to network
+  if (network.roomId) {
+    const pos = gameMode === 'survival' ? movement.getPlayerPos() : camera.position;
+    const camRot = gameMode === 'survival' ? movement.getYaw() : controls.getAzimuthalAngle();
+    const velocity = { x: 0, y: 0, z: 0 }; // TODO: calculate actual velocity
+    playerSync.updateLocalPlayer(
+      { x: pos.x, y: pos.y, z: pos.z },
+      camRot,
+      velocity
+    );
+  }
+  
   autoTick(now);
 
   // Periodic SafeMode check (every ~1 second)
@@ -3709,9 +5672,11 @@ window.__mol3d = {
   _godMode: false,
   simulation,
   kinetics: { createSimulation, compileNetwork, parseRateExpr, rk4Step },
+  vfx: { reactionVFX, catalystFX, electricityFX },
   analyses: () => analyses,
   comps: () => lastComps,
   spawnAtom, reanalyze, selectAtom, undo, clearAll,
+  stabilize: ids => stabilizeStrays(Array.isArray(ids) ? ids : [ids], performance.now()),
   help: () => {
     console.log('%c🧪 Mol3D Console API', 'color: #4CAF50; font-weight: bold; font-size: 14px;');
     console.log('%cCore:', 'color: #2196F3; font-weight: bold;');
@@ -3760,9 +5725,10 @@ window.__mol3d = {
     },
     pick: cond => {
       const fs = selectedFormulas();
-      const rx = findReaction(fs, cond, selectedStructures());
+      const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
+      const rx = findReaction(fs, cond, selectedStructures(), atmosphereGases);
       if (rx) { executeReaction(rx); return rx.equation; }
-      const valid = conditionsFor(fs, selectedStructures());
+      const valid = conditionsFor(fs, selectedStructures(), atmosphereGases);
       return valid.size ? `wrong-condition:${[...valid].join(',')}` : 'none';
     },
     clear: clearReactionSel,
@@ -4132,6 +6098,69 @@ console.log('%c✓ Scene initialized', 'color: #4CAF50; font-weight: bold;', {
   camera: camera.position.toArray(),
 });
 initTutorial();
+initMenu();
+chatManager.init();
+voiceChat.init();
+
+// Handle URL parameters for direct join
+const urlParams = new URLSearchParams(window.location.search);
+const urlMode = urlParams.get('mode');
+const roomCode = urlParams.get('room');
+
+if (urlMode === 'multiplayer' || roomCode) {
+  // Show multiplayer lobby
+  const lobby = document.getElementById('multiplayer-lobby');
+  if (lobby) {
+    lobby.hidden = false;
+  }
+  
+  // If room code provided, show direct join modal
+  if (roomCode) {
+    const directJoinModal = document.getElementById('direct-join-modal');
+    const directJoinRoom = document.getElementById('direct-join-room');
+    const joinRoomCodeInput = document.getElementById('direct-join-room-code');
+    
+    if (directJoinModal && directJoinRoom) {
+      directJoinRoom.textContent = `Room: ${roomCode}`;
+      directJoinModal.hidden = false;
+      
+      // Auto-fill room code if input exists
+      if (joinRoomCodeInput) {
+        joinRoomCodeInput.value = roomCode;
+      }
+    }
+  }
+  
+  // Direct join button handler
+  const btnDirectJoin = document.getElementById('btn-direct-join');
+  if (btnDirectJoin) {
+    btnDirectJoin.addEventListener('click', () => {
+      const username = document.getElementById('direct-join-username')?.value || 'Player';
+      const password = document.getElementById('direct-join-password')?.value || '';
+      
+      if (roomCode) {
+        network.joinRoom(roomCode, username, password);
+      }
+    });
+  }
+  
+  // Start join button handler (from regular join modal)
+  const btnStartJoin = document.getElementById('btn-start-join');
+  if (btnStartJoin) {
+    btnStartJoin.addEventListener('click', () => {
+      const username = document.getElementById('join-username')?.value || 'Player';
+      const roomCode = document.getElementById('join-room-code')?.value || '';
+      const password = document.getElementById('join-password')?.value || '';
+      
+      if (roomCode) {
+        network.joinRoom(roomCode, username, password);
+      }
+    });
+  }
+} else {
+  // Singleplayer mode - start game directly
+  setGameMode('creative');
+}
 
 function updateUndoBtn() {
   document.getElementById('btn-undo').disabled = undoStack.length === 0;
@@ -4144,11 +6173,13 @@ function updateDeleteBtn() {
 }
 
 // ─ Background Music ──
-const musicFiles = import.meta.glob('./assets/music/*.{mp3,wav,ogg,m4a}', { eager: true, import: 'default' });
-const musicTracks = Object.entries(musicFiles).map(([path, url]) => {
-  const name = path.split('/').pop().replace(/\.[^.]+$/, '');
-  return { path: url, name };
-}).sort((a, b) => a.name.localeCompare(b.name));
+const musicTracks = [
+  { path: '/music/Fragments by @AERØHEAD 🇺🇸.mp3', name: 'Fragments by @AERØHEAD 🇺🇸' },
+  { path: '/music/Imphenzia - Discovery Of Planet X.mp3', name: 'Imphenzia - Discovery Of Planet X' },
+  { path: '/music/IN MEMORIAM by Onycs 🇫🇷.mp3', name: 'IN MEMORIAM by Onycs 🇫🇷' },
+  { path: '/music/No.10 A New Beginning.mp3', name: 'No.10 A New Beginning' },
+  { path: '/music/Travis Fitzsimmons - Painting The Solar System.mp3', name: 'Travis Fitzsimmons - Painting The Solar System' },
+].sort((a, b) => a.name.localeCompare(b.name));
 
 let currentTrackIndex = 0;
 const audio = new Audio();
@@ -4424,7 +6455,7 @@ You: "Methane (CH₄) is the simplest hydrocarbon - carbon bonded to 4 hydrogens
         ...questHistory.slice(-10)
       ];
 
-      const response = await puter.ai.chat(messages, { model: 'claude-3-haiku' });
+      const response = await puter.ai.chat(messages, { model: 'claude-3-haiku-20240307' });
       
       typingMsg.remove();
       
@@ -4452,6 +6483,142 @@ You: "Methane (CH₄) is the simplest hydrocarbon - carbon bonded to 4 hydrogens
     }
   }
 })();
+
+// ── Rank Widget ──
+
+function updateRankWidget() {
+  const rankInfo = rankManager.getCurrentRank();
+  const titleEl = document.getElementById('rank-title');
+  const starsEl = document.getElementById('rank-stars');
+  const shieldEl = document.getElementById('rank-shield');
+  const gradeEl = document.getElementById('rank-grade');
+
+  if (titleEl) titleEl.textContent = rankInfo.rank.name;
+  if (starsEl) starsEl.textContent = `${rankInfo.totalStars} ★`;
+  if (shieldEl) {
+    shieldEl.style.backgroundImage = `url('${rankInfo.rank.image}')`;
+    shieldEl.style.backgroundSize = 'cover';
+    shieldEl.style.backgroundPosition = 'center';
+    shieldEl.classList.toggle('sparkle', !!rankInfo.rank.sparkle);
+  }
+  if (gradeEl) {
+    gradeEl.textContent = rankInfo.gradeRoman;
+    gradeEl.style.color = rankInfo.rank.textColor;
+  }
+  
+  // Update feature lock indicators
+  const mayhemBtn = document.getElementById('btn-mayhem');
+  const consoleBtn = document.getElementById('btn-console');
+  if (mayhemBtn) mayhemBtn.classList.toggle('feature-locked', !isFeatureUnlocked('mayhem', rankInfo));
+  if (consoleBtn) consoleBtn.classList.toggle('feature-locked', !isFeatureUnlocked('console', rankInfo));
+}
+
+function triggerRankUpAnimation(rankInfo) {
+  const overlay = document.getElementById('rankup-overlay');
+  const shield = document.getElementById('rankup-shield');
+  const grade = document.getElementById('rankup-grade');
+  const label = document.getElementById('rankup-label');
+  const confetti = document.getElementById('rankup-confetti');
+
+  if (!overlay) return;
+
+  // Set shield appearance
+  shield.style.backgroundImage = `url('${rankInfo.rank.image}')`;
+  shield.style.backgroundSize = 'cover';
+  shield.style.backgroundPosition = 'center';
+  shield.classList.toggle('sparkle', !!rankInfo.rank.sparkle);
+  grade.textContent = rankInfo.gradeRoman;
+  grade.style.color = rankInfo.rank.textColor;
+
+  // Set label
+  if (rankInfo.isRankUp !== false) {
+    label.textContent = `Rank Up! ${rankInfo.rank.name}`;
+  } else {
+    label.textContent = `Grade ${rankInfo.gradeRoman}!`;
+  }
+
+  // Generate confetti
+  confetti.innerHTML = '';
+  const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#ff6bff', '#ff9f45'];
+  for (let i = 0; i < 30; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    const angle = (i / 30) * Math.PI * 2;
+    const dist = 80 + Math.random() * 120;
+    const tx = Math.cos(angle) * dist;
+    const ty = Math.sin(angle) * dist;
+    const color = colors[i % colors.length];
+    const rot = Math.random() * 720;
+    piece.style.cssText = `
+      background: ${color};
+      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+      animation-name: confettiBurst;
+      --tx: ${tx}px;
+      --ty: ${ty}px;
+      --rot: ${rot}deg;
+    `;
+    // Override the animation with custom endpoint
+    piece.style.animation = `confettiBurstCustom 1.5s ease-out 0.8s both`;
+    piece.style.setProperty('--tx', `${tx}px`);
+    piece.style.setProperty('--ty', `${ty}px`);
+    piece.style.setProperty('--rot', `${rot}deg`);
+    confetti.appendChild(piece);
+  }
+
+  // Show overlay
+  overlay.hidden = false;
+
+  // Hide after animation
+  setTimeout(() => {
+    overlay.hidden = true;
+    confetti.innerHTML = '';
+  }, 3000);
+}
+
+// Listen for grade-up events
+rankManager.on('gradeUp', (data) => {
+  triggerRankUpAnimation(data.newRank);
+  updateRankWidget();
+  // Rebuild pool to update locked/unlocked elements
+  const poolWrap = document.getElementById('pool-list');
+  if (poolWrap) {
+    poolWrap.innerHTML = '';
+    buildPool();
+  }
+});
+
+// Initialize rank widget on load
+updateRankWidget();
+
+// Check for daily reward on load
+{
+  const reward = checkDailyReward();
+  if (reward) {
+    const popup = document.getElementById('daily-reward-popup');
+    const dayEl = document.getElementById('daily-reward-day');
+    const starsEl = document.getElementById('daily-reward-stars');
+    const closeBtn = document.getElementById('daily-reward-close');
+    const claimBtn = document.getElementById('daily-reward-claim');
+    
+    if (popup && dayEl && starsEl) {
+      dayEl.textContent = reward.streak;
+      starsEl.textContent = reward.stars;
+      popup.hidden = false;
+      
+      const closePopup = () => { popup.hidden = true; };
+      closeBtn?.addEventListener('click', closePopup);
+      
+      claimBtn?.addEventListener('click', () => {
+        const result = claimDailyReward();
+        if (result) {
+          status(t('rank.dailyClaimed', { stars: result.stars }), 'ok');
+          updateRankWidget();
+        }
+        closePopup();
+      });
+    }
+  }
+}
 
 // ── HMR disposal ──
 if (import.meta.hot) {

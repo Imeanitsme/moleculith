@@ -45,6 +45,20 @@ export const DECOMPOSITION_RULES = [
     },
   },
 
+  // ── Carbonic acid → water + carbon dioxide ──
+  {
+    id: 'carbonicAcid',
+    match: (parsed) => {
+      const h = parsed.get('H') || 0;
+      const c = parsed.get('C') || 0;
+      const o = parsed.get('O') || 0;
+      const metals = getMetals(parsed);
+      // H2CO3: 2 H, 1 C, 3 O, no metals
+      return metals.length === 0 && h === 2 && c === 1 && o === 3;
+    },
+    products: () => ['H2O', 'CO2'],
+  },
+
   // ── Metal hydroxides → metal oxide + H2O (non-alkali) ──
   {
     id: 'hydroxide',

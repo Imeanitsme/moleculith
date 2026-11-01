@@ -198,6 +198,13 @@ let timeSpeed = 1; // Multiplier: 1 = real-time, 2 = 2x speed, etc.
 let timeFrozen = false; // When true, simulation time stops
 let lastRealTime = performance.now();
 
+// THE WORLD limits (survival mode only)
+const WORLD_MAX_DURATION = 15000; // 15 seconds max freeze
+const WORLD_COOLDOWN = 5000; // 5 seconds cooldown after resume
+let worldFreezeStart = 0; // When the current freeze started
+let worldCooldownEnd = 0; // When the cooldown ends
+let worldTimerInterval = null;
+
 function formatSimulationTime(seconds) {
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
@@ -208,7 +215,16 @@ function formatSimulationTime(seconds) {
 function updateTimeDisplay() {
   const display = document.getElementById('time-display');
   if (display) {
-    display.textContent = timeFrozen ? 'FROZEN' : formatSimulationTime(simulationTime);
+    if (timeFrozen && gameMode === 'survival') {
+      // Show countdown in red for survival mode
+      const elapsed = Date.now() - worldFreezeStart;
+      const remaining = Math.max(0, Math.ceil((WORLD_MAX_DURATION - elapsed) / 1000));
+      display.textContent = `FROZEN ${remaining}s`;
+      display.style.color = '#f85149';
+    } else {
+      display.textContent = timeFrozen ? 'FROZEN' : formatSimulationTime(simulationTime);
+      display.style.color = '';
+    }
   }
   const label = document.getElementById('time-speed-label');
   if (label) {
@@ -216,7 +232,98 @@ function updateTimeDisplay() {
   }
 }
 
+function canFreezeTime() {
+  // In creative mode, always allow
+  if (gameMode === 'creative') return true;
+  // In survival mode, check cooldown
+  return Date.now() >= worldCooldownEnd;
+}
+
+function startWorldTimer() {
+  worldFreezeStart = Date.now();
+  if (worldTimerInterval) clearInterval(worldTimerInterval);
+  worldTimerInterval = setInterval(() => {
+    if (!timeFrozen) {
+      clearInterval(worldTimerInterval);
+      worldTimerInterval = null;
+      return;
+    }
+    const elapsed = Date.now() - worldFreezeStart;
+    if (elapsed >= WORLD_MAX_DURATION) {
+      // Auto-resume after 15 seconds
+      clearInterval(worldTimerInterval);
+      worldTimerInterval = null;
+      resumeTime();
+      status(' THE WORLD - Time limit reached', 'err');
+    } else {
+      updateTimeDisplay();
+    }
+  }, 100);
+}
+
+function resumeTime() {
+  timeFrozen = false;
+  document.body.classList.remove('time-stopped');
+  const btn = document.getElementById('btn-time-freeze');
+  if (btn) {
+    btn.classList.remove('frozen');
+    btn.textContent = '❄️';
+  }
+  lastRealTime = performance.now();
+  
+  // Set cooldown for survival mode
+  if (gameMode === 'survival') {
+    worldCooldownEnd = Date.now() + WORLD_COOLDOWN;
+    updateFreezeButtonCooldown();
+  }
+  
+  updateTimeDisplay();
+  
+  // Broadcast time resume to other players
+  if (network.roomId) {
+    network.broadcast(null, MSG.TIME_RESUME, {
+      playerId: network.playerId,
+      timestamp: Date.now(),
+    });
+  }
+}
+
+function updateFreezeButtonCooldown() {
+  const btn = document.getElementById('btn-time-freeze');
+  const modalBtn = document.getElementById('btn-modal-freeze');
+  if (!btn) return;
+  
+  const updateBtn = (b) => {
+    if (!b) return;
+    const remaining = Math.max(0, worldCooldownEnd - Date.now());
+    if (remaining > 0 && gameMode === 'survival') {
+      b.disabled = true;
+      b.classList.add('on-cooldown');
+      b.title = `Cooldown: ${Math.ceil(remaining / 1000)}s`;
+    } else {
+      b.disabled = false;
+      b.classList.remove('on-cooldown');
+      b.title = '';
+    }
+  };
+  
+  updateBtn(btn);
+  updateBtn(modalBtn);
+  
+  // Continue updating until cooldown expires
+  if (Date.now() < worldCooldownEnd) {
+    setTimeout(updateFreezeButtonCooldown, 100);
+  }
+}
+
 function toggleFreeze() {
+  // Check if we can freeze (survival mode cooldown)
+  if (!canFreezeTime()) {
+    const remaining = Math.ceil((worldCooldownEnd - Date.now()) / 1000);
+    status(` Time freeze on cooldown: ${remaining}s`, 'err');
+    return;
+  }
+  
   timeFrozen = !timeFrozen;
   document.body.classList.toggle('time-stopped', timeFrozen);
   const btn = document.getElementById('btn-time-freeze');
@@ -226,6 +333,15 @@ function toggleFreeze() {
   }
   if (!timeFrozen) {
     lastRealTime = performance.now();
+    if (worldTimerInterval) {
+      clearInterval(worldTimerInterval);
+      worldTimerInterval = null;
+    }
+  } else {
+    // Starting freeze - start timer for survival mode
+    if (gameMode === 'survival') {
+      startWorldTimer();
+    }
   }
   updateTimeDisplay();
   
@@ -876,6 +992,10 @@ network.onMessage = (peerId, msgType, payload) => {
         btn.classList.add('frozen');
         btn.textContent = '▶️';
       }
+      // Start timer for survival mode (sync with host)
+      if (gameMode === 'survival') {
+        startWorldTimer();
+      }
       updateTimeDisplay();
       triggerTheWorld();
       status(' Time frozen by another player', 'ok');
@@ -891,6 +1011,10 @@ network.onMessage = (peerId, msgType, payload) => {
         btn.textContent = '❄️';
       }
       lastRealTime = performance.now();
+      if (worldTimerInterval) {
+        clearInterval(worldTimerInterval);
+        worldTimerInterval = null;
+      }
       updateTimeDisplay();
       triggerTimeResume();
       status(' Time resumed by another player', 'ok');

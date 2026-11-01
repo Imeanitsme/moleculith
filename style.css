@@ -630,6 +630,12 @@ html, body {
   animation: freeze-pulse 1.5s ease-in-out infinite;
 }
 
+.time-btn.on-cooldown {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--muted);
+}
+
 @keyframes freeze-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }

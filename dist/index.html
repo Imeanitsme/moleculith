@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#050810" />
+  <title>Molecule Builder 3D</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script type="module" crossorigin src="./assets/main-B4M_2y0H.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/i18n-DC9sCwqE.js">
+  <link rel="stylesheet" crossorigin href="./assets/i18n-Bg2gicM7.css">
+</head>
+<body>
+  <!-- Main Menu Overlay -->
+  <div id="main-menu" class="main-menu-overlay">
+    <div class="main-menu-content">
+      <h1 class="game-title">Molecule Builder 3D</h1>
+      <div class="menu-buttons">
+        <button id="btn-singleplayer" class="menu-btn primary">
+          <i data-lucide="user"></i>
+          <span data-i18n="menu.singleplayer">Singleplayer</span>
+        </button>
+        <button id="btn-multiplayer" class="menu-btn">
+          <i data-lucide="users"></i>
+          <span data-i18n="menu.multiplayer">Multiplayer</span>
+        </button>
+        <button id="btn-settings" class="menu-btn">
+          <i data-lucide="settings"></i>
+          <span data-i18n="menu.settings">Settings</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay" hidden>
+    <div class="modal-content">
+      <button class="modal-close" data-close="settings-modal">&times;</button>
+      <h3 data-i18n="settings.title">Settings</h3>
+      <div class="settings-group">
+        <button id="settings-theme" class="settings-btn">
+          <i data-lucide="palette"></i>
+          <span data-i18n="settings.theme">Theme: Dark</span>
+        </button>
+        <button id="settings-lang" class="settings-btn">
+          <i data-lucide="globe"></i>
+          <span data-i18n="settings.language">Language: EN</span>
+        </button>
+        <button id="settings-quality" class="settings-btn">
+          <i data-lucide="monitor"></i>
+          <span data-i18n="settings.quality">Quality: Auto</span>
+        </button>
+        <div class="settings-volume">
+          <label data-i18n="settings.volume">Volume</label>
+          <input type="range" id="settings-volume-slider" min="0" max="100" value="50" />
+        </div>
+      </div>
+      <button id="settings-back" class="modal-btn primary" data-i18n="settings.back">Back</button>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+
+  <!-- Sound Effects -->
+  <audio id="sfx-timestop" src="./sfx/timestop.mp3" preload="auto"></audio>
+  <audio id="sfx-timeresume" src="./sfx/timeresume.mp3" preload="auto"></audio>
+  <audio id="sfx-acceleration" src="./sfx/acceleration.mp3" preload="auto"></audio>
+</body>
+</html>

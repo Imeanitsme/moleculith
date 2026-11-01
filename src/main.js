@@ -6159,6 +6159,11 @@ if (urlMode === 'multiplayer' || roomCode) {
   }
 } else {
   // Singleplayer mode - start game directly
+  const mainMenu = document.getElementById('main-menu');
+  if (mainMenu) {
+    mainMenu.hidden = true;
+    mainMenu.style.display = 'none';
+  }
   setGameMode('creative');
 }
 

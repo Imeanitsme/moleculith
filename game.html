@@ -4,10 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#050810" />
-  <title>Molecule Builder 3D</title>
+  <title>Molecule Builder 3D</title>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <!-- PeerJS (Peer-to-Peer WebRTC) -->
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/i18n-58f72348.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-4f228aae.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-f12d1dcc.js">
@@ -34,8 +32,9 @@
   <link rel="modulepreload" crossorigin href="./assets/i18n-83625b1b.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-8ccc4c8a.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-d3b0d586.js">
-  <link rel="modulepreload" crossorigin href="./assets/i18n-b5efd1bd.js">
-  <script type="module" crossorigin src="./assets/game-Bf4RzCmu.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/i18n-b5efd1bd.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-83f75225.js">
+  <script type="module" crossorigin src="./assets/game-CphWOt49.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/i18n-d41d8cd9.js">
   <link rel="stylesheet" crossorigin href="./assets/i18n-61e53a4e.css">
 </head>
@@ -178,16 +177,10 @@
 
     <!-- Center scene -->
     <main id="scene-wrap">
-      <!-- Top bar: mode + multiplayer info -->
+      <!-- Top bar: mode -->
       <div id="top-bar" class="top-bar">
         <div class="top-bar-left">
           <span id="top-mode-badge" class="top-badge">Singleplayer</span>
-        </div>
-        <div id="top-bar-mp" class="top-bar-right" hidden>
-          <span id="top-room-name" class="top-room-name">Room: —</span>
-          <button id="top-btn-roster" class="top-btn" title="Channel Roster"><i data-lucide="users"></i> <span id="top-roster-count">0</span></button>
-          <button id="top-btn-share" class="top-btn" title="Share Room"><i data-lucide="share-2"></i></button>
-          <button id="top-btn-exit" class="top-btn top-btn-exit" title="Exit Room"><i data-lucide="log-out"></i></button>
         </div>
       </div>
       <!-- Health bar (top-left) -->
@@ -308,7 +301,6 @@
       <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
       <button id="btn-credits" data-i18n="btn.credits">Credits</button>
       <button id="btn-console" data-i18n="btn.console">Console</button>
-      <button id="btn-return-lobby" data-i18n="btn.returnLobby" hidden>Return to Lobby</button>
       <div class="menu-divider"></div>
       <button id="btn-game-mode" data-i18n="btn.gameMode" data-i18n-title="btn.gameMode.title">Mode: Survival</button>
       <button id="btn-export" data-i18n="btn.export" data-i18n-title="btn.export.title">Export Progress</button>
@@ -504,10 +496,6 @@
           <i data-lucide="user"></i>
           <span data-i18n="menu.singleplayer">Singleplayer</span>
         </button>
-        <button id="btn-multiplayer" class="menu-btn">
-          <i data-lucide="users"></i>
-          <span data-i18n="menu.multiplayer">Multiplayer</span>
-        </button>
         <button id="btn-settings" class="menu-btn">
           <i data-lucide="settings"></i>
           <span data-i18n="menu.settings">Settings</span>
@@ -543,101 +531,6 @@
     </div>
   </div>
 
-  <!-- Multiplayer Lobby -->
-  <div id="multiplayer-lobby" class="lobby-overlay" hidden>
-    <div class="lobby-content">
-      <button id="lobby-back" class="lobby-back-btn">
-        <i data-lucide="arrow-left"></i>
-        <span data-i18n="lobby.back">Back</span>
-      </button>
-      <h2 data-i18n="lobby.title">Multiplayer Lobby</h2>
-      <div class="lobby-buttons">
-        <button id="btn-host-room" class="lobby-btn">
-          <i data-lucide="server"></i>
-          <span data-i18n="lobby.hostRoom">Host Room</span>
-        </button>
-        <button id="btn-join-room" class="lobby-btn">
-          <i data-lucide="log-in"></i>
-          <span data-i18n="lobby.joinRoom">Join via Code</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Host Room Modal -->
-  <div id="host-room-modal" class="modal-overlay" hidden>
-    <div class="modal-content">
-      <button class="modal-close" data-close="host-room-modal">&times;</button>
-      <h3 data-i18n="host.title">Host a Room</h3>
-      <div class="form-group">
-        <label data-i18n="host.username">Username</label>
-        <input type="text" id="host-username" placeholder="Enter your name" maxlength="20" />
-      </div>
-      <div class="form-group">
-        <label data-i18n="host.roomCode">Room Code (optional)</label>
-        <input type="text" id="host-room-code" placeholder="Auto-generated if empty" maxlength="6" />
-      </div>
-      <div class="form-group">
-        <label>
-          <input type="checkbox" id="host-password-enabled" />
-          <span data-i18n="host.enablePassword">Require Password</span>
-        </label>
-      </div>
-      <div class="form-group" id="host-password-group" hidden>
-        <label data-i18n="host.password">Password</label>
-        <input type="password" id="host-password" placeholder="Enter room password" maxlength="20" />
-      </div>
-      <button id="btn-start-hosting" class="modal-btn primary">
-        <i data-lucide="play"></i>
-        <span data-i18n="host.start">Start Hosting</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Join Room Modal -->
-  <div id="join-room-modal" class="modal-overlay" hidden>
-    <div class="modal-content">
-      <button class="modal-close" data-close="join-room-modal">&times;</button>
-      <h3 data-i18n="join.title">Join a Room</h3>
-      <div class="form-group">
-        <label data-i18n="join.username">Username</label>
-        <input type="text" id="join-username" placeholder="Enter your name" maxlength="20" />
-      </div>
-      <div class="form-group">
-        <label data-i18n="join.roomCode">Room Code</label>
-        <input type="text" id="join-room-code" placeholder="Enter 6-character code" maxlength="6" />
-      </div>
-      <div class="form-group">
-        <label data-i18n="join.password">Password (if required)</label>
-        <input type="password" id="join-password" placeholder="Leave empty if none" maxlength="20" />
-      </div>
-      <button id="btn-start-join" class="modal-btn primary">
-        <i data-lucide="log-in"></i>
-        <span data-i18n="join.connect">Connect</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Direct Join Modal (from invite link) -->
-  <div id="direct-join-modal" class="modal-overlay" hidden>
-    <div class="modal-content">
-      <h3 data-i18n="directJoin.title">Joining Room</h3>
-      <p class="room-info" id="direct-join-room"></p>
-      <div class="form-group">
-        <label data-i18n="directJoin.username">Username</label>
-        <input type="text" id="direct-join-username" placeholder="Enter your name" maxlength="20" />
-      </div>
-      <div class="form-group" id="direct-join-password-group" hidden>
-        <label data-i18n="directJoin.password">Password</label>
-        <input type="password" id="direct-join-password" placeholder="Enter room password" maxlength="20" />
-      </div>
-      <button id="btn-direct-join" class="modal-btn primary">
-        <i data-lucide="log-in"></i>
-        <span data-i18n="directJoin.join">Join Room</span>
-      </button>
-    </div>
-  </div>
-
   <!-- Revive Modal -->
   <div id="revive-modal" class="modal-overlay" hidden>
     <div class="modal-content modal-sm">
@@ -650,34 +543,6 @@
       </button>
     </div>
   </div>
-
-  <!-- Chat Box -->
-  <div id="chat-box" class="chat-box" hidden>
-    <div class="chat-header" id="chat-header">
-      <span class="chat-title">Chat</span>
-      <div class="chat-controls">
-        <button class="chat-btn" id="chat-minimize" title="Minimize">
-          <i data-lucide="minus"></i>
-        </button>
-        <button class="chat-btn" id="chat-close" title="Close">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-    </div>
-    <div class="chat-messages" id="chat-messages"></div>
-    <div class="chat-input-row">
-      <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="200" />
-      <button id="chat-send" class="chat-send-btn">
-        <i data-lucide="send"></i>
-      </button>
-    </div>
-    <div class="chat-resize" id="chat-resize"></div>
-  </div>
-
-  <!-- Chat Toggle Button -->
-  <button id="btn-chat-toggle" class="chat-toggle-btn" hidden title="Toggle Chat">
-    <i data-lucide="message-square"></i>
-  </button>
 
   <!-- Preloaded Audio SFX -->
   <audio id="sfx-timestop" src="./assets/timestop-d718daa2.mp3" preload="auto"></audio>
@@ -710,6 +575,6 @@
     </div>
   </div>
 
-  <script src="https://js.puter.com/v2/"></script>
+  <script src="https://js.puter.com/v2/"></script>
 </body>
 </html>

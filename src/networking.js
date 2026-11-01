@@ -15,6 +15,14 @@ export const MSG = {
   TIME_SPEED: 9,
   PLAYER_DEAD: 10,
   PLAYER_REVIVE: 11,
+  ATOM_MOVE: 12,
+  BOND_ADD: 13,
+  BOND_REMOVE: 14,
+  CHARGE_SET: 15,
+  ATOM_ADD: 16,
+  ATOM_REMOVE: 17,
+  REACTION: 18,
+  WORLD_SYNC: 19,
 };
 
 const SEND_INTERVAL = 50; // ms (20 updates/sec)

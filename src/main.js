@@ -31,6 +31,7 @@ import { DECOMPOSITION_RULES } from './data/decomposition-rules.js';
 import { initMenu } from './menu.js';
 import { network } from './networking.js';
 import { playerSync } from './playerSync.js';
+import { worldSync } from './worldSync.js';
 import { chatManager } from './chat.js';
 import { voiceChat } from './voiceChat.js';
 
@@ -851,10 +852,18 @@ scene.fog = new THREE.Fog(0x0d1117, 34, 80);
 
 // Initialize player synchronization
 playerSync.init(scene);
+playerSync.setWorldStateProvider(getWorldState);
 
 // Handle incoming time control messages from other players
 network.onMessage = (peerId, msgType, payload) => {
   const data = payload[0];
+  
+  // Handle player position updates (for playerSync)
+  if (msgType === MSG.MOVE && data) {
+    playerSync.handlePositionUpdate(peerId, payload);
+    return;
+  }
+  
   if (!data) return;
   
   if (msgType === MSG.TIME_FREEZE) {
@@ -928,6 +937,59 @@ network.onMessage = (peerId, msgType, payload) => {
           status(`${remotePlayer.username} has been revived`, 'ok');
         }
       }
+    }
+  } else if (msgType === MSG.ATOM_MOVE) {
+    if (data && data.id) {
+      const at = atoms.get(data.id);
+      if (at) {
+        at.pos = { x: data.x, y: data.y, z: data.z };
+        needsRender = true;
+      }
+    }
+  } else if (msgType === MSG.BOND_ADD) {
+    if (data && data.id) {
+      if (!bonds.has(data.id)) {
+        bonds.set(data.id, { id: data.id, a: data.a, b: data.b, order: data.order, ionic: data.ionic });
+        needsRender = true;
+      }
+    }
+  } else if (msgType === MSG.BOND_REMOVE) {
+    if (data && data.id) {
+      if (bonds.delete(data.id)) {
+        needsRender = true;
+      }
+    }
+  } else if (msgType === MSG.CHARGE_SET) {
+    if (data && data.key !== undefined) {
+      overrides.set(data.key, data.charge);
+      needsRender = true;
+    }
+  } else if (msgType === MSG.ATOM_ADD) {
+    if (data && data.id) {
+      if (!atoms.has(data.id)) {
+        atoms.set(data.id, { id: data.id, el: data.el, pos: { x: data.x, y: data.y, z: data.z } });
+        needsRender = true;
+      }
+    }
+  } else if (msgType === MSG.ATOM_REMOVE) {
+    if (data && data.id) {
+      if (atoms.delete(data.id)) {
+        // Remove any bonds connected to this atom
+        for (const [bid, b] of bonds) {
+          if (b.a === data.id || b.b === data.id) bonds.delete(bid);
+        }
+        needsRender = true;
+      }
+    }
+  } else if (msgType === MSG.REACTION) {
+    // Reaction already happened on host, sync is for visual consistency
+    // The individual atom/bond changes will arrive via other messages
+    if (data && data.equation) {
+      status(`Reaction: ${data.equation}`, 'ok');
+    }
+  } else if (msgType === MSG.WORLD_SYNC) {
+    if (data) {
+      applyWorldSync(data);
     }
   }
 };
@@ -1786,6 +1848,7 @@ function createBond(aId, bId) {
   status(chk.type === 'ionic'
     ? t('status.ionicBond', { a: elA, b: elB })
     : t('status.covBond', { a: elA, b: elB }), 'ok');
+  worldSync.broadcastBondAdd(bonds.get(id));
   return true;
 }
 
@@ -1796,6 +1859,7 @@ function removeBond(bid, undoable = true) {
   const oldKey = compKey(compBefore);
   const ov = overrides.get(oldKey);
   bonds.delete(bid);
+  worldSync.broadcastBondRemove(bid);
   if (ov !== undefined) {
     const pieces = componentsOf(atoms, bonds)
       .filter(c => c.atoms.some(x => compBefore.atoms.includes(x)) && c.bonds.length > 0);
@@ -1816,6 +1880,7 @@ function removeAtom(id, undoable = true) {
   const bondSnaps = bondsOf(atoms, bonds, id).map(b => ({ ...b }));
   for (const b of bondSnaps) bonds.delete(b.id);
   atoms.delete(id);
+  worldSync.broadcastAtomRemove(id);
   if (selectedId === id) { selectedId = null; updateDeleteBtn(); }
   if (hoverId === id) hoverId = null;
   if (ov !== undefined) {
@@ -1833,6 +1898,7 @@ function setBondOrder(bid, n) {
   if (!b) return;
   pushUndo({ type: 'order', bondId: bid, prev: b.order });
   b.order = n;
+  worldSync.broadcastBondAdd(b);
   reanalyze();
   status(b.ionic ? t('status.orderIonic', { n }) : t('status.orderCov', { n }), 'ok');
 }
@@ -1909,6 +1975,7 @@ function spawnAtom(elOrSym) {
   if (!pos) pos = { x: (nextId % 7) * 1.5 - 4.5, y: 6, z: 0 };
   const id = nextId++;
   atoms.set(id, { id, el, pos });
+  worldSync.broadcastAtomAdd(atoms.get(id));
   spawnAnim.set(id, performance.now());
   trackRadioactiveAtom(id, atoms.get(id), performance.now());
   pushUndo({ type: 'add', id });
@@ -2518,6 +2585,9 @@ function executeReaction(rx) {
   if (rx.type) {
     questManager.checkReaction(rx.type);
   }
+  
+  // Broadcast full world sync after reaction (reactions are complex atomic operations)
+  worldSync.sendWorldSync(getWorldState);
 }
 
 const mayhemParticles = [];
@@ -3038,6 +3108,8 @@ function onPointerUp(e) {
         }
         reanalyze(new Set([d.id]));
       }
+      const at = atoms.get(d.id);
+      if (at) worldSync.broadcastAtomMove(d.id, at.pos);
     } finally {
       // Always re-enable controls, even if an error occurred during drag cleanup
       controls.enabled = true;
@@ -4433,9 +4505,67 @@ function nudgeCharge(d) {
   const v = (overrides.has(key) ? overrides.get(key) : cur.an.charge) + d;
   if (Math.abs(v) > 6) { status(t('status.chargeLimit'), 'err'); return; }
   overrides.set(key, v);
+  worldSync.broadcastChargeSet(key, v);
   pushUndo({ type: 'snapshot', atoms: [...atoms.values()].map(snapAtom), bonds: [...bonds.values()].map(b => ({ ...b })), overrides: [...overrides], iso: [...isoSel], nextId: nextId });
   reanalyze();
   status(t('status.chargeSet', { v: fmtCharge(v) }), 'ok');
+}
+
+// ---------------------------------------------------------------------------
+// World state sync for multiplayer
+// ---------------------------------------------------------------------------
+function getWorldState() {
+  const atomsArr = [];
+  for (const a of atoms.values()) {
+    atomsArr.push({ id: a.id, el: a.el.sym, x: a.pos.x, y: a.pos.y, z: a.pos.z });
+  }
+  const bondsArr = [];
+  for (const b of bonds.values()) {
+    bondsArr.push({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic });
+  }
+  const overridesArr = [];
+  for (const [k, v] of overrides) {
+    overridesArr.push([k, v]);
+  }
+  return { atoms: atomsArr, bonds: bondsArr, overrides: overridesArr, nextId };
+}
+
+function applyWorldSync(data) {
+  if (!data) return;
+  
+  atoms.clear();
+  bonds.clear();
+  overrides.clear();
+  
+  if (data.atoms) {
+    for (const a of data.atoms) {
+      const el = elementBySym(a.el);
+      if (el) {
+        atoms.set(a.id, { id: a.id, el, pos: { x: a.x, y: a.y, z: a.z } });
+      }
+    }
+  }
+  
+  if (data.bonds) {
+    for (const b of data.bonds) {
+      bonds.set(b.id, { id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic });
+    }
+  }
+  
+  if (data.overrides) {
+    for (const [k, v] of data.overrides) {
+      overrides.set(k, v);
+    }
+  }
+  
+  if (typeof data.nextId === 'number') {
+    nextId = Math.max(nextId, data.nextId);
+  }
+  
+  selectedId = null;
+  hoverId = null;
+  reanalyze();
+  needsRender = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -5309,7 +5439,9 @@ document.getElementById('chg-plus').addEventListener('click', () => nudgeCharge(
 document.getElementById('chg-auto').addEventListener('click', () => {
   const cur = currentComp();
   if (!cur || cur.comp.bonds.length === 0) { status(t('status.selectFirst')); return; }
-  overrides.delete(compKey(cur.comp));
+  const key = compKey(cur.comp);
+  overrides.delete(key);
+  worldSync.broadcastChargeSet(key, undefined);
   reanalyze();
   status(t('status.chargeAuto'));
 });

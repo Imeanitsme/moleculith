@@ -1,6 +1,7 @@
 // Player synchronization with dead reckoning and interpolation
 import * as THREE from 'three';
 import { network, MSG } from './networking.js';
+import { worldSync } from './worldSync.js';
 
 const INTERPOLATION_DELAY = 100; // ms - buffer for smooth interpolation
 const INTERPOLATION_DURATION = 100; // ms - time to interpolate between positions
@@ -204,6 +205,7 @@ class PlayerSync {
     this.localPlayer = null;
     this.scene = null;
     this.enabled = false;
+    this.getWorldState = null; // Function to get current world state for sync
   }
   
   init(scene) {
@@ -219,11 +221,20 @@ class PlayerSync {
     
     network.onPlayerJoin = (peerId, playerData) => {
       this.addRemotePlayer(peerId, playerData);
+      // Send world state to new player if we're the host
+      if (network.isHost && this.getWorldState) {
+        const state = this.getWorldState();
+        network.sendMessage(peerId, MSG.WORLD_SYNC, state);
+      }
     };
     
     network.onPlayerLeave = (peerId) => {
       this.removeRemotePlayer(peerId);
     };
+  }
+  
+  setWorldStateProvider(fn) {
+    this.getWorldState = fn;
   }
   
   // Add a remote player

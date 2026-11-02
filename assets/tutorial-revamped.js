@@ -39,7 +39,7 @@
     {
       id: 'bonding', name: 'Bonding & Reactions',
       steps: [
-        { text: "Now let's learn about bonds! Spawn another H atom.", action: 'waitForSpawn', threshold: 2 },
+        { target: '#pool-list', text: "Now let's learn about bonds! Spawn another H atom.", action: 'waitForSpawn', threshold: 2 },
         { text: 'Two H atoms will automatically form H\u2082 \u2014 molecular hydrogen!', action: 'next' },
         { text: 'Double-click molecules to see reactions. Try combining different elements!', action: 'next' },
         { target: '#btn-fc', text: 'This shows formal charges on atoms. Useful for understanding reactivity.', action: 'highlight' },

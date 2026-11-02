@@ -5,6 +5,9 @@
   let timerInterval = null;
   let timerAtomId = null;
 
+  // Noble gas atomic numbers - inert, unwavering
+  const NOBLE_GASES = new Set([2, 10, 18, 36, 54, 86, 118]);
+
   function showStatus(msg) {
     const el = document.getElementById('status-text');
     if (el) { el.textContent = msg; el.className = 'info'; }
@@ -61,18 +64,33 @@
     var atom = window.__mol3d.atoms.get(atomId);
     if (!atom) return;
 
-    if (atom.el.z > 82) {
+    // Z>82: radioactive, starts critical timer
+    if (atom.el.z >= 82) {
       startCriticalTimer(atom, atomId);
     } else {
-      addProton(atom);
+      addProton(atom, atomId);
     }
   }
 
-  function addProton(atom) {
-    var newEl = findElement(atom.el.z + 1);
+  function addProton(atom, atomId) {
+    var newZ = atom.el.z + 1;
+    var newEl = findElement(newZ);
     if (!newEl) { showStatus('No element above Z=' + atom.el.z); return; }
+
+    // Check if result would be a noble gas (inert, unwavering)
+    if (NOBLE_GASES.has(newZ)) {
+      showStatus('Cannot create noble gas ' + newEl.name + ' - inert and unwavering!');
+      return;
+    }
+
     atom.el = newEl;
-    showStatus('Added proton: ' + newEl.name);
+    showStatus('Added proton: ' + newEl.name + ' (Z=' + newZ + ')');
+
+    // Update x-ray visualization in real-time if active
+    if (window.__xray && window.__xray.isActive && window.__xray.isActive()) {
+      window.__xray.updateAtom(atomId, atom);
+    }
+
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.renderer && window.__mol3d.camera) {
       window.__mol3d.renderer.render(window.__mol3d.scene, window.__mol3d.camera);
@@ -80,15 +98,32 @@
   }
 
   function startCriticalTimer(atom, atomId) {
-    if (timerInterval) return;
+    // Clear any existing timer first
+    clearCriticalTimer();
+
     timerAtomId = atomId;
     var countdown = 60;
+
+    // Show initial message immediately
     showStatus('CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') - ' + countdown + 's to fission!');
+
     timerInterval = setInterval(function() {
-      if (!window.__mol3d || !window.__mol3d.atoms.has(atomId)) { clearCriticalTimer(); return; }
+      if (!window.__mol3d || !window.__mol3d.atoms.has(atomId)) {
+        clearCriticalTimer();
+        return;
+      }
+
       countdown--;
-      if (countdown <= 0) { clearCriticalTimer(); triggerFission(atomId); }
-      else if (countdown <= 10) { showStatus('CRITICAL: ' + countdown + 's remaining!'); }
+
+      // Always show countdown (not just when <= 10)
+      if (countdown > 0) {
+        showStatus('CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') - ' + countdown + 's to fission!');
+      }
+
+      if (countdown <= 0) {
+        clearCriticalTimer();
+        triggerFission(atomId);
+      }
     }, 1000);
   }
 

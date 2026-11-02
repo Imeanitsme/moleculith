@@ -1,9 +1,7 @@
 // Proton Gun & Nuclear Fission System - Standalone module
 (function() {
   'use strict';
-
   let active = false;
-  let timerRunning = false;
   let timerInterval = null;
   let timerAtomId = null;
 
@@ -14,7 +12,6 @@
 
   function clearCriticalTimer() {
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-    timerRunning = false;
     timerAtomId = null;
   }
 
@@ -27,11 +24,18 @@
     return els ? els.find(function(e) { return e.z === z; }) : null;
   }
 
-  function shootProton(event) {
-    if (!active || !window.__mol3d) return;
-    var THREE = window.__mol3d.THREE;
-    if (!THREE) return;
+  function findAtomMeshes() {
+    if (!window.__mol3d || !window.__mol3d.scene) return [];
+    var meshes = [];
+    window.__mol3d.scene.traverse(function(obj) {
+      if (obj.isInstancedMesh && obj.userData.ids) meshes.push(obj);
+    });
+    return meshes;
+  }
 
+  function shootProton(event) {
+    if (!active || !window.__mol3d || !window.__mol3d.THREE) return;
+    var THREE = window.__mol3d.THREE;
     var camera = window.__mol3d.camera;
     var renderer = window.__mol3d.renderer;
     if (!camera || !renderer) return;
@@ -45,7 +49,7 @@
     var raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    var meshes = [window.__mol3d.atomMeshM, window.__mol3d.atomMeshN].filter(Boolean);
+    var meshes = findAtomMeshes();
     var hits = raycaster.intersectObjects(meshes);
     if (!hits.length) return;
 
@@ -67,35 +71,24 @@
   function addProton(atom) {
     var newEl = findElement(atom.el.z + 1);
     if (!newEl) { showStatus('No element above Z=' + atom.el.z); return; }
-
     atom.el = newEl;
     showStatus('Added proton: ' + newEl.name);
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
-    if (window.__mol3d.invalidate) window.__mol3d.invalidate();
+    if (window.__mol3d.renderer && window.__mol3d.camera) {
+      window.__mol3d.renderer.render(window.__mol3d.scene, window.__mol3d.camera);
+    }
   }
 
   function startCriticalTimer(atom, atomId) {
-    if (timerRunning) return;
-    timerRunning = true;
+    if (timerInterval) return;
     timerAtomId = atomId;
     var countdown = 60;
-    var name = atom.el.name;
-    var z = atom.el.z;
-
-    showStatus('CRITICAL: ' + name + ' (Z=' + z + ') - ' + countdown + 's to fission!');
-
+    showStatus('CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') - ' + countdown + 's to fission!');
     timerInterval = setInterval(function() {
-      if (!window.__mol3d || !window.__mol3d.atoms.has(atomId)) {
-        clearCriticalTimer();
-        return;
-      }
+      if (!window.__mol3d || !window.__mol3d.atoms.has(atomId)) { clearCriticalTimer(); return; }
       countdown--;
-      if (countdown <= 0) {
-        clearCriticalTimer();
-        triggerFission(atomId);
-      } else if (countdown <= 10) {
-        showStatus('CRITICAL: ' + countdown + 's remaining!');
-      }
+      if (countdown <= 0) { clearCriticalTimer(); triggerFission(atomId); }
+      else if (countdown <= 10) { showStatus('CRITICAL: ' + countdown + 's remaining!'); }
     }, 1000);
   }
 
@@ -103,34 +96,32 @@
     if (!window.__mol3d || !window.__mol3d.atoms) return;
     var atom = window.__mol3d.atoms.get(atomId);
     if (!atom) return;
-
-    var THREE = window.__mol3d.THREE;
     var oldZ = atom.el.z;
     var oldName = atom.el.name;
     var pos = atom.pos;
     var split1 = Math.floor(oldZ / 2);
     var split2 = oldZ - split1;
-
     var el1 = findElement(split1);
     var el2 = findElement(split2);
     if (!el1 || !el2) return;
 
     window.__mol3d.atoms.delete(atomId);
-
     for (var entry of window.__mol3d.bonds) {
       var b = entry[1];
       if (b.a === atomId || b.b === atomId) window.__mol3d.bonds.delete(entry[0]);
     }
 
-    if (THREE && window.__mol3d.vfx && window.__mol3d.vfx.reactionVFX) {
+    if (window.__mol3d.vfx && window.__mol3d.vfx.reactionVFX && window.__mol3d.THREE) {
       window.__mol3d.vfx.reactionVFX.explode(
-        new THREE.Vector3(pos.x, pos.y, pos.z), 3.0, new THREE.Color(0xff0000)
+        new window.__mol3d.THREE.Vector3(pos.x, pos.y, pos.z), 3.0, new window.__mol3d.THREE.Color(0xff0000)
       );
     }
 
     showStatus(oldName + ' underwent fission: ' + el1.name + ' + ' + el2.name);
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
-    if (window.__mol3d.invalidate) window.__mol3d.invalidate();
+    if (window.__mol3d.renderer && window.__mol3d.camera) {
+      window.__mol3d.renderer.render(window.__mol3d.scene, window.__mol3d.camera);
+    }
   }
 
   function init() {
@@ -153,9 +144,7 @@
     }
 
     if (!attachClick()) {
-      var poll = setInterval(function() {
-        if (attachClick()) clearInterval(poll);
-      }, 200);
+      var poll = setInterval(function() { if (attachClick()) clearInterval(poll); }, 200);
     }
 
     window.__protonGun = {

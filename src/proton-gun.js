@@ -2,196 +2,169 @@
 (function() {
   'use strict';
 
-  let protonGunActive = false;
-  let criticalTimerActive = false;
-  let criticalCountdown = 60.0;
-  let criticalInterval = null;
+  let active = false;
+  let timerRunning = false;
+  let timerInterval = null;
+  let timerAtomId = null;
 
-  function toggleProtonGun() {
-    protonGunActive = !protonGunActive;
-    showStatus(protonGunActive ? 'Proton gun activated - Click atoms to shoot!' : 'Proton gun deactivated');
-    return protonGunActive;
+  function showStatus(msg) {
+    const el = document.getElementById('status-text');
+    if (el) { el.textContent = msg; el.className = 'info'; }
+  }
+
+  function clearCriticalTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    timerRunning = false;
+    timerAtomId = null;
+  }
+
+  function getElements() {
+    return (window.__mol3d && window.__mol3d.ELEMENTS) || null;
+  }
+
+  function findElement(z) {
+    const els = getElements();
+    return els ? els.find(function(e) { return e.z === z; }) : null;
   }
 
   function shootProton(event) {
-    if (!protonGunActive || !window.__mol3d) return;
+    if (!active || !window.__mol3d) return;
+    var THREE = window.THREE;
+    if (!THREE) return;
 
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    const camera = window.__mol3d.camera;
-    const renderer = window.__mol3d.renderer;
-
+    var camera = window.__mol3d.camera;
+    var renderer = window.__mol3d.renderer;
     if (!camera || !renderer) return;
 
-    const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    var rect = renderer.domElement.getBoundingClientRect();
+    var mouse = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
 
+    var raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    const atomMeshM = window.__mol3d.atomMeshM;
-    const atomMeshN = window.__mol3d.atomMeshN;
-    const meshes = [atomMeshM, atomMeshN].filter(Boolean);
+    var meshes = [window.__mol3d.atomMeshM, window.__mol3d.atomMeshN].filter(Boolean);
+    var hits = raycaster.intersectObjects(meshes);
+    if (!hits.length) return;
 
-    const intersects = raycaster.intersectObjects(meshes);
+    var hit = hits[0];
+    var ids = hit.object.userData.ids;
+    if (!ids || hit.instanceId === undefined) return;
 
-    if (intersects.length > 0) {
-      const hit = intersects[0];
-      const mesh = hit.object;
-      const instanceId = hit.instanceId;
+    var atomId = ids[hit.instanceId];
+    var atom = window.__mol3d.atoms.get(atomId);
+    if (!atom) return;
 
-      if (instanceId !== undefined) {
-        const ids = mesh.userData.ids;
-        if (ids && ids[instanceId] !== undefined) {
-          const atomId = ids[instanceId];
-          const atom = window.__mol3d.atoms.get(atomId);
-
-          if (atom) {
-            handleProtonHit(atom, atomId);
-          }
-        }
-      }
-    }
-  }
-
-  function handleProtonHit(atom, atomId) {
-    const z = atom.el.z;
-
-    if (z > 82) {
+    if (atom.el.z > 82) {
       startCriticalTimer(atom, atomId);
     } else {
-      addProton(atom, atomId);
+      addProton(atom);
     }
   }
 
-  function addProton(atom, atomId) {
-    const newZ = atom.el.z + 1;
-    const newEl = window.__mol3d.elements && window.__mol3d.elements.find(e => e.z === newZ);
-
-    if (!newEl) {
-      const ELEMENTS = window.__mol3d.ELEMENTS;
-      if (ELEMENTS) {
-        const el = ELEMENTS.find(e => e.z === newZ);
-        if (el) {
-          atom.el = el;
-          showStatus(`Added proton: ${el.name}`);
-          if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
-          if (window.__mol3d.invalidate) window.__mol3d.invalidate();
-        }
-      }
-      return;
-    }
+  function addProton(atom) {
+    var newEl = findElement(atom.el.z + 1);
+    if (!newEl) { showStatus('No element above Z=' + atom.el.z); return; }
 
     atom.el = newEl;
-    showStatus(`Added proton: ${newEl.name}`);
+    showStatus('Added proton: ' + newEl.name);
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();
   }
 
   function startCriticalTimer(atom, atomId) {
-    if (criticalTimerActive) return;
+    if (timerRunning) return;
+    timerRunning = true;
+    timerAtomId = atomId;
+    var countdown = 60;
+    var name = atom.el.name;
+    var z = atom.el.z;
 
-    criticalTimerActive = true;
-    criticalCountdown = 60.0;
-    showStatus(`⚠ CRITICAL: ${atom.el.name} (z=${atom.el.z}) - 60s to fission!`);
+    showStatus('CRITICAL: ' + name + ' (Z=' + z + ') - ' + countdown + 's to fission!');
 
-    criticalInterval = setInterval(function() {
-      criticalCountdown -= 1;
-
-      if (criticalCountdown <= 0) {
-        triggerNuclearFission(atom, atomId);
-      } else if (criticalCountdown <= 10) {
-        showStatus(`☢ CRITICAL: ${criticalCountdown}s remaining!`);
+    timerInterval = setInterval(function() {
+      if (!window.__mol3d || !window.__mol3d.atoms.has(atomId)) {
+        clearCriticalTimer();
+        return;
+      }
+      countdown--;
+      if (countdown <= 0) {
+        clearCriticalTimer();
+        triggerFission(atomId);
+      } else if (countdown <= 10) {
+        showStatus('CRITICAL: ' + countdown + 's remaining!');
       }
     }, 1000);
   }
 
-  function triggerNuclearFission(atom, atomId) {
-    clearInterval(criticalInterval);
-    criticalTimerActive = false;
-
+  function triggerFission(atomId) {
     if (!window.__mol3d || !window.__mol3d.atoms) return;
+    var atom = window.__mol3d.atoms.get(atomId);
+    if (!atom) return;
 
-    const pos = atom.pos;
-    const oldZ = atom.el.z;
+    var THREE = window.THREE;
+    var oldZ = atom.el.z;
+    var oldName = atom.el.name;
+    var pos = atom.pos;
+    var split1 = Math.floor(oldZ / 2);
+    var split2 = oldZ - split1;
 
-    const split1 = Math.floor(oldZ / 2);
-    const split2 = oldZ - split1;
-
-    const ELEMENTS = window.__mol3d.ELEMENTS;
-    if (!ELEMENTS) return;
-
-    const el1 = ELEMENTS.find(e => e.z === split1);
-    const el2 = ELEMENTS.find(e => e.z === split2);
-
+    var el1 = findElement(split1);
+    var el2 = findElement(split2);
     if (!el1 || !el2) return;
 
     window.__mol3d.atoms.delete(atomId);
 
-    for (const [bid, b] of window.__mol3d.bonds) {
-      if (b.a === atomId || b.b === atomId) {
-        window.__mol3d.bonds.delete(bid);
-      }
+    for (var entry of window.__mol3d.bonds) {
+      var b = entry[1];
+      if (b.a === atomId || b.b === atomId) window.__mol3d.bonds.delete(entry[0]);
     }
 
-    if (window.__mol3d.vfx && window.__mol3d.vfx.reactionVFX) {
-      const THREE = window.THREE;
-      if (THREE) {
-        window.__mol3d.vfx.reactionVFX.explode(
-          new THREE.Vector3(pos.x, pos.y, pos.z),
-          3.0,
-          new THREE.Color(0xff0000)
-        );
-      }
+    if (THREE && window.__mol3d.vfx && window.__mol3d.vfx.reactionVFX) {
+      window.__mol3d.vfx.reactionVFX.explode(
+        new THREE.Vector3(pos.x, pos.y, pos.z), 3.0, new THREE.Color(0xff0000)
+      );
     }
 
-    showStatus(`☢ ${ELEMENTS.find(e => e.z === oldZ).name} underwent fission → ${el1.name} + ${el2.name}`);
-
+    showStatus(oldName + ' underwent fission: ' + el1.name + ' + ' + el2.name);
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();
   }
 
-  function showStatus(msg) {
-    const statusEl = document.getElementById('status-text');
-    if (statusEl) {
-      statusEl.textContent = msg;
-      statusEl.className = 'info';
-    }
-  }
-
   function init() {
-    const btn = document.getElementById('btn-proton');
+    var btn = document.getElementById('btn-proton');
     if (btn) {
       btn.addEventListener('click', function() {
-        const active = toggleProtonGun();
+        active = !active;
         btn.classList.toggle('on', active);
+        showStatus(active ? 'Proton gun activated - Click atoms!' : 'Proton gun deactivated');
+        if (!active) clearCriticalTimer();
       });
     }
 
-    const renderer = window.__mol3d && window.__mol3d.renderer;
-    if (renderer) {
-      renderer.domElement.addEventListener('click', shootProton);
-    } else {
-      const checkRenderer = setInterval(function() {
-        if (window.__mol3d && window.__mol3d.renderer) {
-          window.__mol3d.renderer.domElement.addEventListener('click', shootProton);
-          clearInterval(checkRenderer);
-        }
-      }, 100);
+    function attachClick() {
+      if (window.__mol3d && window.__mol3d.renderer) {
+        window.__mol3d.renderer.domElement.addEventListener('click', shootProton);
+        return true;
+      }
+      return false;
+    }
+
+    if (!attachClick()) {
+      var poll = setInterval(function() {
+        if (attachClick()) clearInterval(poll);
+      }, 200);
     }
 
     window.__protonGun = {
-      toggle: toggleProtonGun,
-      isActive: () => protonGunActive,
+      toggle: function() { if (btn) btn.click(); },
+      isActive: function() { return active; },
       shoot: shootProton
     };
-
-    console.log('[Proton Gun] Module initialized');
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();

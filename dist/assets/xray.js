@@ -4,6 +4,29 @@
 
   let isXRayActive = false;
 
+  function showStatus(msg) {
+    const el = document.getElementById('status-text');
+    if (el) { el.textContent = msg; el.className = 'info'; }
+  }
+
+  function applyXRayVisuals() {
+    if (!window.__mol3d) return;
+    const matM = window.__mol3d.atomMatM;
+    const matN = window.__mol3d.atomMatN;
+    if (!matM || !matN) return;
+
+    matM.transparent = isXRayActive;
+    matM.opacity = isXRayActive ? 0.4 : 1.0;
+    matM.wireframe = isXRayActive;
+    matN.transparent = isXRayActive;
+    matN.opacity = isXRayActive ? 0.4 : 1.0;
+    matN.wireframe = isXRayActive;
+    matM.needsUpdate = true;
+    matN.needsUpdate = true;
+
+    if (window.__mol3d.invalidate) window.__mol3d.invalidate();
+  }
+
   function toggleXRay() {
     isXRayActive = !isXRayActive;
     applyXRayVisuals();
@@ -11,82 +34,27 @@
     return isXRayActive;
   }
 
-  function applyXRayVisuals() {
-    if (!window.__mol3d) return;
-
-    const atomMatM = window.__mol3d.atomMatM;
-    const atomMatN = window.__mol3d.atomMatN;
-
-    if (!atomMatM || !atomMatN) {
-      console.warn('[X-Ray] Materials not found on __mol3d');
-      return;
-    }
-
-    if (isXRayActive) {
-      atomMatM.transparent = true;
-      atomMatM.opacity = 0.4;
-      atomMatM.wireframe = true;
-      atomMatN.transparent = true;
-      atomMatN.opacity = 0.4;
-      atomMatN.wireframe = true;
-    } else {
-      atomMatM.transparent = false;
-      atomMatM.opacity = 1.0;
-      atomMatM.wireframe = false;
-      atomMatN.transparent = false;
-      atomMatN.opacity = 1.0;
-      atomMatN.wireframe = false;
-    }
-
-    atomMatM.needsUpdate = true;
-    atomMatN.needsUpdate = true;
-
-    if (window.__mol3d.invalidate) {
-      window.__mol3d.invalidate();
-    }
-  }
-
-  function showStatus(msg) {
-    const statusEl = document.getElementById('status-text');
-    if (statusEl) {
-      statusEl.textContent = msg;
-      statusEl.className = 'info';
-    }
-  }
-
   function init() {
     const btn = document.getElementById('btn-xray');
     if (btn) {
       btn.addEventListener('click', function() {
-        const active = toggleXRay();
-        btn.classList.toggle('on', active);
+        btn.classList.toggle('on', toggleXRay());
       });
     }
 
     window.addEventListener('keydown', function(e) {
-      if (e.key === 'x' || e.key === 'X') {
-        if (!e.ctrlKey && !e.altKey && !e.metaKey) {
-          const activeEl = document.activeElement;
-          const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
-          if (!isInput && btn) {
-            e.preventDefault();
-            btn.click();
-          }
+      if ((e.key === 'x' || e.key === 'X') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const tag = document.activeElement && document.activeElement.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && btn) {
+          e.preventDefault();
+          btn.click();
         }
       }
     });
 
-    window.__xray = {
-      toggle: toggleXRay,
-      isActive: () => isXRayActive
-    };
-
-    console.log('[X-Ray] Module initialized');
+    window.__xray = { toggle: toggleXRay, isActive: () => isXRayActive };
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();

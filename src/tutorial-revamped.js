@@ -2,364 +2,321 @@
 (function() {
   'use strict';
 
-  const TUTORIAL_KEY = 'mol3d.tutorial.completed.v2';
-  const ASSISTANT_NAME_KEY = 'mol3d.assistant.name';
-  const USER_NAME_KEY = 'mol3d.user.name';
+  var TUTORIAL_KEY = 'mol3d.tutorial.completed.v2';
+  var USER_NAME_KEY = 'mol3d.user.name';
 
-  let tutorialActive = false;
-  let tutorialPhase = 0;
-  let tutorialStep = 0;
-  let assistantName = localStorage.getItem(ASSISTANT_NAME_KEY) || 'ARIA';
-  let userName = localStorage.getItem(USER_NAME_KEY) || 'Scientist';
+  var tutorialActive = false;
+  var phase = 0;
+  var step = 0;
+  var userName = localStorage.getItem(USER_NAME_KEY) || 'Scientist';
+  var assistantName = 'ARIA';
 
-  const TUTORIAL_PHASES = [
+  var waitInterval = null;
+  var resizeHandler = null;
+
+  var PHASES = [
     {
-      id: 'setup',
-      name: 'Assistant Setup',
+      id: 'setup', name: 'Assistant Setup',
       steps: [
-        { target: null, text: `Hello! I'm {assistant}, your chemistry AI assistant.`, action: 'show' },
-        { target: null, text: `What should I call you?`, action: 'showNameInput' },
-        { target: null, text: `Nice to meet you, {user}! Let me show you around the lab.`, action: 'next' },
+        { text: "Hello! I'm {assistant}, your chemistry AI assistant.", action: 'show' },
+        { text: 'What should I call you?', action: 'nameInput' },
+        { text: 'Nice to meet you, {user}! Let me show you around the lab.', action: 'next' },
       ]
     },
     {
-      id: 'basics',
-      name: 'Foundations',
+      id: 'basics', name: 'Foundations',
       steps: [
-        { target: '#left-sidebar', text: `This is your element pool, {user}. All 118 elements are here.`, action: 'highlight' },
-        { target: '#btn-spawn-h', text: `Try spawning a Hydrogen atom by clicking here.`, action: 'waitForClick' },
-        { target: null, text: `Great! Atoms are the building blocks of all matter.`, action: 'next' },
-        { target: null, text: `Drag atoms to move them. They'll bond when close enough.`, action: 'next' },
+        { target: '#left-sidebar', text: 'This is your element pool, {user}. All 118 elements are here.', action: 'highlight' },
+        { target: '#btn-spawn-h', text: 'Try spawning a Hydrogen atom by clicking here.', action: 'waitForClick' },
+        { text: 'Great! Atoms are the building blocks of all matter.', action: 'next' },
+        { text: "Drag atoms to move them. They'll bond when close enough.", action: 'next' },
       ]
     },
     {
-      id: 'bonding',
-      name: 'Bonding & Reactions',
+      id: 'bonding', name: 'Bonding & Reactions',
       steps: [
-        { target: null, text: `Now let's learn about bonds! Spawn another H atom.`, action: 'waitForSpawn' },
-        { target: null, text: `Two H atoms will automatically form H₂ - molecular hydrogen!`, action: 'next' },
-        { target: null, text: `Double-click molecules to see reactions. Try combining different elements!`, action: 'next' },
-        { target: '#btn-fc', text: `This shows formal charges on atoms. Useful for understanding reactivity.`, action: 'highlight' },
+        { text: "Now let's learn about bonds! Spawn another H atom.", action: 'waitForSpawn' },
+        { text: 'Two H atoms will automatically form H2 - molecular hydrogen!', action: 'next' },
+        { text: 'Double-click molecules to see reactions. Try combining different elements!', action: 'next' },
+        { target: '#btn-fc', text: 'This shows formal charges on atoms. Useful for understanding reactivity.', action: 'highlight' },
       ]
     },
     {
-      id: 'advanced',
-      name: 'Advanced Features',
+      id: 'advanced', name: 'Advanced Features',
       steps: [
-        { target: '#btn-xray', text: `X-Ray mode lets you see through atoms. Press X or click here.`, action: 'highlight' },
-        { target: '#btn-proton', text: `The Proton Gun adds protons to atoms, transmuting elements!`, action: 'highlight' },
-        { target: '#btn-quest', text: `Quest mode gives you challenges to complete for rewards.`, action: 'highlight' },
-        { target: null, text: `You're all set, {user}! Explore and experiment. The lab is yours.`, action: 'complete' },
+        { target: '#btn-xray', text: 'X-Ray mode lets you see through atoms. Press X or click here.', action: 'highlight' },
+        { target: '#btn-proton', text: 'The Proton Gun adds protons to atoms, transmuting elements!', action: 'highlight' },
+        { target: '#btn-quest', text: 'Quest mode gives you challenges to complete for rewards.', action: 'highlight' },
+        { text: "You're all set, {user}! Explore and experiment. The lab is yours.", action: 'complete' },
       ]
     }
   ];
 
-  let backdrop = null;
-  let dialogBox = null;
-  let highlightOverlay = null;
+  var backdrop, dialog, highlight;
 
-  function shouldShowTutorial() {
-    return !localStorage.getItem(TUTORIAL_KEY);
+  function showStatus(msg) {
+    var el = document.getElementById('status-text');
+    if (el) { el.textContent = msg; el.className = 'info'; }
   }
 
-  function startTutorial() {
-    if (tutorialActive) return;
-    tutorialActive = true;
-    tutorialPhase = 0;
-    tutorialStep = 0;
-    createTutorialUI();
-    showCurrentStep();
+  function fmt(text) {
+    return text.replace(/\{assistant\}/g, assistantName).replace(/\{user\}/g, userName);
   }
 
-  function createTutorialUI() {
+  function clearWait() {
+    if (waitInterval) { clearInterval(waitInterval); waitInterval = null; }
+  }
+
+  function removeResize() {
+    if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
+  }
+
+  function shouldShow() { return !localStorage.getItem(TUTORIAL_KEY); }
+
+  function createUI() {
     backdrop = document.createElement('div');
-    backdrop.className = 'tutorial-backdrop';
-    backdrop.style.cssText = `
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 9998;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s;
-    `;
+    backdrop.className = 'tut-backdrop';
     document.body.appendChild(backdrop);
 
-    dialogBox = document.createElement('div');
-    dialogBox.className = 'tutorial-dialog-box';
-    dialogBox.style.cssText = `
-      position: fixed;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      border: 2px solid #0f3460;
-      border-radius: 16px;
-      padding: 20px;
-      max-width: 500px;
-      z-index: 9999;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-      display: none;
-    `;
-    document.body.appendChild(dialogBox);
+    dialog = document.createElement('div');
+    dialog.className = 'tut-dialog';
+    document.body.appendChild(dialog);
 
-    highlightOverlay = document.createElement('div');
-    highlightOverlay.className = 'tutorial-highlight';
-    highlightOverlay.style.cssText = `
-      position: fixed;
-      border: 3px solid #00ff88;
-      border-radius: 8px;
-      box-shadow: 0 0 20px #00ff88, inset 0 0 20px rgba(0, 255, 136, 0.1);
-      z-index: 9997;
-      pointer-events: none;
-      display: none;
-      transition: all 0.3s;
-    `;
-    document.body.appendChild(highlightOverlay);
+    highlight = document.createElement('div');
+    highlight.className = 'tut-highlight';
+    document.body.appendChild(highlight);
 
-    setTimeout(() => {
-      backdrop.style.opacity = '1';
-    }, 100);
+    requestAnimationFrame(function() { backdrop.classList.add('visible'); });
   }
 
-  function showCurrentStep() {
-    if (tutorialPhase >= TUTORIAL_PHASES.length) {
-      completeTutorial();
-      return;
+  function destroyUI() {
+    removeResize();
+    clearWait();
+    if (backdrop) { backdrop.classList.remove('visible'); setTimeout(function() { if (backdrop.parentNode) backdrop.remove(); }, 300); }
+    if (dialog && dialog.parentNode) dialog.remove();
+    if (highlight && highlight.parentNode) highlight.remove();
+    backdrop = dialog = highlight = null;
+  }
+
+  function highlightEl(selector) {
+    var el = document.querySelector(selector);
+    if (!el) { hideHighlight(); return; }
+
+    var rect = el.getBoundingClientRect();
+    var pad = 6;
+    highlight.style.left = (rect.left - pad) + 'px';
+    highlight.style.top = (rect.top - pad) + 'px';
+    highlight.style.width = (rect.width + pad * 2) + 'px';
+    highlight.style.height = (rect.height + pad * 2) + 'px';
+    highlight.style.display = 'block';
+
+    el.classList.add('tut-pulse-target');
+
+    if (!resizeHandler) {
+      resizeHandler = function() {
+        if (!tutorialActive) return;
+        var cur = PHASES[phase] && PHASES[phase].steps[step];
+        if (cur && cur.action === 'highlight' && cur.target) highlightEl(cur.target);
+      };
+      window.addEventListener('resize', resizeHandler);
+    }
+  }
+
+  function hideHighlight() {
+    if (highlight) highlight.style.display = 'none';
+    document.querySelectorAll('.tut-pulse-target').forEach(function(el) { el.classList.remove('tut-pulse-target'); });
+  }
+
+  function renderStep() {
+    if (phase >= PHASES.length) { complete(); return; }
+    var p = PHASES[phase];
+    var s = p.steps[step];
+    if (!s) { nextPhase(); return; }
+
+    var text = fmt(s.text);
+    var isWaiting = s.action === 'waitForClick' || s.action === 'waitForSpawn';
+    var isComplete = s.action === 'complete';
+    var isNameInput = s.action === 'nameInput';
+
+    var btnLabel = isComplete ? 'Finish' : isWaiting ? 'Waiting...' : 'Next';
+    var btnDisabled = isWaiting ? 'disabled' : '';
+    var btnClass = isWaiting ? 'tut-btn tut-btn-wait' : 'tut-btn';
+
+    var actionsHTML = '';
+    if (isNameInput) {
+      actionsHTML = '<input type="text" class="tut-name-input" id="tut-name-input" placeholder="Enter your name" value="' + userName + '" />' +
+        '<button class="tut-btn" id="tut-continue-btn">Continue</button>';
+    } else {
+      actionsHTML = '<button class="' + btnClass + '" id="tut-next-btn" ' + btnDisabled + '>' + btnLabel + '</button>';
     }
 
-    const phase = TUTORIAL_PHASES[tutorialPhase];
-    const step = phase.steps[tutorialStep];
+    dialog.innerHTML =
+      '<div class="tut-header">' +
+        '<div class="tut-avatar">🤖</div>' +
+        '<div class="tut-header-text">' +
+          '<div class="tut-assistant-name">' + assistantName + '</div>' +
+          '<div class="tut-phase-label">Phase ' + (phase + 1) + ': ' + p.name + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tut-body">' + text + '</div>' +
+      '<div class="tut-actions">' + actionsHTML + '</div>';
 
-    if (!step) {
-      nextPhase();
-      return;
-    }
+    dialog.style.display = 'block';
 
-    const text = step.text.replace('{assistant}', assistantName).replace('{user}', userName);
-
-    dialogBox.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #00ff88, #00d4ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">
-          🤖
-        </div>
-        <div>
-          <div style="color: #00ff88; font-weight: bold; font-size: 14px;">${assistantName}</div>
-          <div style="color: #888; font-size: 11px;">Phase ${tutorialPhase + 1}: ${phase.name}</div>
-        </div>
-      </div>
-      <div style="color: #fff; font-size: 15px; line-height: 1.5; margin-bottom: 16px;">
-        ${text}
-      </div>
-      <div id="tutorial-actions" style="display: flex; gap: 8px; justify-content: flex-end;">
-        ${step.action === 'showNameInput' ? `
-          <input type="text" id="tutorial-name-input" placeholder="Enter your name" value="${userName}" style="flex: 1; padding: 8px 12px; background: #0a0a1a; border: 1px solid #0f3460; border-radius: 8px; color: #fff; font-size: 14px;" />
-          <button class="tutorial-btn" style="padding: 8px 16px; background: #00ff88; border: none; border-radius: 8px; color: #000; font-weight: bold; cursor: pointer;">Continue</button>
-        ` : `
-          <button class="tutorial-btn" style="padding: 8px 16px; background: #00ff88; border: none; border-radius: 8px; color: #000; font-weight: bold; cursor: pointer;">
-            ${step.action === 'complete' ? 'Finish' : step.action === 'waitForClick' || step.action === 'waitForSpawn' ? 'Waiting...' : 'Next'}
-          </button>
-        `}
-      </div>
-    `;
-
-    dialogBox.style.display = 'block';
-
-    const btn = dialogBox.querySelector('.tutorial-btn');
-    if (btn) {
-      if (step.action === 'waitForClick' || step.action === 'waitForSpawn') {
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-        btn.style.cursor = 'not-allowed';
-        waitForAction(step.action);
-      } else {
-        btn.addEventListener('click', function() {
-          if (step.action === 'showNameInput') {
-            const input = document.getElementById('tutorial-name-input');
-            if (input && input.value.trim()) {
-              userName = input.value.trim();
-              localStorage.setItem(USER_NAME_KEY, userName);
-            }
+    if (isNameInput) {
+      var input = document.getElementById('tut-name-input');
+      var contBtn = document.getElementById('tut-continue-btn');
+      if (input) input.focus();
+      if (contBtn) {
+        contBtn.addEventListener('click', function() {
+          if (input && input.value.trim()) {
+            userName = input.value.trim();
+            localStorage.setItem(USER_NAME_KEY, userName);
           }
-          handleStepAction(step.action, step.target);
+          advance();
+        });
+      }
+      if (input) {
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') contBtn.click();
+        });
+      }
+    } else if (isWaiting) {
+      waitForAction(s.action);
+    } else {
+      var nextBtn = document.getElementById('tut-next-btn');
+      if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+          if (s.action === 'highlight' && s.target) {
+            var target = document.querySelector(s.target);
+            if (target) target.click();
+          }
+          advance();
         });
       }
     }
 
-    if (step.target && step.action === 'highlight') {
-      highlightElement(step.target);
-    } else {
-      hideHighlight();
-    }
-  }
-
-  function handleStepAction(action, target) {
-    if (action === 'highlight' && target) {
-      const el = document.querySelector(target);
-      if (el) {
-        el.click();
-      }
-    }
-
-    nextStep();
+    if (s.action === 'highlight' && s.target) highlightEl(s.target);
+    else hideHighlight();
   }
 
   function waitForAction(action) {
+    clearWait();
     if (action === 'waitForClick') {
-      const spawnBtn = document.getElementById('btn-spawn-h');
-      if (spawnBtn) {
-        const handler = function() {
-          spawnBtn.removeEventListener('click', handler);
-          const btn = dialogBox.querySelector('.tutorial-btn');
-          if (btn) {
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            btn.textContent = 'Next';
-          }
-        };
-        spawnBtn.addEventListener('click', handler);
-      }
+      var spawnBtn = document.getElementById('btn-spawn-h');
+      if (!spawnBtn) { advance(); return; }
+      var handler = function() {
+        spawnBtn.removeEventListener('click', handler);
+        clearWait();
+        enableNextBtn();
+      };
+      spawnBtn.addEventListener('click', handler);
+      waitInterval = setInterval(function() {
+        if (!document.getElementById('btn-spawn-h')) { spawnBtn.removeEventListener('click', handler); clearWait(); enableNextBtn(); }
+      }, 1000);
     } else if (action === 'waitForSpawn') {
-      const checkSpawn = setInterval(function() {
+      waitInterval = setInterval(function() {
         if (window.__mol3d && window.__mol3d.atoms && window.__mol3d.atoms.size >= 2) {
-          clearInterval(checkSpawn);
-          const btn = dialogBox.querySelector('.tutorial-btn');
-          if (btn) {
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-            btn.textContent = 'Next';
-          }
+          clearWait();
+          enableNextBtn();
         }
-      }, 500);
+      }, 300);
     }
   }
 
-  function highlightElement(selector) {
-    const el = document.querySelector(selector);
-    if (!el) return;
-
-    const rect = el.getBoundingClientRect();
-    highlightOverlay.style.left = (rect.left - 5) + 'px';
-    highlightOverlay.style.top = (rect.top - 5) + 'px';
-    highlightOverlay.style.width = (rect.width + 10) + 'px';
-    highlightOverlay.style.height = (rect.height + 10) + 'px';
-    highlightOverlay.style.display = 'block';
-
-    el.style.animation = 'tutorial-pulse 1.5s infinite';
-  }
-
-  function hideHighlight() {
-    highlightOverlay.style.display = 'none';
-    document.querySelectorAll('[style*="tutorial-pulse"]').forEach(function(el) {
-      el.style.animation = '';
-    });
-  }
-
-  function nextStep() {
-    tutorialStep++;
-    const phase = TUTORIAL_PHASES[tutorialPhase];
-    if (tutorialStep >= phase.steps.length) {
-      nextPhase();
-    } else {
-      showCurrentStep();
+  function enableNextBtn() {
+    if (!dialog) return;
+    var btn = dialog.querySelector('.tut-btn');
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('tut-btn-wait');
+      btn.textContent = 'Next';
     }
+  }
+
+  function advance() {
+    step++;
+    if (step >= PHASES[phase].steps.length) nextPhase();
+    else renderStep();
   }
 
   function nextPhase() {
-    tutorialPhase++;
-    tutorialStep = 0;
-    if (tutorialPhase >= TUTORIAL_PHASES.length) {
-      completeTutorial();
-    } else {
-      showCurrentStep();
-    }
+    phase++;
+    step = 0;
+    if (phase >= PHASES.length) complete();
+    else renderStep();
   }
 
-  function completeTutorial() {
+  function complete() {
     localStorage.setItem(TUTORIAL_KEY, 'true');
     tutorialActive = false;
-
     hideHighlight();
-
-    if (backdrop) {
-      backdrop.style.opacity = '0';
-      setTimeout(() => backdrop.remove(), 300);
-    }
-    if (dialogBox) {
-      dialogBox.style.display = 'none';
-      dialogBox.remove();
-    }
-    if (highlightOverlay) {
-      highlightOverlay.remove();
-    }
-
-    showStatus(`Tutorial complete! Welcome to the lab, ${userName}!`);
+    destroyUI();
+    showStatus('Tutorial complete! Welcome to the lab, ' + userName + '!');
   }
 
-  function replayTutorial() {
+  function start() {
+    if (tutorialActive) return;
+    tutorialActive = true;
+    phase = 0;
+    step = 0;
+    createUI();
+    renderStep();
+  }
+
+  function replay() {
     localStorage.removeItem(TUTORIAL_KEY);
-    startTutorial();
+    destroyUI();
+    start();
   }
 
-  function showStatus(msg) {
-    const statusEl = document.getElementById('status-text');
-    if (statusEl) {
-      statusEl.textContent = msg;
-      statusEl.className = 'info';
-    }
+  function injectStyles() {
+    if (document.getElementById('tut-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'tut-styles';
+    s.textContent =
+      '@keyframes tut-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.7); } 50% { box-shadow: 0 0 0 clamp(10px, 2vw, 14px) rgba(0,255,136,0); } }' +
+      '.tut-pulse-target { animation: tut-pulse 1.5s infinite !important; }' +
+      '.tut-backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;pointer-events:none;opacity:0;transition:opacity 0.3s; }' +
+      '.tut-backdrop.visible { opacity:1; }' +
+      '.tut-dialog { position:fixed;bottom:clamp(60px,12vh,120px);left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:2px solid #0f3460;border-radius:clamp(10px,2vw,16px);padding:clamp(12px,3vw,20px);width:clamp(280px,85vw,500px);z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:none;font-family:inherit; }' +
+      '.tut-header { display:flex;align-items:center;gap:clamp(8px,2vw,12px);margin-bottom:clamp(8px,2vw,12px); }' +
+      '.tut-avatar { width:clamp(36px,8vw,48px);height:clamp(36px,8vw,48px);background:linear-gradient(135deg,#00ff88,#00d4ff);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:clamp(18px,4vw,24px);flex-shrink:0; }' +
+      '.tut-header-text { min-width:0; }' +
+      '.tut-assistant-name { color:#00ff88;font-weight:bold;font-size:clamp(12px,2.5vw,14px); }' +
+      '.tut-phase-label { color:#888;font-size:clamp(10px,2vw,11px); }' +
+      '.tut-body { color:#fff;font-size:clamp(13px,2.8vw,15px);line-height:1.5;margin-bottom:clamp(10px,2vw,16px);word-wrap:break-word;overflow-wrap:break-word; }' +
+      '.tut-actions { display:flex;gap:clamp(6px,1.5vw,8px);justify-content:flex-end;flex-wrap:wrap;align-items:center; }' +
+      '.tut-btn { padding:clamp(6px,1.5vw,8px) clamp(12px,3vw,16px);background:#00ff88;border:none;border-radius:clamp(6px,1.5vw,8px);color:#000;font-weight:bold;cursor:pointer;font-size:clamp(12px,2.5vw,14px);white-space:nowrap;transition:opacity 0.2s; }' +
+      '.tut-btn:hover { opacity:0.85; }' +
+      '.tut-btn-wait { opacity:0.5;cursor:not-allowed; }' +
+      '.tut-name-input { flex:1;min-width:0;padding:clamp(6px,1.5vw,8px) clamp(8px,2vw,12px);background:#0a0a1a;border:1px solid #0f3460;border-radius:clamp(6px,1.5vw,8px);color:#fff;font-size:clamp(12px,2.5vw,14px); }' +
+      '.tut-highlight { position:fixed;border:3px solid #00ff88;border-radius:8px;box-shadow:0 0 20px #00ff88,inset 0 0 20px rgba(0,255,136,0.1);z-index:9997;pointer-events:none;display:none;transition:all 0.3s; }';
+    document.head.appendChild(s);
   }
 
   function init() {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes tutorial-pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
-        50% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
-      }
-    `;
-    document.head.appendChild(style);
+    injectStyles();
 
-    const settingsBtn = document.querySelector('[data-action="settings"]');
+    var settingsBtn = document.getElementById('settings-tutorial');
     if (settingsBtn) {
       settingsBtn.addEventListener('click', function() {
-        setTimeout(function() {
-          const modal = document.getElementById('settings-modal');
-          if (modal && !document.getElementById('settings-tutorial')) {
-            const tutorialBtn = document.createElement('button');
-            tutorialBtn.id = 'settings-tutorial';
-            tutorialBtn.textContent = 'Replay Tutorial';
-            tutorialBtn.style.cssText = 'padding: 8px 16px; background: #0f3460; border: 1px solid #00ff88; border-radius: 8px; color: #fff; cursor: pointer; margin-top: 8px;';
-            tutorialBtn.addEventListener('click', function() {
-              replayTutorial();
-              modal.hidden = true;
-            });
-            modal.appendChild(tutorialBtn);
-          }
-        }, 100);
+        replay();
+        var modal = document.getElementById('settings-modal');
+        if (modal) modal.hidden = true;
       });
     }
 
     window.__tutorial = {
-      start: startTutorial,
-      replay: replayTutorial,
-      isActive: () => tutorialActive,
-      shouldShow: shouldShowTutorial
+      start: start,
+      replay: replay,
+      isActive: function() { return tutorialActive; },
+      shouldShow: shouldShow
     };
 
-    setTimeout(function() {
-      if (shouldShowTutorial()) {
-        startTutorial();
-      }
-    }, 2000);
-
-    console.log('[Tutorial] Module initialized');
+    setTimeout(function() { if (shouldShow()) start(); }, 2000);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();

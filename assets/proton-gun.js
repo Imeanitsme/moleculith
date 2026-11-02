@@ -29,7 +29,7 @@
 
   function shootProton(event) {
     if (!active || !window.__mol3d) return;
-    var THREE = window.THREE;
+    var THREE = window.__mol3d.THREE;
     if (!THREE) return;
 
     var camera = window.__mol3d.camera;
@@ -104,7 +104,7 @@
     var atom = window.__mol3d.atoms.get(atomId);
     if (!atom) return;
 
-    var THREE = window.THREE;
+    var THREE = window.__mol3d.THREE;
     var oldZ = atom.el.z;
     var oldName = atom.el.name;
     var pos = atom.pos;

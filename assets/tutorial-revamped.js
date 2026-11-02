@@ -27,7 +27,7 @@
       id: 'basics', name: 'Foundations',
       steps: [
         { target: '#left-sidebar', text: 'This is your element pool, {user}. All 118 elements are here.', action: 'highlight' },
-        { target: '#btn-spawn-h', text: 'Try spawning a Hydrogen atom by clicking here.', action: 'waitForClick' },
+        { target: '#pool-list', text: 'Click any element to place it in the scene. Try Hydrogen (H)!', action: 'waitForSpawn', threshold: 1 },
         { text: 'Great! Atoms are the building blocks of all matter.', action: 'next' },
         { text: "Drag atoms to move them. They'll bond when close enough.", action: 'next' },
       ]
@@ -35,7 +35,7 @@
     {
       id: 'bonding', name: 'Bonding & Reactions',
       steps: [
-        { text: "Now let's learn about bonds! Spawn another H atom.", action: 'waitForSpawn' },
+        { text: "Now let's learn about bonds! Spawn another H atom.", action: 'waitForSpawn', threshold: 2 },
         { text: 'Two H atoms will automatically form H2 - molecular hydrogen!', action: 'next' },
         { text: 'Double-click molecules to see reactions. Try combining different elements!', action: 'next' },
         { target: '#btn-fc', text: 'This shows formal charges on atoms. Useful for understanding reactivity.', action: 'highlight' },
@@ -134,7 +134,7 @@
     if (!s) { nextPhase(); return; }
 
     var text = fmt(s.text);
-    var isWaiting = s.action === 'waitForClick' || s.action === 'waitForSpawn';
+    var isWaiting = s.action === 'waitForSpawn';
     var isComplete = s.action === 'complete';
     var isNameInput = s.action === 'nameInput';
 
@@ -182,7 +182,7 @@
         });
       }
     } else if (isWaiting) {
-      waitForAction(s.action);
+      waitForAction(s.action, s.threshold);
     } else {
       var nextBtn = document.getElementById('tut-next-btn');
       if (nextBtn) {
@@ -200,28 +200,15 @@
     else hideHighlight();
   }
 
-  function waitForAction(action) {
+  function waitForAction(action, threshold) {
     clearWait();
-    if (action === 'waitForClick') {
-      var spawnBtn = document.getElementById('btn-spawn-h');
-      if (!spawnBtn) { advance(); return; }
-      var handler = function() {
-        spawnBtn.removeEventListener('click', handler);
+    var needed = threshold || 1;
+    waitInterval = setInterval(function() {
+      if (window.__mol3d && window.__mol3d.atoms && window.__mol3d.atoms.size >= needed) {
         clearWait();
         enableNextBtn();
-      };
-      spawnBtn.addEventListener('click', handler);
-      waitInterval = setInterval(function() {
-        if (!document.getElementById('btn-spawn-h')) { spawnBtn.removeEventListener('click', handler); clearWait(); enableNextBtn(); }
-      }, 1000);
-    } else if (action === 'waitForSpawn') {
-      waitInterval = setInterval(function() {
-        if (window.__mol3d && window.__mol3d.atoms && window.__mol3d.atoms.size >= 2) {
-          clearWait();
-          enableNextBtn();
-        }
-      }, 300);
-    }
+      }
+    }, 300);
   }
 
   function enableNextBtn() {

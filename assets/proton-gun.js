@@ -5,9 +5,6 @@
   let timerInterval = null;
   let timerAtomId = null;
   let criticalOverlay = null;
-  let audioCtx = null;
-  let alarmOsc = null;
-  let alarmGain = null;
 
   const NOBLE_GASES = new Set([2, 10, 18, 36, 54, 86, 118]);
 
@@ -75,39 +72,22 @@
     if (criticalOverlay) criticalOverlay.style.display = 'none';
   }
 
-  // --- Nuclear alarm sound via Web Audio API ---
+  // --- Nuclear alarm sound from preloaded audio element ---
   function startAlarmSound() {
     try {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-
-      alarmOsc = audioCtx.createOscillator();
-      alarmGain = audioCtx.createGain();
-
-      alarmOsc.type = 'sawtooth';
-      alarmOsc.frequency.setValueAtTime(220, audioCtx.currentTime);
-      alarmGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-
-      alarmOsc.connect(alarmGain);
-      alarmGain.connect(audioCtx.destination);
-
-      // Siren sweep: oscillate between 220Hz and 440Hz
-      var now = audioCtx.currentTime;
-      for (var i = 0; i < 120; i++) {
-        var t = now + i * 0.5;
-        alarmOsc.frequency.setValueAtTime(220, t);
-        alarmOsc.frequency.linearRampToValueAtTime(440, t + 0.25);
-        alarmOsc.frequency.linearRampToValueAtTime(220, t + 0.5);
+      var audio = document.getElementById('sfx-nuclear');
+      if (audio) {
+        audio.currentTime = 0;
+        audio.volume = 0.6;
+        audio.play().catch(function() {});
       }
-
-      alarmOsc.start();
     } catch (e) { /* audio not available */ }
   }
 
   function stopAlarmSound() {
     try {
-      if (alarmOsc) { alarmOsc.stop(); alarmOsc.disconnect(); alarmOsc = null; }
-      if (alarmGain) { alarmGain.disconnect(); alarmGain = null; }
+      var audio = document.getElementById('sfx-nuclear');
+      if (audio) { audio.pause(); audio.currentTime = 0; }
     } catch (e) { /* ignore */ }
   }
 

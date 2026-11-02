@@ -211,6 +211,11 @@
     if (!atom) return;
 
     if (atom.el.z >= 82) {
+      // If already counting down on this atom, don't reset
+      if (timerAtomId === atomId && timerInterval) {
+        showStatus('\u2622 Already critical! Fission in progress...');
+        return;
+      }
       startCriticalTimer(atom, atomId);
     } else {
       addProton(atom, atomId);
@@ -339,7 +344,7 @@
         active = !active;
         btn.classList.toggle('on', active);
         showStatus(active ? 'Proton gun activated \u2014 Click atoms!' : 'Proton gun deactivated');
-        if (!active) clearCriticalTimer();
+        // Don't clear critical timer when toggling off - fission continues independently
       });
     }
 

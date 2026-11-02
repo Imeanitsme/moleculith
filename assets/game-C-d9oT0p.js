@@ -55714,8 +55714,8 @@ let fcVisible = true;
 let mayhemMode = false;
 let playerHealth = 100;
 const MAX_HEALTH = 100;
-const RADIATION_DAMAGE_RATE = 8;
-const RADIATION_RANGE = 120;
+const RADIATION_DAMAGE_RATE = 1.5;
+const RADIATION_RANGE = 6;
 const EXPLOSION_DAMAGE_BASE = 25;
 const EXPLOSION_DAMAGE_RANGE = 120;
 const GRID_SIZE = 240;
@@ -56169,8 +56169,8 @@ function updateHealth(now, dt) {
     const dy = centerY - camPos.y;
     const dz = centerZ - camPos.z;
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const sizeMultiplier = 1 + (moleculeSize - 1) * 0.15;
-    const radioactivityMultiplier = 1 + radioactiveCount * 0.3 + (totalZ - 82) * 0.01;
+    const sizeMultiplier = 1 + (moleculeSize - 1) * 0.03;
+    const radioactivityMultiplier = 1 + radioactiveCount * 0.08 + (totalZ - 82) * 0.002;
     const effectiveRange = RADIATION_RANGE * sizeMultiplier * radioactivityMultiplier;
     if (dist < effectiveRange) {
       const proximityFactor = 1 - dist / effectiveRange;
@@ -56202,7 +56202,7 @@ function applyExplosionDamage(center, scale, moleculeSize = 1) {
   const dy = center.y - camPos.y;
   const dz = center.z - camPos.z;
   const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-  const sizeMultiplier = 1 + (moleculeSize - 1) * 0.2;
+  const sizeMultiplier = 1 + (moleculeSize - 1) * 0.1;
   const effectiveRange = EXPLOSION_DAMAGE_RANGE * scale * sizeMultiplier;
   if (dist < effectiveRange) {
     const proximityFactor = 1 - dist / effectiveRange;

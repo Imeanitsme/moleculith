@@ -1,8 +1,8 @@
-// Tutorial System - Cell to Singularity Style - Standalone module
+// Tutorial System - Professional Typewriter Style
 (function() {
   'use strict';
 
-  var TUTORIAL_KEY = 'mol3d.tutorial.completed.v2';
+  var TUTORIAL_KEY = 'mol3d.tutorial.completed.v3';
   var USER_NAME_KEY = 'mol3d.user.name';
 
   var tutorialActive = false;
@@ -11,12 +11,15 @@
   var userName = localStorage.getItem(USER_NAME_KEY) || 'Scientist';
   var assistantName = 'ARIA';
 
+  var backdrop, dialog;
+  var typeInterval = null;
   var waitInterval = null;
-  var resizeHandler = null;
+  var currentFullText = '';
+  var currentCharIndex = 0;
 
   var PHASES = [
     {
-      id: 'setup', name: 'Assistant Setup',
+      id: 'setup', name: 'Introduction',
       steps: [
         { text: "Hello! I'm {assistant}, your chemistry AI assistant.", action: 'show' },
         { text: 'What should I call you?', action: 'nameInput' },
@@ -36,7 +39,7 @@
       id: 'bonding', name: 'Bonding & Reactions',
       steps: [
         { text: "Now let's learn about bonds! Spawn another H atom.", action: 'waitForSpawn', threshold: 2 },
-        { text: 'Two H atoms will automatically form H2 - molecular hydrogen!', action: 'next' },
+        { text: 'Two H atoms will automatically form H\u2082 \u2014 molecular hydrogen!', action: 'next' },
         { text: 'Double-click molecules to see reactions. Try combining different elements!', action: 'next' },
         { target: '#btn-fc', text: 'This shows formal charges on atoms. Useful for understanding reactivity.', action: 'highlight' },
       ]
@@ -44,15 +47,13 @@
     {
       id: 'advanced', name: 'Advanced Features',
       steps: [
-        { target: '#btn-xray', text: 'X-Ray mode lets you see through atoms. Press X or click here.', action: 'highlight' },
+        { target: '#btn-xray', text: 'X-Ray mode lets you see electron clouds. Press X or click here.', action: 'highlight' },
         { target: '#btn-proton', text: 'The Proton Gun adds protons to atoms, transmuting elements!', action: 'highlight' },
         { target: '#btn-quest', text: 'Quest mode gives you challenges to complete for rewards.', action: 'highlight' },
         { text: "You're all set, {user}! Explore and experiment. The lab is yours.", action: 'complete' },
       ]
     }
   ];
-
-  var backdrop, dialog, highlight;
 
   function showStatus(msg) {
     var el = document.getElementById('status-text');
@@ -67,64 +68,52 @@
     if (waitInterval) { clearInterval(waitInterval); waitInterval = null; }
   }
 
-  function removeResize() {
-    if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
+  function clearType() {
+    if (typeInterval) { clearInterval(typeInterval); typeInterval = null; }
   }
 
   function shouldShow() { return !localStorage.getItem(TUTORIAL_KEY); }
 
   function createUI() {
     backdrop = document.createElement('div');
-    backdrop.className = 'tut-backdrop';
+    backdrop.id = 'tut-backdrop';
     document.body.appendChild(backdrop);
 
     dialog = document.createElement('div');
-    dialog.className = 'tut-dialog';
+    dialog.id = 'tut-dialog';
     document.body.appendChild(dialog);
-
-    highlight = document.createElement('div');
-    highlight.className = 'tut-highlight';
-    document.body.appendChild(highlight);
 
     requestAnimationFrame(function() { backdrop.classList.add('visible'); });
   }
 
   function destroyUI() {
-    removeResize();
+    clearType();
     clearWait();
-    if (backdrop) { backdrop.classList.remove('visible'); setTimeout(function() { if (backdrop.parentNode) backdrop.remove(); }, 300); }
+    if (backdrop) { backdrop.classList.remove('visible'); setTimeout(function() { if (backdrop && backdrop.parentNode) backdrop.remove(); }, 500); }
     if (dialog && dialog.parentNode) dialog.remove();
-    if (highlight && highlight.parentNode) highlight.remove();
-    backdrop = dialog = highlight = null;
+    backdrop = dialog = null;
   }
 
-  function highlightEl(selector) {
-    var el = document.querySelector(selector);
-    if (!el) { hideHighlight(); return; }
-
-    var rect = el.getBoundingClientRect();
-    var pad = 6;
-    highlight.style.left = (rect.left - pad) + 'px';
-    highlight.style.top = (rect.top - pad) + 'px';
-    highlight.style.width = (rect.width + pad * 2) + 'px';
-    highlight.style.height = (rect.height + pad * 2) + 'px';
-    highlight.style.display = 'block';
-
-    el.classList.add('tut-pulse-target');
-
-    if (!resizeHandler) {
-      resizeHandler = function() {
-        if (!tutorialActive) return;
-        var cur = PHASES[phase] && PHASES[phase].steps[step];
-        if (cur && cur.action === 'highlight' && cur.target) highlightEl(cur.target);
-      };
-      window.addEventListener('resize', resizeHandler);
-    }
+  function typewriterWrite(element, text, speed, callback) {
+    clearType();
+    currentFullText = text;
+    currentCharIndex = 0;
+    element.textContent = '';
+    typeInterval = setInterval(function() {
+      if (currentCharIndex < currentFullText.length) {
+        element.textContent += currentFullText.charAt(currentCharIndex);
+        currentCharIndex++;
+      } else {
+        clearType();
+        if (callback) callback();
+      }
+    }, speed || 30);
   }
 
-  function hideHighlight() {
-    if (highlight) highlight.style.display = 'none';
-    document.querySelectorAll('.tut-pulse-target').forEach(function(el) { el.classList.remove('tut-pulse-target'); });
+  function skipTypewriter(element) {
+    clearType();
+    element.textContent = currentFullText;
+    currentCharIndex = currentFullText.length;
   }
 
   function renderStep() {
@@ -138,88 +127,112 @@
     var isComplete = s.action === 'complete';
     var isNameInput = s.action === 'nameInput';
 
-    var btnLabel = isComplete ? 'Finish' : isWaiting ? 'Waiting...' : 'Next';
-    var btnDisabled = isWaiting ? 'disabled' : '';
-    var btnClass = isWaiting ? 'tut-btn tut-btn-wait' : 'tut-btn';
+    dialog.innerHTML = ''
+      + '<div class="tut-line">'
+      + '  <img class="tut-assistant-gif" src="./assets/TutorialAssets/Assistant.gif" alt="ARIA" />'
+      + '  <div class="tut-text-area">'
+      + '    <div class="tut-assistant-name">' + assistantName + '</div>'
+      + '    <div class="tut-phase-label">Phase ' + (phase + 1) + ': ' + p.name + '</div>'
+      + '    <div class="tut-body" id="tut-body-text"></div>'
+      + '  </div>'
+      + '</div>'
+      + '<div class="tut-actions" id="tut-actions"></div>';
 
-    var actionsHTML = '';
-    if (isNameInput) {
-      actionsHTML = '<input type="text" class="tut-name-input" id="tut-name-input" placeholder="Enter your name" value="' + userName + '" />' +
-        '<button class="tut-btn" id="tut-continue-btn">Continue</button>';
-    } else {
-      actionsHTML = '<button class="' + btnClass + '" id="tut-next-btn" ' + btnDisabled + '>' + btnLabel + '</button>';
-    }
+    dialog.style.display = 'flex';
 
-    dialog.innerHTML =
-      '<div class="tut-header">' +
-        '<div class="tut-avatar">🤖</div>' +
-        '<div class="tut-header-text">' +
-          '<div class="tut-assistant-name">' + assistantName + '</div>' +
-          '<div class="tut-phase-label">Phase ' + (phase + 1) + ': ' + p.name + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="tut-body">' + text + '</div>' +
-      '<div class="tut-actions">' + actionsHTML + '</div>';
-
-    dialog.style.display = 'block';
+    var bodyEl = document.getElementById('tut-body-text');
+    var actionsEl = document.getElementById('tut-actions');
 
     if (isNameInput) {
-      var input = document.getElementById('tut-name-input');
-      var contBtn = document.getElementById('tut-continue-btn');
-      if (input) input.focus();
-      if (contBtn) {
-        contBtn.addEventListener('click', function() {
-          if (input && input.value.trim()) {
-            userName = input.value.trim();
-            localStorage.setItem(USER_NAME_KEY, userName);
-          }
-          advance();
-        });
-      }
-      if (input) {
-        input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') contBtn.click();
-        });
-      }
+      typewriterWrite(bodyEl, text, 25, function() {
+        actionsEl.innerHTML = '<input type="text" class="tut-name-input" id="tut-name-input" placeholder="Enter your name" value="' + userName + '" />'
+          + '<button class="tut-btn" id="tut-continue-btn">Continue</button>';
+        var input = document.getElementById('tut-name-input');
+        var contBtn = document.getElementById('tut-continue-btn');
+        if (input) input.focus();
+        if (contBtn) {
+          contBtn.addEventListener('click', function() {
+            if (input && input.value.trim()) {
+              userName = input.value.trim();
+              localStorage.setItem(USER_NAME_KEY, userName);
+            }
+            advance();
+          });
+        }
+        if (input) {
+          input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') contBtn.click();
+          });
+        }
+      });
     } else if (isWaiting) {
-      waitForAction(s.action, s.threshold);
+      typewriterWrite(bodyEl, text, 25, function() {
+        actionsEl.innerHTML = '<button class="tut-btn tut-btn-wait" id="tut-next-btn" disabled>Waiting...</button>';
+        waitForAction(s.threshold);
+      });
+    } else if (isComplete) {
+      typewriterWrite(bodyEl, text, 25, function() {
+        actionsEl.innerHTML = '<button class="tut-btn tut-btn-finish" id="tut-next-btn">Finish</button>';
+        document.getElementById('tut-next-btn').addEventListener('click', complete);
+      });
     } else {
-      var nextBtn = document.getElementById('tut-next-btn');
-      if (nextBtn) {
-        nextBtn.addEventListener('click', function() {
+      typewriterWrite(bodyEl, text, 25, function() {
+        var btnLabel = 'Next';
+        actionsEl.innerHTML = '<button class="tut-btn" id="tut-next-btn">' + btnLabel + '</button>';
+        document.getElementById('tut-next-btn').addEventListener('click', function() {
           if (s.action === 'highlight' && s.target) {
             var target = document.querySelector(s.target);
             if (target) target.click();
           }
           advance();
         });
-      }
+      });
     }
 
-    if (s.action === 'highlight' && s.target) highlightEl(s.target);
-    else hideHighlight();
+    // Click on dialog to skip typewriter
+    if (dialog) {
+      dialog.onclick = function(e) {
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+        if (typeInterval) {
+          skipTypewriter(bodyEl);
+          // Re-render actions after skip
+          if (!isNameInput && !isWaiting && !isComplete) {
+            if (!actionsEl.querySelector('#tut-next-btn')) {
+              actionsEl.innerHTML = '<button class="tut-btn" id="tut-next-btn">Next</button>';
+              document.getElementById('tut-next-btn').addEventListener('click', function() {
+                if (s.action === 'highlight' && s.target) {
+                  var target = document.querySelector(s.target);
+                  if (target) target.click();
+                }
+                advance();
+              });
+            }
+          } else if (isWaiting && !actionsEl.querySelector('#tut-next-btn:not([disabled])')) {
+            // Already waiting, do nothing
+          } else if (isComplete && !actionsEl.querySelector('#tut-next-btn')) {
+            actionsEl.innerHTML = '<button class="tut-btn tut-btn-finish" id="tut-next-btn">Finish</button>';
+            document.getElementById('tut-next-btn').addEventListener('click', complete);
+          }
+        }
+      };
+    }
   }
 
-  function waitForAction(action, threshold) {
+  function waitForAction(threshold) {
     clearWait();
     var needed = threshold || 1;
     waitInterval = setInterval(function() {
       if (window.__mol3d && window.__mol3d.atoms && window.__mol3d.atoms.size >= needed) {
         clearWait();
-        enableNextBtn();
+        var btn = document.getElementById('tut-next-btn');
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('tut-btn-wait');
+          btn.textContent = 'Next';
+          btn.addEventListener('click', advance);
+        }
       }
     }, 300);
-  }
-
-  function enableNextBtn() {
-    if (!dialog) return;
-    var btn = dialog.querySelector('.tut-btn');
-    if (btn) {
-      btn.disabled = false;
-      btn.classList.remove('tut-btn-wait');
-      btn.textContent = 'Next';
-      btn.addEventListener('click', function() { advance(); });
-    }
   }
 
   function advance() {
@@ -238,7 +251,6 @@
   function complete() {
     localStorage.setItem(TUTORIAL_KEY, 'true');
     tutorialActive = false;
-    hideHighlight();
     destroyUI();
     showStatus('Tutorial complete! Welcome to the lab, ' + userName + '!');
   }
@@ -259,27 +271,42 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('tut-styles')) return;
+    if (document.getElementById('tut-styles-v3')) return;
     var s = document.createElement('style');
-    s.id = 'tut-styles';
-    s.textContent =
-      '@keyframes tut-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,255,136,0.7); } 50% { box-shadow: 0 0 0 clamp(10px, 2vw, 14px) rgba(0,255,136,0); } }' +
-      '.tut-pulse-target { animation: tut-pulse 1.5s infinite !important; }' +
-      '.tut-backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;pointer-events:none;opacity:0;transition:opacity 0.3s; }' +
-      '.tut-backdrop.visible { opacity:1; }' +
-      '.tut-dialog { position:fixed;bottom:clamp(60px,12vh,120px);left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:2px solid #0f3460;border-radius:clamp(10px,2vw,16px);padding:clamp(12px,3vw,20px);width:clamp(280px,85vw,500px);z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:none;font-family:inherit; }' +
-      '.tut-header { display:flex;align-items:center;gap:clamp(8px,2vw,12px);margin-bottom:clamp(8px,2vw,12px); }' +
-      '.tut-avatar { width:clamp(36px,8vw,48px);height:clamp(36px,8vw,48px);background:linear-gradient(135deg,#00ff88,#00d4ff);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:clamp(18px,4vw,24px);flex-shrink:0; }' +
-      '.tut-header-text { min-width:0; }' +
-      '.tut-assistant-name { color:#00ff88;font-weight:bold;font-size:clamp(12px,2.5vw,14px); }' +
-      '.tut-phase-label { color:#888;font-size:clamp(10px,2vw,11px); }' +
-      '.tut-body { color:#fff;font-size:clamp(13px,2.8vw,15px);line-height:1.5;margin-bottom:clamp(10px,2vw,16px);word-wrap:break-word;overflow-wrap:break-word; }' +
-      '.tut-actions { display:flex;gap:clamp(6px,1.5vw,8px);justify-content:flex-end;flex-wrap:wrap;align-items:center; }' +
-      '.tut-btn { padding:clamp(6px,1.5vw,8px) clamp(12px,3vw,16px);background:#00ff88;border:none;border-radius:clamp(6px,1.5vw,8px);color:#000;font-weight:bold;cursor:pointer;font-size:clamp(12px,2.5vw,14px);white-space:nowrap;transition:opacity 0.2s; }' +
-      '.tut-btn:hover { opacity:0.85; }' +
-      '.tut-btn-wait { opacity:0.5;cursor:not-allowed; }' +
-      '.tut-name-input { flex:1;min-width:0;padding:clamp(6px,1.5vw,8px) clamp(8px,2vw,12px);background:#0a0a1a;border:1px solid #0f3460;border-radius:clamp(6px,1.5vw,8px);color:#fff;font-size:clamp(12px,2.5vw,14px); }' +
-      '.tut-highlight { position:fixed;border:3px solid #00ff88;border-radius:8px;box-shadow:0 0 20px #00ff88,inset 0 0 20px rgba(0,255,136,0.1);z-index:9997;pointer-events:none;display:none;transition:all 0.3s; }';
+    s.id = 'tut-styles-v3';
+    s.textContent = [
+      '#tut-backdrop { position:fixed;inset:0;background:#000000;z-index:9998;opacity:0;transition:opacity 0.5s; }',
+      '#tut-backdrop.visible { opacity:1; }',
+      '#tut-dialog { position:fixed;bottom:clamp(40px,8vh,80px);left:50%;transform:translateX(-50%);',
+      '  background:rgba(10,10,15,0.95);border:1px solid rgba(255,255,255,0.1);',
+      '  border-radius:12px;padding:clamp(16px,3vw,24px);',
+      '  width:clamp(320px,80vw,560px);z-index:9999;',
+      '  box-shadow:0 16px 48px rgba(0,0,0,0.8);',
+      '  display:none;flex-direction:column;gap:16px;',
+      '  font-family:"Segoe UI",system-ui,-apple-system,sans-serif; }',
+      '.tut-line { display:flex;align-items:flex-start;gap:clamp(10px,2vw,16px); }',
+      '.tut-assistant-gif { width:clamp(40px,8vw,56px);height:clamp(40px,8vw,56px);',
+      '  border-radius:50%;object-fit:cover;flex-shrink:0;',
+      '  border:2px solid rgba(0,200,255,0.4);box-shadow:0 0 12px rgba(0,200,255,0.2); }',
+      '.tut-text-area { flex:1;min-width:0; }',
+      '.tut-assistant-name { color:#00d4ff;font-weight:600;font-size:clamp(11px,2.2vw,13px);letter-spacing:1px; }',
+      '.tut-phase-label { color:rgba(255,255,255,0.35);font-size:clamp(9px,1.8vw,11px);margin-top:2px; }',
+      '.tut-body { color:rgba(255,255,255,0.9);font-size:clamp(13px,2.6vw,15px);line-height:1.6;',
+      '  margin-top:clamp(8px,1.5vw,12px);min-height:2.4em;word-wrap:break-word; }',
+      '.tut-actions { display:flex;gap:8px;justify-content:flex-end;align-items:center; }',
+      '.tut-btn { padding:clamp(6px,1.2vw,8px) clamp(14px,3vw,20px);',
+      '  background:rgba(0,200,255,0.15);border:1px solid rgba(0,200,255,0.3);',
+      '  border-radius:6px;color:#00d4ff;font-weight:500;cursor:pointer;',
+      '  font-size:clamp(12px,2.2vw,13px);transition:all 0.2s; }',
+      '.tut-btn:hover { background:rgba(0,200,255,0.25);border-color:rgba(0,200,255,0.5); }',
+      '.tut-btn-wait { opacity:0.4;cursor:not-allowed; }',
+      '.tut-btn-finish { background:rgba(0,255,136,0.15);border-color:rgba(0,255,136,0.3);color:#00ff88; }',
+      '.tut-btn-finish:hover { background:rgba(0,255,136,0.25);border-color:rgba(0,255,136,0.5); }',
+      '.tut-name-input { flex:1;padding:clamp(6px,1.2vw,8px) clamp(10px,2vw,14px);',
+      '  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);',
+      '  border-radius:6px;color:#fff;font-size:clamp(12px,2.2vw,13px);outline:none; }',
+      '.tut-name-input:focus { border-color:rgba(0,200,255,0.5); }'
+    ].join('\n');
     document.head.appendChild(s);
   }
 

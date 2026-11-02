@@ -656,6 +656,12 @@ function updateMolecularDecay(now, realDt) {
   const victims = [];
   for (const comp of lastComps) {
     if (comp.bonds.length === 0) continue;
+    
+    // Skip stable radicals that should not decompose (CH3, etc.)
+    const an = analyses[lastComps.indexOf(comp)];
+    const formula = (an && an.formula) || '';
+    if (formula === 'CH3' || formula === 'CH2') continue; // Methyl/methylene radicals are stable in this context
+    
     const kin = comp.simulation && comp.simulation.kinetics;
     if (!kin || !isFinite(kin.rateConstant) || kin.rateConstant <= 0) continue;
 
@@ -891,6 +897,12 @@ function decomposeMolecule(comp, now) {
     for (const rule of DECOMPOSITION_RULES) {
       if (rule.match(parsed, parsed)) {
         const productFormulas = rule.products(parsed, parsed);
+        
+        // If products is null, this molecule should not decompose
+        if (productFormulas === null) {
+          return;
+        }
+        
         if (productFormulas && productFormulas.length >= 2) {
           // Stoichiometry guard: prevent molecule from decomposing to itself
           if (productFormulas.length === 1 && productFormulas[0] === formula) {

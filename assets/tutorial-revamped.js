@@ -11,11 +11,12 @@
   var userName = localStorage.getItem(USER_NAME_KEY) || 'Scientist';
   var assistantName = 'ARIA';
 
-  var backdrop, dialog;
+  var backdrop, dialog, spotlightRing, clickIndicator;
   var typeInterval = null;
   var waitInterval = null;
   var currentFullText = '';
   var currentCharIndex = 0;
+  var resizeHandler = null;
 
   var PHASES = [
     {
@@ -89,9 +90,12 @@
   function destroyUI() {
     clearType();
     clearWait();
+    hideHighlight();
     if (backdrop) { backdrop.classList.remove('visible'); setTimeout(function() { if (backdrop && backdrop.parentNode) backdrop.remove(); }, 500); }
     if (dialog && dialog.parentNode) dialog.remove();
-    backdrop = dialog = null;
+    if (spotlightRing && spotlightRing.parentNode) spotlightRing.remove();
+    if (clickIndicator && clickIndicator.parentNode) clickIndicator.remove();
+    backdrop = dialog = spotlightRing = clickIndicator = null;
   }
 
   function typewriterWrite(element, text, speed, callback) {
@@ -114,6 +118,69 @@
     clearType();
     element.textContent = currentFullText;
     currentCharIndex = currentFullText.length;
+  }
+
+  function highlightTarget(selector) {
+    var target = document.querySelector(selector);
+    if (!target) { hideHighlight(); return; }
+
+    var rect = target.getBoundingClientRect();
+    var pad = 8;
+
+    // Cut a hole in the backdrop around the target
+    if (backdrop) {
+      backdrop.style.clipPath = 'polygon('
+        + '0% 0%, 0% 100%, '
+        + (rect.left - pad) + 'px 100%, '
+        + (rect.left - pad) + 'px ' + (rect.bottom + pad) + 'px, '
+        + (rect.right + pad) + 'px ' + (rect.bottom + pad) + 'px, '
+        + (rect.right + pad) + 'px ' + (rect.top - pad) + 'px, '
+        + (rect.left - pad) + 'px ' + (rect.top - pad) + 'px, '
+        + (rect.left - pad) + 'px 0%, 100% 0%, 100% 100%, 0% 100%'
+        + ')';
+    }
+
+    // Glowing ring around target
+    if (!spotlightRing) {
+      spotlightRing = document.createElement('div');
+      spotlightRing.id = 'tut-spotlight-ring';
+      document.body.appendChild(spotlightRing);
+    }
+    spotlightRing.style.left = (rect.left - pad) + 'px';
+    spotlightRing.style.top = (rect.top - pad) + 'px';
+    spotlightRing.style.width = (rect.width + pad * 2) + 'px';
+    spotlightRing.style.height = (rect.height + pad * 2) + 'px';
+    spotlightRing.style.display = 'block';
+
+    // Pulsing click indicator
+    if (!clickIndicator) {
+      clickIndicator = document.createElement('div');
+      clickIndicator.id = 'tut-click-indicator';
+      clickIndicator.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>';
+      document.body.appendChild(clickIndicator);
+    }
+    clickIndicator.style.left = (rect.left + rect.width / 2 - 16) + 'px';
+    clickIndicator.style.top = (rect.top - pad - 40) + 'px';
+    clickIndicator.style.display = 'block';
+
+    target.classList.add('tut-pulse-target');
+
+    if (!resizeHandler) {
+      resizeHandler = function() {
+        if (!tutorialActive) return;
+        var cur = PHASES[phase] && PHASES[phase].steps[step];
+        if (cur && cur.target) highlightTarget(cur.target);
+      };
+      window.addEventListener('resize', resizeHandler);
+    }
+  }
+
+  function hideHighlight() {
+    if (backdrop) backdrop.style.clipPath = '';
+    if (spotlightRing) spotlightRing.style.display = 'none';
+    if (clickIndicator) clickIndicator.style.display = 'none';
+    document.querySelectorAll('.tut-pulse-target').forEach(function(el) { el.classList.remove('tut-pulse-target'); });
+    if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
   }
 
   function renderStep() {
@@ -139,6 +206,12 @@
       + '<div class="tut-actions" id="tut-actions"></div>';
 
     dialog.style.display = 'flex';
+
+    if (s.target) {
+      setTimeout(function() { highlightTarget(s.target); }, 100);
+    } else {
+      hideHighlight();
+    }
 
     var bodyEl = document.getElementById('tut-body-text');
     var actionsEl = document.getElementById('tut-actions');
@@ -275,7 +348,7 @@
     var s = document.createElement('style');
     s.id = 'tut-styles-v3';
     s.textContent = [
-      '#tut-backdrop { position:fixed;inset:0;background:#000000;z-index:9998;opacity:0;transition:opacity 0.5s; }',
+      '#tut-backdrop { position:fixed;inset:0;background:#000000;z-index:9998;opacity:0;transition:opacity 0.5s;pointer-events:none; }',
       '#tut-backdrop.visible { opacity:1; }',
       '#tut-dialog { position:fixed;bottom:clamp(40px,8vh,80px);left:50%;transform:translateX(-50%);',
       '  background:rgba(10,10,15,0.95);border:1px solid rgba(255,255,255,0.1);',
@@ -305,7 +378,27 @@
       '.tut-name-input { flex:1;padding:clamp(6px,1.2vw,8px) clamp(10px,2vw,14px);',
       '  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);',
       '  border-radius:6px;color:#fff;font-size:clamp(12px,2.2vw,13px);outline:none; }',
-      '.tut-name-input:focus { border-color:rgba(0,200,255,0.5); }'
+      '.tut-name-input:focus { border-color:rgba(0,200,255,0.5); }',
+      '#tut-spotlight-ring { position:fixed;border:2px solid #00d4ff;border-radius:10px;',
+      '  box-shadow:0 0 20px #00d4ff, 0 0 40px rgba(0,212,255,0.4), inset 0 0 15px rgba(0,212,255,0.15);',
+      '  z-index:9997;pointer-events:none;display:none;transition:all 0.3s ease;',
+      '  animation:tutRingPulse 1.8s ease-in-out infinite; }',
+      '#tut-click-indicator { position:fixed;z-index:9997;pointer-events:none;display:none;',
+      '  color:#00d4ff;animation:tutBounce 1s ease-in-out infinite;',
+      '  filter:drop-shadow(0 0 8px rgba(0,212,255,0.8)); }',
+      '@keyframes tutRingPulse {',
+      '  0%,100% { box-shadow:0 0 20px #00d4ff, 0 0 40px rgba(0,212,255,0.4), inset 0 0 15px rgba(0,212,255,0.15); }',
+      '  50% { box-shadow:0 0 30px #00d4ff, 0 0 60px rgba(0,212,255,0.6), inset 0 0 25px rgba(0,212,255,0.25); }',
+      '}',
+      '@keyframes tutBounce {',
+      '  0%,100% { transform:translateY(0); }',
+      '  50% { transform:translateY(8px); }',
+      '}',
+      '@keyframes tutPulseTarget {',
+      '  0%,100% { box-shadow:0 0 0 0 rgba(0,212,255,0.7); }',
+      '  50% { box-shadow:0 0 0 12px rgba(0,212,255,0); }',
+      '}',
+      '.tut-pulse-target { animation:tutPulseTarget 1.5s ease-in-out infinite !important; }'
     ].join('\n');
     document.head.appendChild(s);
   }

@@ -61061,6 +61061,17 @@ window.__mol3d = {
   selectAtom,
   undo,
   clearAll,
+  updateAtomLabel: (id, el) => {
+    const label = labelSprites.get(id);
+    if (label) {
+      label.material.map = labelTex(el.sym);
+      label.material.needsUpdate = true;
+      const r = displayRadius(el);
+      const s = 0.42 + r * 0.55;
+      label.scale.set(s, s, 1);
+    }
+  },
+  refreshInspector: updateInspector,
   stabilize: (ids) => stabilizeStrays(Array.isArray(ids) ? ids : [ids], performance.now()),
   triggerDeath: triggerPlayerDeath,
   help: () => {

@@ -185,10 +185,34 @@
     shellObjects.set(atomId, structure);
   }
 
+  function removeShellObject(id) {
+    var obj = shellObjects.get(id);
+    if (!obj || !window.__mol3d || !window.__mol3d.scene) return;
+    window.__mol3d.scene.remove(obj.group);
+    obj.group.traverse(function(child) {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(function(m) { m.dispose(); });
+        } else {
+          child.material.dispose();
+        }
+      }
+    });
+    shellObjects.delete(id);
+  }
+
   function updateShellPositions() {
     if (!active || !window.__mol3d || !window.__mol3d.atoms) return;
 
     var time = performance.now() * 0.001;
+
+    // Clean up shells for deleted atoms
+    for (var id of shellObjects.keys()) {
+      if (!window.__mol3d.atoms.has(id)) {
+        removeShellObject(id);
+      }
+    }
 
     window.__mol3d.atoms.forEach(function(atom, id) {
       var shellObj = shellObjects.get(id);
@@ -252,20 +276,9 @@
 
   function clearAllShells() {
     if (!window.__mol3d || !window.__mol3d.scene) return;
-    shellObjects.forEach(function(obj) {
-      window.__mol3d.scene.remove(obj.group);
-      obj.group.traverse(function(child) {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(function(m) { m.dispose(); });
-          } else {
-            child.material.dispose();
-          }
-        }
-      });
-    });
-    shellObjects.clear();
+    for (var id of shellObjects.keys()) {
+      removeShellObject(id);
+    }
   }
 
   function applyWireframe() {
@@ -335,6 +348,9 @@
       toggle: toggle,
       isActive: function() { return active; },
       rebuild: buildAllShells,
+      removeAtom: function(atomId) {
+        if (shellObjects.has(atomId)) removeShellObject(atomId);
+      },
       updateAtom: function(atomId, atom) {
         if (!active || !window.__mol3d || !window.__mol3d.THREE) return;
         updateAtomStructure(atomId, atom, window.__mol3d.THREE);

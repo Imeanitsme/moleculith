@@ -4,8 +4,11 @@
   let active = false;
   let timerInterval = null;
   let timerAtomId = null;
+  let criticalOverlay = null;
+  let audioCtx = null;
+  let alarmOsc = null;
+  let alarmGain = null;
 
-  // Noble gas atomic numbers - inert, unwavering
   const NOBLE_GASES = new Set([2, 10, 18, 36, 54, 86, 118]);
 
   function showStatus(msg) {
@@ -13,9 +16,106 @@
     if (el) { el.textContent = msg; el.className = 'info'; }
   }
 
+  // --- Red pulsing critical timer overlay ---
+  function createCriticalOverlay() {
+    if (criticalOverlay) return;
+    criticalOverlay = document.createElement('div');
+    criticalOverlay.id = 'critical-timer-overlay';
+    criticalOverlay.style.cssText = [
+      'position:fixed', 'top:50%', 'left:50%', 'transform:translate(-50%,-50%)',
+      'z-index:9999', 'pointer-events:none', 'text-align:center',
+      'font-family:monospace', 'font-weight:bold', 'font-size:28px',
+      'color:#ff0000', 'text-shadow:0 0 20px #ff0000, 0 0 40px #ff3300',
+      'animation:criticalPulse 0.5s ease-in-out infinite alternate',
+      'background:rgba(255,0,0,0.08)', 'border:2px solid rgba(255,0,0,0.6)',
+      'border-radius:12px', 'padding:16px 32px', 'backdrop-filter:blur(4px)',
+      'display:none'
+    ].join(';');
+
+    if (!document.getElementById('critical-pulse-style')) {
+      var style = document.createElement('style');
+      style.id = 'critical-pulse-style';
+      style.textContent = [
+        '@keyframes criticalPulse {',
+        '  0% { opacity:0.7; transform:translate(-50%,-50%) scale(1); border-color:rgba(255,0,0,0.4); }',
+        '  100% { opacity:1; transform:translate(-50%,-50%) scale(1.05); border-color:rgba(255,60,0,0.9); }',
+        '}',
+        '@keyframes criticalBorderFlash {',
+        '  0% { border-color:rgba(255,0,0,0.3); }',
+        '  50% { border-color:rgba(255,80,0,1); }',
+        '  100% { border-color:rgba(255,0,0,0.3); }',
+        '}'
+      ].join('\n');
+      document.head.appendChild(style);
+    }
+
+    criticalOverlay.innerHTML = '<div id="critical-element" style="font-size:18px;margin-bottom:4px;color:#ff6644"></div>'
+      + '<div id="critical-countdown" style="font-size:48px;line-height:1">60</div>'
+      + '<div style="font-size:14px;color:#ff4444;margin-top:4px">TO FISSION</div>';
+    document.body.appendChild(criticalOverlay);
+  }
+
+  function updateCriticalOverlay(atomName, atomZ, countdown) {
+    if (!criticalOverlay) createCriticalOverlay();
+    var nameEl = document.getElementById('critical-element');
+    var countEl = document.getElementById('critical-countdown');
+    if (nameEl) nameEl.textContent = '\u2622 ' + atomName + ' (Z=' + atomZ + ')';
+    if (countEl) {
+      countEl.textContent = countdown;
+      if (countdown <= 10) {
+        countEl.style.color = '#ff0000';
+        countEl.style.fontSize = '56px';
+        countEl.style.animation = 'criticalPulse 0.25s ease-in-out infinite alternate';
+      }
+    }
+    criticalOverlay.style.display = 'block';
+  }
+
+  function hideCriticalOverlay() {
+    if (criticalOverlay) criticalOverlay.style.display = 'none';
+  }
+
+  // --- Nuclear alarm sound via Web Audio API ---
+  function startAlarmSound() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      alarmOsc = audioCtx.createOscillator();
+      alarmGain = audioCtx.createGain();
+
+      alarmOsc.type = 'sawtooth';
+      alarmOsc.frequency.setValueAtTime(220, audioCtx.currentTime);
+      alarmGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+      alarmOsc.connect(alarmGain);
+      alarmGain.connect(audioCtx.destination);
+
+      // Siren sweep: oscillate between 220Hz and 440Hz
+      var now = audioCtx.currentTime;
+      for (var i = 0; i < 120; i++) {
+        var t = now + i * 0.5;
+        alarmOsc.frequency.setValueAtTime(220, t);
+        alarmOsc.frequency.linearRampToValueAtTime(440, t + 0.25);
+        alarmOsc.frequency.linearRampToValueAtTime(220, t + 0.5);
+      }
+
+      alarmOsc.start();
+    } catch (e) { /* audio not available */ }
+  }
+
+  function stopAlarmSound() {
+    try {
+      if (alarmOsc) { alarmOsc.stop(); alarmOsc.disconnect(); alarmOsc = null; }
+      if (alarmGain) { alarmGain.disconnect(); alarmGain = null; }
+    } catch (e) { /* ignore */ }
+  }
+
   function clearCriticalTimer() {
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
     timerAtomId = null;
+    stopAlarmSound();
+    hideCriticalOverlay();
   }
 
   function getElements() {
@@ -64,7 +164,6 @@
     var atom = window.__mol3d.atoms.get(atomId);
     if (!atom) return;
 
-    // Z>82: radioactive, starts critical timer
     if (atom.el.z >= 82) {
       startCriticalTimer(atom, atomId);
     } else {
@@ -77,35 +176,43 @@
     var newEl = findElement(newZ);
     if (!newEl) { showStatus('No element above Z=' + atom.el.z); return; }
 
-    // Check if result would be a noble gas (inert, unwavering)
     if (NOBLE_GASES.has(newZ)) {
-      showStatus('Cannot create noble gas ' + newEl.name + ' - inert and unwavering!');
+      showStatus('Cannot create noble gas ' + newEl.name + ' \u2014 inert and unwavering!');
       return;
     }
 
+    var oldSym = atom.el.sym;
     atom.el = newEl;
-    showStatus('Added proton: ' + newEl.name + ' (Z=' + newZ + ')');
+    showStatus('Added proton: ' + oldSym + ' \u2192 ' + newEl.name + ' (Z=' + newZ + ')');
+
+    // Update label sprite with new element symbol
+    if (window.__mol3d.updateAtomLabel) {
+      window.__mol3d.updateAtomLabel(atomId, newEl);
+    }
 
     // Update x-ray visualization in real-time if active
     if (window.__xray && window.__xray.isActive && window.__xray.isActive()) {
       window.__xray.updateAtom(atomId, atom);
     }
 
-    if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
-    if (window.__mol3d.renderer && window.__mol3d.camera) {
-      window.__mol3d.renderer.render(window.__mol3d.scene, window.__mol3d.camera);
+    // Refresh inspector if this atom is selected
+    if (window.__mol3d.refreshInspector) {
+      window.__mol3d.refreshInspector();
     }
+
+    if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
+    if (window.__mol3d.invalidate) window.__mol3d.invalidate();
   }
 
   function startCriticalTimer(atom, atomId) {
-    // Clear any existing timer first
     clearCriticalTimer();
-
     timerAtomId = atomId;
     var countdown = 60;
 
-    // Show initial message immediately
-    showStatus('CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') - ' + countdown + 's to fission!');
+    showStatus('\u2622 CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') \u2014 ' + countdown + 's to fission!');
+    createCriticalOverlay();
+    updateCriticalOverlay(atom.el.name, atom.el.z, countdown);
+    startAlarmSound();
 
     timerInterval = setInterval(function() {
       if (!window.__mol3d || !window.__mol3d.atoms.has(atomId)) {
@@ -114,10 +221,10 @@
       }
 
       countdown--;
+      updateCriticalOverlay(atom.el.name, atom.el.z, countdown);
 
-      // Always show countdown (not just when <= 10)
       if (countdown > 0) {
-        showStatus('CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') - ' + countdown + 's to fission!');
+        showStatus('\u2622 CRITICAL: ' + countdown + 's remaining!');
       }
 
       if (countdown <= 0) {
@@ -133,7 +240,13 @@
     if (!atom) return;
     var oldZ = atom.el.z;
     var oldName = atom.el.name;
-    var pos = atom.pos;
+    var pos = { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z };
+
+    // Clean up x-ray shell before deleting atom
+    if (window.__xray && window.__xray.removeAtom) {
+      window.__xray.removeAtom(atomId);
+    }
+
     var split1 = Math.floor(oldZ / 2);
     var split2 = oldZ - split1;
     var el1 = findElement(split1);
@@ -152,11 +265,10 @@
       );
     }
 
-    showStatus(oldName + ' underwent fission: ' + el1.name + ' + ' + el2.name);
+    showStatus('\uD83D\uDCA5 ' + oldName + ' underwent fission: ' + el1.name + ' + ' + el2.name);
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
-    if (window.__mol3d.renderer && window.__mol3d.camera) {
-      window.__mol3d.renderer.render(window.__mol3d.scene, window.__mol3d.camera);
-    }
+    if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
+    if (window.__mol3d.invalidate) window.__mol3d.invalidate();
   }
 
   function init() {
@@ -165,7 +277,7 @@
       btn.addEventListener('click', function() {
         active = !active;
         btn.classList.toggle('on', active);
-        showStatus(active ? 'Proton gun activated - Click atoms!' : 'Proton gun deactivated');
+        showStatus(active ? 'Proton gun activated \u2014 Click atoms!' : 'Proton gun deactivated');
         if (!active) clearCriticalTimer();
       });
     }

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#050810" />
+  <title>Molecule Builder 3D</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/i18n-58f72348.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-4f228aae.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-f12d1dcc.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-ef0ddf34.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-56202a2c.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-153b888d.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-da3f7592.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-b743acf6.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-f5733435.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-9a754932.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-6dfdaca3.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-1fe9a23d.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-17dbb8a2.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-f30ca5fe.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-b61372a8.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-4c848471.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-e8f33671.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-4f5235fd.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-6d5329e2.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-e0007d46.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-c7699487.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-f5fee123.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-e80bbfa3.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-83625b1b.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-8ccc4c8a.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-d3b0d586.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-b5efd1bd.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-83f75225.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-d2475b1e.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-08fdb8fb.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-b302bd1c.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-4d12de93.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-89de731f.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-572552c3.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-32204ff1.js">
+  <script type="module" crossorigin src="./assets/main-DqEXLz3y.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/i18n-d41d8cd9.js">
+  <link rel="stylesheet" crossorigin href="./assets/i18n-61e53a4e.css">
+</head>
+<body>
+  <!-- Main Menu Overlay -->
+  <div id="main-menu" class="main-menu-overlay">
+    <div class="main-menu-content">
+      <h1 class="game-title">Molecule Builder 3D</h1>
+      <div class="menu-buttons">
+        <button id="btn-singleplayer" class="menu-btn primary">
+          <i data-lucide="user"></i>
+          <span data-i18n="menu.singleplayer">Singleplayer</span>
+        </button>
+        <button id="btn-settings" class="menu-btn">
+          <i data-lucide="settings"></i>
+          <span data-i18n="menu.settings">Settings</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay" hidden>
+    <div class="modal-content">
+      <button class="modal-close" data-close="settings-modal">&times;</button>
+      <h3 data-i18n="settings.title">Settings</h3>
+      <div class="settings-group">
+        <button id="settings-theme" class="settings-btn">
+          <i data-lucide="palette"></i>
+          <span data-i18n="settings.theme">Theme: Dark</span>
+        </button>
+        <button id="settings-lang" class="settings-btn">
+          <i data-lucide="globe"></i>
+          <span data-i18n="settings.language">Language: EN</span>
+        </button>
+        <button id="settings-quality" class="settings-btn">
+          <i data-lucide="monitor"></i>
+          <span data-i18n="settings.quality">Quality: Auto</span>
+        </button>
+        <div class="settings-volume">
+          <label data-i18n="settings.volume">Volume</label>
+          <input type="range" id="settings-volume-slider" min="0" max="100" value="50" />
+        </div>
+      </div>
+      <button id="settings-back" class="modal-btn primary" data-i18n="settings.back">Back</button>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+
+  <!-- Sound Effects -->
+  <audio id="sfx-timestop" src="./assets/timestop-d718daa2.mp3" preload="auto"></audio>
+  <audio id="sfx-timeresume" src="./assets/timeresume-2cb0bd14.mp3" preload="auto"></audio>
+  <audio id="sfx-acceleration" src="./assets/acceleration-d64b34e6.mp3" preload="auto"></audio>
+</body>
+</html>

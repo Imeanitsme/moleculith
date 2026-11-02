@@ -1,9 +1,9 @@
-// X-Ray Mode - shows atomic structure: nucleus (protons/red + neutrons/gray) and electron shells
+// X-Ray Mode - Schrödinger model: electron probability clouds (orbitals)
 (function() {
   'use strict';
 
   var active = false;
-  var shellObjects = new Map(); // atomId -> { group, shells, electrons }
+  var shellObjects = new Map(); // atomId -> { group, cloudData }
   var animFrameId = null;
   var SHELL_CAP = [2, 8, 18, 32, 32, 18, 8];
 
@@ -73,46 +73,82 @@
     return group;
   }
 
+  // Schrödinger-style electron cloud: probability density visualization
+  function createElectronCloud(shellIndex, electronCount, THREE, atomRadius) {
+    var group = new THREE.Group();
+    var shellRadius = atomRadius * (1.5 + shellIndex * 0.8);
+
+    // Create probability cloud using multiple layered transparent spheres
+    var cloudLayers = [];
+    var layerCount = 3;
+    for (var l = 0; l < layerCount; l++) {
+      var layerRadius = shellRadius * (0.7 + l * 0.2);
+      var layerGeo = new THREE.SphereGeometry(layerRadius, 24, 24);
+      var layerMat = new THREE.MeshBasicMaterial({
+        color: 0x58a6ff,
+        transparent: true,
+        opacity: 0.08 + (l === 1 ? 0.05 : 0),
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      var layer = new THREE.Mesh(layerGeo, layerMat);
+      group.add(layer);
+      cloudLayers.push(layer);
+    }
+
+    // Add electron probability points (fuzzy dots representing where electrons might be)
+    var pointCount = Math.min(electronCount * 8, 64); // More points = denser cloud
+    var pointGeo = new THREE.SphereGeometry(0.04, 6, 6);
+    var pointMat = new THREE.MeshBasicMaterial({
+      color: 0x88ccff,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false
+    });
+
+    var points = [];
+    for (var p = 0; p < pointCount; p++) {
+      // Distribute points in spherical shell using golden ratio spiral
+      var phi = Math.acos(1 - 2 * (p + 0.5) / pointCount);
+      var theta = Math.PI * (1 + Math.sqrt(5)) * p;
+      var r = shellRadius * (0.85 + Math.random() * 0.3); // Slight radial variation
+
+      var point = new THREE.Mesh(pointGeo, pointMat);
+      point.position.set(
+        r * Math.sin(phi) * Math.cos(theta),
+        r * Math.sin(phi) * Math.sin(theta),
+        r * Math.cos(phi)
+      );
+      point.userData = {
+        basePos: point.position.clone(),
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 0.5
+      };
+      group.add(point);
+      points.push(point);
+    }
+
+    return {
+      group: group,
+      layers: cloudLayers,
+      points: points,
+      radius: shellRadius,
+      electronCount: electronCount
+    };
+  }
+
   function createElectronShells(shells, THREE, atomRadius) {
     var group = new THREE.Group();
-    var shellObjects = [];
-    var electronMeshes = [];
+    var cloudData = [];
 
     for (var s = 0; s < shells.length; s++) {
       var count = shells[s];
-      var shellRadius = atomRadius * (1.5 + s * 0.8);
-
-      // Shell ring (torus)
-      var torusGeo = new THREE.TorusGeometry(shellRadius, 0.02, 8, 32);
-      var torusMat = new THREE.MeshBasicMaterial({
-        color: 0x58a6ff,
-        transparent: true,
-        opacity: 0.4
-      });
-      var torus = new THREE.Mesh(torusGeo, torusMat);
-      torus.rotation.x = Math.PI / 2;
-      group.add(torus);
-      shellObjects.push(torus);
-
-      // Electrons on this shell
-      var electronGeo = new THREE.SphereGeometry(0.06, 8, 8);
-      var electronMat = new THREE.MeshBasicMaterial({ color: 0x58a6ff });
-
-      for (var e = 0; e < count; e++) {
-        var electron = new THREE.Mesh(electronGeo, electronMat);
-        electron.userData = {
-          shellIndex: s,
-          electronIndex: e,
-          shellRadius: shellRadius,
-          angle: (e / count) * Math.PI * 2,
-          speed: (0.3 + s * 0.15) * (s % 2 === 0 ? 1 : -1)
-        };
-        group.add(electron);
-        electronMeshes.push(electron);
-      }
+      var cloud = createElectronCloud(s, count, THREE, atomRadius);
+      group.add(cloud.group);
+      cloudData.push(cloud);
     }
 
-    return { group: group, shells: shellObjects, electrons: electronMeshes };
+    return { group: group, cloudData: cloudData };
   }
 
   function createAtomStructure(atom, THREE) {
@@ -132,7 +168,7 @@
     var nucleus = createNucleus(protons, neutrons, THREE);
     group.add(nucleus);
 
-    // Create electron shells
+    // Create electron clouds (Schrödinger model)
     var shellData = createElectronShells(shells, THREE, atomRadius);
     group.add(shellData.group);
 
@@ -155,13 +191,23 @@
       // Update group position to match atom
       shellObj.group.position.set(atom.pos.x, atom.pos.y, atom.pos.z);
 
-      // Animate electrons
-      shellObj.shellData.electrons.forEach(function(electron) {
-        var data = electron.userData;
-        var angle = data.angle + time * data.speed;
-        electron.position.x = Math.cos(angle) * data.shellRadius;
-        electron.position.z = Math.sin(angle) * data.shellRadius;
-        electron.position.y = 0;
+      // Animate electron clouds (quantum fluctuation effect)
+      shellObj.shellData.cloudData.forEach(function(cloud) {
+        // Pulsing effect for cloud layers
+        cloud.layers.forEach(function(layer, idx) {
+          var pulse = 1.0 + Math.sin(time * 2 + idx) * 0.05;
+          layer.scale.set(pulse, pulse, pulse);
+          layer.material.opacity = 0.08 + Math.sin(time * 1.5 + idx * 0.5) * 0.03;
+        });
+
+        // Quantum fluctuation for probability points
+        cloud.points.forEach(function(point) {
+          var data = point.userData;
+          var fluctuation = Math.sin(time * data.speed + data.phase) * 0.1;
+          point.position.copy(data.basePos);
+          point.position.multiplyScalar(1 + fluctuation);
+          point.material.opacity = 0.4 + Math.sin(time * data.speed * 2 + data.phase) * 0.2;
+        });
       });
     });
 
@@ -259,7 +305,7 @@
     }
 
     applyWireframe();
-    showStatus(active ? 'X-Ray mode ON - showing atomic structure' : 'X-Ray mode OFF');
+    showStatus(active ? 'X-Ray mode ON - Schrödinger electron clouds' : 'X-Ray mode OFF');
     return active;
   }
 

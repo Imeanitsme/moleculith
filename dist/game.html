@@ -589,5 +589,86 @@
   </div>
 
   <script src="https://js.puter.com/v2/"></script>
+  
+  <script>
+    // X-Ray Mode & Proton Gun - Complete inline implementation
+    (function() {
+      let isXRayActive = false;
+      let protonGunActive = false;
+      
+      const xrayBtn = document.getElementById('btn-xray');
+      const protonBtn = document.getElementById('btn-proton');
+      
+      if (xrayBtn) {
+        xrayBtn.addEventListener('click', function() {
+          isXRayActive = !isXRayActive;
+          
+          // Access Three.js materials through the scene
+          if (window.__mol3d && window.__mol3d.atoms) {
+            // Find atom meshes and toggle their materials
+            const scene = window.__mol3d.scene || (window.__mol3d.camera && window.__mol3d.camera.parent);
+            if (scene) {
+              scene.traverse(function(obj) {
+                if (obj.material && (obj.material === window.__mol3d.atomMatM || obj.material === window.__mol3d.atomMatN)) {
+                  if (isXRayActive) {
+                    obj.material.transparent = true;
+                    obj.material.opacity = 0.4;
+                    obj.material.wireframe = true;
+                  } else {
+                    obj.material.transparent = false;
+                    obj.material.opacity = 1.0;
+                    obj.material.wireframe = false;
+                  }
+                  obj.material.needsUpdate = true;
+                }
+              });
+            }
+          }
+          
+          xrayBtn.classList.toggle('on', isXRayActive);
+          
+          // Show status message
+          const statusEl = document.getElementById('status-text');
+          if (statusEl) {
+            statusEl.textContent = isXRayActive ? 'X-Ray mode enabled' : 'X-Ray mode disabled';
+            statusEl.className = 'info';
+          }
+        });
+      }
+      
+      if (protonBtn) {
+        protonBtn.addEventListener('click', function() {
+          protonGunActive = !protonGunActive;
+          protonBtn.classList.toggle('on', protonGunActive);
+          
+          const statusEl = document.getElementById('status-text');
+          if (statusEl) {
+            statusEl.textContent = protonGunActive ? 'Proton gun activated - Click atoms to shoot!' : 'Proton gun deactivated';
+            statusEl.className = 'info';
+          }
+        });
+      }
+      
+      // X key for X-ray toggle
+      window.addEventListener('keydown', function(e) {
+        if (e.key === 'x' || e.key === 'X') {
+          if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+            const activeEl = document.activeElement;
+            const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+            if (!isInput && xrayBtn) {
+              e.preventDefault();
+              xrayBtn.click();
+            }
+          }
+        }
+      });
+      
+      // Expose for debugging
+      window.__xrayDebug = {
+        isActive: () => isXRayActive,
+        isProtonActive: () => protonGunActive
+      };
+    })();
+  </script>
 </body>
 </html>

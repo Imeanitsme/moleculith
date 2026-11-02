@@ -218,6 +218,7 @@
       btn.disabled = false;
       btn.classList.remove('tut-btn-wait');
       btn.textContent = 'Next';
+      btn.addEventListener('click', function() { advance(); });
     }
   }
 

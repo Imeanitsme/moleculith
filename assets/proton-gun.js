@@ -5,6 +5,8 @@
   let timerInterval = null;
   let timerAtomId = null;
   let criticalOverlay = null;
+  let redFlash = null;
+  let whiteFlash = null;
 
   const NOBLE_GASES = new Set([2, 10, 18, 36, 54, 86, 118]);
 
@@ -13,42 +15,103 @@
     if (el) { el.textContent = msg; el.className = 'info'; }
   }
 
-  // --- Red pulsing critical timer overlay ---
+  // --- Cinematic screen effects ---
+  function createRedFlash() {
+    if (redFlash) return;
+    redFlash = document.createElement('div');
+    redFlash.id = 'nuclear-red-flash';
+    redFlash.style.cssText = [
+      'position:fixed', 'top:0', 'left:0', 'width:100vw', 'height:100vh',
+      'z-index:9990', 'pointer-events:none', 'display:none',
+      'background:radial-gradient(ellipse at center, rgba(255,0,0,0.15) 0%, rgba(180,0,0,0.25) 100%)',
+      'animation:nuclearRedPulse 1s ease-in-out infinite'
+    ].join(';');
+    if (!document.getElementById('nuclear-fx-styles')) {
+      var style = document.createElement('style');
+      style.id = 'nuclear-fx-styles';
+      style.textContent = [
+        '@keyframes nuclearRedPulse {',
+        '  0% { opacity:0.3; } 50% { opacity:0.8; } 100% { opacity:0.3; }',
+        '}',
+        '@keyframes nuclearCountdownPulse {',
+        '  0% { transform:translate(-50%,-50%) scale(1); text-shadow:0 0 30px #ff0000, 0 0 60px #ff3300, 0 0 90px #ff0000; }',
+        '  100% { transform:translate(-50%,-50%) scale(1.08); text-shadow:0 0 50px #ff0000, 0 0 100px #ff3300, 0 0 150px #ff0000; }',
+        '}',
+        '@keyframes nuclearUrgentPulse {',
+        '  0% { transform:translate(-50%,-50%) scale(1); text-shadow:0 0 40px #ff0000, 0 0 80px #ff0000, 0 0 120px #ff3300; }',
+        '  100% { transform:translate(-50%,-50%) scale(1.15); text-shadow:0 0 60px #ff0000, 0 0 120px #ff0000, 0 0 180px #ff3300; }',
+        '}',
+        '@keyframes whiteFadeOut {',
+        '  0% { opacity:1; } 80% { opacity:1; } 100% { opacity:0; }',
+        '}',
+        '.nuclear-countdown-num { font-variant-numeric:tabular-nums; }'
+      ].join('\n');
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(redFlash);
+  }
+
+  function showRedFlash() {
+    createRedFlash();
+    redFlash.style.display = 'block';
+  }
+
+  function hideRedFlash() {
+    if (redFlash) redFlash.style.display = 'none';
+  }
+
+  function triggerWhiteFlash(durationSec, callback) {
+    if (!whiteFlash) {
+      whiteFlash = document.createElement('div');
+      whiteFlash.id = 'nuclear-white-flash';
+      whiteFlash.style.cssText = [
+        'position:fixed', 'top:0', 'left:0', 'width:100vw', 'height:100vh',
+        'z-index:99999', 'pointer-events:all', 'background:#ffffff',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'flex-direction:column', 'font-family:monospace'
+      ].join(';');
+      document.body.appendChild(whiteFlash);
+    }
+    whiteFlash.style.display = 'flex';
+    whiteFlash.style.opacity = '1';
+    whiteFlash.innerHTML = '<div style="color:#333;font-size:24px;font-weight:bold;letter-spacing:4px">CONTAINMENT BREACH</div>'
+      + '<div style="color:#666;font-size:16px;margin-top:12px">Reinitializing ground state...</div>'
+      + '<div id="white-reset-countdown" style="color:#999;font-size:48px;margin-top:20px;font-weight:bold">' + durationSec + '</div>';
+
+    var remaining = durationSec;
+    var countEl = document.getElementById('white-reset-countdown');
+    var iv = setInterval(function() {
+      remaining--;
+      if (countEl) countEl.textContent = remaining;
+      if (remaining <= 0) {
+        clearInterval(iv);
+        whiteFlash.style.animation = 'whiteFadeOut 1.5s ease-out forwards';
+        setTimeout(function() {
+          whiteFlash.style.display = 'none';
+          whiteFlash.style.animation = '';
+          if (callback) callback();
+        }, 1500);
+      }
+    }, 1000);
+  }
+
+  // --- Critical timer overlay (big cinematic counter) ---
   function createCriticalOverlay() {
     if (criticalOverlay) return;
     criticalOverlay = document.createElement('div');
     criticalOverlay.id = 'critical-timer-overlay';
     criticalOverlay.style.cssText = [
-      'position:fixed', 'top:50%', 'left:50%', 'transform:translate(-50%,-50%)',
-      'z-index:9999', 'pointer-events:none', 'text-align:center',
-      'font-family:monospace', 'font-weight:bold', 'font-size:28px',
-      'color:#ff0000', 'text-shadow:0 0 20px #ff0000, 0 0 40px #ff3300',
-      'animation:criticalPulse 0.5s ease-in-out infinite alternate',
-      'background:rgba(255,0,0,0.08)', 'border:2px solid rgba(255,0,0,0.6)',
-      'border-radius:12px', 'padding:16px 32px', 'backdrop-filter:blur(4px)',
+      'position:fixed', 'top:50%', 'left:50%',
+      'transform:translate(-50%,-50%)',
+      'z-index:9995', 'pointer-events:none', 'text-align:center',
+      'font-family:"Courier New",monospace', 'font-weight:bold',
       'display:none'
     ].join(';');
 
-    if (!document.getElementById('critical-pulse-style')) {
-      var style = document.createElement('style');
-      style.id = 'critical-pulse-style';
-      style.textContent = [
-        '@keyframes criticalPulse {',
-        '  0% { opacity:0.7; transform:translate(-50%,-50%) scale(1); border-color:rgba(255,0,0,0.4); }',
-        '  100% { opacity:1; transform:translate(-50%,-50%) scale(1.05); border-color:rgba(255,60,0,0.9); }',
-        '}',
-        '@keyframes criticalBorderFlash {',
-        '  0% { border-color:rgba(255,0,0,0.3); }',
-        '  50% { border-color:rgba(255,80,0,1); }',
-        '  100% { border-color:rgba(255,0,0,0.3); }',
-        '}'
-      ].join('\n');
-      document.head.appendChild(style);
-    }
-
-    criticalOverlay.innerHTML = '<div id="critical-element" style="font-size:18px;margin-bottom:4px;color:#ff6644"></div>'
-      + '<div id="critical-countdown" style="font-size:48px;line-height:1">60</div>'
-      + '<div style="font-size:14px;color:#ff4444;margin-top:4px">TO FISSION</div>';
+    criticalOverlay.innerHTML = ''
+      + '<div id="critical-element" style="font-size:20px;color:#ff6644;letter-spacing:3px;margin-bottom:8px;text-shadow:0 0 10px #ff4400"></div>'
+      + '<div id="critical-countdown" class="nuclear-countdown-num" style="font-size:120px;line-height:1;color:#ff0000;text-shadow:0 0 30px #ff0000, 0 0 60px #ff3300, 0 0 90px #ff0000;animation:nuclearCountdownPulse 1s ease-in-out infinite alternate"></div>'
+      + '<div style="font-size:16px;color:#ff4444;margin-top:8px;letter-spacing:6px;text-shadow:0 0 10px #ff0000">TO FISSION</div>';
     document.body.appendChild(criticalOverlay);
   }
 
@@ -60,9 +123,8 @@
     if (countEl) {
       countEl.textContent = countdown;
       if (countdown <= 10) {
+        countEl.style.animation = 'nuclearUrgentPulse 0.25s ease-in-out infinite alternate';
         countEl.style.color = '#ff0000';
-        countEl.style.fontSize = '56px';
-        countEl.style.animation = 'criticalPulse 0.25s ease-in-out infinite alternate';
       }
     }
     criticalOverlay.style.display = 'block';
@@ -72,7 +134,7 @@
     if (criticalOverlay) criticalOverlay.style.display = 'none';
   }
 
-  // --- Nuclear alarm sound from preloaded audio element ---
+  // --- Nuclear alarm sound ---
   function startAlarmSound() {
     try {
       var audio = document.getElementById('sfx-nuclear');
@@ -81,14 +143,14 @@
         audio.volume = 0.6;
         audio.play().catch(function() {});
       }
-    } catch (e) { /* audio not available */ }
+    } catch (e) {}
   }
 
   function stopAlarmSound() {
     try {
       var audio = document.getElementById('sfx-nuclear');
       if (audio) { audio.pause(); audio.currentTime = 0; }
-    } catch (e) { /* ignore */ }
+    } catch (e) {}
   }
 
   function clearCriticalTimer() {
@@ -96,6 +158,7 @@
     timerAtomId = null;
     stopAlarmSound();
     hideCriticalOverlay();
+    hideRedFlash();
   }
 
   function getElements() {
@@ -103,7 +166,7 @@
   }
 
   function findElement(z) {
-    const els = getElements();
+    var els = getElements();
     return els ? els.find(function(e) { return e.z === z; }) : null;
   }
 
@@ -165,17 +228,14 @@
     atom.el = newEl;
     showStatus('Added proton: ' + oldSym + ' \u2192 ' + newEl.name + ' (Z=' + newZ + ')');
 
-    // Update label sprite with new element symbol
     if (window.__mol3d.updateAtomLabel) {
       window.__mol3d.updateAtomLabel(atomId, newEl);
     }
 
-    // Update x-ray visualization in real-time if active
     if (window.__xray && window.__xray.isActive && window.__xray.isActive()) {
       window.__xray.updateAtom(atomId, atom);
     }
 
-    // Refresh inspector if this atom is selected
     if (window.__mol3d.refreshInspector) {
       window.__mol3d.refreshInspector();
     }
@@ -192,6 +252,7 @@
     showStatus('\u2622 CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') \u2014 ' + countdown + 's to fission!');
     createCriticalOverlay();
     updateCriticalOverlay(atom.el.name, atom.el.z, countdown);
+    showRedFlash();
     startAlarmSound();
 
     timerInterval = setInterval(function() {
@@ -214,6 +275,17 @@
     }, 1000);
   }
 
+  function resetCameraToGround() {
+    if (!window.__mol3d || !window.__mol3d.camera) return;
+    var cam = window.__mol3d.camera;
+    cam.position.set(0, 4.2, 10.5);
+    if (window.__mol3d.controls && window.__mol3d.controls.target) {
+      window.__mol3d.controls.target.set(0, 1.6, 0);
+      window.__mol3d.controls.update();
+    }
+    cam.lookAt(0, 0, 0);
+  }
+
   function triggerFission(atomId) {
     if (!window.__mol3d || !window.__mol3d.atoms) return;
     var atom = window.__mol3d.atoms.get(atomId);
@@ -222,7 +294,6 @@
     var oldName = atom.el.name;
     var pos = { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z };
 
-    // Clean up x-ray shell before deleting atom
     if (window.__xray && window.__xray.removeAtom) {
       window.__xray.removeAtom(atomId);
     }
@@ -241,7 +312,7 @@
 
     if (window.__mol3d.vfx && window.__mol3d.vfx.reactionVFX && window.__mol3d.THREE) {
       window.__mol3d.vfx.reactionVFX.explode(
-        new window.__mol3d.THREE.Vector3(pos.x, pos.y, pos.z), 3.0, new window.__mol3d.THREE.Color(0xff0000)
+        new window.__mol3d.THREE.Vector3(pos.x, pos.y, pos.z), 5.0, new window.__mol3d.THREE.Color(0xff4400)
       );
     }
 
@@ -249,6 +320,13 @@
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();
+
+    // Cinematic: white flash for 10 seconds, then reset to ground state
+    triggerWhiteFlash(10, function() {
+      if (window.__mol3d.clearAll) window.__mol3d.clearAll();
+      resetCameraToGround();
+      showStatus('Ground state restored after ' + oldName + ' fission');
+    });
   }
 
   function init() {

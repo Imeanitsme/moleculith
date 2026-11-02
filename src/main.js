@@ -981,6 +981,93 @@ function decomposeMolecule(comp, now) {
 }
 
 // ---------------------------------------------------------------------------
+// Reactivity sweep: continuously bond stray atoms to prevent chain reactions.
+// Single atoms (unbonded) are highly reactive and seek bonds every frame.
+// ---------------------------------------------------------------------------
+let lastReactivitySweep = 0;
+const REACTIVITY_INTERVAL = 100; // ms between sweeps
+
+function updateReactivitySweep(now) {
+  if (timeFrozen || now - lastReactivitySweep < REACTIVITY_INTERVAL) return;
+  lastReactivitySweep = now;
+
+  // Find all single-atom components (unbonded atoms)
+  const strays = [];
+  for (const comp of lastComps) {
+    if (comp.atoms.length === 1 && comp.bonds.length === 0) {
+      const id = comp.atoms[0];
+      const atom = atoms.get(id);
+      if (atom && atom.el.maxBonds > 0) {
+        strays.push(id);
+      }
+    }
+  }
+
+  if (!strays.length) return;
+
+  // Try to bond each stray to nearby atoms with free valence
+  let bonded = false;
+  for (const sid of strays) {
+    const atom = atoms.get(sid);
+    if (!atom || freeValenceOf(sid) === 0) continue;
+
+    const sPos = atom.pos;
+    const REACTIVE_RADIUS = 8.0; // Single atoms seek bonds from farther away
+
+    // Find candidates within reactive radius
+    const candidates = [...atoms.keys()]
+      .filter(id => {
+        if (id === sid) return false;
+        if (freeValenceOf(id) <= 0) return false;
+        const p = atoms.get(id).pos;
+        const dist = Math.hypot(p.x - sPos.x, p.y - sPos.y, p.z - sPos.z);
+        return dist < REACTIVE_RADIUS;
+      })
+      .sort((a, b) => {
+        const pa = atoms.get(a).pos, pb = atoms.get(b).pos;
+        return Math.hypot(pa.x - sPos.x, pa.y - sPos.y, pa.z - sPos.z)
+             - Math.hypot(pb.x - sPos.x, pb.y - sPos.y, pb.z - sPos.z);
+      });
+
+    // Try to form a bond with the nearest valid candidate
+    for (const pid of candidates) {
+      if (bondBetween(sid, pid)) continue;
+      const chk = bondCheck(atoms, bonds, sid, pid);
+      if (!chk.ok) continue;
+
+      const nb = nextId++;
+      bonds.set(nb, { id: nb, a: sid, b: pid, order: 1, ionic: chk.type === 'ionic' });
+      bonded = true;
+      break;
+    }
+
+    // If no bond formed and atom is still stray, move it toward nearest candidate
+    if (!bonded && candidates.length > 0) {
+      const target = atoms.get(candidates[0]);
+      if (target) {
+        const tPos = target.pos;
+        const dx = tPos.x - sPos.x;
+        const dy = tPos.y - sPos.y;
+        const dz = tPos.z - sPos.z;
+        const dist = Math.hypot(dx, dy, dz);
+        if (dist > 1.5) {
+          // Drift toward target (reactive attraction)
+          const speed = 0.02;
+          atom.pos.x += (dx / dist) * speed;
+          atom.pos.y += (dy / dist) * speed;
+          atom.pos.z += (dz / dist) * speed;
+        }
+      }
+    }
+  }
+
+  if (bonded) {
+    reanalyze();
+    invalidate();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Homeless-atom stabilization: cleavage must never strand a lone, unbonded
 // atom. Each stray bonds to the nearest atom with spare valence using the
 // app's own rules (bondCheck, pairOrderCap, upgradeCheck) — spreading single
@@ -1005,8 +1092,14 @@ function stabilizeStrays(strayIds, now) {
     let guard = 0;
     while (freeValenceOf(sid) > 0 && guard++ < 12) {
       const sPos = atoms.get(sid).pos;
+      const REACTIVE_RADIUS = 12.0; // Increased search radius for stabilization
       const candidates = [...atoms.keys()]
-        .filter(id => id !== sid && freeValenceOf(id) > 0)
+        .filter(id => {
+          if (id === sid) return false;
+          if (freeValenceOf(id) <= 0) return false;
+          const p = atoms.get(id).pos;
+          return Math.hypot(p.x - sPos.x, p.y - sPos.y, p.z - sPos.z) < REACTIVE_RADIUS;
+        })
         .sort((a, b) => {
           const pa = atoms.get(a).pos, pb = atoms.get(b).pos;
           return Math.hypot(pa.x - sPos.x, pa.y - sPos.y, pa.z - sPos.z)
@@ -1035,6 +1128,24 @@ function stabilizeStrays(strayIds, now) {
           existing.order = nextOrder;
           acted = true;
           break;
+        }
+      }
+      // If still can't bond, move toward nearest candidate (reactive drift)
+      if (!acted && candidates.length > 0) {
+        const target = atoms.get(candidates[0]);
+        if (target) {
+          const tPos = target.pos;
+          const dx = tPos.x - sPos.x;
+          const dy = tPos.y - sPos.y;
+          const dz = tPos.z - sPos.z;
+          const dist = Math.hypot(dx, dy, dz);
+          if (dist > 1.2) {
+            const speed = 0.15; // Faster drift for freshly-created strays
+            atoms.get(sid).pos.x += (dx / dist) * speed;
+            atoms.get(sid).pos.y += (dy / dist) * speed;
+            atoms.get(sid).pos.z += (dz / dist) * speed;
+            acted = true; // Mark as acted to continue the loop
+          }
         }
       }
       if (acted) continue;
@@ -6008,6 +6119,7 @@ function frame(now) {
   updateRadioactiveDecay(now);
   if (decayTrack.size) active = true;
   updateMolecularDecay(now, dt);
+  updateReactivitySweep(now);
   updateHealth(now, dt);
   updateCriticalTimer(dt);
   updateMayhemParticles(dt);

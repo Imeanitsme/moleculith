@@ -245,8 +245,6 @@
       <button id="btn-duplicate" class="action-btn" title="Duplicate (Ctrl+D)"><i data-lucide="copy"></i></button>
       <button id="btn-clear" class="action-btn" title="Clear All"><i data-lucide="x"></i></button>
       <button id="btn-fc" class="action-btn toggle" title="Formal Charge"><i data-lucide="plus-minus"></i></button>
-      <button id="btn-xray" class="action-btn toggle" title="X-Ray Mode (X)"><i data-lucide="scan-eye"></i></button>
-      <button id="btn-proton" class="action-btn toggle" title="Proton Gun"><i data-lucide="crosshair"></i></button>
     </aside>
 
     <!-- Bottom bar: TIME BOARD + MENU -->
@@ -471,7 +469,7 @@
   <!-- Meltdown Warning Overlay -->
 
   <!-- Main Menu Overlay -->
-  <div id="main-menu" class="main-menu-overlay">
+  <div id="main-menu" class="main-menu-overlay" hidden>
     <div class="main-menu-content">
       <h1 class="game-title">Molecule Builder 3D</h1>
       <div class="menu-buttons">
@@ -686,7 +684,6 @@
   </div>
 
   <script src="https://js.puter.com/v2/"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r180/three.min.js"></script>
   <script src="./assets/xray.js"></script>
   <script src="./assets/proton-gun.js"></script>
   <script src="./assets/tutorial-revamped.js"></script>

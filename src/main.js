@@ -981,6 +981,113 @@ function decomposeMolecule(comp, now) {
 }
 
 // ---------------------------------------------------------------------------
+// Molecular rearrangement: detect unstable "cursed" molecules and split them
+// into stable products. Runs after bonding events to prevent O4, N4, etc.
+// ---------------------------------------------------------------------------
+const STABLE_DIATOMIC = new Set(['H2', 'N2', 'O2', 'F2', 'Cl2', 'Br2', 'I2']);
+
+function checkAndRearrangeMolecules() {
+  if (timeFrozen) return;
+
+  for (const comp of lastComps) {
+    if (comp.atoms.length < 2) continue;
+
+    // Get molecule formula
+    const idx = lastComps.indexOf(comp);
+    const an = analyses[idx];
+    if (!an || !an.formula) continue;
+    const formula = an.formula;
+
+    // Check if this is a "cursed" multiple of a stable diatomic
+    // e.g., O4, O6, N4, H6, etc.
+    const parsed = parseFormula(formula);
+    if (!parsed || parsed.size !== 1) continue; // Only check single-element molecules
+
+    const element = [...parsed.keys()][0];
+    const count = parsed.get(element);
+
+    // If it's a multiple of 2 greater than 2, it's unstable
+    if (count > 2 && count % 2 === 0) {
+      const diatomicFormula = element + '2';
+      if (STABLE_DIATOMIC.has(diatomicFormula)) {
+        // Split into stable diatomic molecules
+        const numMolecules = count / 2;
+
+        // Get center position
+        const cen = new THREE.Vector3();
+        for (const id of comp.atoms) {
+          const p = atoms.get(id).pos;
+          cen.x += p.x; cen.y += p.y; cen.z += p.z;
+        }
+        cen.divideScalar(comp.atoms.length);
+
+        // Remove all atoms and bonds
+        for (const id of comp.atoms) {
+          atoms.delete(id);
+          for (const [bid, b] of bonds) {
+            if (b.a === id || b.b === id) bonds.delete(bid);
+          }
+        }
+
+        // Spawn stable diatomic molecules
+        const el = ELEMENTS.find(e => e.sym === element);
+        if (!el) continue;
+
+        const template = productTemplate(diatomicFormula);
+        if (!template) continue;
+
+        for (let i = 0; i < numMolecules; i++) {
+          const angle = (i / numMolecules) * Math.PI * 2;
+          const radius = 1.5;
+          const offset = new THREE.Vector3(
+            Math.cos(angle) * radius,
+            (Math.random() - 0.5) * 1.0,
+            Math.sin(angle) * radius
+          );
+          buildMoleculeAt(template, cen.x + offset.x, cen.y + offset.y, cen.z + offset.z);
+        }
+
+        reactionVFX.explode(cen, 0.8, new THREE.Color(0xffaa00));
+        status(`Rearranged ${formula} → ${numMolecules} ${diatomicFormula}`, 'warn');
+        reanalyze();
+        invalidate();
+        return; // One rearrangement per frame
+      }
+    }
+
+    // Check for other unstable patterns (e.g., O3 is stable but O5 is not)
+    if (element === 'O' && count === 5) {
+      // O5 → O3 + O2
+      const cen = new THREE.Vector3();
+      for (const id of comp.atoms) {
+        const p = atoms.get(id).pos;
+        cen.x += p.x; cen.y += p.y; cen.z += p.z;
+      }
+      cen.divideScalar(comp.atoms.length);
+
+      for (const id of comp.atoms) {
+        atoms.delete(id);
+        for (const [bid, b] of bonds) {
+          if (b.a === id || b.b === id) bonds.delete(bid);
+        }
+      }
+
+      const o3Tpl = productTemplate('O3');
+      const o2Tpl = productTemplate('O2');
+      if (o3Tpl && o2Tpl) {
+        buildMoleculeAt(o3Tpl, cen.x - 1, cen.y, cen.z);
+        buildMoleculeAt(o2Tpl, cen.x + 1, cen.y, cen.z);
+        reactionVFX.explode(cen, 0.8, new THREE.Color(0xffaa00));
+        status('Rearranged O5 → O3 + O2', 'warn');
+        reanalyze();
+        invalidate();
+        return;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Reactivity sweep: continuously bond stray atoms to prevent chain reactions.
 // Single atoms (unbonded) are highly reactive and seek bonds every frame.
 // ---------------------------------------------------------------------------
@@ -6120,6 +6227,7 @@ function frame(now) {
   if (decayTrack.size) active = true;
   updateMolecularDecay(now, dt);
   updateReactivitySweep(now);
+  checkAndRearrangeMolecules();
   updateHealth(now, dt);
   updateCriticalTimer(dt);
   updateMayhemParticles(dt);

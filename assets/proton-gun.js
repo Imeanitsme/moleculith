@@ -105,13 +105,16 @@
       'transform:translate(-50%,-50%)',
       'z-index:9995', 'pointer-events:none', 'text-align:center',
       'font-family:"Courier New",monospace', 'font-weight:bold',
-      'display:none'
+      'display:none', 'flex-direction:column', 'align-items:center',
+      'background:rgba(0,0,0,0.75)', 'border:2px solid rgba(255,0,0,0.5)',
+      'border-radius:16px', 'padding:24px 48px',
+      'backdrop-filter:blur(6px)', 'box-shadow:0 0 60px rgba(255,0,0,0.3), inset 0 0 30px rgba(255,0,0,0.1)'
     ].join(';');
 
     criticalOverlay.innerHTML = ''
-      + '<div id="critical-element" style="font-size:20px;color:#ff6644;letter-spacing:3px;margin-bottom:8px;text-shadow:0 0 10px #ff4400"></div>'
+      + '<div id="critical-element" style="font-size:18px;color:#ff6644;letter-spacing:3px;margin-bottom:16px;text-shadow:0 0 10px #ff4400;white-space:nowrap"></div>'
       + '<div id="critical-countdown" class="nuclear-countdown-num" style="font-size:120px;line-height:1;color:#ff0000;text-shadow:0 0 30px #ff0000, 0 0 60px #ff3300, 0 0 90px #ff0000;animation:nuclearCountdownPulse 1s ease-in-out infinite alternate"></div>'
-      + '<div style="font-size:16px;color:#ff4444;margin-top:8px;letter-spacing:6px;text-shadow:0 0 10px #ff0000">TO FISSION</div>';
+      + '<div style="font-size:14px;color:#ff4444;margin-top:16px;letter-spacing:8px;text-shadow:0 0 10px #ff0000">TO FISSION</div>';
     document.body.appendChild(criticalOverlay);
   }
 
@@ -127,7 +130,7 @@
         countEl.style.color = '#ff0000';
       }
     }
-    criticalOverlay.style.display = 'block';
+    criticalOverlay.style.display = 'flex';
   }
 
   function hideCriticalOverlay() {

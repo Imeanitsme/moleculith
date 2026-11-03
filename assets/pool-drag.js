@@ -4,27 +4,25 @@
 
   var dragging = false;
   var dragSym = null;
-  var dragEl = null;
+  var dragElData = null;
   var ghost = null;
   var sceneOverlay = false;
   var DRAG_THRESHOLD = 6;
   var startX = 0, startY = 0;
   var pendingChip = null;
-  var pendingX = 0, pendingY = 0;
-
-  function getSceneEl() {
-    return document.getElementById('scene-container') || document.getElementById('game-scene') || document.querySelector('.scene-wrapper');
-  }
+  var suppressClick = false;
 
   function isOverScene(x, y) {
-    var el = document.elementFromPoint(x, y);
-    if (!el) return false;
-    var scene = getSceneEl();
-    if (scene && scene.contains(el)) return true;
-    var canvas = document.querySelector('#app canvas');
-    if (canvas) {
-      var r = canvas.getBoundingClientRect();
-      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    var candidates = [
+      document.querySelector('#app canvas'),
+      document.getElementById('scene-container'),
+      document.getElementById('game-scene')
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      if (!el) continue;
+      var r = el.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
     }
     return false;
   }
@@ -47,8 +45,6 @@
   function showSceneOverlay() {
     if (sceneOverlay) return;
     sceneOverlay = true;
-    var scene = getSceneEl();
-    if (scene) scene.classList.add('pool-drop-target');
     var canvas = document.querySelector('#app canvas');
     if (canvas) canvas.classList.add('pool-drop-target');
   }
@@ -56,8 +52,6 @@
   function hideSceneOverlay() {
     if (!sceneOverlay) return;
     sceneOverlay = false;
-    var scene = getSceneEl();
-    if (scene) scene.classList.remove('pool-drop-target');
     var canvas = document.querySelector('#app canvas');
     if (canvas) canvas.classList.remove('pool-drop-target');
   }
@@ -71,6 +65,17 @@
     setTimeout(function() { if (burst.parentNode) burst.remove(); }, 800);
   }
 
+  function doSpawn() {
+    if (!dragElData) return;
+    if (window.__mol3d && window.__mol3d.spawnAtom) {
+      window.__mol3d.spawnAtom(dragElData);
+    }
+    if (document.body.classList.contains('mobile')) {
+      var closeSheets = window.__mol3d && window.__mol3d.closeMobileSheets;
+      if (typeof closeSheets === 'function') closeSheets();
+    }
+  }
+
   function onPointerDown(e) {
     var chip = e.target.closest('.el-chip');
     if (!chip) return;
@@ -79,13 +84,15 @@
     if (chip.classList.contains('locked')) return;
 
     e.preventDefault();
+    e.stopPropagation();
+    suppressClick = true;
+    setTimeout(function() { suppressClick = false; }, 400);
+
     pendingChip = chip;
     startX = e.clientX;
     startY = e.clientY;
-    pendingX = e.clientX;
-    pendingY = e.clientY;
     dragSym = chip.dataset.sym;
-    dragEl = window.__mol3d && window.__mol3d.ELEMENTS
+    dragElData = window.__mol3d && window.__mol3d.ELEMENTS
       ? window.__mol3d.ELEMENTS.find(function(el) { return el.sym === dragSym; })
       : null;
   }
@@ -123,10 +130,12 @@
 
   function onPointerUp(e) {
     if (pendingChip) {
-      if (!dragging) {
-        pendingChip.click();
+      if (!dragging && dragElData) {
+        doSpawn();
       }
       pendingChip = null;
+      dragging = false;
+      dragElData = null;
       return;
     }
 
@@ -135,28 +144,28 @@
     var cx = e.clientX;
     var cy = e.clientY;
 
-    if (isOverScene(cx, cy) && dragEl && window.__mol3d && window.__mol3d.spawnAtom) {
-      window.__mol3d.spawnAtom(dragEl);
+    if (isOverScene(cx, cy) && dragElData) {
+      doSpawn();
       spawnCinematic(cx, cy);
-      if (document.body.classList.contains('mobile')) {
-        var closeSheets = window.__mol3d && window.__mol3d.closeMobileSheets;
-        if (typeof closeSheets === 'function') closeSheets();
-      }
     }
 
-    cleanup();
-  }
-
-  function cleanup() {
     dragging = false;
-    dragSym = null;
-    dragEl = null;
     if (ghost && ghost.parentNode) ghost.remove();
     ghost = null;
     hideSceneOverlay();
     document.querySelectorAll('.el-chip.dragging').forEach(function(c) {
       c.classList.remove('dragging');
     });
+    dragElData = null;
+    dragSym = null;
+  }
+
+  function onDocumentClick(e) {
+    if (suppressClick) {
+      e.stopPropagation();
+      e.preventDefault();
+      suppressClick = false;
+    }
   }
 
   function injectStyles() {
@@ -167,9 +176,11 @@
       '.el-chip { -webkit-user-select:none; user-select:none; touch-action:none; }',
       '.el-chip.dragging { opacity:0.35; transform:scale(0.95) !important; }',
 
+      '#pool-drag-ghost, #pool-drag-ghost * {',
+      '  pointer-events:none !important;',
+      '}',
       '#pool-drag-ghost {',
-      '  position:fixed; z-index:10000; pointer-events:none;',
-      '  transition: opacity 0.15s;',
+      '  position:fixed; z-index:10000;',
       '  filter:drop-shadow(0 4px 16px rgba(0,212,255,0.35));',
       '}',
       '#pool-drag-ghost.over-scene {',
@@ -189,7 +200,7 @@
       '  50% { border-color:rgba(0,212,255,0.8); box-shadow:0 0 20px rgba(0,212,255,0.35); }',
       '}',
       '.pool-ghost-dot {',
-      '  width:14px; height:14px; border-radius:50%; flex:none;',
+      '  width:14px; height:15px; border-radius:50%; flex:none;',
       '  box-shadow:0 0 6px currentColor;',
       '}',
       '.pool-ghost-sym {',
@@ -230,10 +241,20 @@
       return;
     }
 
-    poolList.addEventListener('pointerdown', onPointerDown);
+    poolList.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
-    document.addEventListener('pointercancel', function() { cleanup(); });
+    document.addEventListener('pointercancel', function() {
+      dragging = false;
+      pendingChip = null;
+      if (ghost && ghost.parentNode) ghost.remove();
+      ghost = null;
+      hideSceneOverlay();
+      document.querySelectorAll('.el-chip.dragging').forEach(function(c) {
+        c.classList.remove('dragging');
+      });
+    });
+    document.addEventListener('click', onDocumentClick, true);
 
     var hint = document.querySelector('.panel-hint');
     if (hint && hint.textContent.indexOf('Click') !== -1) {

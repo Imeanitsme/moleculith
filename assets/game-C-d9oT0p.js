@@ -56215,7 +56215,7 @@ function triggerNuclearExplosionVFX() {
   sceneWrap.appendChild(bubble);
   setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 2000);
   try {
-    const audio = new Audio("./sfx/nuclearexplosion.mp3");
+    const audio = new Audio("./assets/nuclearexplosion.mp3");
     audio.volume = 0.7;
     audio.play().catch(() => {});
   } catch (e) {}

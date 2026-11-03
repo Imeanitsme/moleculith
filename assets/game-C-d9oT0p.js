@@ -45349,10 +45349,10 @@ function getMayhemElement(sym) {
   return MAYHEM_ELEMENTS.find((e) => e.sym === sym);
 }
 const TIERS = {
-  low: { key: "low", label: "Low", sphereSeg: [8, 6], cylSeg: 5, pixelRatio: 0.75, drift: false, maxAtoms: 150, particleMult: 0.3, xrayOptimized: true },
-  med: { key: "med", label: "Medium", sphereSeg: [16, 12], cylSeg: 10, pixelRatio: 1.5, drift: true, maxAtoms: 320, particleMult: 0.7, xrayOptimized: false },
-  high: { key: "high", label: "High", sphereSeg: [26, 18], cylSeg: 14, pixelRatio: 2, drift: true, maxAtoms: 320, particleMult: 1, xrayOptimized: false },
-  ultra: { key: "ultra", label: "Ultra High", sphereSeg: [32, 24], cylSeg: 18, pixelRatio: Math.min(window.devicePixelRatio || 1, 2.5), drift: true, maxAtoms: 640, particleMult: 1.5, xrayOptimized: false }
+  low: { key: "low", label: "Low", sphereSeg: [8, 6], cylSeg: 5, pixelRatio: 0.75, drift: false, maxAtoms: 1000, particleMult: 0.3, xrayOptimized: true },
+  med: { key: "med", label: "Medium", sphereSeg: [16, 12], cylSeg: 10, pixelRatio: 1.5, drift: true, maxAtoms: 2000, particleMult: 0.7, xrayOptimized: false },
+  high: { key: "high", label: "High", sphereSeg: [26, 18], cylSeg: 14, pixelRatio: 2, drift: true, maxAtoms: 99999, particleMult: 1, xrayOptimized: false },
+  ultra: { key: "ultra", label: "Ultra High", sphereSeg: [32, 24], cylSeg: 18, pixelRatio: Math.min(window.devicePixelRatio || 1, 2.5), drift: true, maxAtoms: 99999, particleMult: 1.5, xrayOptimized: false }
 };
 const TIER_ORDER = ["low", "med", "high", "ultra"];
 class AutoThrottle {

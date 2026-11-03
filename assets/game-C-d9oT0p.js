@@ -43960,7 +43960,11 @@ const UI = {
     "voice.enabled": "Voice chat enabled",
     "voice.disabled": "Voice chat disabled",
     "voice.muted": "Muted",
-    "voice.unmuted": "Unmuted"
+    "voice.unmuted": "Unmuted",
+    // quest AI
+    "quest.thinking": "Thinking...",
+    "quest.error": "I could not process that request.",
+    "quest.connectionError": "Error"
   },
   vi: {
     "btn.undo": "Hoàn tác",
@@ -44293,7 +44297,11 @@ const UI = {
     "voice.enabled": "Trò chuyện thoại đã bật",
     "voice.disabled": "Trò chuyện thoại đã tắt",
     "voice.muted": "Đã tắt tiếng",
-    "voice.unmuted": "Đã bật tiếng"
+    "voice.unmuted": "Đã bật tiếng",
+    // quest AI
+    "quest.thinking": "Đang suy nghĩ...",
+    "quest.error": "Không thể xử lý yêu cầu đó.",
+    "quest.connectionError": "Lỗi"
   }
 };
 const EL_VI = {
@@ -61943,11 +61951,40 @@ function initBackgroundMusic() {
     questInput.value = "";
     addQuestMessage("user", text);
     questHistory.push({ role: "user", content: text });
-    const typingMsg = addQuestMessage("typing", "Thinking...");
+    const typingMsg = addQuestMessage("typing", t("quest.thinking"));
     questSend.disabled = true;
     try {
       const context = getSceneContext();
-      const systemPrompt = `You are an AI chemistry guide for a 3D molecule builder app. You can BOTH answer questions AND take actions to build molecules.
+      const systemPrompt = isVi()
+        ? `Bạn là hướng dẫn hóa học AI cho ứng dụng xây dựng phân tử 3D. Bạn có thể TRẢ LỜI câu hỏi VÀ thực hiện hành động để xây dựng phân tử.
+
+Cảnh hiện tại:
+- Nguyên tử: ${context.totalAtoms}
+- Liên kết: ${context.totalBonds}
+- Khám phá: ${context.discoveries}
+${context.currentMolecules ? `- Phân tử: ${context.currentMolecules.map((m) => m.formula).join(", ")}` : ""}
+
+HÀNH ĐỘNG CÓ SẴN (khi người dùng yêu cầu xây dựng/tạo):
+- [ACTION:spawnMolecule:formula=H2O] - Xây dựng phân tử hoàn chỉnh
+- [ACTION:spawnAtom:element=O] - Thêm một nguyên tử đơn
+- [ACTION:clearScene] - Xóa tất cả nguyên tử
+- [ACTION:godMode] - Tắt xác thực (cho phân tử không thể)
+- [ACTION:mortalMode] - Bật lại xác thực
+
+QUY TẮC:
+1. Khi được yêu cầu xây dựng/tạo phân tử, sử dụng [ACTION:spawnMolecule:formula=...]
+2. Giải thích những gì bạn đang xây dựng và tại sao
+3. Giữ phản hồi dưới 3 câu
+4. Sử dụng hành động khi thích hợp, nhưng cũng giải thích hóa học
+5. Nếu phân tử vi phạm quy tắc hóa học, cảnh báo người dùng và đề xuất godMode
+
+Ví dụ:
+Người dùng: "Tạo nước"
+Bạn: "Tôi sẽ tạo H₂O cho bạn - oxy tạo 2 liên kết với hydro.[ACTION:spawnMolecule:formula=H2O]"
+
+Người dùng: "Metan là gì?"
+Bạn: "Metan (CH₄) là hydrocarbon đơn giản nhất - carbon liên kết với 4 hydro theo hình tứ diện. Bạn có muốn tôi tạo nó không?[ACTION:spawnMolecule:formula=CH4]"`
+        : `You are an AI chemistry guide for a 3D molecule builder app. You can BOTH answer questions AND take actions to build molecules.
 
 Current scene:
 - Atoms: ${context.totalAtoms}
@@ -61963,7 +62000,7 @@ AVAILABLE ACTIONS (use when user asks you to build/create something):
 - [ACTION:mortalMode] - Re-enable validation
 
 RULES:
-1. When asked to build/create a molecule, use [ACTION:spawnMolecule:formula=...] 
+1. When asked to build/create a molecule, use [ACTION:spawnMolecule:formula=...]
 2. Explain what you're building and why
 3. Keep responses under 3 sentences
 4. Use actions when appropriate, but also explain the chemistry
@@ -61979,9 +62016,9 @@ You: "Methane (CH₄) is the simplest hydrocarbon - carbon bonded to 4 hydrogens
         { role: "system", content: systemPrompt },
         ...questHistory.slice(-10)
       ];
-      const response = await puter.ai.chat(messages, { model: "claude-3-haiku-20240307" });
+      const response = await puter.ai.chat(messages, { model: "claude-3-5-sonnet" });
       typingMsg.remove();
-      const aiText = response?.message?.content || response?.toString() || "I could not process that request.";
+      const aiText = response?.message?.content || response?.toString() || t("quest.error");
       const actionResults = parseAndExecuteActions(aiText);
       addQuestMessage("ai", aiText.replace(/\[ACTION:[^\]]+\]/g, "").trim());
       if (actionResults.length > 0) {
@@ -61993,7 +62030,7 @@ You: "Methane (CH₄) is the simplest hydrocarbon - carbon bonded to 4 hydrogens
     } catch (error) {
       typingMsg.remove();
       console.error("Quest AI error:", error);
-      addQuestMessage("ai", "❌ Error: " + (error.message || "Could not connect to AI service."));
+      addQuestMessage("ai", "❌ " + t("quest.connectionError") + ": " + (error.message || ""));
     } finally {
       questSend.disabled = false;
       questInput.focus();

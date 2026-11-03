@@ -1,8 +1,8 @@
-// Tutorial System - Flying Assistant (No Backdrop)
+// Tutorial System - Flying Assistant (GIF + Dialog Bubble Only)
 (function() {
   'use strict';
 
-  var TUTORIAL_KEY = 'mol3d.tutorial.completed.v4';
+  var TUTORIAL_KEY = 'mol3d.tutorial.completed.v5';
   var USER_NAME_KEY = 'mol3d.user.name';
 
   var tutorialActive = false;
@@ -18,6 +18,7 @@
   var currentFullText = '';
   var currentCharIndex = 0;
   var resizeHandler = null;
+  var longPressTimer = null;
 
   var PHASES = [
     {
@@ -32,7 +33,7 @@
       id: 'basics', name: 'Foundations',
       steps: [
         { target: '#left-sidebar', text: 'This is your element pool, {user}. All 118 elements are here.', action: 'highlight' },
-        { target: '#pool-list', text: 'Click any element to place it in the scene. Try Hydrogen (H)!', action: 'waitForSpawn', threshold: 1 },
+        { target: '#pool-list', text: 'Drag any element into the scene to place it. Try Hydrogen (H)!', action: 'waitForSpawn', threshold: 1 },
         { text: 'Great! Atoms are the building blocks of all matter.', action: 'next' },
         { text: "Drag atoms to move them. They'll bond when close enough.", action: 'next' },
       ]
@@ -40,7 +41,7 @@
     {
       id: 'bonding', name: 'Bonding & Reactions',
       steps: [
-        { target: '#pool-list', text: "Now let's learn about bonds! Spawn another H atom.", action: 'waitForSpawn', threshold: 2 },
+        { target: '#pool-list', text: "Now let's learn about bonds! Drag another H into the scene.", action: 'waitForSpawn', threshold: 2 },
         { text: 'Two H atoms will automatically form H\u2082 \u2014 molecular hydrogen!', action: 'next' },
         { text: 'Double-click molecules to see reactions. Try combining different elements!', action: 'next' },
         { target: '#btn-fc', text: 'This shows formal charges on atoms. Useful for understanding reactivity.', action: 'highlight' },
@@ -87,11 +88,17 @@
 
     assistantEl = document.createElement('div');
     assistantEl.id = 'tut-assistant';
-    assistantEl.innerHTML = '<img class="tut-assistant-img" src="./assets/TutorialAssets/Assistant.gif" alt="ARIA" /><div class="tut-assistant-name">' + assistantName + '</div>';
+    assistantEl.innerHTML = '<img class="tut-assistant-img" src="./assets/TutorialAssets/Assistant.gif" alt="ARIA" />';
 
     container.appendChild(dialogEl);
     container.appendChild(assistantEl);
     document.body.appendChild(container);
+
+    assistantEl.addEventListener('pointerdown', function() {
+      longPressTimer = setTimeout(function() { complete(); }, 600);
+    });
+    assistantEl.addEventListener('pointerup', function() { clearTimeout(longPressTimer); });
+    assistantEl.addEventListener('pointerleave', function() { clearTimeout(longPressTimer); });
 
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
@@ -103,6 +110,7 @@
   function destroyUI() {
     clearType();
     clearWait();
+    clearTimeout(longPressTimer);
     hideHighlight();
     if (container && container.parentNode) {
       container.classList.add('tut-fade-out');
@@ -118,45 +126,53 @@
 
     var vw = window.innerWidth;
     var vh = window.innerHeight;
-    var cw = container.offsetWidth || 320;
-    var ch = container.offsetHeight || 300;
+
+    container.style.visibility = 'hidden';
+    container.style.display = 'flex';
+
+    var cw = container.offsetWidth;
+    var ch = container.offsetHeight;
+    var assistantH = assistantEl ? (assistantEl.offsetHeight || 56) : 56;
+
+    container.style.visibility = '';
 
     if (targetSelector) {
       var target = document.querySelector(targetSelector);
       if (target) {
         var rect = target.getBoundingClientRect();
+        var gap = 12;
         var spaceAbove = rect.top;
         var spaceBelow = vh - rect.bottom;
-        var assistantH = 70;
-        var gap = 10;
+        var targetCX = rect.left + rect.width / 2;
 
-        if (spaceAbove > ch + assistantH + gap + 20 || spaceAbove >= spaceBelow) {
-          var bottomPos = vh - rect.top + gap;
-          bottomPos = Math.max(10, bottomPos);
-          container.style.bottom = bottomPos + 'px';
-        } else {
-          var topPos = rect.bottom + gap;
-          topPos = Math.max(10, topPos);
-          container.style.bottom = '';
+        if (spaceAbove >= ch + gap + 10 || spaceAbove >= spaceBelow) {
+          var assistantBottom = rect.top - gap;
+          var topPos = assistantBottom - ch;
+          topPos = Math.max(8, topPos);
           container.style.top = topPos + 'px';
+        } else {
+          var topPos2 = rect.bottom + gap;
+          if (topPos2 + ch > vh - 8) {
+            topPos2 = Math.max(8, vh - ch - 8);
+          }
+          container.style.top = topPos2 + 'px';
         }
 
-        var centerX = rect.left + rect.width / 2;
-        var leftPos = centerX - cw / 2;
-        leftPos = Math.max(10, Math.min(leftPos, vw - cw - 10));
+        var leftPos = targetCX - cw / 2;
+        leftPos = Math.max(8, Math.min(leftPos, vw - cw - 8));
         container.style.left = leftPos + 'px';
-        container.style.right = '';
         return;
       }
     }
 
-    container.style.top = '';
-    var bottomCenter = Math.max(20, vh * 0.18);
-    container.style.bottom = bottomCenter + 'px';
+    var assistantCenterY = vh * 0.62;
+    var topCenter = assistantCenterY - assistantH - (ch - assistantH) / 2;
+    topCenter = Math.max(8, Math.min(topCenter, vh - ch - 8));
+    container.style.top = topCenter + 'px';
+
     var leftCenter = (vw - cw) / 2;
-    leftCenter = Math.max(10, Math.min(leftCenter, vw - cw - 10));
+    leftCenter = Math.max(8, Math.min(leftCenter, vw - cw - 8));
     container.style.left = leftCenter + 'px';
-    container.style.right = '';
   }
 
   function typewriterWrite(element, text, speed, callback) {
@@ -172,7 +188,7 @@
         clearType();
         if (callback) callback();
       }
-    }, speed || 25);
+    }, speed || 22);
   }
 
   function skipTypewriter(element) {
@@ -231,32 +247,9 @@
     if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
   }
 
-  function setDialogContent(phaseInfo, text) {
+  function setBodyText(text) {
     var body = dialogEl.querySelector('#tut-body-text');
     if (body) body.textContent = text;
-    var tail = dialogEl.querySelector('.tut-dialog-tail');
-    if (!tail) {
-      tail = document.createElement('div');
-      tail.className = 'tut-dialog-tail';
-      dialogEl.insertBefore(tail, dialogEl.firstChild);
-    }
-    var header = dialogEl.querySelector('.tut-dialog-header');
-    if (!header) {
-      header = document.createElement('div');
-      header.className = 'tut-dialog-header';
-      header.innerHTML = '<div class="tut-dialog-meta"><span class="tut-assistant-label">' + assistantName + '</span><span class="tut-phase-label">Phase ' + (phase + 1) + ': ' + phaseInfo.name + '</span></div><button class="tut-skip-btn" title="Skip Tutorial">&times;</button>';
-      dialogEl.insertBefore(header, tail);
-    } else {
-      var meta = header.querySelector('.tut-dialog-meta');
-      if (meta) meta.innerHTML = '<span class="tut-assistant-label">' + assistantName + '</span><span class="tut-phase-label">Phase ' + (phase + 1) + ': ' + phaseInfo.name + '</span>';
-    }
-    var skipBtn = header.querySelector('.tut-skip-btn');
-    if (skipBtn) {
-      skipBtn.onclick = function(e) {
-        e.stopPropagation();
-        complete();
-      };
-    }
   }
 
   function setActions(html) {
@@ -275,7 +268,7 @@
     var isComplete = s.action === 'complete';
     var isNameInput = s.action === 'nameInput';
 
-    setDialogContent(p, text);
+    setBodyText(text);
 
     if (s.target) {
       setTimeout(function() { highlightTarget(s.target); }, 50);
@@ -290,7 +283,7 @@
     var actionsEl = dialogEl.querySelector('#tut-actions');
 
     if (isNameInput) {
-      typewriterWrite(bodyEl, text, 22, function() {
+      typewriterWrite(bodyEl, text, 20, function() {
         setActions('<input type="text" class="tut-name-input" id="tut-name-input" placeholder="Enter your name" value="' + userName + '" /><button class="tut-btn" id="tut-continue-btn">Continue</button>');
         var input = document.getElementById('tut-name-input');
         var contBtn = document.getElementById('tut-continue-btn');
@@ -311,17 +304,17 @@
         }
       });
     } else if (isWaiting) {
-      typewriterWrite(bodyEl, text, 22, function() {
+      typewriterWrite(bodyEl, text, 20, function() {
         setActions('<button class="tut-btn tut-btn-wait" id="tut-next-btn" disabled>Waiting...</button>');
         waitForAction(s.threshold);
       });
     } else if (isComplete) {
-      typewriterWrite(bodyEl, text, 22, function() {
+      typewriterWrite(bodyEl, text, 20, function() {
         setActions('<button class="tut-btn tut-btn-finish" id="tut-next-btn">Finish</button>');
         document.getElementById('tut-next-btn').addEventListener('click', complete);
       });
     } else {
-      typewriterWrite(bodyEl, text, 22, function() {
+      typewriterWrite(bodyEl, text, 20, function() {
         setActions('<button class="tut-btn" id="tut-next-btn">Next</button>');
         document.getElementById('tut-next-btn').addEventListener('click', function() {
           if (s.action === 'highlight' && s.target) {
@@ -410,71 +403,48 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('tut-styles-v4')) return;
+    if (document.getElementById('tut-styles-v5')) return;
     var s = document.createElement('style');
-    s.id = 'tut-styles-v4';
+    s.id = 'tut-styles-v5';
     s.textContent = [
       '#tut-container {',
       '  position:fixed; z-index:9999;',
       '  display:flex; flex-direction:column; align-items:center;',
       '  gap:0; pointer-events:none;',
-      '  transition: left 0.7s cubic-bezier(0.34,1.56,0.64,1),',
-      '              bottom 0.7s cubic-bezier(0.34,1.56,0.64,1),',
-      '              top 0.7s cubic-bezier(0.34,1.56,0.64,1),',
-      '              opacity 0.5s ease;',
+      '  transition: left 0.65s cubic-bezier(0.34,1.56,0.64,1),',
+      '              top 0.65s cubic-bezier(0.34,1.56,0.64,1),',
+      '              opacity 0.45s ease;',
       '  opacity:0;',
       '}',
       '#tut-container.tut-no-transition { transition:none !important; }',
       '#tut-container.tut-visible { opacity:1; }',
-      '#tut-container.tut-fade-out { opacity:0; }',
+      '#tut-container.tut-fade-out { opacity:0; pointer-events:none; }',
 
       '#tut-dialog {',
       '  position:relative; pointer-events:auto;',
-      '  background:linear-gradient(145deg, rgba(8,14,30,0.95), rgba(12,20,40,0.93));',
+      '  background:linear-gradient(145deg, rgba(8,14,30,0.96), rgba(12,20,40,0.94));',
       '  border:1px solid rgba(0,212,255,0.25);',
-      '  border-radius:16px;',
+      '  border-radius:18px;',
       '  padding:clamp(12px,2.5vw,18px) clamp(14px,3vw,20px);',
-      '  width:clamp(260px,75vw,440px); max-width:calc(100vw - 24px);',
+      '  width:clamp(240px,70vw,420px); max-width:calc(100vw - 24px);',
       '  box-shadow:0 12px 40px rgba(0,0,0,0.7), 0 0 1px rgba(0,212,255,0.4), 0 0 30px rgba(0,212,255,0.06);',
       '  display:flex; flex-direction:column; gap:10px;',
       '  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;',
       '  backdrop-filter:blur(16px);',
-      '  animation:tutDialogIn 0.35s cubic-bezier(0.16,1,0.3,1);',
+      '  animation:tutDialogIn 0.3s cubic-bezier(0.16,1,0.3,1);',
       '}',
-      '@keyframes tutDialogIn { from { opacity:0; transform:translateY(8px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }',
+      '@keyframes tutDialogIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }',
 
       '.tut-dialog-tail {',
-      '  position:absolute; bottom:-10px; left:50%; transform:translateX(-50%);',
+      '  position:absolute; bottom:-9px; left:50%; transform:translateX(-50%);',
       '  width:0; height:0;',
-      '  border-left:10px solid transparent; border-right:10px solid transparent;',
-      '  border-top:10px solid rgba(10,17,35,0.95);',
-      '  filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));',
-      '  z-index:1;',
+      '  border-left:9px solid transparent; border-right:9px solid transparent;',
+      '  border-top:9px solid rgba(10,17,35,0.96);',
       '}',
-
-      '.tut-dialog-header {',
-      '  display:flex; align-items:center; justify-content:space-between; gap:8px;',
-      '}',
-      '.tut-dialog-meta { display:flex; flex-direction:column; gap:1px; }',
-      '.tut-assistant-label {',
-      '  color:#00d4ff; font-weight:700; font-size:clamp(10px,2vw,12px);',
-      '  letter-spacing:1.5px; text-transform:uppercase;',
-      '  text-shadow:0 0 8px rgba(0,212,255,0.4);',
-      '}',
-      '.tut-phase-label {',
-      '  color:rgba(0,212,255,0.35); font-size:clamp(8px,1.6vw,10px);',
-      '  letter-spacing:0.5px;',
-      '}',
-      '.tut-skip-btn {',
-      '  background:none; border:none; color:rgba(0,212,255,0.3);',
-      '  font-size:18px; cursor:pointer; padding:0 2px; line-height:1;',
-      '  transition:color 0.2s; pointer-events:auto;',
-      '}',
-      '.tut-skip-btn:hover { color:rgba(0,212,255,0.8); }',
 
       '.tut-dialog-body {',
       '  color:rgba(224,240,255,0.95); font-size:clamp(12px,2.5vw,14px);',
-      '  line-height:1.55; min-height:1.8em; word-wrap:break-word;',
+      '  line-height:1.55; min-height:1.6em; word-wrap:break-word;',
       '}',
 
       '.tut-dialog-actions {',
@@ -507,7 +477,7 @@
       '}',
 
       '.tut-name-input {',
-      '  flex:1; min-width:120px;',
+      '  flex:1; min-width:100px;',
       '  padding:clamp(6px,1.2vw,8px) clamp(10px,2vw,12px);',
       '  background:rgba(0,20,40,0.6); border:1px solid rgba(0,212,255,0.2);',
       '  border-radius:8px; color:#e0f0ff; font-size:clamp(11px,2vw,13px);',
@@ -517,8 +487,8 @@
       '.tut-name-input:focus { border-color:rgba(0,212,255,0.5); box-shadow:0 0 10px rgba(0,212,255,0.12); }',
 
       '#tut-assistant {',
-      '  display:flex; flex-direction:column; align-items:center; gap:3px;',
-      '  pointer-events:none; margin-top:6px;',
+      '  display:flex; flex-direction:column; align-items:center;',
+      '  pointer-events:auto; cursor:pointer; margin-top:4px;',
       '  animation:tutAssistantBob 3s ease-in-out infinite;',
       '}',
       '@keyframes tutAssistantBob {',
@@ -526,15 +496,15 @@
       '  50% { transform:translateY(-5px); }',
       '}',
       '.tut-assistant-img {',
-      '  width:clamp(42px,8vw,54px); height:clamp(42px,8vw,54px);',
+      '  width:clamp(44px,9vw,56px); height:clamp(44px,9vw,56px);',
       '  border-radius:50%; object-fit:cover;',
       '  border:2px solid rgba(0,212,255,0.5);',
       '  box-shadow:0 0 16px rgba(0,212,255,0.35), 0 0 4px rgba(0,255,136,0.2);',
+      '  transition:transform 0.2s, box-shadow 0.2s;',
       '}',
-      '.tut-assistant-name {',
-      '  color:#00d4ff; font-size:9px; font-weight:700;',
-      '  letter-spacing:1.5px; text-transform:uppercase;',
-      '  text-shadow:0 0 6px rgba(0,212,255,0.5); opacity:0.7;',
+      '#tut-assistant:hover .tut-assistant-img {',
+      '  transform:scale(1.08);',
+      '  box-shadow:0 0 24px rgba(0,212,255,0.5), 0 0 6px rgba(0,255,136,0.3);',
       '}',
 
       '#tut-spotlight-ring {',

@@ -56036,32 +56036,38 @@ function updateRadioactiveDecay(now) {
     atom.el = newEl;
     decayTrack.delete(id);
     const isAlphaDecay = oldEl.z - newEl.z === 2;
-    if (isAlphaDecay) {
-      reactionVFX.explode(pos, 1.5, new Color(16729088));
-      applyExplosionDamage(pos, 1.5, 1);
-      const bondsToRemove = [];
-      for (const [bid, b] of bonds) {
-        if (b.a === id || b.b === id) {
-          bondsToRemove.push(bid);
-        }
-      }
-      for (const bid of bondsToRemove) {
-        bonds.delete(bid);
-      }
+    const wasRadioactive = oldEl.z > 82;
+    const explosionScale = isAlphaDecay ? 2.5 : (wasRadioactive ? 2.0 : 1.0);
+    const bondsToRemove = [];
+    for (const [bid, b] of bonds) {
+      if (b.a === id || b.b === id) bondsToRemove.push(bid);
+    }
+    for (const bid of bondsToRemove) bonds.delete(bid);
+    if (wasRadioactive) {
+      reactionVFX.explode(pos, explosionScale, new Color(16729088));
+      applyExplosionDamage(pos, explosionScale, 1);
       for (const [otherId, otherAtom] of atoms) {
         if (otherId === id) continue;
         const otherPos = new Vector3(otherAtom.pos.x, otherAtom.pos.y, otherAtom.pos.z);
         const dist = pos.distanceTo(otherPos);
-        if (dist < 3 && dist > 0.1) {
-          const force = new Vector3().subVectors(otherPos, pos).normalize().multiplyScalar(2 / dist);
+        if (dist < 6 && dist > 0.01) {
+          const force = new Vector3().subVectors(otherPos, pos).normalize().multiplyScalar(8 / (dist * dist));
           otherAtom.pos.x += force.x;
           otherAtom.pos.y += force.y;
           otherAtom.pos.z += force.z;
+          otherAtom.vel = otherAtom.vel || { x: 0, y: 0, z: 0 };
+          otherAtom.vel.x = (otherAtom.vel.x || 0) + force.x * 3;
+          otherAtom.vel.y = (otherAtom.vel.y || 0) + force.y * 3;
+          otherAtom.vel.z = (otherAtom.vel.z || 0) + force.z * 3;
         }
       }
-      status(`☢ ${oldEl.name} underwent alpha decay → ${newEl.name} (bonds broken!)`, "warn");
+      atom._decayShake = 2000;
+      atom._decayTime = now;
+    }
+    if (bondsToRemove.length > 0 && wasRadioactive) {
+      status(`\u2622 ${oldEl.name} underwent ${isAlphaDecay ? 'alpha' : 'beta'} decay \u2192 ${newEl.name} \u2014 bonds shattered!`, "warn");
     } else {
-      status(`☢ ${oldEl.name} decayed to ${newEl.name}`, "warn");
+      status(`\u2622 ${oldEl.name} ${isAlphaDecay ? 'underwent alpha decay' : 'decayed'} \u2192 ${newEl.name}`, "warn");
     }
     if (isRadioactive(newEl)) {
       const hl = DECAY_HALF_LIFE[newEl.z] || 1;
@@ -57026,7 +57032,20 @@ function syncInstances() {
     const idx = metal ? mi++ : ni++;
     if (idx >= MAX_ATOMS) continue;
     const r = displayRadius(at.el) * spawnScale(id, now);
-    _p.set(at.pos.x, at.pos.y, at.pos.z);
+    let sx = at.pos.x, sy = at.pos.y, sz = at.pos.z;
+    if (at._decayShake && at._decayTime) {
+      const elapsed = now - at._decayTime;
+      if (elapsed < at._decayShake) {
+        const intensity = 0.2 * (1 - elapsed / at._decayShake);
+        sx += Math.sin(elapsed * 0.06) * intensity;
+        sy += Math.cos(elapsed * 0.07) * intensity * 0.6;
+        sz += Math.sin(elapsed * 0.05 + 1.5) * intensity * 0.8;
+      } else {
+        delete at._decayShake;
+        delete at._decayTime;
+      }
+    }
+    _p.set(sx, sy, sz);
     _s.setScalar(r);
     _m.compose(_p, Q_ID, _s);
     mesh.setMatrixAt(idx, _m);
@@ -60936,6 +60955,7 @@ function frame(now) {
   active = updateLerp(dt) || active;
   updateRadioactiveDecay(now);
   if (decayTrack.size) active = true;
+  for (const [, at] of atoms) { if (at._decayShake) { active = true; break; } }
   updateMolecularDecay(now, dt);
   updateReactivitySweep(now);
   checkAndRearrangeMolecules();
@@ -62032,9 +62052,9 @@ function triggerRankDownAnimation(rankInfo, starsLost, isRankDown) {
   shield.style.backgroundImage = `url('${rankInfo.rank.image}')`;
   shield.style.backgroundSize = "cover";
   shield.style.backgroundPosition = "center";
-  shield.classList.toggle("sparkle", !!rankInfo.rank.sparkle);
+  shield.classList.remove("sparkle");
   grade.textContent = rankInfo.gradeRoman;
-  grade.style.color = rankInfo.rank.textColor;
+  grade.style.color = "#ff4444";
   if (isRankDown) {
     label.textContent = `Rank Down! -${starsLost} Stars`;
   } else {
@@ -62042,6 +62062,29 @@ function triggerRankDownAnimation(rankInfo, starsLost, isRankDown) {
   }
   label.style.color = "#ff4444";
   confetti.innerHTML = "";
+  for (let i = 0; i < 20; i++) {
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+    const angle = i / 20 * Math.PI * 2;
+    const dist = 50 + Math.random() * 100;
+    const tx = Math.cos(angle) * dist;
+    const ty = Math.sin(angle) * dist;
+    const color = i % 3 === 0 ? "#ff2222" : i % 3 === 1 ? "#ff6644" : "#ff4400";
+    const rot = Math.random() * 720;
+    piece.style.cssText = `
+      background: ${color};
+      border-radius: ${Math.random() > 0.5 ? "50%" : "2px"};
+      animation-name: confettiBurst;
+      --tx: ${tx}px;
+      --ty: ${ty}px;
+      --rot: ${rot}deg;
+    `;
+    piece.style.animation = `confettiBurstCustom 1.2s ease-out 0.5s both`;
+    piece.style.setProperty("--tx", `${tx}px`);
+    piece.style.setProperty("--ty", `${ty}px`);
+    piece.style.setProperty("--rot", `${rot}deg`);
+    confetti.appendChild(piece);
+  }
   overlay.classList.add("rank-down");
   overlay.hidden = false;
   setTimeout(() => {
@@ -62049,7 +62092,8 @@ function triggerRankDownAnimation(rankInfo, starsLost, isRankDown) {
     overlay.classList.remove("rank-down");
     confetti.innerHTML = "";
     label.style.color = "";
-  }, 2500);
+    grade.style.color = "";
+  }, 3000);
   updateRankWidget();
   const poolWrap = document.getElementById("pool-list");
   if (poolWrap && isRankDown) {

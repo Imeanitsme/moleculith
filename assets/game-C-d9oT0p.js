@@ -43769,6 +43769,7 @@ const UI = {
     "quality.low": "Low",
     "quality.med": "Medium",
     "quality.high": "High",
+    "quality.ultra": "Ultra High",
     // conditions
     "cond.rt": "Room temperature",
     "cond.heat": "Heat",
@@ -44107,6 +44108,7 @@ const UI = {
     "quality.low": "Thấp",
     "quality.med": "Trung bình",
     "quality.high": "Cao",
+    "quality.ultra": "Cực cao",
     "cond.rt": "Nhiệt độ phòng",
     "cond.heat": "Nhiệt",
     "cond.spark": "Tia lửa điện",
@@ -45339,11 +45341,12 @@ function getMayhemElement(sym) {
   return MAYHEM_ELEMENTS.find((e) => e.sym === sym);
 }
 const TIERS = {
-  low: { key: "low", label: "Low", sphereSeg: [10, 8], cylSeg: 6, pixelRatio: 1, drift: false },
-  med: { key: "med", label: "Medium", sphereSeg: [16, 12], cylSeg: 10, pixelRatio: 1.5, drift: true },
-  high: { key: "high", label: "High", sphereSeg: [26, 18], cylSeg: 14, pixelRatio: 2, drift: true }
+  low: { key: "low", label: "Low", sphereSeg: [8, 6], cylSeg: 5, pixelRatio: 0.75, drift: false, maxAtoms: 150, particleMult: 0.3, xrayOptimized: true },
+  med: { key: "med", label: "Medium", sphereSeg: [16, 12], cylSeg: 10, pixelRatio: 1.5, drift: true, maxAtoms: 320, particleMult: 0.7, xrayOptimized: false },
+  high: { key: "high", label: "High", sphereSeg: [26, 18], cylSeg: 14, pixelRatio: 2, drift: true, maxAtoms: 320, particleMult: 1, xrayOptimized: false },
+  ultra: { key: "ultra", label: "Ultra High", sphereSeg: [32, 24], cylSeg: 18, pixelRatio: Math.min(window.devicePixelRatio || 1, 2.5), drift: true, maxAtoms: 640, particleMult: 1.5, xrayOptimized: false }
 };
-const TIER_ORDER = ["low", "med", "high"];
+const TIER_ORDER = ["low", "med", "high", "ultra"];
 class AutoThrottle {
   constructor({ downFps = 30, upFps = 55, downMs = 2e3, upMs = 4e3 } = {}) {
     this.downFps = downFps;
@@ -56046,6 +56049,7 @@ function updateRadioactiveDecay(now) {
     if (wasRadioactive) {
       reactionVFX.explode(pos, explosionScale, new Color(16729088));
       applyExplosionDamage(pos, explosionScale, 1);
+      triggerNuclearExplosionVFX();
       for (const [otherId, otherAtom] of atoms) {
         if (otherId === id) continue;
         const otherPos = new Vector3(otherAtom.pos.x, otherAtom.pos.y, otherAtom.pos.z);
@@ -56200,6 +56204,21 @@ function updateHealth(now, dt) {
     playerHealth = Math.min(MAX_HEALTH, playerHealth + 0.5 * dt);
     updateHealthBar();
   }
+}
+function triggerNuclearExplosionVFX() {
+  const sceneWrap = document.getElementById("scene-wrap");
+  if (!sceneWrap) return;
+  sceneWrap.classList.add("nuclear-shake");
+  setTimeout(() => sceneWrap.classList.remove("nuclear-shake"), 1500);
+  const bubble = document.createElement("div");
+  bubble.className = "nuclear-bubble";
+  sceneWrap.appendChild(bubble);
+  setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 2000);
+  try {
+    const audio = new Audio("./sfx/nuclearexplosion.mp3");
+    audio.volume = 0.7;
+    audio.play().catch(() => {});
+  } catch (e) {}
 }
 function applyExplosionDamage(center, scale, moleculeSize = 1) {
   if (gameMode === "creative") return;
@@ -56826,7 +56845,7 @@ const playerAvatar = createPlayerAvatar();
 scene.add(playerAvatar);
 let sphereGeo = new SphereGeometry(1, 16, 12);
 let cylGeo = new CylinderGeometry(1, 1, 1, 10, 1, true);
-const MAX_ATOMS = 320;
+const MAX_ATOMS = 640;
 const MAX_CYLS = 1280;
 const Q_ID = new Quaternion();
 const C_WHITE = new Color(16777215);
@@ -56874,7 +56893,7 @@ const ghostMat = new MeshBasicMaterial({ color: 4176208, transparent: true, opac
 const ghost = new Mesh(cylGeo, ghostMat);
 ghost.visible = false;
 scene.add(ghost);
-const QUALITY_MODES = ["auto", "low", "med", "high"];
+const QUALITY_MODES = ["auto", "low", "med", "high", "ultra"];
 let qualityMode = "auto";
 let tierIndex = 1;
 const fpsSampler = new FpsSampler();
@@ -56893,6 +56912,8 @@ function applyTier(i) {
   const cg = new CylinderGeometry(1, 1, 1, td.cylSeg, 1, true);
   for (const m of [atomMeshM, atomMeshN]) m.geometry = sg;
   for (const m of [bondMeshC, bondMeshI, ghost]) m.geometry = cg;
+  atomMeshM.count = td.maxAtoms;
+  atomMeshN.count = td.maxAtoms;
   sphereGeo.dispose();
   cylGeo.dispose();
   sphereGeo = sg;

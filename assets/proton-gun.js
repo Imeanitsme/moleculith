@@ -227,14 +227,23 @@
     var newEl = findElement(newZ);
     if (!newEl) { showStatus('No element above Z=' + atom.el.z); return; }
 
-    if (NOBLE_GASES.has(newZ)) {
-      showStatus('Cannot create noble gas ' + newEl.name + ' \u2014 inert and unwavering!');
-      return;
-    }
-
     var oldSym = atom.el.sym;
+    var isNoble = NOBLE_GASES.has(newZ);
     atom.el = newEl;
-    showStatus('Added proton: ' + oldSym + ' \u2192 ' + newEl.name + ' (Z=' + newZ + ')');
+
+    if (isNoble) {
+      var bondsBroken = 0;
+      for (var entry of window.__mol3d.bonds) {
+        var b = entry[1];
+        if (b.a === atomId || b.b === atomId) {
+          window.__mol3d.bonds.delete(entry[0]);
+          bondsBroken++;
+        }
+      }
+      showStatus('Added proton: ' + oldSym + ' \u2192 ' + newEl.name + ' (Z=' + newZ + ') \u2014 noble gas, ' + bondsBroken + ' bond(s) severed!');
+    } else {
+      showStatus('Added proton: ' + oldSym + ' \u2192 ' + newEl.name + ' (Z=' + newZ + ')');
+    }
 
     if (window.__mol3d.updateAtomLabel) {
       window.__mol3d.updateAtomLabel(atomId, newEl);

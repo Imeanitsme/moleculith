@@ -1093,7 +1093,10 @@ body.mobile:has(.side-tab-panel.open) #joy {
 
 #hint {
   position: absolute;
-  inset: 0;
+  top: 44px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1101,6 +1104,7 @@ body.mobile:has(.side-tab-panel.open) #joy {
   text-align: center;
   color: var(--muted);
   pointer-events: none;
+  user-select: none;
   z-index: 1;
   line-height: 1.9;
   font-size: 13.5px;
@@ -4676,5 +4680,55 @@ body.time-stopped #meltdown-overlay.active {
     height: 300px;
     bottom: 80px;
     left: 20px;
+  }
+}
+
+/* Nuclear Explosion VFX */
+#scene-wrap.nuclear-shake {
+  animation: nuclearShake 1.5s ease-out;
+}
+
+@keyframes nuclearShake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-8px, -6px); }
+  20% { transform: translate(7px, 5px); }
+  30% { transform: translate(-6px, 7px); }
+  40% { transform: translate(5px, -8px); }
+  50% { transform: translate(-7px, 4px); }
+  60% { transform: translate(8px, -5px); }
+  70% { transform: translate(-4px, 6px); }
+  80% { transform: translate(6px, -7px); }
+  90% { transform: translate(-5px, 8px); }
+}
+
+.nuclear-bubble {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.7) 30%, rgba(255,200,100,0.4) 60%, transparent 80%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 9999;
+  animation: nuclearBubbleExpand 1.8s ease-out forwards;
+}
+
+@keyframes nuclearBubbleExpand {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  50% {
+    width: 200vmax;
+    height: 200vmax;
+    opacity: 0.8;
+  }
+  100% {
+    width: 300vmax;
+    height: 300vmax;
+    opacity: 0;
   }
 }

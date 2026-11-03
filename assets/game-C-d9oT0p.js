@@ -58933,8 +58933,8 @@ function buildPool() {
     const unlocked = el.z ? isElementUnlocked(el.z, rankInfo) : true;
     b.className = "el-chip" + (unlocked ? "" : " locked");
     b.dataset.sym = el.sym;
-    b.dataset.search = `${el.sym} ${el.name} ${el.z}`.toLowerCase();
-    b.title = unlocked ? `${el.name} · ${el.cat} · max bonds ${el.maxBonds}` : `🔒 ${t("rank.locked")} — ${t("rank.requires")} ${RANKS.find((r) => getUnlockedElementCount({ rank: r }) >= (el.z || 0))?.name || ""}`;
+    b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)}`.toLowerCase();
+    b.title = unlocked ? `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}` : `🔒 ${t("rank.locked")} — ${t("rank.requires")} ${RANKS.find((r) => getUnlockedElementCount({ rank: r }) >= (el.z || 0))?.name || ""}`;
     const dot = document.createElement("i");
     dot.style.background = unlocked ? el.color : "#555";
     const s = document.createElement("span");
@@ -58942,7 +58942,7 @@ function buildPool() {
     s.textContent = el.sym;
     const n = document.createElement("span");
     n.className = "n";
-    n.textContent = el.name;
+    n.textContent = elName(el);
     b.append(dot, s, n);
     if (!unlocked) {
       const lock = document.createElement("span");
@@ -59081,6 +59081,21 @@ function updateInspector() {
   const fHtml = `${prettyFormula(an.displayFormula || an.formula)}<span class="muted">${formulaWithCharge("", an.charge)}</span>`;
   const tpl = buildTemplateFromComponent(comp);
   const groups = tpl ? tagFunctionalGroups(tpl) : [];
+  let refinedType = type;
+  if (groups.length > 0) {
+    const groupSet = new Set(groups.map((g) => g.group));
+    if (groupSet.has(GROUP_TYPES.ETHER) && !groupSet.has(GROUP_TYPES.ALCOHOL)) {
+      refinedType = { key: "ether", label: isVi() ? "Ete" : "Ether" };
+    } else if (groupSet.has(GROUP_TYPES.ALDEHYDE)) {
+      refinedType = { key: "aldehyde", label: isVi() ? "Anđehit" : "Aldehyde" };
+    } else if (groupSet.has(GROUP_TYPES.KETONE)) {
+      refinedType = { key: "ketone", label: isVi() ? "Xeton" : "Ketone" };
+    } else if (groupSet.has(GROUP_TYPES.CARBOXYL)) {
+      refinedType = { key: "carboxylicAcid", label: isVi() ? "Axit cacboxylic" : "Carboxylic acid" };
+    } else if (groupSet.has(GROUP_TYPES.ESTER)) {
+      refinedType = { key: "ester", label: isVi() ? "Este" : "Ester" };
+    }
+  }
   const groupLabels = {
     [GROUP_TYPES.ALCOHOL]: "🧪 Alcohol (-OH)",
     [GROUP_TYPES.PHENOL]: "🧪 Phenol (Ar-OH)",
@@ -59109,7 +59124,7 @@ function updateInspector() {
       (g) => `<span class="group-tag">${groupLabels[g] || g}</span>`
     ).join("")}</div>`;
   }
-  mol.innerHTML = `<div class="mol-formula">${fHtml}</div><div id="mol-name">${name || t("mol.unnamed")}<span class="mol-type">${type.label}</span></div>
+  mol.innerHTML = `<div class="mol-formula">${fHtml}</div><div id="mol-name">${name || t("mol.unnamed")}<span class="mol-type">${refinedType.label}</span></div>
     <span class="muted">${t("mol.stats", { a: comp.atoms.length, b: comp.bonds.length })}</span>${groupHtml}`;
   if (!an.feasible) {
     warn.style.display = "block";

@@ -54794,6 +54794,10 @@ function setupMenuEventListeners() {
     showModal("settings-modal");
     updateSettingsDisplay();
   });
+  document.getElementById("lobby-settings").addEventListener("click", () => {
+    showModal("settings-modal");
+    updateSettingsDisplay();
+  });
   document.getElementById("lobby-back").addEventListener("click", () => {
     showMainMenu();
   });

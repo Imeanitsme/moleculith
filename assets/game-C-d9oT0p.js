@@ -43694,10 +43694,10 @@ const UI = {
     "pool.viewList": "List",
     "pool.viewTable": "Table",
     "el.title": "{name} · {cat} · max bonds {max}",
-    "pool.hint": "Click an element to place an atom. Metals bond ionically (electron transfer). Noble gases are inert — Kr, Xe and Rn react only with F or O.",
+    "pool.hint": "Drag an element into the scene to place it. Metals bond ionically (electron transfer). Noble gases are inert — Kr, Xe and Rn react only with F or O.",
     "ptable.ph": "La–Lu · Ac–Lr below",
     // scene hint (HTML)
-    "hint.html": "Click an element in the pool to place your first atom.<br />Drag atoms together to bond them — green ghost means a legal bond, red means forbidden.<br />Click a bond to cycle its order (1→2→3→2→1→delete).<br />Double-click two or more molecules to set up a reaction, then pick a condition.<br />Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.",
+    "hint.html": "Drag an element from the pool into the scene to place it.<br />Drag atoms together to bond them — green ghost means a legal bond, red means forbidden.<br />Click a bond to cycle its order (1→2→3→2→1→delete).<br />Double-click two or more molecules to set up a reaction, then pick a condition.<br />Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.",
     // reaction panel
     "rxn.title": "Reaction",
     "rxn.count": "{n} molecule{s} selected",
@@ -44038,9 +44038,9 @@ const UI = {
     "pool.viewList": "Danh sách",
     "pool.viewTable": "Bảng",
     "el.title": "{name} · {cat} · tối đa {max} liên kết",
-    "pool.hint": "Bấm vào một nguyên tố để đặt nguyên tử. Kim loại liên kết ion (chuyển electron). Khí hiếm trơ — Kr, Xe và Rn chỉ phản ứng với F hoặc O.",
+    "pool.hint": "Kéo một nguyên tố vào cảnh để đặt nguyên tử. Kim loại liên kết ion (chuyển electron). Khí hiếm trơ — Kr, Xe và Rn chỉ phản ứng với F hoặc O.",
     "ptable.ph": "La–Lu · Ac–Lr ở dưới",
-    "hint.html": "Bấm một nguyên tố trong kho để đặt nguyên tử đầu tiên.<br />Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />Bấm vào liên kết để xoay bậc (1→2→3→2→1→xóa).<br />Nhấp đôi hai phân tử trở lên để tạo phản ứng, sau đó chọn điều kiện.<br />Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.",
+    "hint.html": "Kéo một nguyên tố từ kho vào cảnh để đặt nó.<br />Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />Nhấp vào liên kết để xoay bậc (1→2→3→2→1→xóa).<br />Nhấp đôi hai phân tử trở lên để tạo phản ứng, sau đó chọn điều kiện.<br />Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.",
     "rxn.title": "Phản ứng",
     "rxn.count": "{n} phân tử đã chọn",
     "rxn.cancel": "Hủy",
@@ -58942,6 +58942,7 @@ function buildPool() {
       b.appendChild(del);
       b.classList.add("custom-element");
     }
+    if (!window.__poolDragActive) {
     b.addEventListener("click", () => {
       if (!isElementUnlocked(el.z || 0, rankManager.getCurrentRank())) {
         status(`🔒 ${t("rank.elementLocked")}`, "err");
@@ -58949,6 +58950,7 @@ function buildPool() {
       }
       spawnFromPool(el);
     });
+    }
     wrap.appendChild(b);
   }
   renderPoolNames();
@@ -58959,7 +58961,11 @@ function buildPool() {
     search.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
       const first = [...wrap.children].find((c) => c.style.display !== "none");
-      if (first) first.click();
+      if (first) {
+        const sym = first.dataset.sym;
+        const el = ELEMENTS.find((x) => x.sym === sym) || customElements.find((x) => x.sym === sym);
+        if (el) spawnFromPool(el);
+      }
     });
     const viewBtn = document.getElementById("pool-view");
     viewBtn.addEventListener("click", () => {
@@ -61092,6 +61098,7 @@ window.__mol3d = {
     }
   },
   refreshInspector: updateInspector,
+  closeMobileSheets,
   stabilize: (ids) => stabilizeStrays(Array.isArray(ids) ? ids : [ids], performance.now()),
   triggerDeath: triggerPlayerDeath,
   help: () => {

@@ -2,27 +2,37 @@
 (function() {
   'use strict';
 
+  window.__poolDragActive = true;
+
   var dragging = false;
   var dragSym = null;
-  var dragElData = null;
+  var dragEl = null;
   var ghost = null;
   var sceneOverlay = false;
   var DRAG_THRESHOLD = 6;
   var startX = 0, startY = 0;
   var pendingChip = null;
-  var suppressClick = false;
+  var pendingX = 0, pendingY = 0;
+
+  function getSceneEl() {
+    return document.getElementById('scene-wrap')
+      || document.getElementById('scene-container')
+      || document.getElementById('game-scene')
+      || document.querySelector('.scene-wrapper');
+  }
 
   function isOverScene(x, y) {
-    var candidates = [
-      document.querySelector('#app canvas'),
-      document.getElementById('scene-container'),
-      document.getElementById('game-scene')
-    ];
-    for (var i = 0; i < candidates.length; i++) {
-      var el = candidates[i];
-      if (!el) continue;
-      var r = el.getBoundingClientRect();
+    var scene = getSceneEl();
+    if (scene) {
+      var r = scene.getBoundingClientRect();
       if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+    }
+    var canvases = document.querySelectorAll('canvas');
+    for (var i = 0; i < canvases.length; i++) {
+      var c = canvases[i];
+      if (c.id === 'bohr-canvas' || c.id === 'kinetics-canvas') continue;
+      var cr = c.getBoundingClientRect();
+      if (x >= cr.left && x <= cr.right && y >= cr.top && y <= cr.bottom) return true;
     }
     return false;
   }
@@ -45,15 +55,15 @@
   function showSceneOverlay() {
     if (sceneOverlay) return;
     sceneOverlay = true;
-    var canvas = document.querySelector('#app canvas');
-    if (canvas) canvas.classList.add('pool-drop-target');
+    var scene = getSceneEl();
+    if (scene) scene.classList.add('pool-drop-target');
   }
 
   function hideSceneOverlay() {
     if (!sceneOverlay) return;
     sceneOverlay = false;
-    var canvas = document.querySelector('#app canvas');
-    if (canvas) canvas.classList.remove('pool-drop-target');
+    var scene = getSceneEl();
+    if (scene) scene.classList.remove('pool-drop-target');
   }
 
   function spawnCinematic(x, y) {
@@ -65,17 +75,6 @@
     setTimeout(function() { if (burst.parentNode) burst.remove(); }, 800);
   }
 
-  function doSpawn() {
-    if (!dragElData) return;
-    if (window.__mol3d && window.__mol3d.spawnAtom) {
-      window.__mol3d.spawnAtom(dragElData);
-    }
-    if (document.body.classList.contains('mobile')) {
-      var closeSheets = window.__mol3d && window.__mol3d.closeMobileSheets;
-      if (typeof closeSheets === 'function') closeSheets();
-    }
-  }
-
   function onPointerDown(e) {
     var chip = e.target.closest('.el-chip');
     if (!chip) return;
@@ -84,15 +83,13 @@
     if (chip.classList.contains('locked')) return;
 
     e.preventDefault();
-    e.stopPropagation();
-    suppressClick = true;
-    setTimeout(function() { suppressClick = false; }, 400);
-
     pendingChip = chip;
     startX = e.clientX;
     startY = e.clientY;
+    pendingX = e.clientX;
+    pendingY = e.clientY;
     dragSym = chip.dataset.sym;
-    dragElData = window.__mol3d && window.__mol3d.ELEMENTS
+    dragEl = window.__mol3d && window.__mol3d.ELEMENTS
       ? window.__mol3d.ELEMENTS.find(function(el) { return el.sym === dragSym; })
       : null;
   }
@@ -130,12 +127,15 @@
 
   function onPointerUp(e) {
     if (pendingChip) {
-      if (!dragging && dragElData) {
-        doSpawn();
+      if (!dragging && dragEl) {
+        if (window.__mol3d && window.__mol3d.spawnAtom) {
+          window.__mol3d.spawnAtom(dragEl);
+        }
       }
       pendingChip = null;
       dragging = false;
-      dragElData = null;
+      dragEl = null;
+      dragSym = null;
       return;
     }
 
@@ -144,9 +144,13 @@
     var cx = e.clientX;
     var cy = e.clientY;
 
-    if (isOverScene(cx, cy) && dragElData) {
-      doSpawn();
+    if (isOverScene(cx, cy) && dragEl && window.__mol3d && window.__mol3d.spawnAtom) {
+      window.__mol3d.spawnAtom(dragEl);
       spawnCinematic(cx, cy);
+      if (document.body.classList.contains('mobile')) {
+        var closeSheets = window.__mol3d && window.__mol3d.closeMobileSheets;
+        if (typeof closeSheets === 'function') closeSheets();
+      }
     }
 
     dragging = false;
@@ -156,16 +160,8 @@
     document.querySelectorAll('.el-chip.dragging').forEach(function(c) {
       c.classList.remove('dragging');
     });
-    dragElData = null;
+    dragEl = null;
     dragSym = null;
-  }
-
-  function onDocumentClick(e) {
-    if (suppressClick) {
-      e.stopPropagation();
-      e.preventDefault();
-      suppressClick = false;
-    }
   }
 
   function injectStyles() {
@@ -176,11 +172,9 @@
       '.el-chip { -webkit-user-select:none; user-select:none; touch-action:none; }',
       '.el-chip.dragging { opacity:0.35; transform:scale(0.95) !important; }',
 
-      '#pool-drag-ghost, #pool-drag-ghost * {',
-      '  pointer-events:none !important;',
-      '}',
       '#pool-drag-ghost {',
-      '  position:fixed; z-index:10000;',
+      '  position:fixed; z-index:10000; pointer-events:none;',
+      '  transition: opacity 0.15s;',
       '  filter:drop-shadow(0 4px 16px rgba(0,212,255,0.35));',
       '}',
       '#pool-drag-ghost.over-scene {',
@@ -195,12 +189,13 @@
       '  backdrop-filter:blur(12px);',
       '  animation:ghostPulse 1.5s ease-in-out infinite;',
       '}',
+      '#pool-drag-ghost * { pointer-events:none !important; }',
       '@keyframes ghostPulse {',
       '  0%,100% { border-color:rgba(0,212,255,0.5); box-shadow:0 0 12px rgba(0,212,255,0.2); }',
       '  50% { border-color:rgba(0,212,255,0.8); box-shadow:0 0 20px rgba(0,212,255,0.35); }',
       '}',
       '.pool-ghost-dot {',
-      '  width:14px; height:15px; border-radius:50%; flex:none;',
+      '  width:14px; height:14px; border-radius:50%; flex:none;',
       '  box-shadow:0 0 6px currentColor;',
       '}',
       '.pool-ghost-sym {',
@@ -210,7 +205,7 @@
       '  font-size:11px; color:rgba(224,240,255,0.6);',
       '}',
 
-      'canvas.pool-drop-target {',
+      '#scene-wrap.pool-drop-target {',
       '  outline:2px dashed rgba(0,212,255,0.3);',
       '  outline-offset:-2px;',
       '  transition:outline-color 0.2s;',
@@ -241,7 +236,7 @@
       return;
     }
 
-    poolList.addEventListener('pointerdown', onPointerDown, true);
+    poolList.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
     document.addEventListener('pointercancel', function() {
@@ -254,12 +249,6 @@
         c.classList.remove('dragging');
       });
     });
-    document.addEventListener('click', onDocumentClick, true);
-
-    var hint = document.querySelector('.panel-hint');
-    if (hint && hint.textContent.indexOf('Click') !== -1) {
-      hint.textContent = hint.textContent.replace('Click an element to place an atom.', 'Drag an element into the scene to place it.');
-    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

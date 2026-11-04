@@ -57,7 +57,9 @@
   }
 
   function hideRedFlash() {
-    if (redFlash) redFlash.style.display = 'none';
+    if (!redFlash) return;
+    redFlash.remove();
+    redFlash = null;
   }
 
   function triggerWhiteFlash(durationSec, callback) {
@@ -87,8 +89,8 @@
         clearInterval(iv);
         whiteFlash.style.animation = 'whiteFadeOut 1.5s ease-out forwards';
         setTimeout(function() {
-          whiteFlash.style.display = 'none';
-          whiteFlash.style.animation = '';
+          whiteFlash.remove();
+          whiteFlash = null;
           if (callback) callback();
         }, 1500);
       }
@@ -134,7 +136,9 @@
   }
 
   function hideCriticalOverlay() {
-    if (criticalOverlay) criticalOverlay.style.display = 'none';
+    if (!criticalOverlay) return;
+    criticalOverlay.remove();
+    criticalOverlay = null;
   }
 
   // --- Nuclear alarm sound ---

@@ -112,9 +112,11 @@
     clearWait();
     clearTimeout(longPressTimer);
     hideHighlight();
-    if (container && container.parentNode) {
-      container.classList.add('tut-fade-out');
-      setTimeout(function() { if (container && container.parentNode) container.remove(); }, 500);
+    var dying = container;
+    if (dying && dying.parentNode) {
+      dying.classList.remove('tut-visible');
+      dying.classList.add('tut-fade-out');
+      setTimeout(function() { if (dying.parentNode) dying.remove(); }, 500);
     }
     if (spotlightRing && spotlightRing.parentNode) spotlightRing.remove();
     if (clickIndicator && clickIndicator.parentNode) clickIndicator.remove();
@@ -397,8 +399,12 @@
 
   function replay() {
     localStorage.removeItem(TUTORIAL_KEY);
+    clearWait();
     if (container && container.parentNode) container.remove();
     container = assistantEl = dialogEl = null;
+    tutorialActive = false;
+    phase = 0;
+    step = 0;
     start();
   }
 
@@ -411,14 +417,15 @@
       '  position:fixed; z-index:9999;',
       '  display:flex; flex-direction:column; align-items:center;',
       '  gap:0; pointer-events:none;',
+      '  visibility:hidden;',
       '  transition: left 0.65s cubic-bezier(0.34,1.56,0.64,1),',
       '              top 0.65s cubic-bezier(0.34,1.56,0.64,1),',
       '              opacity 0.45s ease;',
       '  opacity:0;',
       '}',
       '#tut-container.tut-no-transition { transition:none !important; }',
-      '#tut-container.tut-visible { opacity:1; }',
-      '#tut-container.tut-fade-out { opacity:0; pointer-events:none; }',
+      '#tut-container.tut-visible { opacity:1; visibility:visible; }',
+      '#tut-container.tut-fade-out { opacity:0; visibility:hidden; pointer-events:none; }',
 
       '#tut-dialog {',
       '  position:relative; pointer-events:auto;',

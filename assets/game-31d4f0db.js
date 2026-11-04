@@ -43964,7 +43964,31 @@ const UI = {
     // quest AI
     "quest.thinking": "Thinking...",
     "quest.error": "I could not process that request.",
-    "quest.connectionError": "Error"
+    "quest.connectionError": "Error",
+    // environment control
+    "env.title": "Environment Control",
+    "env.temperature": "Temperature",
+    "env.pressure": "Pressure",
+    "env.content": "Environment Content",
+    "env.addGas": "+ Gas",
+    "env.removeGas": "Remove this component",
+    "env.noGas": "Vacuum — no environment components",
+    "env.formulaPlaceholder": "H2, O2, Ar…",
+    "redox.title": "Universal Redox Framework",
+    "redox.oxidation": "Oxidation · loses e⁻",
+    "redox.reduction": "Reduction · gains e⁻",
+    "redox.reducingAgent": "Reducing agent",
+    "redox.oxidizingAgent": "Oxidizing agent",
+    "redox.rule": "Σ Δ(oxidation state) = {sum}",
+    "redox.balance": "e⁻ lost {lost} = e⁻ gained {gained}",
+    "env.components": "{n} component(s) · Σ ratio {total}",
+    "env.presetApplied": "🌡 Environment set to {name}",
+    "env.preset.air": "Air",
+    "env.preset.vacuo": "Vacuo",
+    "env.preset.oxygen": "Pure O2",
+    "env.preset.hydrogen": "Reducing (H2)",
+    "env.preset.argon": "Inert (Ar)",
+    "env.preset.co2": "CO2"
   },
   vi: {
     "btn.undo": "Hoàn tác",
@@ -44301,7 +44325,31 @@ const UI = {
     // quest AI
     "quest.thinking": "Đang suy nghĩ...",
     "quest.error": "Không thể xử lý yêu cầu đó.",
-    "quest.connectionError": "Lỗi"
+    "quest.connectionError": "Lỗi",
+    // environment control
+    "env.title": "Điều Khiển Môi Trường",
+    "env.temperature": "Nhiệt độ",
+    "env.pressure": "Áp suất",
+    "env.content": "Thành phần môi trường",
+    "env.addGas": "+ Khí",
+    "env.removeGas": "Xoá thành phần này",
+    "env.noGas": "Chân không — không có thành phần môi trường",
+    "env.formulaPlaceholder": "H2, O2, Ar…",
+    "redox.title": "Khung oxi hóa – khử tổng quát",
+    "redox.oxidation": "Sự oxi hóa · mất e⁻",
+    "redox.reduction": "Sự khử · nhận e⁻",
+    "redox.reducingAgent": "Chất khử",
+    "redox.oxidizingAgent": "Chất oxi hóa",
+    "redox.rule": "Σ Δ(số oxi hóa) = {sum}",
+    "redox.balance": "e⁻ mất {lost} = e⁻ nhận {gained}",
+    "env.components": "{n} thành phần · Σ tỉ lệ {total}",
+    "env.presetApplied": "🌡 Đã đặt môi trường: {name}",
+    "env.preset.air": "Không khí",
+    "env.preset.vacuo": "Chân không",
+    "env.preset.oxygen": "O2 tinh khiết",
+    "env.preset.hydrogen": "Khử (H2)",
+    "env.preset.argon": "Trơ (Ar)",
+    "env.preset.co2": "CO2"
   }
 };
 const EL_VI = {
@@ -45873,6 +45921,434 @@ function detectComproportionation(reactants, products) {
     }
   }
   return null;
+}
+const REDOX_EN_DEFAULT = 2.5;
+const REDOX_TOL = 1e-6;
+function oxEn(sym) {
+  const e = OXIDATION_STATES[sym];
+  return e ? e.en : REDOX_EN_DEFAULT;
+}
+function oxStatesOf(sym) {
+  const e = OXIDATION_STATES[sym];
+  return e ? e.states : null;
+}
+function oxWeightedSum(counts, on) {
+  let s = 0;
+  for (const [sym, n] of counts) s += n * (on.get(sym) || 0);
+  return s;
+}
+function oxidationNumbers(species, charge = 0) {
+  const counts = typeof species === "string" ? parseFormula(species) : species;
+  const on = /* @__PURE__ */ new Map();
+  const assumed = /* @__PURE__ */ new Set();
+  if (!counts || !counts.size) return { on, assumed, exact: false, charge, sum: 0 };
+  const syms = [...counts.keys()];
+  if (syms.length === 1) {
+    const n = counts.get(syms[0]) || 1;
+    on.set(syms[0], charge / n);
+    return { on, assumed, exact: true, charge, sum: charge };
+  }
+  const unknown = [];
+  for (const s of syms) {
+    if (s === "F") {
+      on.set(s, -1);
+      continue;
+    }
+    if (s === "O") {
+      if (counts.has("F")) unknown.push(s);
+      else on.set(s, -2);
+      continue;
+    }
+    if (s === "H") {
+      const rest = syms.filter((x) => x !== "H");
+      const hydride = !counts.has("O") && !counts.has("F") && rest.every((x) => isMetal(x) && oxEn(x) < oxEn("H"));
+      on.set(s, hydride ? -1 : 1);
+      continue;
+    }
+    const st = oxStatesOf(s);
+    if (st && st.length === 1) on.set(s, st[0]);
+    else unknown.push(s);
+  }
+  const isHalog = (s) => s === "Cl" || s === "Br" || s === "I" || s === "At";
+  const isChal = (s) => s === "S" || s === "Se" || s === "Te";
+  const isPnict = (s) => s === "N" || s === "P" || s === "As" || s === "Sb" || s === "Bi";
+  const anionPeel = (s) => {
+    if (syms.some((x) => x !== s && oxEn(x) > oxEn(s))) return null;
+    if (isHalog(s)) return -1;
+    if (isChal(s)) return -2;
+    if (isPnict(s)) return -3;
+    return null;
+  };
+  const cationPeel = (lo, rest) => {
+    const st = oxStatesOf(lo) || [];
+    const pos = st.filter((x) => x > 0);
+    if (!pos.length) return 0;
+    const absorber = rest[rest.length - 1];
+    const abCount = absorber ? counts.get(absorber) || 0 : 0;
+    if (pos.length < 2 || !absorber || abCount <= 0) return pos[0];
+    const abStates = oxStatesOf(absorber);
+    const base = oxWeightedSum(counts, on);
+    const loCount = counts.get(lo) || 1;
+    const good = pos.find((val) => {
+      const per = (charge - (base + val * loCount)) / abCount;
+      return !abStates || abStates.some((x) => Math.abs(x - per) < 1e-6);
+    });
+    return good === void 0 ? pos[0] : good;
+  };
+  while (unknown.length > 1) {
+    unknown.sort((a, b) => oxEn(b) - oxEn(a));
+    const hi = unknown[0];
+    const v = anionPeel(hi);
+    if (v !== null) {
+      on.set(hi, v);
+      assumed.add(hi);
+      unknown.shift();
+      continue;
+    }
+    const lo = unknown[unknown.length - 1];
+    const rest = unknown.slice(0, unknown.length - 1);
+    on.set(lo, cationPeel(lo, rest));
+    assumed.add(lo);
+    unknown.pop();
+  }
+  if (unknown.length === 1) {
+    const s = unknown[0];
+    const n = counts.get(s) || 0;
+    if (n > 0) on.set(s, (charge - oxWeightedSum(counts, on)) / n);
+  }
+  let sum = oxWeightedSum(counts, on);
+  const release = (s) => {
+    const n = counts.get(s) || 0;
+    if (!(n > 0) || !on.has(s)) return false;
+    const prev = on.get(s);
+    on.set(s, (charge - (sum - prev * n)) / n);
+    sum = oxWeightedSum(counts, on);
+    if (Math.abs(sum - charge) > REDOX_TOL) {
+      on.set(s, prev);
+      sum = oxWeightedSum(counts, on);
+      return false;
+    }
+    return true;
+  };
+  if (Math.abs(sum - charge) > REDOX_TOL && counts.has("O") && !counts.has("F") && on.get("O") === -2) release("O");
+  if (Math.abs(sum - charge) > REDOX_TOL && counts.has("H")) release("H");
+  return { on, assumed, exact: Math.abs(sum - charge) <= REDOX_TOL, charge, sum };
+}
+function redoxNum(v) {
+  const r = Math.round(v * 1e3) / 1e3;
+  if (Math.abs(r) < 1e-9) return "0";
+  if (Number.isInteger(r)) return String(r);
+  return String(r).replace(/0+$/, "").replace(/\.$/, "");
+}
+function redoxSigned(v) {
+  const r = Math.round(v * 1e3) / 1e3;
+  if (Math.abs(r) < 1e-9) return "0";
+  return (r < 0 ? "-" : "+") + redoxNum(Math.abs(r));
+}
+function parseRedoxEquation(eq) {
+  if (typeof eq !== "string" || !eq) return null;
+  const arrow = eq.includes("->") ? "->" : eq.includes("→") ? "→" : null;
+  if (!arrow) return null;
+  const cut = eq.indexOf(arrow);
+  const side = (txt) => {
+    const formulas = [], coeffs = [], charges = [];
+    for (const raw of (txt.includes(" + ") ? txt.split(" + ") : txt.split("+"))) {
+      const term = raw.trim();
+      if (!term) continue;
+      if (term.includes("·")) return null;
+      const m = /^(\d*)\s*([A-Za-z[][A-Za-z0-9()[\].]*?)(\((?:s|l|g|aq)\))?([+-]\d*)?$/.exec(term);
+      if (!m || !m[2] || !parseFormula(m[2]).size) return null;
+      let charge = 0;
+      if (m[4]) charge = (m[4][0] === "-" ? -1 : 1) * (m[4].length > 1 ? parseInt(m[4].slice(1), 10) : 1);
+      formulas.push(m[2]);
+      coeffs.push(m[1] ? parseInt(m[1], 10) : 1);
+      charges.push(charge);
+    }
+    return formulas.length ? { formulas, coeffs, charges } : null;
+  };
+  const L = side(eq.slice(0, cut));
+  const R = side(eq.slice(cut + arrow.length));
+  if (!L || !R) return null;
+  return { lhs: L.formulas, rhs: R.formulas, cLhs: L.coeffs, cRhs: R.coeffs, qLhs: L.charges, qRhs: R.charges };
+}
+function redoxLevels(side, sym) {
+  const byLevel = /* @__PURE__ */ new Map();
+  for (const sp of side.species) {
+    if (!sp.counts.has(sym)) continue;
+    const level = sp.ox.on.get(sym) || 0;
+    const atoms = sp.coeff * (sp.counts.get(sym) || 0);
+    byLevel.set(level, (byLevel.get(level) || 0) + atoms);
+  }
+  return [...byLevel].map(([level, atoms]) => ({ level, atoms })).sort((a, b) => a.level - b.level);
+}
+// 1-D optimal transport between the reactant and product oxidation levels of one element:
+// sorting both sides and walking them pair-wise is what separates disproportionation
+// (one level splitting up and down) from comproportionation (two levels merging).
+function redoxTransport(a, b) {
+  const tracks = [];
+  let i = 0, j = 0, ra = a.length ? a[0].atoms : 0, rb = b.length ? b[0].atoms : 0;
+  while (i < a.length && j < b.length) {
+    const d = Math.min(ra, rb);
+    if (d > 0 && Math.abs(a[i].level - b[j].level) > REDOX_TOL) {
+      tracks.push({ from: a[i].level, to: b[j].level, atoms: d, electrons: d * (b[j].level - a[i].level) });
+    }
+    ra -= d;
+    rb -= d;
+    if (ra <= REDOX_TOL) {
+      i++;
+      ra = i < a.length ? a[i].atoms : 0;
+    }
+    if (rb <= REDOX_TOL) {
+      j++;
+      rb = j < b.length ? b[j].atoms : 0;
+    }
+  }
+  return tracks;
+}
+function redoxLedger(p) {
+  const buildSide = (list, coeffs, charges) => {
+    const tot = /* @__PURE__ */ new Map();
+    const atoms = /* @__PURE__ */ new Map();
+    const species = [];
+    let q = 0;
+    for (let i = 0; i < list.length; i++) {
+      const counts = parseFormula(list[i]);
+      const charge = charges[i] || 0;
+      q += coeffs[i] * charge;
+      const ox = oxidationNumbers(counts, charge);
+      species.push({ formula: list[i], coeff: coeffs[i], charge, counts, ox });
+      for (const [s, n] of counts) {
+        atoms.set(s, (atoms.get(s) || 0) + coeffs[i] * n);
+        tot.set(s, (tot.get(s) || 0) + coeffs[i] * n * (ox.on.get(s) || 0));
+      }
+    }
+    return { tot, atoms, species, chargeTotal: q };
+  };
+  const L = buildSide(p.lhs, p.cLhs, p.qLhs);
+  const R = buildSide(p.rhs, p.cRhs, p.qRhs);
+  const symAll = [...new Set([...L.atoms.keys(), ...R.atoms.keys()])];
+  const changes = [];
+  let deltaSum = 0;
+  let electronsLost = 0;
+  let electronsGained = 0;
+  for (const s of symAll) {
+    const nL = L.atoms.get(s) || 0;
+    const nR = R.atoms.get(s) || 0;
+    const d = (R.tot.get(s) || 0) - (L.tot.get(s) || 0);
+    deltaSum += d;
+    if (!nL || !nR) continue;
+    const le = redoxLevels(L, s), re = redoxLevels(R, s);
+    const tracks = redoxTransport(le, re);
+    let lost = 0, gained = 0;
+    for (const t of tracks) {
+      if (t.electrons > 0) lost += t.electrons;
+      else gained += -t.electrons;
+    }
+    if (lost <= REDOX_TOL && gained <= REDOX_TOL) continue;
+    let kind = "redox";
+    if (lost > REDOX_TOL && gained > REDOX_TOL) {
+      kind = le.length > 1 && re.length === 1 ? "comproportionation" : le.length === 1 && re.length > 1 ? "disproportionation" : "mixed";
+    } else if (lost <= REDOX_TOL) kind = "reduced";
+    else kind = "oxidized";
+    electronsLost += lost;
+    electronsGained += gained;
+    changes.push({
+      sym: s,
+      atomsL: nL,
+      atomsR: nR,
+      from: (L.tot.get(s) || 0) / nL,
+      to: (R.tot.get(s) || 0) / nR,
+      electrons: d,
+      oxidationElectrons: lost,
+      reductionElectrons: gained,
+      kind,
+      tracks
+    });
+  }
+  changes.sort((a, b) => Math.max(a.oxidationElectrons, a.reductionElectrons) - Math.max(b.oxidationElectrons, b.reductionElectrons));
+  changes.reverse();
+  const inexact = [...L.species, ...R.species].filter((sp) => !sp.ox.exact).map((sp) => sp.formula);
+  const massBalanced = symAll.every((s) => (L.atoms.get(s) || 0) === (R.atoms.get(s) || 0));
+  const chargeBalanced = Math.abs(R.chargeTotal - L.chargeTotal) <= REDOX_TOL;
+  return { L, R, symAll, changes, electronsLost, electronsGained, deltaSum, inexact, massBalanced, chargeBalanced };
+}
+function redoxHalfReactions(ledger) {
+  const at = (side, sym, level) => side.species.filter((sp) => sp.counts.has(sym) && Math.abs((sp.ox.on.get(sym) || 0) - level) <= REDOX_TOL);
+  const seg = (list) => list.map((sp) => `${sp.coeff === 1 ? "" : sp.coeff}${sp.formula}`).join(" + ");
+  const out = [];
+  for (const ch of ledger.changes) {
+    for (const t of ch.tracks) {
+      const src = at(ledger.L, ch.sym, t.from);
+      const dst = at(ledger.R, ch.sym, t.to);
+      if (!src.length || !dst.length) continue;
+      const oxidized = t.electrons > 0;
+      const e = Math.abs(t.electrons);
+      const n = t.atoms === 1 ? "" : String(t.atoms);
+      const lhsAtom = `${n}${ch.sym}(${redoxSigned(t.from)})`;
+      const rhsAtom = `${n}${ch.sym}(${redoxSigned(t.to)})`;
+      out.push({
+        kind: oxidized ? "oxidation" : "reduction",
+        sym: ch.sym,
+        from: t.from,
+        to: t.to,
+        atoms: t.atoms,
+        electrons: e,
+        role: oxidized ? "reducing agent" : "oxidizing agent",
+        agent: seg(src),
+        product: seg(dst),
+        agentFormulas: src.map((sp) => sp.formula),
+        productFormulas: dst.map((sp) => sp.formula),
+        text: oxidized ? `${lhsAtom} -> ${rhsAtom} + ${redoxNum(e)}e-` : `${lhsAtom} + ${redoxNum(e)}e- -> ${rhsAtom}`
+      });
+    }
+  }
+  return out;
+}
+function redoxAnalysis(equation) {
+  const p = parseRedoxEquation(equation);
+  if (!p) return null;
+  const ledger = redoxLedger(p);
+  const halfReactions = redoxHalfReactions(ledger);
+  const oxidized = halfReactions.filter((h) => h.kind === "oxidation");
+  const reduced = halfReactions.filter((h) => h.kind === "reduction");
+  const active = oxidized.length > 0 && reduced.length > 0;
+  const electronBalanceOk = Math.abs(ledger.electronsLost - ledger.electronsGained) <= 1e-4 && Math.abs(ledger.deltaSum) <= 1e-4;
+  return {
+    equation,
+    lhs: p.lhs,
+    rhs: p.rhs,
+    cLhs: p.cLhs,
+    cRhs: p.cRhs,
+    changes: ledger.changes,
+    halfReactions,
+    oxidized,
+    reduced,
+    electronsLost: ledger.electronsLost,
+    electronsGained: ledger.electronsGained,
+    deltaSum: ledger.deltaSum,
+    massBalanced: ledger.massBalanced,
+    chargeBalanced: ledger.chargeBalanced,
+    electronBalanceOk,
+    inexact: ledger.inexact,
+    active,
+    valid: active && ledger.massBalanced && ledger.chargeBalanced && electronBalanceOk && ledger.inexact.length === 0
+  };
+}
+function stampRedoxFramework(rx) {
+  if (!rx || rx.redox) return rx;
+  let info = null;
+  try {
+    info = redoxAnalysis(rx.equation);
+  } catch (err) {
+    info = null;
+  }
+  const out = { ...rx };
+  if (!info) return out;
+  out.redox = info;
+  if (info.active && !out.type) out.type = "redox";
+  if (!info.massBalanced || !info.chargeBalanced || !info.electronBalanceOk) out.redoxBroken = true;
+  return out;
+}
+function acceptReaction(rx) {
+  const stamped = stampRedoxFramework(rx);
+  if (stamped.redoxBroken) {
+    console.warn("[redox] rejected mass/electron-imbalanced reaction:", stamped.equation);
+    return null;
+  }
+  return stamped;
+}
+function balanceEquationLinear(lhs, rhs, maxCoeff = 60) {
+  const species = [...lhs, ...rhs];
+  const counts = species.map((f) => parseFormula(f));
+  if (counts.some((c) => !c.size)) return null;
+  const cols = species.length;
+  const elems = Array.from(new Set(counts.reduce((a, c) => a.concat(Array.from(c.keys())), [])));
+  if (!elems.length || cols < 2) return null;
+  const gcdB = (a, b) => {
+    a = a < 0n ? -a : a;
+    b = b < 0n ? -b : b;
+    while (b) {
+      const t = a % b;
+      a = b;
+      b = t;
+    }
+    return a;
+  };
+  const mk = (num, den) => {
+    if (den === 0n) return null;
+    if (num === 0n) return [0n, 1n];
+    if (den < 0n) {
+      num = -num;
+      den = -den;
+    }
+    const g = gcdB(num < 0n ? -num : num, den);
+    return [num / g, den / g];
+  };
+  const add = (x2, y) => mk(x2[0] * y[1] + y[0] * x2[1], x2[1] * y[1]);
+  const sub = (x2, y) => mk(x2[0] * y[1] - y[0] * x2[1], x2[1] * y[1]);
+  const mul = (x2, y) => mk(x2[0] * y[0], x2[1] * y[1]);
+  const dv = (x2, y) => mk(x2[0] * y[1], x2[1] * y[0]);
+  const neg = (x2) => [-x2[0], x2[1]];
+  const zero = (x2) => x2[0] === 0n;
+  const ZERO = [0n, 1n], ONE = [1n, 1n];
+  const rows = elems.map((e) => counts.map((c, j) => mk(BigInt((j < lhs.length ? 1 : -1) * (c.get(e) || 0)), 1n)));
+  const m = rows.length;
+  let r = 0;
+  const pivots = [];
+  for (let c = 0; c < cols && r < m; c++) {
+    let p = -1;
+    for (let i = r; i < m; i++) if (!zero(rows[i][c])) {
+      p = i;
+      break;
+    }
+    if (p < 0) continue;
+    const tmp = rows[r];
+    rows[r] = rows[p];
+    rows[p] = tmp;
+    const pv = rows[r][c];
+    for (let j = 0; j < cols; j++) rows[r][j] = dv(rows[r][j], pv);
+    for (let i = 0; i < m; i++) {
+      if (i === r || zero(rows[i][c])) continue;
+      const f = rows[i][c];
+      for (let j = 0; j < cols; j++) rows[i][j] = sub(rows[i][j], mul(f, rows[r][j]));
+    }
+    pivots.push(c);
+    r++;
+  }
+  const free = [];
+  for (let c = 0; c < cols; c++) if (!pivots.includes(c)) free.push(c);
+  if (free.length !== 1) return null;
+  const f0 = free[0];
+  const x = new Array(cols).fill(null).map(() => ZERO);
+  x[f0] = ONE;
+  pivots.forEach((pc, i) => {
+    x[pc] = neg(rows[i][f0]);
+  });
+  let den = 1n;
+  for (const v of x) {
+    if (v[1] <= 0n) return null;
+    den = den / gcdB(den, v[1]) * v[1];
+  }
+  let ints = x.map((v) => (v[0] * den) / v[1]);
+  if (ints.some((v) => v <= 0n)) {
+    if (ints.some((v) => v >= 0n)) return null;
+    ints = ints.map((v) => -v);
+  }
+  let g = 0n;
+  for (const v of ints) g = gcdB(g, v);
+  if (g > 0n) ints = ints.map((v) => v / g);
+  if (ints.some((v) => v > BigInt(maxCoeff))) return null;
+  const coeffs = ints.map((v) => Number(v));
+  for (const e of elems) {
+    let a = 0, b = 0;
+    for (let j = 0; j < cols; j++) {
+      const n2 = (counts[j].get(e) || 0) * coeffs[j];
+      if (j < lhs.length) a += n2;
+      else b += n2;
+    }
+    if (a !== b) return null;
+  }
+  return coeffs;
 }
 function parseFormulaSimple(f) {
   const result = /* @__PURE__ */ new Map();
@@ -48689,7 +49165,7 @@ const AMPHOTERIC_METALS = /* @__PURE__ */ new Set(["Al", "Zn", "Pb", "Sn", "Be",
 const NO_HYDRATION = /* @__PURE__ */ new Set(["Si", "Ge"]);
 function balanceEquation(lhs, rhs, max = 12) {
   const species = [...lhs, ...rhs];
-  if (species.length > 5) return null;
+  if (species.length > 5) return balanceEquationLinear(lhs, rhs, 60);
   const counts = species.map((f) => parseFormula(f));
   for (const c of counts) if (!c.size) return null;
   const elemSet = /* @__PURE__ */ new Set();
@@ -48716,7 +49192,7 @@ function balanceEquation(lhs, rhs, max = 12) {
     }
     return false;
   }
-  if (!search(0)) return null;
+  if (!search(0)) return balanceEquationLinear(lhs, rhs, 60);
   const g = x.reduce((a, b) => gcd(a, b));
   return x.map((v) => v / g);
 }
@@ -50383,7 +50859,7 @@ const REACTIONS = [
   { reactants: { NO: 2, O2: 1 }, condition: "rt", products: [["NO2", 2]], equation: "2NO + O2 -> 2NO2" },
   { reactants: { NO2: 3, H2O: 1 }, condition: "rt", products: [["HNO3", 2], ["NO", 1]], equation: "3NO2 + H2O -> 2HNO3 + NO" },
   // ── More industrial ──
-  { reactants: { Fe: 2, O2: 3 }, condition: "heat", products: [["Fe2O3", 1]], equation: "2Fe + 3O2 -> Fe2O3" },
+  { reactants: { Fe: 4, O2: 3 }, condition: "heat", products: [["Fe2O3", 2]], equation: "4Fe + 3O2 -> 2Fe2O3" },
   { reactants: { Cu: 1, AgNO3: 2 }, condition: "rt", products: [["CuNO32", 1], ["Ag", 2]], equation: "Cu + 2AgNO3 -> Cu(NO3)2 + 2Ag" },
   { reactants: { Zn: 1, CuSO4: 1 }, condition: "rt", products: [["ZnSO4", 1], ["Cu", 1]], equation: "Zn + CuSO4 -> ZnSO4 + Cu" },
   // ── More acid-base ──
@@ -50746,17 +51222,26 @@ function findReaction(formulas, conditionKey, comps = null, atmosphereGases = []
     for (const tryFn of STRUCT_CHECKS[conditionKey] || []) {
       for (const rx of candidatesOf(tryFn(comps, have))) {
         const m = matchDynamic(rx, have, bonusReactants);
-        if (m) return m;
+        if (m) {
+          const ok = acceptReaction(m);
+          if (ok) return ok;
+        }
       }
     }
   }
   for (const rx of REACTIONS) {
     if (rx.condition !== conditionKey) continue;
-    if (matches(rx, have, bonusReactants)) return rx;
+    if (matches(rx, have, bonusReactants)) {
+      const ok = acceptReaction(rx);
+      if (ok) return ok;
+    }
   }
   for (const rx of MAYHEM_REACTIONS) {
     if (rx.condition !== conditionKey) continue;
-    if (matches(rx, have, bonusReactants)) return rx;
+    if (matches(rx, have, bonusReactants)) {
+      const ok = acceptReaction(rx);
+      if (ok) return ok;
+    }
   }
   const dynamicChecks = {
     "rt": [tryAcidBaseReaction, tryMetalOxideAcidReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryWeakAcidDisplacement, tryNonMetalHalideHydrolysis, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction, tryWeakAcidDissociation, tryFluorineWaterReaction, tryHalogenDisproportionation],
@@ -50769,7 +51254,10 @@ function findReaction(formulas, conditionKey, comps = null, atmosphereGases = []
   for (const tryFn of checks) {
     for (const rx of candidatesOf(tryFn([...have.keys()], have))) {
       const m = matchDynamic(rx, have, bonusReactants);
-      if (m) return m;
+      if (m) {
+        const ok = acceptReaction(m);
+        if (ok) return ok;
+      }
     }
   }
   return null;
@@ -56320,6 +56808,43 @@ function updateHealthBar() {
     text.textContent = Math.round(playerHealth);
   }
 }
+const massBalanceCache = /* @__PURE__ */ new Map();
+function solveDecayBalance(formula, productFormulas, maxCoeff = 6) {
+  const cacheKey = formula + "→" + productFormulas.join("+");
+  if (massBalanceCache.has(cacheKey)) return massBalanceCache.get(cacheKey);
+  const src = parseFormula(formula);
+  const prods = productFormulas.map(parseFormula);
+  const result = resolveDecayCoeffs(src, prods, maxCoeff);
+  massBalanceCache.set(cacheKey, result);
+  return result;
+}
+function resolveDecayCoeffs(src, prods, maxCoeff) {
+  if (!src.size || !prods.length || prods.some((p) => !p.size)) return null;
+  for (const p of prods) {
+    for (const sym of p.keys()) if (!src.has(sym)) return null;
+  }
+  const syms = [...src.keys()];
+  const n = prods.length;
+  const q = new Array(n).fill(0);
+  const balanced = () => {
+    for (const sym of syms) {
+      let total = 0;
+      for (let k = 0; k < n; k++) total += q[k] * (prods[k].get(sym) || 0);
+      if (total !== src.get(sym)) return false;
+    }
+    return true;
+  };
+  const fill = (i) => {
+    if (i === n) return balanced();
+    for (let v = 1; v <= maxCoeff; v++) {
+      q[i] = v;
+      if (fill(i + 1)) return true;
+    }
+    q[i] = 0;
+    return false;
+  };
+  return fill(0) ? q.slice() : null;
+}
 function decomposeMolecule(comp, now) {
   const an = analyses[lastComps.indexOf(comp)];
   const formula = an && an.formula || "?";
@@ -56333,8 +56858,13 @@ function decomposeMolecule(comp, now) {
           return;
         }
         if (productFormulas && productFormulas.length >= 2) {
-          if (productFormulas.length === 1 && productFormulas[0] === formula) {
-            console.warn(`[DECOMPOSITION] Blocked self-decomposition: ${formula} → ${formula}`);
+          if (productFormulas.some((pf) => pf === formula)) {
+            console.warn(`[DECOMPOSITION] Blocked self-decomposition: ${formula}`);
+            continue;
+          }
+          const coeffs = solveDecayBalance(formula, productFormulas);
+          if (!coeffs) {
+            console.warn(`[DECOMPOSITION] Blocked mass violation: ${formula} → ${productFormulas.join(" + ")}`);
             continue;
           }
           const templates = productFormulas.map((pf) => productTemplate(pf));
@@ -56356,12 +56886,14 @@ function decomposeMolecule(comp, now) {
           }
           for (let pi = 0; pi < productFormulas.length; pi++) {
             const tpl = templates[pi];
-            const offset = new Vector3(
-              (Math.random() - 0.5) * 2,
-              (Math.random() - 0.5) * 2,
-              (Math.random() - 0.5) * 2
-            );
-            buildMoleculeAt(tpl, cen2.x + offset.x, cen2.y + offset.y, cen2.z + offset.z);
+            for (let copy = 0; copy < coeffs[pi]; copy++) {
+              const offset = new Vector3(
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2
+              );
+              buildMoleculeAt(tpl, cen2.x + offset.x, cen2.y + offset.y, cen2.z + offset.z);
+            }
           }
           reactionVFX.explode(cen2, 1.2, new Color(16737792));
           applyExplosionDamage(cen2, 1.2, comp.atoms.length);
@@ -56477,9 +57009,8 @@ function checkAndRearrangeMolecules() {
   }
 }
 let lastReactivitySweep = 0;
-const REACTIVITY_INTERVAL = 100;
 function updateReactivitySweep(now) {
-  if (timeFrozen || now - lastReactivitySweep < REACTIVITY_INTERVAL) return;
+  if (timeFrozen || now - lastReactivitySweep < envReactivityInterval()) return;
   lastReactivitySweep = now;
   const strays = [];
   for (const comp of lastComps) {
@@ -57680,7 +58211,7 @@ function cycleBondOrder(bid) {
 function upgradeBond(bid) {
   const b = bonds.get(bid);
   if (!b) return;
-  const up = upgradeCheck(atoms, bonds, b);
+  const up = upgradeCheck(atoms, bonds, { ...b, order: b.order + 1 });
   if (!up.ok && !window.__mol3d?._godMode) {
     status(trReason(up.reason), "err");
     return;
@@ -57957,7 +58488,7 @@ function updateRxnStoich() {
   rxnStoichBox.style.display = "none";
   if (reactionSel.size === 0) return;
   const formulas = selectedFormulas();
-  const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
+  const atmosphereGases = envAtmosphereGases();
   const seen = /* @__PURE__ */ new Set();
   const matched = [];
   for (const c of CONDITIONS) {
@@ -58108,7 +58639,7 @@ function buildRxnPanel() {
 }
 function onConditionPick(cond) {
   const formulas = selectedFormulas();
-  const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
+  const atmosphereGases = envAtmosphereGases();
   const rx = findReaction(formulas, cond, selectedStructures(), atmosphereGases);
   if (rx) {
     executeReaction(rx);
@@ -58127,19 +58658,45 @@ function onConditionPick(cond) {
   status(t("status.nothingHappensTry", { cond: condLabel(cond), valid: [...valid].map((k) => condLabel(k)).join(", ") }), "err");
 }
 let rxnOverlayTimer = null;
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function prettyRedox(s) {
+  return escHtml(prettyEq(s).replace(/e-/g, "e\u207B"));
+}
+function redoxHalfHtml(h) {
+  const isOx = h.kind === "oxidation";
+  return `<div class="rxn-half ${isOx ? "is-ox" : "is-red"}">
+    <div class="rxn-half-head"><span>${isOx ? t("redox.oxidation") : t("redox.reduction")}</span><b>${redoxNum(h.electrons)} e\u207B</b></div>
+    <div class="rxn-half-eq">${prettyRedox(h.text)}</div>
+    <div class="rxn-half-role">${isOx ? t("redox.reducingAgent") : t("redox.oxidizingAgent")}: ${prettyRedox(h.agent)} \u2192 ${prettyRedox(h.product)}</div>
+  </div>`;
+}
+function redoxBlockHtml(info) {
+  if (!info || !info.active || !info.halfReactions.length) return "";
+  const halves = [...info.oxidized, ...info.reduced];
+  const sum = Math.abs(info.deltaSum) < 1e-6 ? "0" : redoxSigned(info.deltaSum);
+  return `<div class="rxn-redox-title">${t("redox.title")}</div>${halves.map(redoxHalfHtml).join("")}<div class="rxn-redox-rule"><span>${t("redox.rule", { sum })}</span><span>${t("redox.balance", { lost: redoxNum(info.electronsLost), gained: redoxNum(info.electronsGained) })}</span></div>`;
+}
 function showRxnOverlay(rx) {
   const overlay = document.getElementById("rxn-overlay");
   const condEl = overlay.querySelector(".rxn-condition");
   const eqEl = overlay.querySelector(".rxn-equation");
+  const redoxEl = overlay.querySelector(".rxn-redox");
   condEl.textContent = condLabel(rx.condition);
   eqEl.innerHTML = prettyEq(rx.equation);
+  const redoxHtml = rx.redox ? redoxBlockHtml(rx.redox) : "";
+  if (redoxEl) {
+    redoxEl.innerHTML = redoxHtml;
+    overlay.classList.toggle("with-redox", !!redoxHtml);
+  }
   overlay.classList.add("show");
   overlay.setAttribute("aria-hidden", "false");
   if (rxnOverlayTimer) clearTimeout(rxnOverlayTimer);
   rxnOverlayTimer = setTimeout(() => {
     overlay.classList.remove("show");
     overlay.setAttribute("aria-hidden", "true");
-  }, 3e3);
+  }, redoxHtml ? 7e3 : 3e3);
 }
 function executeReaction(rx) {
   const selComps = lastComps.filter((c) => reactionSel.has(compKey(c)));
@@ -58149,7 +58706,7 @@ function executeReaction(rx) {
     const an = analyses[lastComps.indexOf(c)];
     return an ? an.displayFormula || an.formula : "";
   });
-  const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
+  const atmosphereGases = envAtmosphereGases();
   const structs = selComps.map((c) => structureTplOf(c, analyses[lastComps.indexOf(c)]).tpl);
   if (!findReaction(formulas, rx.condition, structs, atmosphereGases)) {
     status(t("status.sceneChanged"), "err");
@@ -58720,7 +59277,7 @@ function onPointerMove(e) {
     } else {
       const existing = [...bonds.values()].find((b) => b.a === drag.id && b.b === bestId || b.b === drag.id && b.a === bestId);
       if (existing) {
-        const up = upgradeCheck(atoms, bonds, existing);
+        const up = upgradeCheck(atoms, bonds, { ...existing, order: existing.order + 1 });
         const ok = up.ok || window.__mol3d?._godMode;
         drag.snapUpgrade = ok;
         drag.snapLegal = ok;
@@ -60676,6 +61233,235 @@ function toggleAtmosphere() {
   status(atmosphere.enabled ? "🌍 Atmosphere ON — O2, N2, Ar, CO2 present" : " Atmosphere OFF — vacuum");
 }
 document.getElementById("btn-atmosphere").addEventListener("click", toggleAtmosphere);
+const environment = {
+  temperatureK: 298.15,
+  pressureAtm: 1,
+  gases: [
+    { formula: "N2", ratio: 78 },
+    { formula: "O2", ratio: 21 },
+    { formula: "Ar", ratio: 0.93 },
+    { formula: "CO2", ratio: 0.04 }
+  ]
+};
+const ENV_TEMP_SPAN = { min: 1, max: 6000 };
+const ENV_PRESSURE_SPAN = { min: 1e-6, max: 2000 };
+const ENV_PRESETS = {
+  air: { temperatureK: 298.15, pressureAtm: 1, gases: [{ formula: "N2", ratio: 78 }, { formula: "O2", ratio: 21 }, { formula: "Ar", ratio: 0.93 }, { formula: "CO2", ratio: 0.04 }] },
+  vacuo: { temperatureK: 298.15, pressureAtm: 1e-6, gases: [] },
+  oxygen: { temperatureK: 298.15, pressureAtm: 1, gases: [{ formula: "O2", ratio: 100 }] },
+  hydrogen: { temperatureK: 673.15, pressureAtm: 1, gases: [{ formula: "H2", ratio: 100 }] },
+  argon: { temperatureK: 298.15, pressureAtm: 40, gases: [{ formula: "Ar", ratio: 100 }] },
+  co2: { temperatureK: 298.15, pressureAtm: 1, gases: [{ formula: "CO2", ratio: 100 }] }
+};
+function envSliderFromValue(value, span) {
+  if (!(value > span.min)) return 0;
+  if (value >= span.max) return 100;
+  return Math.log(value / span.min) / Math.log(span.max / span.min) * 100;
+}
+function envValueFromSlider(pct, span) {
+  return span.min * Math.pow(span.max / span.min, Math.min(Math.max(pct, 0), 100) / 100);
+}
+function envRatioTotal() {
+  return environment.gases.reduce((sum, g) => sum + (g.ratio > 0 ? g.ratio : 0), 0);
+}
+function envFormulaValid(formula) {
+  const parsed = parseFormula(formula);
+  if (!parsed || parsed.size === 0) return false;
+  for (const sym of parsed.keys()) {
+    if (!ELEMENTS.some((e) => e.sym === sym)) return false;
+  }
+  return true;
+}
+function envDensityFactor() {
+  return environment.pressureAtm * (298.15 / Math.max(1, environment.temperatureK));
+}
+function envReactivityInterval() {
+  const density = envDensityFactor();
+  if (density <= 0) return Infinity;
+  return Math.min(400, Math.max(50, 100 / Math.cbrt(density)));
+}
+function envAtmosphereGases() {
+  if (!atmosphere.enabled) return [];
+  if (environment.pressureAtm < 1e-6) return [];
+  return [...atmosphere.composition.keys()];
+}
+function syncAtmosphereComposition() {
+  const total = envRatioTotal();
+  const next = new Map();
+  for (const gas of environment.gases) {
+    const f = gas.formula.trim();
+    if (!f || !(gas.ratio > 0) || !envFormulaValid(f)) continue;
+    next.set(f, gas.ratio / total);
+  }
+  atmosphere.composition = next;
+}
+function formatEnvTemperature(k) {
+  return (k >= 1e3 ? Math.round(k).toLocaleString("en-US") : Math.round(k * 10) / 10) + "K";
+}
+function formatEnvPressure(atm) {
+  if (atm >= 100) return Math.round(atm) + "atm";
+  if (atm >= 0.01) return Math.round(atm * 100) / 100 + "atm";
+  return atm.toExponential(1) + "atm";
+}
+function updateEnvironmentReadouts() {
+  const tempEl = document.getElementById("env-temp-display");
+  const pressEl = document.getElementById("env-pressure-display");
+  if (tempEl) tempEl.textContent = formatEnvTemperature(environment.temperatureK);
+  if (pressEl) pressEl.textContent = formatEnvPressure(environment.pressureAtm);
+}
+function applyEnvironment() {
+  simulation.kinetics.setGlobalTemperature(environment.temperatureK);
+  syncAtmosphereComposition();
+  updateEnvironmentReadouts();
+  reanalyze();
+  invalidate();
+}
+const envRowRefreshers = [];
+function buildEnvGasRow(gas) {
+  const row = document.createElement("div");
+  row.className = "env-gas-row";
+  const formula = document.createElement("input");
+  formula.type = "text";
+  formula.className = "env-gas-formula";
+  formula.value = gas.formula;
+  formula.placeholder = t("env.formulaPlaceholder");
+  formula.spellcheck = false;
+  const ratio = document.createElement("input");
+  ratio.type = "number";
+  ratio.className = "env-num env-gas-ratio";
+  ratio.min = "0";
+  ratio.step = "any";
+  ratio.value = String(gas.ratio);
+  const pct = document.createElement("span");
+  pct.className = "env-gas-pct";
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "env-gas-del";
+  del.title = t("env.removeGas");
+  del.textContent = "×";
+  const refresh = () => {
+    const total = envRatioTotal();
+    if (!(total > 0) || !(gas.ratio > 0)) {
+      pct.textContent = "—";
+      return;
+    }
+    const share = gas.ratio / total * 100;
+    pct.textContent = (share >= 10 ? share.toFixed(1) : share.toFixed(share >= 1 ? 2 : 4)) + "%";
+  };
+  const commit = () => {
+    gas.formula = formula.value.trim();
+    const parsed = parseFloat(ratio.value);
+    gas.ratio = isFinite(parsed) && parsed > 0 ? parsed : 0;
+    formula.classList.toggle("env-gas-bad", !!gas.formula && !envFormulaValid(gas.formula));
+    for (const fn of envRowRefreshers) fn();
+    updateEnvTotal();
+    applyEnvironment();
+  };
+  formula.addEventListener("input", commit);
+  ratio.addEventListener("input", commit);
+  envRowRefreshers.push(refresh);
+  del.addEventListener("click", () => {
+    const i = environment.gases.indexOf(gas);
+    if (i >= 0) environment.gases.splice(i, 1);
+    renderEnvGasList();
+    applyEnvironment();
+  });
+  refresh();
+  row.append(formula, ratio, pct, del);
+  return row;
+}
+function updateEnvTotal() {
+  const el = document.getElementById("env-total");
+  if (!el) return;
+  const active = environment.gases.filter((g) => g.formula && envFormulaValid(g.formula) && g.ratio > 0).length;
+  el.textContent = t("env.components", { n: active, total: Math.round(envRatioTotal() * 100) / 100 });
+}
+function renderEnvGasList() {
+  const list = document.getElementById("env-gas-list");
+  if (!list) return;
+  envRowRefreshers.length = 0;
+  list.textContent = "";
+  if (!environment.gases.length) {
+    const empty = document.createElement("div");
+    empty.className = "env-empty";
+    empty.textContent = t("env.noGas");
+    list.appendChild(empty);
+  }
+  for (const gas of environment.gases) list.appendChild(buildEnvGasRow(gas));
+  updateEnvTotal();
+}
+function syncEnvInputs() {
+  const tr = document.getElementById("env-temp-range");
+  const tn = document.getElementById("env-temp-num");
+  const pr = document.getElementById("env-pressure-range");
+  const pn = document.getElementById("env-pressure-num");
+  if (tr) tr.value = envSliderFromValue(environment.temperatureK, ENV_TEMP_SPAN).toFixed(1);
+  if (tn) tn.value = String(Math.round(environment.temperatureK * 100) / 100);
+  if (pr) pr.value = envSliderFromValue(environment.pressureAtm, ENV_PRESSURE_SPAN).toFixed(1);
+  if (pn) pn.value = String(environment.pressureAtm);
+}
+function openEnvModal() {
+  const modal = document.getElementById("env-modal");
+  if (!modal) return;
+  syncEnvInputs();
+  renderEnvGasList();
+  modal.hidden = false;
+}
+function closeEnvModal() {
+  const modal = document.getElementById("env-modal");
+  if (modal) modal.hidden = true;
+}
+document.getElementById("btn-env-menu").addEventListener("click", openEnvModal);
+document.getElementById("env-modal-close").addEventListener("click", closeEnvModal);
+document.getElementById("env-temp-range").addEventListener("input", (e) => {
+  environment.temperatureK = envValueFromSlider(parseFloat(e.target.value), ENV_TEMP_SPAN);
+  const num = document.getElementById("env-temp-num");
+  if (num) num.value = String(Math.round(environment.temperatureK * 100) / 100);
+  applyEnvironment();
+});
+document.getElementById("env-temp-num").addEventListener("input", (e) => {
+  const v = parseFloat(e.target.value);
+  if (!isFinite(v) || v <= 0) return;
+  environment.temperatureK = Math.min(Math.max(v, ENV_TEMP_SPAN.min), ENV_TEMP_SPAN.max);
+  const range = document.getElementById("env-temp-range");
+  if (range) range.value = envSliderFromValue(environment.temperatureK, ENV_TEMP_SPAN).toFixed(1);
+  applyEnvironment();
+});
+document.getElementById("env-pressure-range").addEventListener("input", (e) => {
+  environment.pressureAtm = envValueFromSlider(parseFloat(e.target.value), ENV_PRESSURE_SPAN);
+  const num = document.getElementById("env-pressure-num");
+  if (num) num.value = String(Math.round(environment.pressureAtm * 1e4) / 1e4);
+  applyEnvironment();
+});
+document.getElementById("env-pressure-num").addEventListener("input", (e) => {
+  const v = parseFloat(e.target.value);
+  if (!isFinite(v) || v < 0) return;
+  environment.pressureAtm = Math.min(Math.max(v, ENV_PRESSURE_SPAN.min), ENV_PRESSURE_SPAN.max);
+  const range = document.getElementById("env-pressure-range");
+  if (range) range.value = envSliderFromValue(environment.pressureAtm, ENV_PRESSURE_SPAN).toFixed(1);
+  applyEnvironment();
+});
+document.getElementById("env-gas-add").addEventListener("click", () => {
+  environment.gases.push({ formula: "", ratio: 1 });
+  renderEnvGasList();
+  const rows = document.querySelectorAll("#env-gas-list .env-gas-formula");
+  const last = rows[rows.length - 1];
+  if (last) last.focus();
+});
+for (const btn of document.querySelectorAll(".env-preset")) {
+  btn.addEventListener("click", () => {
+    const preset = ENV_PRESETS[btn.dataset.preset];
+    if (!preset) return;
+    environment.temperatureK = preset.temperatureK;
+    environment.pressureAtm = preset.pressureAtm;
+    environment.gases = preset.gases.map((g) => ({ formula: g.formula, ratio: g.ratio }));
+    syncEnvInputs();
+    renderEnvGasList();
+    applyEnvironment();
+    status(t("env.presetApplied", { name: btn.textContent.trim() }), "ok");
+  });
+}
+setTimeout(applyEnvironment, 0);
 {
   const tabs = document.querySelectorAll(".sidebar-tab");
   for (const tab of tabs) {
@@ -61118,6 +61904,9 @@ window.__mol3d = {
   _godMode: false,
   simulation,
   kinetics: { createSimulation, compileNetwork, parseRateExpr, rk4Step },
+  redox: { analysis: redoxAnalysis, numbers: oxidationNumbers, stamp: stampRedoxFramework, overlay: redoxBlockHtml, reactions: () => REACTIONS.concat(MAYHEM_REACTIONS) },
+  environment,
+  atmosphere,
   vfx: { reactionVFX, catalystFX, electricityFX },
   atomMatM,
   atomMatN,
@@ -61210,7 +61999,7 @@ window.__mol3d = {
     },
     pick: (cond) => {
       const fs = selectedFormulas();
-      const atmosphereGases = atmosphere.enabled ? [...atmosphere.composition.keys()] : [];
+      const atmosphereGases = envAtmosphereGases();
       const rx = findReaction(fs, cond, selectedStructures(), atmosphereGases);
       if (rx) {
         executeReaction(rx);

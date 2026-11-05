@@ -53350,8 +53350,8 @@ class QuestManager {
     try {
       const data = JSON.parse(localStorage.getItem("mol3d.quests"));
       if (data) {
-        this.completedQuests = new Set(data.completed || []);
-        this.stars = data.stars || 0;
+        this.completedQuests = new Set(Array.isArray(data.completed) ? data.completed : []);
+        this.stars = (typeof data.stars === "number" && Number.isFinite(data.stars) && data.stars >= 0) ? Math.floor(data.stars) : 0;
       }
     } catch {
     }
@@ -53451,6 +53451,7 @@ const ROMAN_NUMERALS = [
 ];
 function toRoman(n) {
   if (n <= 0) return "0";
+  if (!Number.isFinite(n) || n > 3999) return String(n);
   if (n <= 20) return ROMAN_NUMERALS[n];
   const vals = [1e3, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
   const syms = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"];
@@ -53510,7 +53511,7 @@ class RankManager {
    */
   addStars(count) {
     const oldRank = this.getCurrentRank();
-    this.totalStars += count;
+    this.totalStars = Math.min(this.totalStars + Math.max(0, Math.floor(count)), 1e6);
     const newRank = this.getCurrentRank();
     if (newRank.grade > oldRank.grade || newRank.rankIndex > oldRank.rankIndex) {
       this.emit("gradeUp", {
@@ -53585,7 +53586,13 @@ class RankManager {
   loadProgress() {
     try {
       const data = JSON.parse(localStorage.getItem("mol3d.rank"));
-      if (data) this.totalStars = data.totalStars || 0;
+      if (data && typeof data.totalStars === "number" && Number.isFinite(data.totalStars) && data.totalStars >= 0) {
+        this.totalStars = Math.min(Math.floor(data.totalStars), 1e6);
+      } else if (data) {
+        console.warn("Rank progress corrupted, resetting to 0", data.totalStars);
+        this.totalStars = 0;
+        this.saveProgress();
+      }
     } catch {
     }
   }
@@ -61513,12 +61520,14 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
         }
       }
       if (data.rank) {
-        if (typeof data.rank.totalStars === "number") {
-          rankManager.totalStars = data.rank.totalStars;
+        if (typeof data.rank.totalStars === "number" && Number.isFinite(data.rank.totalStars) && data.rank.totalStars >= 0 && data.rank.totalStars <= 1e6) {
+          rankManager.totalStars = Math.floor(data.rank.totalStars);
           rankManager.saveProgress();
           rankManager.emit("starsChanged", { totalStars: rankManager.totalStars, rank: rankManager.getCurrentRank() });
           updateRankWidget();
           rebuildPool();
+        } else if (typeof data.rank.totalStars === "number") {
+          console.warn("Import rejected: totalStars out of safe range", data.rank.totalStars);
         }
       }
       if (data.shop && window.__mol3dShop && typeof window.__mol3dShop.importState === "function") {
@@ -61526,8 +61535,8 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
         rebuildPool();
       }
       if (data.quests) {
-        if (typeof data.quests.stars === "number") {
-          questManager.stars = data.quests.stars;
+        if (typeof data.quests.stars === "number" && Number.isFinite(data.quests.stars) && data.quests.stars >= 0) {
+          questManager.stars = Math.floor(data.quests.stars);
         }
         if (Array.isArray(data.quests.completed)) {
           questManager.completedQuests.clear();

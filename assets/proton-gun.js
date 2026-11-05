@@ -10,9 +10,46 @@
 
   const NOBLE_GASES = new Set([2, 10, 18, 36, 54, 86, 118]);
 
-  function showStatus(msg) {
+  function showStatus(msg, kind) {
     const el = document.getElementById('status-text');
-    if (el) { el.textContent = msg; el.className = 'info'; }
+    if (el) { el.textContent = msg; el.className = kind || 'info'; }
+  }
+
+  function esc(v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function tt(key, params) {
+    const i18n = window.__mol3d && window.__mol3d.i18n;
+    return i18n && typeof i18n.t === 'function' ? i18n.t(key, params) : key;
+  }
+
+  // The proton gun may only push an atom into an element the player actually owns.
+  function ownsElement(z) {
+    const shop = window.__mol3dShop;
+    if (!shop || typeof shop.ownsElement !== 'function') return true;
+    return !!shop.ownsElement(z);
+  }
+  function tierPriceFor(z) {
+    const tiers = window.__mol3dShop && window.__mol3dShop.catalogue && window.__mol3dShop.catalogue.tiers;
+    if (!Array.isArray(tiers)) return null;
+    for (let i = 0; i < tiers.length; i++) if (z <= tiers[i].maxZ) return tiers[i].price;
+    return null;
+  }
+  function elNameOf(el) {
+    const i18n = window.__mol3d && window.__mol3d.i18n;
+    try {
+      if (el && i18n && typeof i18n.elName === 'function') return i18n.elName(el);
+    } catch (e) {}
+    return el ? (el.name || el.sym) : '';
+  }
+  function refuseUpgrade(newEl) {
+    const price = tierPriceFor(newEl.z);
+    const params = { sym: newEl.sym, name: elNameOf(newEl), price: price };
+    const msg = price === null || price === undefined
+      ? tt('pg.needOwn', params)
+      : tt('pg.needOwnPrice', params);
+    showStatus('🔒 ' + msg, 'err');
+    const shop = window.__mol3dShop;
+    if (shop && typeof shop.open === 'function') shop.open();
   }
 
   // --- Cinematic screen effects ---
@@ -76,8 +113,8 @@
     }
     whiteFlash.style.display = 'flex';
     whiteFlash.style.opacity = '1';
-    whiteFlash.innerHTML = '<div style="color:#333;font-size:24px;font-weight:bold;letter-spacing:4px">CONTAINMENT BREACH</div>'
-      + '<div style="color:#666;font-size:16px;margin-top:12px">Reinitializing ground state...</div>'
+    whiteFlash.innerHTML = '<div style="color:#333;font-size:24px;font-weight:bold;letter-spacing:4px">'+esc(tt('pg.containment'))+'</div>'
+      + '<div style="color:#666;font-size:16px;margin-top:12px">'+esc(tt('pg.reinitializing'))+'</div>'
       + '<div id="white-reset-countdown" style="color:#999;font-size:48px;margin-top:20px;font-weight:bold">' + durationSec + '</div>';
 
     var remaining = durationSec;
@@ -116,7 +153,7 @@
     criticalOverlay.innerHTML = ''
       + '<div id="critical-element" style="font-size:18px;color:#ff6644;letter-spacing:3px;margin-bottom:16px;text-shadow:0 0 10px #ff4400;white-space:nowrap"></div>'
       + '<div id="critical-countdown" class="nuclear-countdown-num" style="font-size:120px;line-height:1;color:#ff0000;text-shadow:0 0 30px #ff0000, 0 0 60px #ff3300, 0 0 90px #ff0000;animation:nuclearCountdownPulse 1s ease-in-out infinite alternate"></div>'
-      + '<div style="font-size:14px;color:#ff4444;margin-top:16px;letter-spacing:8px;text-shadow:0 0 10px #ff0000">TO FISSION</div>';
+      + '<div style="font-size:14px;color:#ff4444;margin-top:16px;letter-spacing:8px;text-shadow:0 0 10px #ff0000">' + esc(tt('pg.toFission')) + '</div>';
     document.body.appendChild(criticalOverlay);
   }
 
@@ -214,10 +251,10 @@
     var atom = window.__mol3d.atoms.get(atomId);
     if (!atom) return;
 
-    if (atom.el.z >= 82) {
+    if (atom.el.z > 82) {
       // If already counting down on this atom, don't reset
       if (timerAtomId === atomId && timerInterval) {
-        showStatus('\u2622 Already critical! Fission in progress...');
+        showStatus(tt('pg.alreadyCritical'));
         return;
       }
       startCriticalTimer(atom, atomId);
@@ -229,7 +266,8 @@
   function addProton(atom, atomId) {
     var newZ = atom.el.z + 1;
     var newEl = findElement(newZ);
-    if (!newEl) { showStatus('No element above Z=' + atom.el.z); return; }
+    if (!newEl) { showStatus(tt('pg.noAbove', { z: atom.el.z })); return; }
+    if (!ownsElement(newZ)) { refuseUpgrade(newEl); return; }
 
     var oldSym = atom.el.sym;
     var isNoble = NOBLE_GASES.has(newZ);
@@ -244,9 +282,9 @@
           bondsBroken++;
         }
       }
-      showStatus('Added proton: ' + oldSym + ' \u2192 ' + newEl.name + ' (Z=' + newZ + ') \u2014 noble gas, ' + bondsBroken + ' bond(s) severed!');
+      showStatus(tt('pg.addedProtonNoble', { from: oldSym, to: newEl.name, z: newZ, n: bondsBroken }));
     } else {
-      showStatus('Added proton: ' + oldSym + ' \u2192 ' + newEl.name + ' (Z=' + newZ + ')');
+      showStatus(tt('pg.addedProton', { from: oldSym, to: newEl.name, z: newZ }));
     }
 
     if (window.__mol3d.updateAtomLabel) {
@@ -270,7 +308,7 @@
     timerAtomId = atomId;
     var countdown = 60;
 
-    showStatus('\u2622 CRITICAL: ' + atom.el.name + ' (Z=' + atom.el.z + ') \u2014 ' + countdown + 's to fission!');
+    showStatus(tt('pg.critical', { name: atom.el.name, z: atom.el.z, n: countdown }));
     createCriticalOverlay();
     updateCriticalOverlay(atom.el.name, atom.el.z, countdown);
     showRedFlash();
@@ -286,7 +324,7 @@
       updateCriticalOverlay(atom.el.name, atom.el.z, countdown);
 
       if (countdown > 0) {
-        showStatus('\u2622 CRITICAL: ' + countdown + 's remaining!');
+        showStatus(tt('pg.criticalLeft', { n: countdown }));
       }
 
       if (countdown <= 0) {
@@ -332,12 +370,15 @@
     }
 
     if (window.__mol3d.vfx && window.__mol3d.vfx.reactionVFX && window.__mol3d.THREE) {
-      window.__mol3d.vfx.reactionVFX.explode(
-        new window.__mol3d.THREE.Vector3(pos.x, pos.y, pos.z), 5.0, new window.__mol3d.THREE.Color(0xff4400)
+      window.__mol3d.vfx.reactionVFX.fission(
+        new window.__mol3d.THREE.Vector3(pos.x, pos.y, pos.z), 5.0
       );
     }
+    if (window.__mol3d.triggerNuclearVFX) {
+      window.__mol3d.triggerNuclearVFX();
+    }
 
-    showStatus('\uD83D\uDCA5 ' + oldName + ' underwent fission: ' + el1.name + ' + ' + el2.name);
+    showStatus(tt('pg.fission', { name: oldName, a: el1.name, b: el2.name }));
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();
@@ -346,7 +387,7 @@
     triggerWhiteFlash(10, function() {
       if (window.__mol3d.clearAll) window.__mol3d.clearAll();
       resetCameraToGround();
-      showStatus('Ground state restored after ' + oldName + ' fission');
+      showStatus(tt('pg.restored', { name: oldName }));
     });
   }
 
@@ -354,9 +395,14 @@
     var btn = document.getElementById('btn-proton');
     if (btn) {
       btn.addEventListener('click', function() {
+        if (window.__mol3dShop && window.__mol3dShop.blocksFeature('proton')) {
+          showStatus(window.__mol3dShop.lockedMessage('proton'));
+          window.__mol3dShop.open();
+          return;
+        }
         active = !active;
         btn.classList.toggle('on', active);
-        showStatus(active ? 'Proton gun activated \u2014 Click atoms!' : 'Proton gun deactivated');
+        showStatus(active ? tt('pg.on') : tt('pg.off'));
         // Don't clear critical timer when toggling off - fission continues independently
       });
     }

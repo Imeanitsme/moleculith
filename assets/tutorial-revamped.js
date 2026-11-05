@@ -44,7 +44,7 @@
         { target: '#pool-list', text: "Now let's learn about bonds! Drag another H into the scene.", action: 'waitForSpawn', threshold: 2 },
         { text: 'Two H atoms will automatically form H\u2082 \u2014 molecular hydrogen!', action: 'next' },
         { text: 'Double-click molecules to see reactions. Try combining different elements!', action: 'next' },
-        { target: '#btn-fc', text: 'This shows formal charges on atoms. Useful for understanding reactivity.', action: 'highlight' },
+        { target: '#btn-fc', text: 'The Format panel holds formal charges and X-ray display options.', action: 'highlight' },
       ]
     },
     {
@@ -58,13 +58,54 @@
     }
   ];
 
+
+  var STR_VI = {
+    "Hello! I'm {assistant}, your chemistry AI assistant.": 'Xin chào! Tôi là {assistant}, trợ lý AI hóa học của bạn.',
+    'What should I call you?': 'Tôi nên gọi bạn là gì?',
+    'Nice to meet you, {user}! Let me show you around the lab.': 'Rất vui được gặp bạn, {user}! Để tôi dẫn bạn tham quan phòng thí nghiệm.',
+    'This is your element pool, {user}. All 118 elements are here.': 'Đây là kho nguyên tố của bạn, {user}. Đầy đủ 118 nguyên tố ở đây.',
+    'Drag any element into the scene to place it. Try Hydrogen (H)!': 'Kéo bất kỳ nguyên tố nào vào cảnh để đặt nó. Hãy thử Hidro (H)!',
+    'Great! Atoms are the building blocks of all matter.': 'Tuyệt vời! Nguyên tử là đơn vị cấu tạo nên mọi vật chất.',
+    "Drag atoms to move them. They'll bond when close enough.": 'Kéo các nguyên tử để di chuyển chúng. Chúng sẽ liên kết khi đủ gần.',
+    "Now let's learn about bonds! Drag another H into the scene.": 'Bây giờ hãy học về liên kết! Kéo một nguyên tử H khác vào cảnh.',
+    'Two H atoms will automatically form H\u2082 \u2014 molecular hydrogen!': 'Hai nguyên tử H sẽ tự động tạo thành H\u2082 — khí hidro phân tử!',
+    'Double-click molecules to see reactions. Try combining different elements!': 'Nhấp đôi vào phân tử để xem phản ứng. Hãy thử kết hợp các nguyên tố khác nhau!',
+    'The Format panel holds formal charges and X-ray display options.': 'Bảng Định dạng chứa điện tích hình thức và các tùy chọn hiển thị tia X.',
+    'X-Ray mode lets you see electron clouds. Press X or click here.': 'Chế độ Tia X cho phép nhìn thấy đám mây electron. Nhấn X hoặc bấm vào đây.',
+    'The Proton Gun adds protons to atoms, transmuting elements!': 'Súng proton thêm proton vào nguyên tử, biến đổi nguyên tố!',
+    'Quest mode gives you challenges to complete for rewards.': 'Chế độ Nhiệm Vụ đưa ra thử thách để nhận phần thưởng.',
+    "You're all set, {user}! Explore and experiment. The lab is yours.": 'Bạn đã sẵn sàng, {user}! Hãy khám phá và làm thí nghiệm. Phòng thí nghiệm là của bạn.',
+    'Enter your name': 'Nhập tên của bạn',
+    'Continue': 'Tiếp tục',
+    'Waiting...': 'Đang chờ...',
+    'Finish': 'Hoàn thành',
+    'Next': 'Tiếp',
+    'Tutorial complete! Welcome to the lab,': 'Hoàn tất hướng dẫn! Chào mừng đến phòng thí nghiệm,'
+  };
+
+  function langVi() {
+    var i18n = window.__mol3d && window.__mol3d.i18n;
+    if (i18n && typeof i18n.getLang === 'function') return i18n.getLang() === 'vi';
+    try { return localStorage.getItem('mol3d.lang') === 'vi'; } catch (e) { return false; }
+  }
+
+  function L(text) {
+    if (!langVi()) return text;
+    var direct = STR_VI[text];
+    if (direct) return direct;
+    for (var en in STR_VI) {
+      if (text.indexOf(en) === 0) return STR_VI[en] + text.slice(en.length);
+    }
+    return text;
+  }
+
   function showStatus(msg) {
     var el = document.getElementById('status-text');
     if (el) { el.textContent = msg; el.className = 'info'; }
   }
 
   function fmt(text) {
-    return text.replace(/\{assistant\}/g, assistantName).replace(/\{user\}/g, userName);
+    return L(text).replace(/\{assistant\}/g, assistantName).replace(/\{user\}/g, userName);
   }
 
   function clearWait() {
@@ -286,7 +327,7 @@
 
     if (isNameInput) {
       typewriterWrite(bodyEl, text, 20, function() {
-        setActions('<input type="text" class="tut-name-input" id="tut-name-input" placeholder="Enter your name" value="' + userName + '" /><button class="tut-btn" id="tut-continue-btn">Continue</button>');
+        setActions('<input type="text" class="tut-name-input" id="tut-name-input" placeholder="' + L('Enter your name') + '" value="' + userName + '" /><button class="tut-btn" id="tut-continue-btn">' + L('Continue') + '</button>');
         var input = document.getElementById('tut-name-input');
         var contBtn = document.getElementById('tut-continue-btn');
         if (input) input.focus();
@@ -307,17 +348,17 @@
       });
     } else if (isWaiting) {
       typewriterWrite(bodyEl, text, 20, function() {
-        setActions('<button class="tut-btn tut-btn-wait" id="tut-next-btn" disabled>Waiting...</button>');
+        setActions('<button class="tut-btn tut-btn-wait" id="tut-next-btn" disabled>' + L('Waiting...') + '</button>');
         waitForAction(s.threshold);
       });
     } else if (isComplete) {
       typewriterWrite(bodyEl, text, 20, function() {
-        setActions('<button class="tut-btn tut-btn-finish" id="tut-next-btn">Finish</button>');
+        setActions('<button class="tut-btn tut-btn-finish" id="tut-next-btn">' + L('Finish') + '</button>');
         document.getElementById('tut-next-btn').addEventListener('click', complete);
       });
     } else {
       typewriterWrite(bodyEl, text, 20, function() {
-        setActions('<button class="tut-btn" id="tut-next-btn">Next</button>');
+        setActions('<button class="tut-btn" id="tut-next-btn">' + L('Next') + '</button>');
         document.getElementById('tut-next-btn').addEventListener('click', function() {
           if (s.action === 'highlight' && s.target) {
             var target = document.querySelector(s.target);
@@ -334,7 +375,7 @@
         skipTypewriter(bodyEl);
         if (!isNameInput && !isWaiting && !isComplete) {
           if (!actionsEl.querySelector('#tut-next-btn')) {
-            setActions('<button class="tut-btn" id="tut-next-btn">Next</button>');
+            setActions('<button class="tut-btn" id="tut-next-btn">' + L('Next') + '</button>');
             document.getElementById('tut-next-btn').addEventListener('click', function() {
               if (s.action === 'highlight' && s.target) {
                 var target = document.querySelector(s.target);
@@ -344,7 +385,7 @@
             });
           }
         } else if (isComplete && !actionsEl.querySelector('#tut-next-btn')) {
-          setActions('<button class="tut-btn tut-btn-finish" id="tut-next-btn">Finish</button>');
+          setActions('<button class="tut-btn tut-btn-finish" id="tut-next-btn">' + L('Finish') + '</button>');
           document.getElementById('tut-next-btn').addEventListener('click', complete);
         }
       }
@@ -385,7 +426,7 @@
     localStorage.setItem(TUTORIAL_KEY, 'true');
     tutorialActive = false;
     destroyUI();
-    showStatus('Tutorial complete! Welcome to the lab, ' + userName + '!');
+    showStatus(L('Tutorial complete! Welcome to the lab,') + ' ' + userName + '!');
   }
 
   function start() {
@@ -554,6 +595,11 @@
         if (menu) menu.hidden = true;
       });
     }
+
+    window.addEventListener('mol3d:lang', function() {
+      if (!tutorialActive || !container) return;
+      renderStep();
+    });
 
     window.__tutorial = {
       start: start,

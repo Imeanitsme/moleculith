@@ -9,22 +9,15 @@
   <!-- PeerJS (Peer-to-Peer WebRTC) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwooZnVuY3Rpb24gcG9seWZpbGwyKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <script type="module" crossorigin src="./assets/game-31d4f0db.js"></script>
+  <script type="module" crossorigin src="./assets/game-5b871859.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-d41d8cd9.js">
-  <link rel="stylesheet" crossorigin href="./assets/game-736c7b8c.css">
+  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css">
 </head>
 <body>
   <div id="app">
     <!-- Left sidebar with tabs: POOL / INFO / DEX -->
     <aside id="left-sidebar" class="left-sidebar">
-      <div class="drag-handle" title="Drag to move"></div>
+      <div class="drag-handle" title="Drag to move" data-i18n-title="ui.dragHandle"></div>
       <div class="sidebar-tabs">
         <button class="sidebar-tab active" data-panel="pool" data-i18n="tab.pool">POOL</button>
         <button class="sidebar-tab" data-panel="info" data-i18n="tab.info">INFO</button>
@@ -62,7 +55,7 @@
               <span class="lbl" data-i18n="mol.chargeLbl">Ion charge</span>
               <div class="charge-btns">
                 <button id="chg-minus" data-i18n-title="chg.minus.title" title="Set ion charge one unit lower">&minus;1</button>
-                <button id="chg-auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
+                <button id="chg-auto" data-i18n="chg.auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
                 <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
               </div>
             </div>
@@ -166,9 +159,9 @@
         </div>
         <div id="top-bar-mp" class="top-bar-right" hidden>
           <span id="top-room-name" class="top-room-name">Room: —</span>
-          <button id="top-btn-roster" class="top-btn" title="Channel Roster"><i data-lucide="users"></i> <span id="top-roster-count">0</span></button>
-          <button id="top-btn-share" class="top-btn" title="Share Room"><i data-lucide="share-2"></i></button>
-          <button id="top-btn-exit" class="top-btn top-btn-exit" title="Exit Room"><i data-lucide="log-out"></i></button>
+          <button id="top-btn-roster" class="top-btn" title="Channel Roster" data-i18n-title="top.channelRoster"><i data-lucide="users"></i> <span id="top-roster-count">0</span></button>
+          <button id="top-btn-share" class="top-btn" title="Share Room" data-i18n-title="top.shareRoom"><i data-lucide="share-2"></i></button>
+          <button id="top-btn-exit" class="top-btn top-btn-exit" title="Exit Room" data-i18n-title="top.exitRoom"><i data-lucide="log-out"></i></button>
         </div>
       </div>
       <!-- Health bar (top-left) -->
@@ -208,10 +201,10 @@
       <div id="joy" aria-hidden="true">
         <div id="joy-stick"><div id="joy-knob"></div></div>
         <div id="joy-vert">
-          <button id="joy-up" aria-label="Move camera up"><i data-lucide="chevron-up"></i></button>
-          <button id="joy-down" aria-label="Move camera down"><i data-lucide="chevron-down"></i></button>
+          <button id="joy-up" aria-label="Move camera up" data-i18n-aria="joy.up"><i data-lucide="chevron-up"></i></button>
+          <button id="joy-down" aria-label="Move camera down" data-i18n-aria="joy.down"><i data-lucide="chevron-down"></i></button>
         </div>
-        <button id="joy-jump" aria-label="Jump">Jump</button>
+        <button id="joy-jump" aria-label="Jump" data-i18n="joy.jump" data-i18n-aria="joy.jump">Jump</button>
       </div>
       <div id="toast"></div>
 
@@ -238,7 +231,7 @@
           <div id="rankup-shield" class="rankup-shield">
             <span id="rankup-grade" class="rankup-grade">V</span>
           </div>
-          <div id="rankup-label" class="rankup-label">Grade Up!</div>
+          <div id="rankup-label" class="rankup-label" data-i18n="rank.gradeUpLabel">Grade Up!</div>
           <div id="rankup-confetti" class="rankup-confetti"></div>
         </div>
       </div>
@@ -246,20 +239,20 @@
 
     <!-- Right sidebar (action buttons) -->
     <aside id="right-sidebar" class="right-sidebar">
-      <div class="drag-handle" title="Drag to move"></div>
-      <button id="btn-quest" class="action-btn" title="AI Quest Mode"><i data-lucide="bot"></i></button>
-      <button id="btn-undo" class="action-btn" title="Undo (Ctrl+Z)"><i data-lucide="undo-2"></i></button>
-      <button id="btn-delete" class="action-btn" title="Delete" disabled><i data-lucide="trash-2"></i></button>
-      <button id="btn-duplicate" class="action-btn" title="Duplicate (Ctrl+D)"><i data-lucide="copy"></i></button>
-      <button id="btn-clear" class="action-btn" title="Clear All"><i data-lucide="x"></i></button>
-      <button id="btn-fc" class="action-btn toggle" title="Formal Charge"><i data-lucide="plus-minus"></i></button>
-      <button id="btn-xray" class="action-btn toggle" title="X-Ray Mode (X)"><i data-lucide="scan-eye"></i></button>
-      <button id="btn-proton" class="action-btn toggle" title="Proton Gun"><i data-lucide="crosshair"></i></button>
+      <div class="drag-handle" title="Drag to move" data-i18n-title="ui.dragHandle"></div>
+      <button id="btn-quest" class="action-btn" title="AI Quest Mode" data-i18n-title="btn.quest.title"><i data-lucide="bot"></i></button>
+      <button id="btn-undo" class="action-btn" title="Undo (Ctrl+Z)" data-i18n-title="ui.undo"><i data-lucide="undo-2"></i></button>
+      <button id="btn-delete" class="action-btn" title="Delete" data-i18n-title="ui.delete" disabled><i data-lucide="trash-2"></i></button>
+      <button id="btn-duplicate" class="action-btn" title="Duplicate (Ctrl+D)" data-i18n-title="ui.duplicate"><i data-lucide="copy"></i></button>
+      <button id="btn-clear" class="action-btn" title="Clear All" data-i18n-title="btn.clear"><i data-lucide="x"></i></button>
+      <button id="btn-fc" class="action-btn toggle" title="Format" data-i18n-title="btn.format.title"><i data-lucide="superscript"></i></button>
+      <button id="btn-xray" class="action-btn toggle" title="X-Ray Mode (X)" data-i18n-title="btn.xray.title"><i data-lucide="scan-eye"></i></button>
+      <button id="btn-proton" class="action-btn toggle" title="Proton Gun" data-i18n-title="btn.proton.title"><i data-lucide="crosshair"></i></button>
     </aside>
 
     <!-- Bottom bar: TIME BOARD + MENU -->
     <div class="bottom-bar">
-      <div class="drag-handle" title="Drag to move"></div>
+      <div class="drag-handle" title="Drag to move" data-i18n-title="ui.dragHandle"></div>
       <div class="bottom-left">
         <span id="status-text" class="info"></span>
       </div>
@@ -268,18 +261,18 @@
           <span id="time-display">0s</span>
           <span class="time-speed" id="time-speed-label">1×</span>
         </div>
-        <button id="btn-time-menu" class="time-btn" title="Time Control"><i data-lucide="more-vertical"></i></button>
+        <button id="btn-time-menu" class="time-btn" title="Time Control" data-i18n-title="time.title"><i data-lucide="more-vertical"></i></button>
       </div>
       <div class="time-controls env-controls">
         <div class="time-display-box env-display-box">
           <span id="env-temp-display">298K</span>
           <span class="time-speed" id="env-pressure-display">1atm</span>
         </div>
-        <button id="btn-env-menu" class="time-btn" title="Environment Control"><i data-lucide="thermometer"></i></button>
+        <button id="btn-env-menu" class="time-btn" title="Environment Control" data-i18n-title="env.title"><i data-lucide="thermometer"></i></button>
       </div>
       <div class="bottom-right">
         <span id="keys-hint" data-i18n="keys.hint">WASD/arrows = move · drag = move/bond · click bond = raise order</span>
-        <button id="btn-menu" class="menu-tab-btn" aria-expanded="false" aria-controls="menu-dropdown" title="Menu"><i data-lucide="menu"></i></button>
+        <button id="btn-menu" class="menu-tab-btn" aria-expanded="false" aria-controls="menu-dropdown" title="Menu" data-i18n-title="ui.menu"><i data-lucide="menu"></i></button>
       </div>
     </div>
 
@@ -310,7 +303,7 @@
     <div id="credits-modal" class="credits-modal" hidden>
       <div class="credits-backdrop"></div>
       <div class="credits-container">
-        <button id="credits-close" class="credits-close-btn" title="Close">&times;</button>
+        <button id="credits-close" class="credits-close-btn" title="Close" data-i18n-title="ui.close">&times;</button>
         <div class="credits-scroll">
           <div class="credits-content">
             <div class="credits-title-block">
@@ -352,7 +345,7 @@
     </div>
 
     <!-- Mobile tab bar -->
-    <nav id="mtabs" aria-label="Panels">
+    <nav id="mtabs" aria-label="Panels" data-i18n-aria="ui.panels">
       <button data-tab="side-pool" data-i18n="tab.pool">Pool</button>
       <button data-tab="side-info" data-i18n="tab.info">Info</button>
       <button data-tab="side-dex" data-i18n="tab.dex">Dex</button>
@@ -368,12 +361,12 @@
 
   <div id="isomer-panel" class="isomer-panel" aria-hidden="true">
     <div class="isomer-panel-header">
-      <h3 id="isomer-panel-title">Isomer Validator</h3>
+      <h3 id="isomer-panel-title" data-i18n="iso.panelTitle">Isomer Validator</h3>
       <button id="isomer-panel-close" class="isomer-close">&times;</button>
     </div>
     <div class="isomer-input-row">
-      <input id="isomer-input" class="isomer-input" type="text" placeholder="Type arrangement (e.g., HCN, CNH)…" autocomplete="off" spellcheck="false" />
-      <button id="isomer-check-btn" class="isomer-check-btn">Check</button>
+      <input id="isomer-input" class="isomer-input" type="text" placeholder="Type arrangement (e.g., HCN, CNH)…" data-i18n-ph="iso.inputPh" autocomplete="off" spellcheck="false" />
+      <button id="isomer-check-btn" class="isomer-check-btn" data-i18n="iso.check">Check</button>
     </div>
     <div id="isomer-result" class="isomer-result"></div>
   </div>
@@ -387,11 +380,11 @@
       <form id="custom-element-form">
         <div class="form-row">
           <label data-i18n="custom.name">Name</label>
-          <input type="text" id="custom-name" required placeholder="e.g., Vibranium" />
+          <input type="text" id="custom-name" required placeholder="e.g., Vibranium" data-i18n-ph="pool.customNamePh" />
         </div>
         <div class="form-row">
           <label data-i18n="custom.sym">Symbol</label>
-          <input type="text" id="custom-sym" required maxlength="3" placeholder="e.g., Vb" pattern="[A-Z][a-z]{0,2}" />
+          <input type="text" id="custom-sym" required maxlength="3" placeholder="e.g., Vb" pattern="[A-Z][a-z]{0,2}" data-i18n-ph="pool.customSymPh" />
         </div>
         <div class="form-row">
           <label data-i18n="custom.type">Type</label>
@@ -440,7 +433,7 @@
       <div class="daily-reward-icon">🎁</div>
       <h2 class="daily-reward-title" data-i18n="rank.dailyReward">Daily Reward</h2>
       <div class="daily-reward-streak">
-        <span data-i18n="rank.dailyStreak">Day</span>
+        <span data-i18n="rank.dayLabel">Day</span>
         <span id="daily-reward-day" class="daily-reward-day">1</span>
       </div>
       <div class="daily-reward-stars">
@@ -454,7 +447,7 @@
   <!-- Mobile Console Overlay -->
   <div id="mobile-console" class="mobile-console" hidden>
     <div class="console-header">
-      <span class="console-title">Console</span>
+      <span class="console-title" data-i18n="btn.console">Console</span>
       <div class="console-actions">
         <button id="console-clear" class="console-btn" data-i18n="console.clear" data-i18n-title="console.clear" title="Clear">Clear</button>
         <button id="console-close" class="console-btn" data-i18n-title="console.close" title="Close">×</button>
@@ -464,7 +457,7 @@
     <div class="console-input-row">
       <span class="console-prompt">></span>
       <input type="text" id="console-input" class="console-input" data-i18n-ph="console.placeholder" placeholder="Type command..." autocomplete="off" />
-      <button id="console-run" class="console-btn-run">Run</button>
+      <button id="console-run" class="console-btn-run" data-i18n="console.run">Run</button>
     </div>
   </div>
 
@@ -525,6 +518,10 @@
           <i data-lucide="monitor"></i>
           <span data-i18n="settings.quality">Quality: Auto</span>
         </button>
+        <button id="settings-tutorial" class="settings-btn">
+          <i data-lucide="graduation-cap"></i>
+          <span data-i18n="settings.tutorial">Replay tutorial</span>
+        </button>
         <div class="settings-volume">
           <label data-i18n="settings.volume">Volume</label>
           <input type="range" id="settings-volume-slider" min="0" max="100" value="50" />
@@ -566,11 +563,11 @@
       <h3 data-i18n="host.title">Host a Room</h3>
       <div class="form-group">
         <label data-i18n="host.username">Username</label>
-        <input type="text" id="host-username" placeholder="Enter your name" maxlength="20" />
+        <input type="text" id="host-username" placeholder="Enter your name" data-i18n-ph="ph.enterName" maxlength="20" />
       </div>
       <div class="form-group">
         <label data-i18n="host.roomCode">Room Code (optional)</label>
-        <input type="text" id="host-room-code" placeholder="Auto-generated if empty" maxlength="6" />
+        <input type="text" id="host-room-code" placeholder="Auto-generated if empty" data-i18n-ph="ph.autoCode" maxlength="6" />
       </div>
       <div class="form-group">
         <label>
@@ -580,7 +577,7 @@
       </div>
       <div class="form-group" id="host-password-group" hidden>
         <label data-i18n="host.password">Password</label>
-        <input type="password" id="host-password" placeholder="Enter room password" maxlength="20" />
+        <input type="password" id="host-password" placeholder="Enter room password" data-i18n-ph="ph.enterPassword" maxlength="20" />
       </div>
       <button id="btn-start-hosting" class="modal-btn primary">
         <i data-lucide="play"></i>
@@ -596,15 +593,15 @@
       <h3 data-i18n="join.title">Join a Room</h3>
       <div class="form-group">
         <label data-i18n="join.username">Username</label>
-        <input type="text" id="join-username" placeholder="Enter your name" maxlength="20" />
+        <input type="text" id="join-username" placeholder="Enter your name" data-i18n-ph="ph.enterName" maxlength="20" />
       </div>
       <div class="form-group">
         <label data-i18n="join.roomCode">Room Code</label>
-        <input type="text" id="join-room-code" placeholder="Enter 6-character code" maxlength="6" />
+        <input type="text" id="join-room-code" placeholder="Enter 6-character code" data-i18n-ph="ph.enterCode" maxlength="6" />
       </div>
       <div class="form-group">
         <label data-i18n="join.password">Password (if required)</label>
-        <input type="password" id="join-password" placeholder="Leave empty if none" maxlength="20" />
+        <input type="password" id="join-password" placeholder="Leave empty if none" data-i18n-ph="ph.emptyNone" maxlength="20" />
       </div>
       <button id="btn-start-join" class="modal-btn primary">
         <i data-lucide="log-in"></i>
@@ -620,11 +617,11 @@
       <p class="room-info" id="direct-join-room"></p>
       <div class="form-group">
         <label data-i18n="directJoin.username">Username</label>
-        <input type="text" id="direct-join-username" placeholder="Enter your name" maxlength="20" />
+        <input type="text" id="direct-join-username" placeholder="Enter your name" data-i18n-ph="ph.enterName" maxlength="20" />
       </div>
       <div class="form-group" id="direct-join-password-group" hidden>
         <label data-i18n="directJoin.password">Password</label>
-        <input type="password" id="direct-join-password" placeholder="Enter room password" maxlength="20" />
+        <input type="password" id="direct-join-password" placeholder="Enter room password" data-i18n-ph="ph.enterPassword" maxlength="20" />
       </div>
       <button id="btn-direct-join" class="modal-btn primary">
         <i data-lucide="log-in"></i>
@@ -649,19 +646,19 @@
   <!-- Chat Box -->
   <div id="chat-box" class="chat-box" hidden>
     <div class="chat-header" id="chat-header">
-      <span class="chat-title">Chat</span>
+      <span class="chat-title" data-i18n="chat.title">Chat</span>
       <div class="chat-controls">
-        <button class="chat-btn" id="chat-minimize" title="Minimize">
+        <button class="chat-btn" id="chat-minimize" title="Minimize" data-i18n-title="ui.minimize">
           <i data-lucide="minus"></i>
         </button>
-        <button class="chat-btn" id="chat-close" title="Close">
+        <button class="chat-btn" id="chat-close" title="Close" data-i18n-title="ui.close">
           <i data-lucide="x"></i>
         </button>
       </div>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
     <div class="chat-input-row">
-      <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="200" />
+      <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="200" data-i18n-ph="chat.placeholder" />
       <button id="chat-send" class="chat-send-btn">
         <i data-lucide="send"></i>
       </button>
@@ -670,7 +667,7 @@
   </div>
 
   <!-- Chat Toggle Button -->
-  <button id="btn-chat-toggle" class="chat-toggle-btn" hidden title="Toggle Chat">
+  <button id="btn-chat-toggle" class="chat-toggle-btn" hidden title="Toggle Chat" data-i18n-title="btn.chatToggle.title">
     <i data-lucide="message-square"></i>
   </button>
 
@@ -735,7 +732,7 @@
 
       <div class="env-presets">
         <button class="env-preset" data-preset="air" data-i18n="env.preset.air">Air</button>
-        <button class="env-preset" data-preset="vacuo" data-i18n="env.preset.vacuo">Vacuo</button>
+        <button class="env-preset" data-preset="vacuo" data-i18n="env.preset.vacuo">Vacuum</button>
         <button class="env-preset" data-preset="oxygen" data-i18n="env.preset.oxygen">Pure O2</button>
         <button class="env-preset" data-preset="hydrogen" data-i18n="env.preset.hydrogen">Reducing (H2)</button>
         <button class="env-preset" data-preset="argon" data-i18n="env.preset.argon">Inert (Ar)</button>
@@ -745,9 +742,12 @@
   </div>
 
   <script src="https://js.puter.com/v2/"></script>
-  <script src="./assets/xray.js?v=2"></script>
-  <script src="./assets/proton-gun.js?v=2"></script>
-  <script src="./assets/tutorial-revamped.js?v=2"></script>
-  <script src="./assets/pool-drag.js?v=2"></script>
+  <script src="./assets/xray.js?v=6"></script>
+  <script src="./assets/proton-gun.js?v=6"></script>
+  <script src="./assets/format-menu.js?v=2"></script>
+  <script src="./assets/quality-menu.js?v=1"></script>
+  <script src="./assets/tutorial-revamped.js?v=5"></script>
+  <script src="./assets/pool-drag.js?v=4"></script>
+  <script src="./assets/shop-rope.js?v=5"></script>
 </body>
 </html>

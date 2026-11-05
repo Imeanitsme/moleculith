@@ -6,10 +6,50 @@
   var shellObjects = new Map(); // atomId -> { group, cloudData }
   var animFrameId = null;
   var SHELL_CAP = [2, 8, 18, 32, 32, 18, 8];
+  var SHELL_NAMES = ['K', 'L', 'M', 'N', 'O', 'P', 'Q'];
+  var CFG_KEY = 'mol3d.xray.cfg.v1';
+
+  // grid: shells drawn as wireframe grids instead of soft clouds
+  // labels: element symbols stay visible while in x-ray
+  // shells: per-shell-level visibility (K..Q)
+  var config = { grid: false, labels: true, shells: [true, true, true, true, true, true, true] };
+
+  function loadConfig() {
+    try {
+      var d = JSON.parse(localStorage.getItem(CFG_KEY));
+      if (!d || typeof d !== 'object') return;
+      if (typeof d.grid === 'boolean') config.grid = d.grid;
+      if (typeof d.labels === 'boolean') config.labels = d.labels;
+      if (Array.isArray(d.shells)) {
+        for (var i = 0; i < SHELL_NAMES.length; i++) {
+          if (typeof d.shells[i] === 'boolean') config.shells[i] = d.shells[i];
+        }
+      }
+    } catch (e) {}
+  }
+  function saveConfig() {
+    try {
+      localStorage.setItem(CFG_KEY, JSON.stringify(config));
+    } catch (e) {}
+  }
+  function shellEnabled(index) {
+    return config.shells[index] !== false;
+  }
+  // Labels are always back on when x-ray is off; the option only gates them inside x-ray.
+  function applyLabelVisibility() {
+    var m = window.__mol3d;
+    if (!m || typeof m.setLabels !== 'function') return;
+    m.setLabels(!active || config.labels);
+  }
 
   function showStatus(msg) {
     var el = document.getElementById('status-text');
     if (el) { el.textContent = msg; el.className = 'info'; }
+  }
+
+  function tt(key, params) {
+    var i18n = window.__mol3d && window.__mol3d.i18n;
+    return i18n && typeof i18n.t === 'function' ? i18n.t(key, params) : key;
   }
 
   function electronShells(z) {
@@ -71,14 +111,16 @@
   function createElectronCloud(shellIndex, electronCount, THREE, atomRadius) {
     var group = new THREE.Group();
     var shellRadius = atomRadius * (1.5 + shellIndex * 0.8);
+    var baseOpacity = 0.15;
 
     // Single cloud layer with gradient opacity (optimized: was 3 layers)
     var cloudGeo = new THREE.SphereGeometry(shellRadius, 16, 16);
     var cloudMat = new THREE.MeshBasicMaterial({
       color: 0x58a6ff,
       transparent: true,
-      opacity: 0.15,
+      opacity: baseOpacity,
       depthWrite: false,
+      wireframe: false,
       side: THREE.DoubleSide
     });
     var cloud = new THREE.Mesh(cloudGeo, cloudMat);
@@ -121,6 +163,7 @@
       cloud: cloud,
       points: points,
       radius: shellRadius,
+      baseOpacity: baseOpacity,
       electronCount: electronCount
     };
   }
@@ -130,6 +173,7 @@
     var cloudData = [];
 
     for (var s = 0; s < shells.length; s++) {
+      if (!shellEnabled(s)) continue;
       var count = shells[s];
       var cloud = createElectronCloud(s, count, THREE, atomRadius);
       group.add(cloud.group);
@@ -225,7 +269,7 @@
         // Pulsing effect for cloud
         var pulse = 1.0 + Math.sin(time * 2) * 0.05;
         cloud.cloud.scale.set(pulse, pulse, pulse);
-        cloud.cloud.material.opacity = 0.15 + Math.sin(time * 1.5) * 0.03;
+        cloud.cloud.material.opacity = cloud.baseOpacity + Math.sin(time * 1.5) * 0.03;
 
         // Quantum fluctuation for probability points
         cloud.points.forEach(function(point) {
@@ -316,13 +360,39 @@
     }
 
     applyWireframe();
-    showStatus(active ? 'X-Ray mode ON - Schrödinger electron clouds' : 'X-Ray mode OFF');
+    applyLabelVisibility();
+    showStatus(active ? tt('xray.on') : tt('xray.off'));
     return active;
   }
 
+  // Called by the Format panel; every change repaints the shells that are on screen.
+  function setConfig(patch) {
+    if (!patch || typeof patch !== 'object') return config;
+    if (typeof patch.grid === 'boolean') config.grid = patch.grid;
+    if (typeof patch.labels === 'boolean') config.labels = patch.labels;
+    if (Array.isArray(patch.shells)) {
+      for (var i = 0; i < SHELL_NAMES.length; i++) {
+        if (typeof patch.shells[i] === 'boolean') config.shells[i] = patch.shells[i];
+      }
+    }
+    saveConfig();
+    applyLabelVisibility();
+    if (active) buildAllShells();
+    if (window.__mol3d && typeof window.__mol3d.invalidate === 'function') window.__mol3d.invalidate();
+    return config;
+  }
+
   function init() {
+    loadConfig();
     var btn = document.getElementById('btn-xray');
-    if (btn) btn.addEventListener('click', function() { btn.classList.toggle('on', toggle()); });
+    if (btn) btn.addEventListener('click', function() {
+      if (window.__mol3dShop && window.__mol3dShop.blocksFeature('xray')) {
+        showStatus(window.__mol3dShop.lockedMessage('xray'));
+        window.__mol3dShop.open();
+        return;
+      }
+      btn.classList.toggle('on', toggle());
+    });
 
     window.addEventListener('keydown', function(e) {
       if ((e.key === 'x' || e.key === 'X') && !e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -347,6 +417,11 @@
     window.__xray = {
       toggle: toggle,
       isActive: function() { return active; },
+      config: function() {
+        return { grid: config.grid, labels: config.labels, shells: config.shells.slice() };
+      },
+      setConfig: setConfig,
+      shellNames: SHELL_NAMES.slice(),
       rebuild: buildAllShells,
       removeAtom: function(atomId) {
         if (shellObjects.has(atomId)) removeShellObject(atomId);

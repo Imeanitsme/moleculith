@@ -43744,6 +43744,7 @@ const UI = {
     "iso.none": "No arrangements match.",
     "chg.minus.title": "Set ion charge one unit lower",
     "chg.auto.title": "Automatic: minimize total formal charge",
+    "chg.auto": "auto",
     "chg.plus.title": "Set ion charge one unit higher",
     "list.title": "Molecules in scene",
     "list.empty": "No molecules yet.",
@@ -43793,6 +43794,7 @@ const UI = {
     "status.exportFailed": "Export failed: {error}",
     "status.imported": "Progress imported — {atoms} atoms, {discoveries} discoveries restored.",
     "status.importFailed": "Import failed: {error}",
+    "status.importLocked": "Progress can only be imported once per browser — clear the site data to import again",
     "status.healthLow": "Warning: Health critical! Move away from radioactive elements.",
     "status.healthZero": "You have been irradiated! Health depleted.",
     "status.respawned": "Respawned with full health.",
@@ -43826,11 +43828,13 @@ const UI = {
     "status.off": "OFF",
     "rank.locked": "Locked",
     "rank.requires": "Requires",
-    "rank.elementLocked": "This element is locked. Rank up to unlock more elements!",
-    "rank.featureLocked": "This feature is locked. Reach {rank} rank to unlock!",
+    "rank.shopHint": "Buy it in the Rope Shop (drag the cord at the top right)",
+    "rank.elementLocked": "This element is locked. Buy it in the Rope Shop — drag the cord at the top right.",
+    "rank.featureLocked": "This feature is locked. Reach {rank} rank — or buy it in the Rope Shop!",
     "rank.dailyReward": "Daily Reward",
     "rank.dailyClaimed": "Daily reward claimed! +{stars} stars",
     "rank.dailyStreak": "Day {day} streak!",
+    "rank.dayLabel": "Day",
     "kinetics.title": "Kinetics",
     "kinetics.empty": "Select a molecule to view kinetics.",
     "kinetics.temp": "Temperature",
@@ -43929,6 +43933,7 @@ const UI = {
     "settings.language": "Language: EN",
     "settings.quality": "Quality: Auto",
     "settings.volume": "Volume",
+    "settings.tutorial": "Replay tutorial",
     "settings.back": "Back",
     "lobby.back": "Back",
     "lobby.title": "Multiplayer Lobby",
@@ -43984,11 +43989,134 @@ const UI = {
     "env.components": "{n} component(s) · Σ ratio {total}",
     "env.presetApplied": "🌡 Environment set to {name}",
     "env.preset.air": "Air",
-    "env.preset.vacuo": "Vacuo",
+    "env.preset.vacuo": "Vacuum",
     "env.preset.oxygen": "Pure O2",
     "env.preset.hydrogen": "Reducing (H2)",
     "env.preset.argon": "Inert (Ar)",
-    "env.preset.co2": "CO2"
+    "env.preset.co2": "CO2",
+    "top.leaveConfirm": "Leave the room?",
+    "top.linkCopied": "Room link copied to clipboard!",
+    "top.copyLink": "Copy this link:",
+    "top.rosterSoon": "Channel roster feature coming soon!",
+    "top.roomLabel": "Room: {name}",
+    "net.needUser": "Please enter a username",
+    "net.needCode": "Please enter a room code",
+    "net.noCodeFound": "No room code found. Please try again.",
+    "net.createFailed": "Failed to create room: {error}",
+    "net.joinFailed": "Failed to join room: {error}",
+    "net.inviteCopied": "Invite link copied to clipboard!",
+    "net.leaveConfirm": "Are you sure you want to leave the room?",
+    "net.micDenied": "Failed to access microphone. Please check permissions.",
+    "net.timeFrozenRemote": "🕰 Time frozen by another player",
+    "net.timeResumedRemote": "🕰 Time resumed by another player",
+    "net.speedRemote": "Speed changed to {speed} by another player",
+    "net.playerDied": "{username} has died",
+    "net.youRevivedRemote": "You were revived by another player",
+    "net.playerRevived": "{username} has been revived",
+    "net.revivedPlayer": "Revived {username}",
+    "net.reactionBroadcast": "Reaction: {eq}",
+    "time.frozenBadge": "FROZEN {n}s",
+    "time.worldExpired": "🌍 THE WORLD — Time limit reached",
+    "time.cooldownTitle": "Cooldown: {n}s",
+    "time.freezeCooldown": "🕰 Time freeze on cooldown: {n}s",
+    "time.speedSet": "⏩ Speed: {speed}",
+    "time.speedNormal": "⏱ Speed: {speed}",
+    "time.speedSlow": "⏪ Speed: {speed}",
+    "nuclear.alphaBonds": "☢ {from} underwent alpha decay → {to} — bonds shattered!",
+    "nuclear.alpha": "underwent alpha decay",
+    "nuclear.beta": "decayed",
+    "chem.rearranged": "Rearranged {formula} → {n} {product}",
+    "chem.rearrangedO5": "Rearranged O5 → O3 + O2",
+    "custom.deleteTitle": "Delete custom element",
+    "custom.needName": "Name and symbol are required",
+    "custom.exists": 'Element "{sym}" already exists',
+    "custom.created": "Created custom element: {name} ({sym})",
+    "custom.deleted": "Deleted custom element: {name} ({sym})",
+    "iso.needArrangement": "Please enter an arrangement",
+    "iso.invalidArrangement": "Invalid arrangement. Valid isomers: {list}",
+    "iso.apply": "Apply",
+    "settings.languageLabel": "Language: {name}",
+    "rank.upToast": "Rank Up! {name}",
+    "rank.gradeUpLabel": "Grade Up!",
+    "rank.gradeToast": "Grade {grade}!",
+    "rank.downToast": "Rank Down! -{stars} Stars",
+    "rank.starsLost": "-{stars} Stars",
+    "auth.puter": "🔑 Sign in with Puter",
+    "pool.gutterTitle": "Swipe here to scroll the element list",
+    "time.frozenOn": "🧊 Time frozen",
+    "time.frozenOff": "▶️ Time resumed",
+    "quest.signinRequired": "🔐 Sign in required to use AI Quest Guide",
+    "quest.signinHint": "Click the button below to sign in with your Puter account (free):",
+    "quest.puterMissing": "❌ Puter.js not loaded. Please refresh the page.",
+    "quest.signedIn": "✅ Signed in successfully! AI Quest Guide is now available.",
+    "quest.signedInTip": "Ask me about chemistry, molecules, or reactions. Try: \"Build water\" or \"Create methane\"",
+    "quest.signinFailed": "❌ Sign-in failed: {error}",
+    "quest.unknownError": "Unknown error",
+    "quest.activated": "🧪 AI Quest Guide activated! I can answer chemistry questions AND build molecules for you. Try: \"Build water\" or \"Create methane\"",
+    "quest.cleared": "Chat cleared.",
+    "time.frozenShort": "FROZEN",
+    "ui.dragHandle": "Drag to move",
+    "joy.up": "Move camera up",
+    "joy.down": "Move camera down",
+    "btn.quest.title": "AI Quest Mode",
+    "btn.xray.title": "X-Ray Mode (X)",
+    "btn.proton.title": "Proton Gun",
+    "btn.chatToggle.title": "Toggle Chat",
+    "iso.inputPh": "Type arrangement (e.g., HCN, CNH)…",
+    "ph.enterName": "Enter your name",
+    "ph.autoCode": "Auto-generated if empty",
+    "ph.enterPassword": "Enter room password",
+    "ph.enterCode": "Enter 6-character code",
+    "ph.emptyNone": "Leave empty if none",
+    "xray.on": "X-Ray mode ON - Schrödinger electron clouds",
+    "xray.off": "X-Ray mode OFF",
+    "pg.alreadyCritical": "☢ Already critical! Fission in progress...",
+    "pg.critical": "☢ CRITICAL: {name} (Z={z}) — {n}s to fission!",
+    "pg.criticalLeft": "☢ CRITICAL: {n}s remaining!",
+    "pg.noAbove": "No element above Z={z}",
+    "pg.addedProton": "Added proton: {from} → {to} (Z={z})",
+    "pg.addedProtonNoble": "Added proton: {from} → {to} (Z={z}) — noble gas, {n} bond(s) severed!",
+    "pg.fission": "💥 {name} underwent fission: {a} + {b}",
+    "pg.restored": "Ground state restored after {name} fission",
+    "pg.on": "Proton gun activated — Click atoms!",
+    "pg.off": "Proton gun deactivated",
+    "pg.containment": "CONTAINMENT BREACH",
+    "pg.reinitializing": "Reinitializing ground state...",
+    "pg.toFission": "TO FISSION",
+    "ui.undo": "Undo (Ctrl+Z)",
+    "ui.delete": "Delete",
+    "ui.duplicate": "Duplicate (Ctrl+D)",
+    "ui.menu": "Menu",
+    "ui.close": "Close",
+    "ui.minimize": "Minimize",
+    "ui.panels": "Panels",
+    "btn.export.title": "Download your progress as a file",
+    "btn.importProgress.title": "Load progress from a saved file",
+    "revive.title": "Revive Player",
+    "revive.action": "Revive",
+    "pool.customNamePh": "e.g., Vibranium",
+    "pool.customSymPh": "e.g., Vb",
+    "joy.jump": "Jump",
+    "iso.panelTitle": "Isomer Validator",
+    "iso.check": "Check",
+    "console.run": "Run",
+    "chat.title": "Chat",
+    "pg.needOwn": "You don't own {name} ({sym}) yet — buy it in the shop before transmuting into it",
+    "pg.needOwnPrice": "You don't own {name} ({sym}) yet — buy it in the shop for {price} ★",
+    "btn.format.title": "Format — X-Ray and formal charge options",
+    "fmt.xray": "X-Ray configuration",
+    "fmt.grid": "Atom grid outline",
+    "fmt.gridHint": "Show wireframe grid outline around atoms",
+    "fmt.labels": "Atom labeling",
+    "fmt.labelsHint": "Keep element symbols visible during X-Ray",
+    "fmt.shells": "Shell layers",
+    "fmt.shellsHint": "Which shells are rendered in X-Ray",
+    "fmt.all": "All",
+    "fmt.none": "None",
+    "fmt.fcHint": "Badge on each atom: valence − lone pairs − bonds",
+    "fmt.xrayLocked": "Buy X-Ray in the shop to configure it",
+    "qual.title": "Graphics quality",
+    "qual.autoHint": "Switches tiers to hold the frame rate"
   },
   vi: {
     "btn.undo": "Hoàn tác",
@@ -44114,6 +44242,7 @@ const UI = {
     "iso.none": "Không có cách sắp xếp nào khớp.",
     "chg.minus.title": "Giảm điện tích ion một đơn vị",
     "chg.auto.title": "Tự động: cực tiểu hóa tổng điện tích hình thức",
+    "chg.auto": "tự động",
     "chg.plus.title": "Tăng điện tích ion một đơn vị",
     "list.title": "Phân tử trong khung cảnh",
     "list.empty": "Chưa có phân tử nào.",
@@ -44158,6 +44287,7 @@ const UI = {
     "status.exportFailed": "Xuất thất bại: {error}",
     "status.imported": "Đã nhập tiến độ — {atoms} nguyên tử, {discoveries} khám phá được khôi phục.",
     "status.importFailed": "Nhập thất bại: {error}",
+    "status.importLocked": "Chỉ có thể nhập tiến độ một lần trên mỗi trình duyệt — hãy xóa dữ liệu trang để nhập lại",
     "status.healthLow": "Cảnh báo: Sức khỏe nguy kịch! Tránh xa nguyên tố phóng xạ.",
     "status.healthZero": "Bạn đã bị nhiễm xạ! Sức khỏe đã cạn kiệt.",
     "status.respawned": "Đã hồi sinh với sức khỏe tối đa.",
@@ -44191,11 +44321,13 @@ const UI = {
     "status.off": "TẮT",
     "rank.locked": "Đã khóa",
     "rank.requires": "Yêu cầu",
-    "rank.elementLocked": "Nguyên tố này đã khóa. Lên hạng để mở khóa thêm!",
-    "rank.featureLocked": "Tính năng này đã khóa. Đạt hạng {rank} để mở khóa!",
+    "rank.shopHint": "Mua trong Cửa hàng Dây thừng (kéo sợi dây ở góc trên bên phải)",
+    "rank.elementLocked": "Nguyên tố này đang khóa. Hãy mua ở Cửa hàng Dây thừng — kéo sợi dây ở góc trên bên phải.",
+    "rank.featureLocked": "Tính năng này đang khóa. Đạt hạng {rank} — hoặc mua tại Cửa hàng Dây thừng!",
     "rank.dailyReward": "Phần thưởng hàng ngày",
     "rank.dailyClaimed": "Đã nhận phần thưởng hàng ngày! +{stars} sao",
     "rank.dailyStreak": "Ngày {day} liên tiếp!",
+    "rank.dayLabel": "Ngày",
     "kinetics.title": "Động học",
     "kinetics.empty": "Chọn phân tử để xem động học.",
     "kinetics.temp": "Nhiệt độ",
@@ -44290,6 +44422,7 @@ const UI = {
     "settings.language": "Ngôn ngữ: VI",
     "settings.quality": "Chất lượng: Tự động",
     "settings.volume": "Âm lượng",
+    "settings.tutorial": "Xem lại hướng dẫn",
     "settings.back": "Quay lại",
     "lobby.back": "Quay lại",
     "lobby.title": "Sảnh chơi mạng",
@@ -44349,7 +44482,130 @@ const UI = {
     "env.preset.oxygen": "O2 tinh khiết",
     "env.preset.hydrogen": "Khử (H2)",
     "env.preset.argon": "Trơ (Ar)",
-    "env.preset.co2": "CO2"
+    "env.preset.co2": "CO2",
+    "top.leaveConfirm": "Rời khỏi phòng?",
+    "top.linkCopied": "Đã sao chép liên kết phòng vào clipboard!",
+    "top.copyLink": "Sao chép liên kết này:",
+    "top.rosterSoon": "Tính năng danh sách kênh sẽ sớm ra mắt!",
+    "top.roomLabel": "Phòng: {name}",
+    "net.needUser": "Vui lòng nhập tên người dùng",
+    "net.needCode": "Vui lòng nhập mã phòng",
+    "net.noCodeFound": "Không tìm thấy mã phòng. Vui lòng thử lại.",
+    "net.createFailed": "Tạo phòng thất bại: {error}",
+    "net.joinFailed": "Tham gia phòng thất bại: {error}",
+    "net.inviteCopied": "Đã sao chép liên kết mời vào clipboard!",
+    "net.leaveConfirm": "Bạn có chắc muốn rời khỏi phòng?",
+    "net.micDenied": "Không truy cập được micro. Vui lòng kiểm tra quyền.",
+    "net.timeFrozenRemote": "🕰 Một người chơi khác đã đóng băng thời gian",
+    "net.timeResumedRemote": "🕰 Một người chơi khác đã tiếp tục thời gian",
+    "net.speedRemote": "Tốc độ đã đổi thành {speed} bởi người chơi khác",
+    "net.playerDied": "{username} đã chết",
+    "net.youRevivedRemote": "Bạn đã được một người chơi khác hồi sinh",
+    "net.playerRevived": "{username} đã được hồi sinh",
+    "net.revivedPlayer": "Đã hồi sinh {username}",
+    "net.reactionBroadcast": "Phản ứng: {eq}",
+    "time.frozenBadge": "ĐÓNG BĂNG {n}s",
+    "time.worldExpired": "🌍 THE WORLD — Đã hết thời gian",
+    "time.cooldownTitle": "Hồi chờ: {n}s",
+    "time.freezeCooldown": "🕰 Đóng băng thời gian đang hồi chờ: {n}s",
+    "time.speedSet": "⏩ Tốc độ: {speed}",
+    "time.speedNormal": "⏱ Tốc độ: {speed}",
+    "time.speedSlow": "⏪ Tốc độ: {speed}",
+    "nuclear.alphaBonds": "☢ {from} phân rã alpha → {to} — liên kết vỡ tung!",
+    "nuclear.alpha": "phân rã alpha",
+    "nuclear.beta": "phân rã beta",
+    "chem.rearranged": "Đã sắp xếp lại {formula} → {n} {product}",
+    "chem.rearrangedO5": "Đã sắp xếp lại O5 → O3 + O2",
+    "custom.deleteTitle": "Xóa nguyên tố tùy chỉnh",
+    "custom.needName": "Cần nhập tên và ký hiệu",
+    "custom.exists": 'Nguyên tố "{sym}" đã tồn tại',
+    "custom.created": "Đã tạo nguyên tố tùy chỉnh: {name} ({sym})",
+    "custom.deleted": "Đã xóa nguyên tố tùy chỉnh: {name} ({sym})",
+    "iso.needArrangement": "Vui lòng nhập một cách sắp xếp",
+    "iso.invalidArrangement": "Cách sắp xếp không hợp lệ. Các đồng phân hợp lệ: {list}",
+    "iso.apply": "Áp dụng",
+    "settings.languageLabel": "Ngôn ngữ: {name}",
+    "rank.upToast": "LÊN HẠNG! {name}",
+    "rank.gradeUpLabel": "LÊN BẬC!",
+    "rank.gradeToast": "Bậc {grade}!",
+    "rank.downToast": "GIÁNG HẠNG! -{stars} sao",
+    "rank.starsLost": "-{stars} sao",
+    "auth.puter": "🔑 Đăng nhập bằng Puter",
+    "pool.gutterTitle": "Vuốt ở đây để cuộn danh sách nguyên tố",
+    "time.frozenOn": "🧊 Thời gian đã đóng băng",
+    "time.frozenOff": "▶️ Thời gian đã tiếp tục",
+    "quest.signinRequired": "🔐 Cần đăng nhập để dùng Hướng Dẫn AI",
+    "quest.signinHint": "Nhấn nút bên dưới để đăng nhập bằng tài khoản Puter (miễn phí):",
+    "quest.puterMissing": "❌ Chưa tải được Puter.js. Vui lòng tải lại trang.",
+    "quest.signedIn": "✅ Đăng nhập thành công! Hướng Dẫn AI đã sẵn sàng.",
+    "quest.signedInTip": "Hỏi tôi về hóa học, phân tử hoặc phản ứng. Thử: \"Build water\" hoặc \"Create methane\"",
+    "quest.signinFailed": "❌ Đăng nhập thất bại: {error}",
+    "quest.unknownError": "Lỗi không xác định",
+    "quest.activated": "🧪 Hướng Dẫn AI đã kích hoạt! Tôi có thể trả lời câu hỏi hóa học VÀ dựng phân tử cho bạn. Thử: \"Build water\" hoặc \"Create methane\"",
+    "quest.cleared": "Đã xóa trò chuyện.",
+    "time.frozenShort": "ĐÓNG BĂNG",
+    "ui.dragHandle": "Kéo để di chuyển",
+    "joy.up": "Di chuyển camera lên",
+    "joy.down": "Di chuyển camera xuống",
+    "btn.quest.title": "Chế độ Hướng Dẫn AI",
+    "btn.xray.title": "Chế độ Tia X (X)",
+    "btn.proton.title": "Súng proton",
+    "btn.chatToggle.title": "Bật/tắt trò chuyện",
+    "iso.inputPh": "Nhập cách sắp xếp (vd. HCN, CNH)…",
+    "ph.enterName": "Nhập tên của bạn",
+    "ph.autoCode": "Tự động sinh nếu để trống",
+    "ph.enterPassword": "Nhập mật khẩu phòng",
+    "ph.enterCode": "Nhập mã 6 ký tự",
+    "ph.emptyNone": "Để trống nếu không có",
+    "xray.on": "Chế độ Tia X BẬT - Đám mây electron Schrödinger",
+    "xray.off": "Chế độ Tia X TẮT",
+    "pg.alreadyCritical": "☢ Đã tới hạn! Phân hạch đang diễn ra...",
+    "pg.critical": "☢ TỚI HẠN: {name} (Z={z}) — {n}s nữa phân hạch!",
+    "pg.criticalLeft": "☢ TỚI HẠN: còn {n}s!",
+    "pg.noAbove": "Không có nguyên tố nào trên Z={z}",
+    "pg.addedProton": "Đã thêm proton: {from} → {to} (Z={z})",
+    "pg.addedProtonNoble": "Đã thêm proton: {from} → {to} (Z={z}) — khí hiếm, đã cắt {n} liên kết!",
+    "pg.fission": "💥 {name} đã phân hạch: {a} + {b}",
+    "pg.restored": "Đã khôi phục trạng thái cơ bản sau vụ phân hạch {name}",
+    "pg.on": "Súng proton đã kích hoạt — Hãy bấm vào các nguyên tử!",
+    "pg.off": "Súng proton đã tắt",
+    "pg.containment": "VỎ BỌC BỊ VỠ",
+    "pg.reinitializing": "Đang khởi tạo lại trạng thái cơ bản...",
+    "pg.toFission": "TRƯỚC KHI PHÂN HẠCH",
+    "ui.undo": "Hoàn tác (Ctrl+Z)",
+    "ui.delete": "Xóa",
+    "ui.duplicate": "Nhân bản (Ctrl+D)",
+    "ui.menu": "Thực đơn",
+    "ui.close": "Đóng",
+    "ui.minimize": "Thu nhỏ",
+    "ui.panels": "Bảng điều khiển",
+    "btn.export.title": "Tải tiến độ của bạn xuống thành tệp",
+    "btn.importProgress.title": "Nạp tiến độ từ tệp đã lưu",
+    "revive.title": "Hồi Sinh Người Chơi",
+    "revive.action": "Hồi sinh",
+    "pool.customNamePh": "vd: Vibranium",
+    "pool.customSymPh": "vd: Vb",
+    "joy.jump": "Nhảy",
+    "iso.panelTitle": "Bộ Kiểm Tra Đồng Phân",
+    "iso.check": "Kiểm Tra",
+    "console.run": "Chạy",
+    "chat.title": "Trò Chuyện",
+    "pg.needOwn": "Bạn chưa sở hữu {name} ({sym}) — hãy mua trong cửa hàng trước khi biến đổi thành nguyên tố này",
+    "pg.needOwnPrice": "Bạn chưa sở hữu {name} ({sym}) — hãy mua trong cửa hàng với giá {price} ★",
+    "btn.format.title": "Định dạng — tùy chọn tia X và điện tích hình thức",
+    "fmt.xray": "Cấu hình tia X",
+    "fmt.grid": "Lưới viền nguyên tử",
+    "fmt.gridHint": "Hiển thị lưới khung quanh nguyên tử",
+    "fmt.labels": "Nhãn nguyên tử",
+    "fmt.labelsHint": "Giữ hiện ký hiệu nguyên tố trong chế độ tia X",
+    "fmt.shells": "Các lớp electron",
+    "fmt.shellsHint": "Chọn lớp nào được vẽ trong chế độ tia X",
+    "fmt.all": "Tất cả",
+    "fmt.none": "Bỏ hết",
+    "fmt.fcHint": "Nhãn trên mỗi nguyên tử: hoá trị − cặp tự do − liên kết",
+    "fmt.xrayLocked": "Hãy mua chế độ Tia X trong cửa hàng để cấu hình",
+    "qual.title": "Chất lượng đồ họa",
+    "qual.autoHint": "Tự đổi mức chất lượng để giữ số khung hình mỗi giây"
   }
 };
 const EL_VI = {
@@ -44553,6 +44809,8 @@ function applyStatic() {
   for (const el of document.querySelectorAll("[data-i18n-html]")) el.innerHTML = t(el.dataset.i18nHtml);
   for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
   for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = t(el.dataset.i18nTitle);
+  for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
+  window.dispatchEvent(new CustomEvent("mol3d:lang", { detail: { lang } }));
 }
 const COMMON = {
   "H2O": "Water",
@@ -45500,13 +45758,9 @@ function createMovement({ camera: camera2, controls: controls2, getGameMode, isP
     element.addEventListener("mousedown", (e) => {
       if (!isSurvival() || e.button !== 0) return;
       if (!shouldStartDrag()) return;
-      const rect = element.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      if (x > rect.width * 0.3) {
-        isCameraDragging = true;
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
-      }
+      isCameraDragging = true;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
     });
     document.addEventListener("mousemove", (e) => {
       if (!isCameraDragging || !isSurvival()) return;
@@ -45611,9 +45865,7 @@ function createMovement({ camera: camera2, controls: controls2, getGameMode, isP
     element.addEventListener("touchstart", (e) => {
       if (!isSurvival()) return;
       for (const touch of e.changedTouches) {
-        const rect = element.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        if (x > rect.width * 0.4 && lookTouchId === null) {
+        if (lookTouchId === null) {
           lookTouchId = touch.identifier;
           lastTouchX = touch.clientX;
           lastTouchY = touch.clientY;
@@ -53123,6 +53375,7 @@ const RANKS = [
   {
     id: "new_creation",
     name: "New Creation",
+    vi: "Tạo Mới",
     grades: 5,
     image: "./rank/NewCreation.png",
     textColor: "#1a5c2e"
@@ -53130,6 +53383,7 @@ const RANKS = [
   {
     id: "talented",
     name: "Talented",
+    vi: "Có Tài",
     grades: 5,
     image: "./rank/Talented.png",
     textColor: "#1a4a6e"
@@ -53137,6 +53391,7 @@ const RANKS = [
   {
     id: "low_intermediate",
     name: "Low Intermediate",
+    vi: "Trung Cấp Thấp",
     grades: 5,
     image: "./rank/LowInter.png",
     textColor: "#ffffff"
@@ -53144,6 +53399,7 @@ const RANKS = [
   {
     id: "experienced",
     name: "Experienced",
+    vi: "Dạn Dày Kinh Nghiệm",
     grades: 5,
     image: "./rank/Experienced.png",
     textColor: "#ffffff"
@@ -53151,6 +53407,7 @@ const RANKS = [
   {
     id: "researcher",
     name: "Researcher",
+    vi: "Nhà Nghiên Cứu",
     grades: 5,
     image: "./rank/Researcher.png",
     textColor: "#ffffff"
@@ -53158,12 +53415,16 @@ const RANKS = [
   {
     id: "further_beyond",
     name: "Further Beyond",
-    grades: 5,
+    vi: "Vượt Ra Xa Hơn",
+    grades: Infinity,
     image: "./rank/FurtherBeyond.png",
     textColor: "#ffd700",
     sparkle: true
   }
 ];
+function rankName(r) {
+  return r ? isVi() && r.vi ? r.vi : r.name : "";
+}
 const STARS_PER_GRADE = 5;
 const ROMAN_NUMERALS = [
   "0",
@@ -53347,6 +53608,8 @@ const ELEMENT_TIERS = {
   further_beyond: 118
 };
 function isElementUnlocked(z, rankInfo) {
+  const shop = window.__mol3dShop;
+  if (shop && typeof shop.ownsElement === "function") return !!shop.ownsElement(z);
   const maxZ = ELEMENT_TIERS[rankInfo.rank.id] || 20;
   return z <= maxZ;
 }
@@ -53358,6 +53621,8 @@ const FEATURE_RANKS = {
   console: "further_beyond"
 };
 function isFeatureUnlocked(feature, rankInfo) {
+  const shop = window.__mol3dShop;
+  if (shop && typeof shop.ownsFeature === "function" && shop.ownsFeature(feature)) return true;
   const requiredRankId = FEATURE_RANKS[feature];
   if (!requiredRankId) return true;
   const requiredIdx = RANKS.findIndex((r) => r.id === requiredRankId);
@@ -53411,6 +53676,20 @@ function getDailyStreak() {
 }
 const POOL_SIZE = 300;
 const SHOCKWAVE_SEGMENTS = 48;
+function vfxParticleMult() {
+  try {
+    const td = TIERS[TIER_ORDER[tierIndex]];
+    return td && typeof td.particleMult === "number" ? td.particleMult : 1;
+  } catch {
+    return 1;
+  }
+}
+function vfxBudget(n) {
+  return Math.max(1, Math.round(n * vfxParticleMult()));
+}
+function vfxShakeAllowed() {
+  return vfxParticleMult() >= 0.7;
+}
 class ReactionVFXManager {
   constructor(scene2, camera2) {
     this.scene = scene2;
@@ -53420,6 +53699,7 @@ class ReactionVFXManager {
     this.activeParticles = [];
     this.shockwaves = [];
     this.flashState = null;
+    this.coreState = null;
     this.shakeState = null;
     this._initSharedGeometries();
     this._initPool();
@@ -53429,11 +53709,15 @@ class ReactionVFXManager {
     this.geoMed = new SphereGeometry(0.1, 6, 4);
     this.geoLarge = new SphereGeometry(0.18, 6, 4);
     this.geoSmoke = new SphereGeometry(0.2, 6, 4);
+    this.geoFlash = new SphereGeometry(1, 12, 8);
+    this.geoScreen = new SphereGeometry(50, 8, 6);
+    this.geoRadii = [0.06, 0.1, 0.18];
     this.geos = [this.geoSmall, this.geoMed, this.geoLarge];
   }
   _initPool() {
     for (let i = 0; i < POOL_SIZE; i++) {
-      const geo = this.geos[i % 3];
+      const k = i % 3;
+      const geo = this.geos[k];
       const mat = new MeshBasicMaterial({ color: 16777215, transparent: true, opacity: 0 });
       const mesh = new Mesh(geo, mat);
       mesh.visible = false;
@@ -53441,6 +53725,7 @@ class ReactionVFXManager {
       this.particlePool.push({
         mesh,
         mat,
+        r0: this.geoRadii[k],
         v: new Vector3(),
         life: 0,
         decay: 0,
@@ -53457,9 +53742,11 @@ class ReactionVFXManager {
     const mesh = new Mesh(geo, mat);
     mesh.visible = false;
     this.scene.add(mesh);
+    const k = this.geos.indexOf(geo);
     return {
       mesh,
       mat,
+      r0: this.geoRadii[k >= 0 ? k : 0],
       v: new Vector3(),
       life: 0,
       decay: 0,
@@ -53482,13 +53769,72 @@ class ReactionVFXManager {
     this._stageShockwave(c, intensity, color);
     this._stageParticles(c, intensity, color);
     this._stageSmoke(c, intensity);
-    this._stageShake(intensity * 0.4, 500 * intensity);
+    if (vfxShakeAllowed()) this._stageShake(intensity * 0.4, 500 * intensity);
+  }
+  // ── Nuclear fission VFX: white flash + fragment balls + neutrons ──
+  fission(center, intensity = 5) {
+    this.active = true;
+    const c = center.clone ? center : new Vector3(center.x, center.y, center.z);
+    this.screenFlash(16777215, 600);
+    this._stageFlash(c, intensity * 0.6, 16777215);
+    this._stageShockwave(c, intensity * 0.8, 16777215);
+    this._fissionBalls(c, intensity);
+    this._stageShake(intensity * 0.7, 800);
+  }
+  _fissionBalls(center, intensity) {
+    const fragRadius = 0.35;
+    const neutronRadius = 0.12;
+    const axis = new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+    const perp = new Vector3().crossVectors(axis, new Vector3(0, 1, 0)).normalize();
+    if (perp.lengthSq() < 0.01) perp.crossVectors(axis, new Vector3(1, 0, 0)).normalize();
+    for (let f = 0; f < 2; f++) {
+      const p = this._acquire();
+      p.mesh.position.copy(center);
+      p.mat.color.setHex(16777215);
+      p.mat.opacity = 1;
+      p.mesh.visible = true;
+      const s = fragRadius / (p.r0 || 0.18);
+      p.mesh.scale.setScalar(s);
+      const dir = f === 0 ? 1 : -1;
+      const speed = 9 * intensity * 0.2;
+      p.v.copy(perp).multiplyScalar(dir * speed);
+      p.life = 1;
+      p.decay = 0.6;
+      p.gravity = false;
+      p.expand = false;
+      p.drag = 0.5;
+      this.activeParticles.push(p);
+    }
+    const nCount = vfxBudget(3);
+    for (let i = 0; i < nCount; i++) {
+      const p = this._acquire();
+      p.mesh.position.copy(center);
+      p.mat.color.setHex(16777215);
+      p.mat.opacity = 0.9;
+      p.mesh.visible = true;
+      const s = neutronRadius / (p.r0 || 0.1);
+      p.mesh.scale.setScalar(s);
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.random() * Math.PI;
+      const speed = (5 + Math.random() * 4) * intensity * 0.2;
+      p.v.set(
+        Math.sin(phi) * Math.cos(theta) * speed,
+        Math.sin(phi) * Math.sin(theta) * speed,
+        Math.cos(phi) * speed
+      );
+      p.life = 1;
+      p.decay = 0.8;
+      p.gravity = false;
+      p.expand = false;
+      p.drag = 0.3;
+      this.activeParticles.push(p);
+    }
   }
   // Exothermic glow — soft sparkles, no shake
   exothermicGlow(center, intensity = 0.5, color = 16755268) {
     this.active = true;
     const c = center.clone ? center : new Vector3(center.x, center.y, center.z);
-    const count = Math.floor(20 * intensity);
+    const count = vfxBudget(Math.floor(20 * intensity));
     const sparkColors = [color, 16763972, 16772744, 16746496];
     for (let i = 0; i < count; i++) {
       const p = this._acquire();
@@ -53514,31 +53860,27 @@ class ReactionVFXManager {
   }
   // ── Stage 1: Core Flash ──
   _stageFlash(center, intensity, color) {
-    if (this.flashState) {
-      this.scene.remove(this.flashState.mesh);
-      this.flashState.geo.dispose();
-      this.flashState.mat.dispose();
+    if (!this.coreState) {
+      const mat = new MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.9,
+        blending: AdditiveBlending,
+        depthWrite: false
+      });
+      const mesh = new Mesh(this.geoFlash, mat);
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.coreState = { mesh, mat, rMax: 1, elapsed: 0, duration: 0.15 };
     }
-    const rMax = 2 * intensity;
-    const geo = new SphereGeometry(rMax, 16, 12);
-    const mat = new MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.9,
-      blending: AdditiveBlending,
-      depthWrite: false
-    });
-    const mesh = new Mesh(geo, mat);
-    mesh.position.copy(center);
-    this.scene.add(mesh);
-    this.flashState = {
-      mesh,
-      geo,
-      mat,
-      rMax,
-      elapsed: 0,
-      duration: 0.15
-    };
+    const f = this.coreState;
+    f.mesh.position.copy(center);
+    f.mesh.visible = true;
+    f.mat.color.set(color);
+    f.mat.opacity = 0.9;
+    f.rMax = 2 * intensity;
+    f.elapsed = 0;
+    f.duration = 0.15;
+    f.mesh.scale.setScalar(f.rMax * 0.01);
   }
   // ── Stage 2: Shockwave Ring ──
   _stageShockwave(center, intensity, color) {
@@ -53567,7 +53909,7 @@ class ReactionVFXManager {
   }
   // ── Stage 3: Particle Emitter ──
   _stageParticles(center, intensity, color) {
-    const count = Math.min(Math.floor(80 * intensity), 150);
+    const count = vfxBudget(Math.min(Math.floor(80 * intensity), 150));
     const colors = [color, 16729088, 16746496, 16755200, 16763904, 16772710];
     for (let i = 0; i < count; i++) {
       const p = this._acquire();
@@ -53595,7 +53937,7 @@ class ReactionVFXManager {
   }
   // ── Stage 3b: Smoke ──
   _stageSmoke(center, intensity) {
-    const count = Math.floor(12 * intensity);
+    const count = vfxBudget(Math.floor(12 * intensity));
     for (let i = 0; i < count; i++) {
       const p = this._acquire();
       p.mesh.position.copy(center).add(new Vector3(
@@ -53632,31 +53974,28 @@ class ReactionVFXManager {
   }
   // ── Full-screen flash (for annihilation, etc.) ──
   screenFlash(color = 16777215, durationMs = 400) {
-    if (this.flashState) {
-      this.scene.remove(this.flashState.mesh);
-      this.flashState.geo.dispose();
-      this.flashState.mat.dispose();
+    if (!this.screenMesh) {
+      const mat = new MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.7,
+        side: BackSide,
+        depthWrite: false
+      });
+      this.screenMesh = new Mesh(this.geoScreen, mat);
+      this.screenMat = mat;
+      this.scene.add(this.screenMesh);
     }
-    const geo = new SphereGeometry(50, 8, 6);
-    const mat = new MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.7,
-      side: BackSide,
-      blending: AdditiveBlending,
-      depthWrite: false
-    });
-    const mesh = new Mesh(geo, mat);
-    mesh.position.copy(this.camera.position);
-    this.scene.add(mesh);
+    this.screenMesh.visible = true;
+    this.screenMesh.position.copy(this.camera.position);
+    this.screenMat.color.set(color);
+    this.screenMat.opacity = 0.7;
     this.flashState = {
-      mesh,
-      geo,
-      mat,
-      rMax: 50,
+      mesh: this.screenMesh,
+      mat: this.screenMat,
+      geo: null,
+      persistent: true,
       elapsed: 0,
-      duration: durationMs / 1e3,
-      fullscreen: true
+      duration: durationMs / 1e3
     };
   }
   // ── Per-frame update ──
@@ -53709,26 +54048,39 @@ class ReactionVFXManager {
     return this.shockwaves.length > 0;
   }
   _updateFlash(dt) {
-    if (!this.flashState) return false;
+    let live = false;
+    const c = this.coreState;
+    if (c) {
+      c.elapsed += dt;
+      const t2 = c.elapsed / c.duration;
+      if (t2 >= 1) {
+        c.mesh.visible = false;
+      } else {
+        c.mesh.scale.setScalar(c.rMax * (1 - Math.exp(-12 * t2)));
+        c.mat.opacity = 0.9 * (1 - t2 * t2);
+        live = true;
+      }
+    }
     const f = this.flashState;
-    f.elapsed += dt;
-    const t2 = f.elapsed / f.duration;
-    if (t2 >= 1) {
-      this.scene.remove(f.mesh);
-      f.geo.dispose();
-      f.mat.dispose();
-      this.flashState = null;
-      return false;
+    if (f) {
+      f.elapsed += dt;
+      const t2 = f.elapsed / f.duration;
+      if (t2 >= 1) {
+        if (f.persistent) {
+          f.mesh.visible = false;
+        } else {
+          this.scene.remove(f.mesh);
+          if (f.geo) f.geo.dispose();
+          f.mat.dispose();
+        }
+        this.flashState = null;
+      } else {
+        f.mat.opacity = 0.7 * (1 - t2);
+        f.mesh.position.copy(this.camera.position);
+        live = true;
+      }
     }
-    if (f.fullscreen) {
-      f.mat.opacity = 0.7 * (1 - t2);
-      f.mesh.position.copy(this.camera.position);
-    } else {
-      const r = f.rMax * (1 - Math.exp(-12 * t2));
-      f.mesh.scale.setScalar(r / f.rMax);
-      f.mat.opacity = 0.9 * (1 - t2 * t2);
-    }
-    return true;
+    return live;
   }
   _updateShake(dt) {
     if (!this.shakeState) return false;
@@ -53768,6 +54120,19 @@ class ReactionVFXManager {
     this.geoMed.dispose();
     this.geoLarge.dispose();
     this.geoSmoke.dispose();
+    this.geoFlash.dispose();
+    this.geoScreen.dispose();
+    if (this.coreState) {
+      this.scene.remove(this.coreState.mesh);
+      this.coreState.mat.dispose();
+      this.coreState = null;
+    }
+    if (this.screenMesh) {
+      this.scene.remove(this.screenMesh);
+      this.screenMat.dispose();
+      this.screenMesh = null;
+    }
+    this.flashState = null;
     this.particlePool.length = 0;
     this.activeParticles.length = 0;
     this.shockwaves.length = 0;
@@ -54409,22 +54774,33 @@ class NetworkManager {
     return new Promise((resolve, reject) => {
       const peerId = customId || this.generatePlayerId();
       console.log("[Network] Initializing PeerJS with ID:", peerId);
+      let settled = false;
+      const settle = (fn, val) => { if (!settled) { settled = true; fn(val); } };
       try {
-        this.peer = new window.Peer(peerId);
+        this.peer = new window.Peer(peerId, {
+          host: "peerjs.com",
+          port: 443,
+          path: "/",
+          secure: true,
+          config: {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+              { urls: "stun:stun2.l.google.com:19302" }
+            ]
+          }
+        });
       } catch (e) {
         console.error("[Network] Failed to create Peer:", e);
-        reject(e);
+        settle(reject, e);
         return;
       }
       const timeout = setTimeout(() => {
-        if (this.peer) {
-          try {
-            this.peer.destroy();
-          } catch (e) {
-          }
+        if (this.peer && !this.peer.destroyed) {
+          try { this.peer.destroy(); } catch (e) {}
         }
         this.peer = null;
-        reject(new Error("Connection timeout - PeerJS server not responding."));
+        settle(reject, new Error("Connection timeout - PeerJS server not responding."));
       }, 15e3);
       this.peer.on("open", (id) => {
         clearTimeout(timeout);
@@ -54432,43 +54808,24 @@ class NetworkManager {
         this.playerId = id;
         this.peer.on("connection", (conn) => this.handleConnection(conn));
         this.peer.on("call", (call) => this.handleCall(call));
-        this.peer.on("error", (err) => {
-          console.error("[Network] Peer error:", err.type, err.message);
-          if (err.type === "unavailable-id") {
-            const newId = this.generatePlayerId();
-            if (this.peer) {
-              try {
-                this.peer.destroy();
-              } catch (e) {
-              }
-            }
-            this.peer = null;
-            this.init(newId).then(resolve).catch(reject);
-          }
-        });
         this.peer.on("disconnected", () => {
-          console.warn("[Network] Disconnected, reconnecting...");
-          try {
-            this.peer.reconnect();
-          } catch (e) {
-          }
+          console.warn("[Network] Disconnected from signaling, reconnecting...");
+          try { if (this.peer && !this.peer.destroyed) this.peer.reconnect(); } catch (e) {}
         });
-        resolve(id);
+        settle(resolve, id);
       });
       this.peer.on("error", (err) => {
         clearTimeout(timeout);
-        console.error("[Network] Init error:", err.type, err.message);
-        if (this.peer) {
-          try {
-            this.peer.destroy();
-          } catch (e) {
-          }
-        }
-        this.peer = null;
+        console.error("[Network] Peer error:", err.type, err.message);
         if (err.type === "unavailable-id") {
-          this.init(this.generatePlayerId()).then(resolve).catch(reject);
+          if (this.peer && !this.peer.destroyed) {
+            try { this.peer.destroy(); } catch (e) {}
+          }
+          this.peer = null;
+          const newId = this.generatePlayerId();
+          this.init(newId).then((v) => settle(resolve, v)).catch((e) => settle(reject, e));
         } else {
-          reject(err);
+          settle(reject, err);
         }
       });
     });
@@ -54540,18 +54897,22 @@ class NetworkManager {
         reject(new Error("Peer is not initialized"));
         return;
       }
+      let settled = false;
       const conn = this.peer.connect(hostId, {
         reliable: true,
         serialization: "json"
       });
       const timeout = setTimeout(() => {
-        if (!conn.open) {
-          conn.close();
+        if (!settled && !conn.open) {
+          settled = true;
+          try { conn.close(); } catch (e) {}
           reject(new Error(`Connection timeout - Room "${roomCode}" not found or host is offline. Please verify the room code and try again.`));
         }
       }, 15e3);
       conn.on("open", () => {
         clearTimeout(timeout);
+        if (settled) return;
+        settled = true;
         console.log("[Network] Connected to room:", roomCode);
         this.connections.set(hostId, conn);
         this.sendMessage(hostId, MSG.JOIN, {
@@ -54564,14 +54925,16 @@ class NetworkManager {
       });
       conn.on("error", (err) => {
         clearTimeout(timeout);
+        if (settled) return;
+        settled = true;
         console.error("[Network] Join error:", err);
-        reject(new Error("Connection failed: " + err.message));
+        reject(new Error("Connection failed: " + (err.message || err)));
       });
       conn.on("close", () => {
         clearTimeout(timeout);
-        if (!conn.open) {
-          reject(new Error("Connection closed by host"));
-        }
+        if (settled) return;
+        settled = true;
+        reject(new Error("Connection closed by host before opening"));
       });
     });
   }
@@ -54721,6 +55084,11 @@ class NetworkManager {
   // Handle incoming voice call
   handleCall(call) {
     console.log("[Network] Incoming call from:", call.peer);
+    if (!this.localStream) {
+      console.warn("[Network] Rejecting call - no local stream (voice not enabled)");
+      try { call.close(); } catch (e) {}
+      return;
+    }
     call.answer(this.localStream);
     call.on("stream", (remoteStream) => {
       console.log("[Network] Received voice stream from:", call.peer);
@@ -54728,6 +55096,9 @@ class NetworkManager {
       if (this.onVoiceStream) {
         this.onVoiceStream(call.peer, remoteStream);
       }
+    });
+    call.on("error", (err) => {
+      console.error("[Network] Call error from:", call.peer, err);
     });
     call.on("close", () => {
       this.localStreams.delete(call.peer);
@@ -54846,26 +55217,28 @@ class NetworkManager {
   }
   // Disconnect from room
   disconnect() {
-    this.broadcast(null, MSG.LEAVE, { playerId: this.playerId });
+    try { this.broadcast(null, MSG.LEAVE, { playerId: this.playerId }); } catch (e) {}
     for (const conn of this.connections.values()) {
-      conn.close();
+      try { conn.close(); } catch (e) {}
     }
     for (const call of this.mediaConnections.values()) {
-      call.close();
+      try { call.close(); } catch (e) {}
     }
     if (this.localStream) {
       for (const track of this.localStream.getTracks()) {
         track.stop();
       }
     }
-    if (this.peer) {
-      this.peer.destroy();
+    if (this.peer && !this.peer.destroyed) {
+      try { this.peer.destroy(); } catch (e) {}
     }
+    this.peer = null;
     this.connections.clear();
     this.mediaConnections.clear();
     this.localStreams.clear();
     this.players.clear();
     this.localStream = null;
+    this.playerId = null;
     this.roomId = null;
     this.isHost = false;
   }
@@ -55183,6 +55556,14 @@ function initMenu() {
   }
   setupMenuEventListeners();
 }
+let lastTopMode = "singleplayer";
+let lastTopRoomName = "—";
+function syncTopBarLabels() {
+  const modeBadge = document.getElementById("top-mode-badge");
+  if (modeBadge) modeBadge.textContent = t(lastTopMode === "multiplayer" ? "top.multiplayer" : "top.singleplayer");
+  const roomBadge = document.getElementById("top-room-name");
+  if (roomBadge) roomBadge.textContent = t("top.roomLabel", { name: lastTopRoomName });
+}
 function initTopBar(mode) {
   const topModeBadge = document.getElementById("top-mode-badge");
   const topBarMP = document.getElementById("top-bar-mp");
@@ -55190,20 +55571,21 @@ function initTopBar(mode) {
   const topBtnExit = document.getElementById("top-btn-exit");
   const topBtnShare = document.getElementById("top-btn-share");
   const topBtnRoster = document.getElementById("top-btn-roster");
+  lastTopMode = mode;
   if (!topModeBadge) return;
   if (mode === "multiplayer") {
-    topModeBadge.textContent = "Multiplayer";
+    topModeBadge.textContent = t("top.multiplayer");
     topModeBadge.style.color = "#4ade80";
     topModeBadge.style.borderColor = "#4ade80";
     topModeBadge.style.background = "rgba(74, 222, 128, 0.15)";
     if (topBarMP) topBarMP.hidden = false;
   } else {
-    topModeBadge.textContent = "Singleplayer";
+    topModeBadge.textContent = t("top.singleplayer");
     if (topBarMP) topBarMP.hidden = true;
   }
   if (topBtnExit) {
     topBtnExit.addEventListener("click", () => {
-      if (confirm("Leave the room?")) {
+      if (confirm(t("top.leaveConfirm"))) {
         window.location.href = "index.html";
       }
     });
@@ -55212,15 +55594,15 @@ function initTopBar(mode) {
     topBtnShare.addEventListener("click", () => {
       const url = window.location.href;
       navigator.clipboard.writeText(url).then(() => {
-        alert("Room link copied to clipboard!");
+        alert(t("top.linkCopied"));
       }).catch(() => {
-        prompt("Copy this link:", url);
+        prompt(t("top.copyLink"), url);
       });
     });
   }
   if (topBtnRoster) {
     topBtnRoster.addEventListener("click", () => {
-      alert("Channel roster feature coming soon!");
+      alert(t("top.rosterSoon"));
     });
   }
 }
@@ -55228,7 +55610,8 @@ function updateTopBarRoomInfo(roomName, playerCount) {
   const topRoomName = document.getElementById("top-room-name");
   const topRosterCount = document.getElementById("top-roster-count");
   if (topRoomName && roomName) {
-    topRoomName.textContent = `Room: ${roomName}`;
+    topRoomName.textContent = t("top.roomLabel", { name: roomName });
+    lastTopRoomName = roomName;
   }
   if (topRosterCount && playerCount !== void 0) {
     topRosterCount.textContent = playerCount;
@@ -55272,7 +55655,7 @@ function hideModal(modalId) {
   el.style.display = "none";
 }
 function showDirectJoinModal(roomCode) {
-  document.getElementById("direct-join-room").textContent = `Room: ${roomCode}`;
+  document.getElementById("direct-join-room").textContent = t("top.roomLabel", { name: roomCode });
   document.getElementById("direct-join-modal").dataset.roomCode = roomCode;
   showModal("direct-join-modal");
   setTimeout(() => {
@@ -55318,7 +55701,7 @@ function setupMenuEventListeners() {
     const passwordEnabled = document.getElementById("host-password-enabled").checked;
     const password = passwordEnabled ? document.getElementById("host-password").value : null;
     if (!username2) {
-      alert("Please enter a username");
+      alert(t("net.needUser"));
       return;
     }
     try {
@@ -55326,7 +55709,7 @@ function setupMenuEventListeners() {
       hideModal("host-room-modal");
     } catch (err) {
       console.error("Failed to host room:", err);
-      alert("Failed to create room: " + err.message);
+      alert(t("net.createFailed", { error: err.message }));
     }
   });
   document.getElementById("btn-start-join").addEventListener("click", async () => {
@@ -55339,12 +55722,12 @@ function setupMenuEventListeners() {
     const password = document.getElementById("join-password").value;
     console.log("[Menu] Regular join clicked - roomCode:", roomCode, "type:", typeof roomCode);
     if (!username2) {
-      alert("Please enter a username");
+      alert(t("net.needUser"));
       return;
     }
     if (!roomCode || roomCode === "undefined" || roomCode.trim() === "") {
       console.error("[Menu] Invalid room code:", roomCode);
-      alert("Please enter a room code");
+      alert(t("net.needCode"));
       return;
     }
     isJoining = true;
@@ -55353,7 +55736,7 @@ function setupMenuEventListeners() {
       hideModal("join-room-modal");
     } catch (err) {
       console.error("Failed to join room:", err);
-      alert("Failed to join room: " + err.message);
+      alert(t("net.joinFailed", { error: err.message }));
     } finally {
       isJoining = false;
     }
@@ -55368,12 +55751,12 @@ function setupMenuEventListeners() {
     const password = document.getElementById("direct-join-password").value;
     console.log("[Menu] Direct join clicked - roomCode from dataset:", roomCode, "type:", typeof roomCode);
     if (!username2) {
-      alert("Please enter a username");
+      alert(t("net.needUser"));
       return;
     }
     if (!roomCode || roomCode === "undefined" || roomCode.trim() === "") {
       console.error("[Menu] Invalid room code:", roomCode);
-      alert("No room code found. Please try again.");
+      alert(t("net.noCodeFound"));
       return;
     }
     isJoining = true;
@@ -55382,7 +55765,7 @@ function setupMenuEventListeners() {
       hideModal("direct-join-modal");
     } catch (err) {
       console.error("Failed to join room:", err);
-      alert("Failed to join room: " + err.message);
+      alert(t("net.joinFailed", { error: err.message }));
     } finally {
       isJoining = false;
     }
@@ -55406,13 +55789,12 @@ function setupMenuEventListeners() {
     updateSettingsDisplay();
   });
   document.getElementById("settings-quality").addEventListener("click", () => {
-    const btn = document.getElementById("btn-quality");
-    if (btn) btn.click();
+    document.dispatchEvent(new CustomEvent("mol3d:quality-menu", { detail: { anchor: "settings-quality" } }));
     updateSettingsDisplay();
   });
   document.getElementById("settings-tutorial").addEventListener("click", () => {
-    if (window.replayTutorial) {
-      window.replayTutorial();
+    if (window.__tutorial) {
+      window.__tutorial.replay();
     }
     const modal = document.getElementById("settings-modal");
     if (modal) modal.hidden = true;
@@ -55429,7 +55811,7 @@ function setupMenuEventListeners() {
     topBtnShare.addEventListener("click", () => {
       const link = network.getInviteLink();
       navigator.clipboard.writeText(link).then(() => {
-        alert("Invite link copied to clipboard!");
+        alert(t("net.inviteCopied"));
       }).catch((err) => {
         console.error("Failed to copy link:", err);
       });
@@ -55438,7 +55820,7 @@ function setupMenuEventListeners() {
   const topBtnExit = document.getElementById("top-btn-exit");
   if (topBtnExit) {
     topBtnExit.addEventListener("click", () => {
-      if (confirm("Are you sure you want to leave the room?")) {
+      if (confirm(t("net.leaveConfirm"))) {
         leaveRoom();
       }
     });
@@ -55464,7 +55846,7 @@ function setupMenuEventListeners() {
           lucide.createIcons();
         } catch (err) {
           console.error("Failed to enable voice:", err);
-          alert("Failed to access microphone. Please check permissions.");
+          alert(t("net.micDenied"));
         }
       }
     });
@@ -55514,7 +55896,8 @@ function leaveRoom() {
   const topBarMP = document.getElementById("top-bar-mp");
   if (topBarMP) topBarMP.hidden = true;
   const topRoomName = document.getElementById("top-room-name");
-  if (topRoomName) topRoomName.textContent = "Room: —";
+  if (topRoomName) topRoomName.textContent = t("top.roomLabel", { name: "—" });
+  lastTopRoomName = "—";
   const topRosterCount = document.getElementById("top-roster-count");
   if (topRosterCount) topRosterCount.textContent = "0";
   showMainMenu();
@@ -55526,15 +55909,15 @@ function updateSettingsDisplay() {
   const volumeSlider = document.getElementById("settings-volume-slider");
   if (themeBtn) {
     const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
-    themeBtn.querySelector("span").textContent = `Theme: ${currentTheme === "dark" ? "Dark" : "Light"}`;
+    themeBtn.querySelector("span").textContent = t("btn.theme", { mode: t(currentTheme === "dark" ? "theme.dark" : "theme.light") });
   }
   if (langBtn) {
-    const currentLang = localStorage.getItem("lang") || "en";
-    langBtn.querySelector("span").textContent = `Language: ${currentLang.toUpperCase()}`;
+    langBtn.querySelector("span").textContent = t("settings.languageLabel", { name: t("lang." + getLang()) });
   }
   if (qualityBtn) {
     const currentQuality = localStorage.getItem("quality") || "auto";
-    qualityBtn.querySelector("span").textContent = `Quality: ${currentQuality.charAt(0).toUpperCase() + currentQuality.slice(1)}`;
+    const qKey = currentQuality === "auto" ? "quality.autoShort" : "quality." + currentQuality;
+    qualityBtn.querySelector("span").textContent = t("btn.quality", { mode: t(qKey) });
   }
   if (volumeSlider) {
     const volume = localStorage.getItem("volume") || "50";
@@ -55990,7 +56373,7 @@ class VoiceChatManager {
         if (window.lucide) lucide.createIcons();
       } catch (err) {
         console.error("[VoiceChat] Failed to enable voice:", err);
-        alert("Failed to access microphone. Please check permissions.");
+        alert(t("net.micDenied"));
       }
     }
   }
@@ -56214,6 +56597,16 @@ let nextId = 1;
 let selectedId = null;
 let hoverId = null;
 let fcVisible = true;
+let atomLabelsVisible = true;
+function setFcVisible(v) {
+  fcVisible = !!v;
+  invalidate();
+}
+function setAtomLabels(v) {
+  atomLabelsVisible = !!v;
+  updateSprites();
+  invalidate();
+}
 let mayhemMode = false;
 let playerHealth = 100;
 const MAX_HEALTH = 100;
@@ -56272,10 +56665,10 @@ function updateTimeDisplay() {
     if (timeFrozen && gameMode === "survival") {
       const elapsed = Date.now() - worldFreezeStart;
       const remaining = Math.max(0, Math.ceil((WORLD_MAX_DURATION - elapsed) / 1e3));
-      display.textContent = `FROZEN ${remaining}s`;
+      display.textContent = t("time.frozenBadge", { n: remaining });
       display.style.color = "#f85149";
     } else {
-      display.textContent = timeFrozen ? "FROZEN" : formatSimulationTime(simulationTime);
+      display.textContent = timeFrozen ? t("time.frozenShort") : formatSimulationTime(simulationTime);
       display.style.color = "";
     }
   }
@@ -56302,7 +56695,7 @@ function startWorldTimer() {
       clearInterval(worldTimerInterval);
       worldTimerInterval = null;
       resumeTime();
-      status(" THE WORLD - Time limit reached", "err");
+      status(t("time.worldExpired"), "err");
     } else {
       updateTimeDisplay();
     }
@@ -56340,7 +56733,7 @@ function updateFreezeButtonCooldown() {
     if (remaining > 0 && gameMode === "survival") {
       b.disabled = true;
       b.classList.add("on-cooldown");
-      b.title = `Cooldown: ${Math.ceil(remaining / 1e3)}s`;
+      b.title = t("time.cooldownTitle", { n: Math.ceil(remaining / 1e3) });
     } else {
       b.disabled = false;
       b.classList.remove("on-cooldown");
@@ -56356,7 +56749,7 @@ function updateFreezeButtonCooldown() {
 function toggleFreeze() {
   if (!canFreezeTime()) {
     const remaining = Math.ceil((worldCooldownEnd - Date.now()) / 1e3);
-    status(` Time freeze on cooldown: ${remaining}s`, "err");
+    status(t("time.freezeCooldown", { n: remaining }), "err");
     return;
   }
   timeFrozen = !timeFrozen;
@@ -56385,7 +56778,15 @@ function toggleFreeze() {
     });
   }
 }
+function shopGate(feature) {
+  const shop = window.__mol3dShop;
+  if (!shop || typeof shop.blocksFeature !== "function" || !shop.blocksFeature(feature)) return true;
+  status(shop.lockedMessage ? shop.lockedMessage(feature) : "🔒 Locked", "err");
+  if (typeof shop.open === "function") shop.open();
+  return false;
+}
 function cycleSpeed() {
+  if (!shopGate("timeSpeed")) return;
   const speeds = [1, 2, 5, 10, 50, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9];
   const idx = speeds.indexOf(timeSpeed);
   timeSpeed = speeds[(idx + 1) % speeds.length];
@@ -56547,7 +56948,7 @@ function updateRadioactiveDecay(now) {
     }
     for (const bid of bondsToRemove) bonds.delete(bid);
     if (wasRadioactive) {
-      reactionVFX.explode(pos, explosionScale, new Color(16729088));
+      reactionVFX.fission(pos, explosionScale);
       applyExplosionDamage(pos, explosionScale, 1);
       triggerNuclearExplosionVFX();
       for (const [otherId, otherAtom] of atoms) {
@@ -56569,9 +56970,9 @@ function updateRadioactiveDecay(now) {
       atom._decayTime = now;
     }
     if (bondsToRemove.length > 0 && wasRadioactive) {
-      status(`\u2622 ${oldEl.name} underwent ${isAlphaDecay ? 'alpha' : 'beta'} decay \u2192 ${newEl.name} \u2014 bonds shattered!`, "warn");
+      status(t("nuclear.alphaBonds", { from: oldEl.name, to: newEl.name }), "warn");
     } else {
-      status(`\u2622 ${oldEl.name} ${isAlphaDecay ? 'underwent alpha decay' : 'decayed'} \u2192 ${newEl.name}`, "warn");
+      status(`☢ ${oldEl.name} ${isAlphaDecay ? t("nuclear.alpha") : t("nuclear.beta")} → ${newEl.name}`, "warn");
     }
     if (isRadioactive(newEl)) {
       const hl = DECAY_HALF_LIFE[newEl.z] || 1;
@@ -56633,7 +57034,7 @@ function updateMolecularDecay(now, realDt) {
     if (!kin || !isFinite(kin.rateConstant) || kin.rateConstant <= 0) continue;
     const age = now - (comp.decompositionTime || 0);
     const decayFactor = age < 500 ? 0.3 : 1;
-    if (Math.random() < (1 - Math.exp(-kin.rateConstant * simDt)) * decayFactor) {
+    if (Math.random() < (1 - Math.exp(-kin.rateConstant * simDt * envDecayFactor(comp))) * decayFactor) {
       victims.push(comp);
     }
   }
@@ -56683,10 +57084,11 @@ function updateHealth(now, dt) {
     const radioactivityMultiplier = 1 + radioactiveCount * 0.08 + (totalZ - 82) * 0.002;
     const effectiveRange = RADIATION_RANGE * sizeMultiplier * radioactivityMultiplier;
     if (dist < effectiveRange) {
-      const proximityFactor = 1 - dist / effectiveRange;
+      const distSq2 = dx * dx + dy * dy + dz * dz;
+      const inverseSquare = 1 / (distSq2 + 1);
       const damageMultiplier = sizeMultiplier * radioactivityMultiplier;
-      const damageRate = RADIATION_DAMAGE_RATE * damageMultiplier;
-      radiationDamage += damageRate * proximityFactor * dt;
+      const damageRate = RADIATION_DAMAGE_RATE * damageMultiplier * inverseSquare * 10;
+      radiationDamage += damageRate * dt;
     }
   }
   if (radiationDamage > 0) {
@@ -56726,12 +57128,13 @@ function applyExplosionDamage(center, scale, moleculeSize = 1) {
   const dx = center.x - camPos.x;
   const dy = center.y - camPos.y;
   const dz = center.z - camPos.z;
-  const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  const distSq = dx * dx + dy * dy + dz * dz;
+  const dist = Math.sqrt(distSq);
   const sizeMultiplier = 1 + (moleculeSize - 1) * 0.1;
   const effectiveRange = EXPLOSION_DAMAGE_RANGE * scale * sizeMultiplier;
   if (dist < effectiveRange) {
-    const proximityFactor = 1 - dist / effectiveRange;
-    const damage = EXPLOSION_DAMAGE_BASE * scale * sizeMultiplier * proximityFactor;
+    const inverseSquare = 1 / (distSq + 1);
+    const damage = EXPLOSION_DAMAGE_BASE * scale * sizeMultiplier * inverseSquare * 10;
     playerHealth = Math.max(0, playerHealth - damage);
     updateHealthBar();
     if (playerHealth <= 0) {
@@ -56743,10 +57146,7 @@ function triggerPlayerDeath() {
   if (isPlayerDead) return;
   isPlayerDead = true;
   status(t("status.healthZero"), "error");
-  const oldRank = rankManager.getCurrentRank();
   rankManager.removeStars(20);
-  const newRank = rankManager.getCurrentRank();
-  triggerRankDownAnimation(newRank, 20, newRank.rankIndex < oldRank.rankIndex);
   showDeathScreen();
   if (network.roomId) {
     network.broadcast(null, 10, {
@@ -56923,7 +57323,20 @@ function decomposeMolecule(comp, now) {
   for (const child of childComps) {
     child.decompositionTime = now;
   }
-  const strays = lastComps.filter((c) => c.atoms.length === 1 && c.bonds.length === 0 && comp.atoms.includes(c.atoms[0])).map((c) => c.atoms[0]);
+  const strays = [];
+  for (const c of lastComps) {
+    if (c === comp) continue;
+    if (!c.atoms.some((id) => comp.atoms.includes(id))) continue;
+    const homeless = c.atoms.length === 1 && c.bonds.length === 0;
+    for (const id of c.atoms) {
+      if (homeless) {
+        const atom = atoms.get(id);
+        if (atom && atom.el.maxBonds > 0) strays.push(id);
+      } else if (isHungryAtom(id)) {
+        strays.push(id);
+      }
+    }
+  }
   if (strays.length) stabilizeStrays(strays, now);
   else status(t("status.decomposed", { formula }), "warn");
 }
@@ -56973,7 +57386,7 @@ function checkAndRearrangeMolecules() {
           buildMoleculeAt(template, cen.x + offset.x, cen.y + offset.y, cen.z + offset.z);
         }
         reactionVFX.explode(cen, 0.8, new Color(16755200));
-        status(`Rearranged ${formula} → ${numMolecules} ${diatomicFormula}`, "warn");
+        status(t("chem.rearranged", { formula, n: numMolecules, product: diatomicFormula }), "warn");
         reanalyze();
         invalidate();
         return;
@@ -57000,7 +57413,7 @@ function checkAndRearrangeMolecules() {
         buildMoleculeAt(o3Tpl, cen.x - 1, cen.y, cen.z);
         buildMoleculeAt(o2Tpl, cen.x + 1, cen.y, cen.z);
         reactionVFX.explode(cen, 0.8, new Color(16755200));
-        status("Rearranged O5 → O3 + O2", "warn");
+        status(t("chem.rearrangedO5"), "warn");
         reanalyze();
         invalidate();
         return;
@@ -57014,20 +57427,44 @@ function updateReactivitySweep(now) {
   lastReactivitySweep = now;
   const strays = [];
   for (const comp of lastComps) {
-    if (comp.atoms.length === 1 && comp.bonds.length === 0) {
-      const id = comp.atoms[0];
-      const atom = atoms.get(id);
-      if (atom && atom.el.maxBonds > 0) {
+    const homeless = comp.atoms.length === 1 && comp.bonds.length === 0;
+    for (const id of comp.atoms) {
+      if (homeless) {
+        const atom = atoms.get(id);
+        if (atom && atom.el.maxBonds > 0) strays.push(id);
+      } else if (isHungryAtom(id)) {
         strays.push(id);
       }
     }
   }
   if (!strays.length) return;
   let bonded = false;
+  let attacks = 0;
   for (const sid of strays) {
     const atom = atoms.get(sid);
     if (!atom || freeValenceOf(sid) === 0) continue;
     const sPos = atom.pos;
+    if (attacks < 2 && freeValenceOf(sid) > 0) {
+      const atk = envAtmosphereAttack(atom.el);
+      if (atk && Math.random() < envAttackChance(atk.fraction)) {
+        const gasEl = elementBySym(atk.sym);
+        if (gasEl && gasEl.maxBonds > 0) {
+          const ang = Math.random() * Math.PI * 2;
+          const tilt = (Math.random() - 0.5) * 1.6;
+          const gPos = {
+            x: sPos.x + Math.cos(ang) * 1.5,
+            y: sPos.y + tilt,
+            z: sPos.z + Math.sin(ang) * 1.5
+          };
+          const gid = spawnAtom(gasEl, gPos, { silent: true });
+          if (gid) {
+            attacks++;
+            if (autoBondPair(sid, gid)) bonded = true;
+          }
+        }
+      }
+    }
+    if (!atoms.has(sid) || freeValenceOf(sid) === 0) continue;
     const REACTIVE_RADIUS = 8;
     const candidates = [...atoms.keys()].filter((id) => {
       if (id === sid) return false;
@@ -57039,16 +57476,29 @@ function updateReactivitySweep(now) {
       const pa = atoms.get(a).pos, pb = atoms.get(b).pos;
       return Math.hypot(pa.x - sPos.x, pa.y - sPos.y, pa.z - sPos.z) - Math.hypot(pb.x - sPos.x, pb.y - sPos.y, pb.z - sPos.z);
     });
+    let acted = false;
     for (const pid of candidates) {
-      if (bondBetween(sid, pid)) continue;
-      const chk = bondCheck(atoms, bonds, sid, pid);
-      if (!chk.ok) continue;
-      const nb = nextId++;
-      bonds.set(nb, { id: nb, a: sid, b: pid, order: 1, ionic: chk.type === "ionic" });
-      bonded = true;
-      break;
+      const existing = bondBetween(sid, pid);
+      if (!existing) continue;
+      const before = existing.order;
+      const up = autoBondPair(sid, pid);
+      if (up && up.order > before) {
+        acted = true;
+        bonded = true;
+        break;
+      }
     }
-    if (!bonded && candidates.length > 0) {
+    if (!acted) {
+      for (const pid of candidates) {
+        if (bondBetween(sid, pid)) continue;
+        if (autoBondPair(sid, pid)) {
+          acted = true;
+          bonded = true;
+          break;
+        }
+      }
+    }
+    if (!acted && candidates.length > 0) {
       const target = atoms.get(candidates[0]);
       if (target) {
         const tPos = target.pos;
@@ -57074,6 +57524,39 @@ const targetValenceOf = (el) => isMetalCat(el.cat) ? el.maxBonds : Math.max(0, M
 const usedOrderOf = (id) => bondsOf(atoms, bonds, id).reduce((s, b) => s + (b.order || 1), 0);
 const freeValenceOf = (id) => Math.max(0, targetValenceOf(atoms.get(id).el) - usedOrderOf(id));
 const bondBetween = (aId, bId) => bondsOf(atoms, bonds, aId).find((b) => partnerId(b, aId) === bId);
+function isHungryAtom(id) {
+  const a = atoms.get(id);
+  if (!a || a.el.maxBonds <= 0) return false;
+  if (isMetalCat(a.el.cat)) return false;
+  if (freeValenceOf(id) <= 0) return false;
+  for (const b of bondsOf(atoms, bonds, id)) {
+    if (b.ionic) return false;
+  }
+  return true;
+}
+function autoBondPair(aId, bId) {
+  const A = atoms.get(aId), B = atoms.get(bId);
+  if (!A || !B) return null;
+  let bond = bondBetween(aId, bId) || null;
+  const created = !bond;
+  if (created) {
+    const chk = bondCheck(atoms, bonds, aId, bId);
+    if (!chk.ok) return null;
+    const nb = nextId++;
+    bond = { id: nb, a: aId, b: bId, order: 1, ionic: chk.type === "ionic" };
+    bonds.set(nb, bond);
+    worldSync.broadcastBondAdd(bond);
+  }
+  if (bond.ionic) return bond;
+  const cap = Math.min(3, pairOrderCap(A.el, B.el));
+  while (bond.order < cap) {
+    if (freeValenceOf(aId) < 1 || freeValenceOf(bId) < 1) break;
+    if (!upgradeCheck(atoms, bonds, { ...bond, order: bond.order + 1 }).ok) break;
+    bond.order += 1;
+  }
+  if (!created && bond.order > 1) worldSync.broadcastBondAdd(bond);
+  return bond;
+}
 function stabilizeStrays(strayIds, now) {
   const stabilized = [];
   for (const sid of strayIds) {
@@ -57094,25 +57577,22 @@ function stabilizeStrays(strayIds, now) {
       });
       let acted = false;
       for (const pid of candidates) {
-        if (bondBetween(sid, pid)) continue;
-        const chk2 = bondCheck(atoms, bonds, sid, pid);
-        if (!chk2.ok) continue;
-        const nb2 = nextId++;
-        bonds.set(nb2, { id: nb2, a: sid, b: pid, order: 1, ionic: chk2.type === "ionic" });
-        acted = true;
-        break;
+        const existing = bondBetween(sid, pid);
+        if (!existing) continue;
+        const before = existing.order;
+        const up = autoBondPair(sid, pid);
+        if (up && up.order > before) {
+          acted = true;
+          break;
+        }
       }
       if (!acted) {
         for (const pid of candidates) {
-          const existing = bondBetween(sid, pid);
-          if (!existing) continue;
-          const nextOrder = existing.order + 1;
-          if (nextOrder > pairOrderCap(sEl, atoms.get(pid).el)) continue;
-          const up = upgradeCheck(atoms, bonds, { ...existing, order: nextOrder });
-          if (!up.ok) continue;
-          existing.order = nextOrder;
-          acted = true;
-          break;
+          if (bondBetween(sid, pid)) continue;
+          if (autoBondPair(sid, pid)) {
+            acted = true;
+            break;
+          }
         }
       }
       if (!acted && candidates.length > 0) {
@@ -57210,7 +57690,7 @@ network.onMessage = (peerId, msgType, payload) => {
       }
       updateTimeDisplay();
       triggerTheWorld();
-      status(" Time frozen by another player", "ok");
+      status(t("net.timeFrozenRemote"), "ok");
     }
   } else if (msgType === 8) {
     if (timeFrozen) {
@@ -57228,7 +57708,7 @@ network.onMessage = (peerId, msgType, payload) => {
       }
       updateTimeDisplay();
       triggerTimeResume();
-      status(" Time resumed by another player", "ok");
+      status(t("net.timeResumedRemote"), "ok");
     }
   } else if (msgType === 9) {
     if (data.speed && data.speed !== timeSpeed) {
@@ -57243,7 +57723,7 @@ network.onMessage = (peerId, msgType, payload) => {
         label.textContent = formatSpeed(timeSpeed);
       }
       updateTimeDisplay();
-      status(` Speed changed to ${formatSpeed(timeSpeed)} by another player`, "ok");
+      status(t("net.speedRemote", { speed: formatSpeed(timeSpeed) }), "ok");
     }
   } else if (msgType === 10) {
     if (data && data.playerId) {
@@ -57251,20 +57731,20 @@ network.onMessage = (peerId, msgType, payload) => {
       if (remotePlayer) {
         remotePlayer.isDead = true;
         remotePlayer.updateVisuals();
-        status(`${remotePlayer.username} has died`, "err");
+        status(t("net.playerDied", { username: remotePlayer.username }), "err");
       }
     }
   } else if (msgType === 11) {
     if (data && data.playerId) {
       if (data.playerId === network.playerId && isPlayerDead) {
         respawnPlayer();
-        status(`You were revived by another player`, "ok");
+        status(t("net.youRevivedRemote"), "ok");
       } else {
         const remotePlayer = playerSync.remotePlayers.get(data.playerId);
         if (remotePlayer) {
           remotePlayer.isDead = false;
           remotePlayer.updateVisuals();
-          status(`${remotePlayer.username} has been revived`, "ok");
+          status(t("net.playerRevived", { username: remotePlayer.username }), "ok");
         }
       }
     }
@@ -57312,7 +57792,7 @@ network.onMessage = (peerId, msgType, payload) => {
     }
   } else if (msgType === 18) {
     if (data && data.equation) {
-      status(`Reaction: ${data.equation}`, "ok");
+      status(t("net.reactionBroadcast", { eq: data.equation }), "ok");
     }
   } else if (msgType === 19) {
     if (data) {
@@ -57405,6 +57885,12 @@ const bondMatC = new MeshLambertMaterial({ color: 16777215 });
 const bondMatI = new MeshLambertMaterial({ color: 16777215, transparent: true, opacity: 0.9 });
 const atomMeshM = new InstancedMesh(sphereGeo, atomMatM, MAX_ATOMS);
 const atomMeshN = new InstancedMesh(sphereGeo, atomMatN, MAX_ATOMS);
+const atomGridMat = new MeshBasicMaterial({ color: 8947848, wireframe: true, transparent: true, opacity: 0.35 });
+const atomMeshGrid = new InstancedMesh(sphereGeo, atomGridMat, MAX_ATOMS);
+atomMeshGrid.frustumCulled = false;
+atomMeshGrid.instanceMatrix.setUsage(DynamicDrawUsage);
+atomMeshGrid.visible = false;
+scene.add(atomMeshGrid);
 const bondMeshC = new InstancedMesh(cylGeo, bondMatC, MAX_CYLS);
 const bondMeshI = new InstancedMesh(cylGeo, bondMatI, MAX_CYLS);
 for (const m of [atomMeshM, atomMeshN, bondMeshC, bondMeshI]) {
@@ -57437,7 +57923,13 @@ const ghost = new Mesh(cylGeo, ghostMat);
 ghost.visible = false;
 scene.add(ghost);
 const QUALITY_MODES = ["auto", "low", "med", "high", "ultra"];
+const QUALITY_KEY = "quality";
 let qualityMode = "auto";
+try {
+  const savedQuality = localStorage.getItem(QUALITY_KEY);
+  if (QUALITY_MODES.includes(savedQuality)) qualityMode = savedQuality;
+} catch {
+}
 let tierIndex = 1;
 const fpsSampler = new FpsSampler();
 const throttle = new AutoThrottle();
@@ -57455,8 +57947,6 @@ function applyTier(i) {
   const cg = new CylinderGeometry(1, 1, 1, td.cylSeg, 1, true);
   for (const m of [atomMeshM, atomMeshN]) m.geometry = sg;
   for (const m of [bondMeshC, bondMeshI, ghost]) m.geometry = cg;
-  atomMeshM.count = td.maxAtoms;
-  atomMeshN.count = td.maxAtoms;
   sphereGeo.dispose();
   cylGeo.dispose();
   sphereGeo = sg;
@@ -57476,6 +57966,10 @@ function updateQualityHud() {
 }
 function applyMode(m) {
   qualityMode = m;
+  try {
+    localStorage.setItem(QUALITY_KEY, m);
+  } catch {
+  }
   throttle.reset();
   if (m !== "auto") applyTier(TIER_ORDER.indexOf(m));
   updateQualityHud();
@@ -57627,6 +58121,22 @@ function syncInstances() {
   atomMeshN.boundingSphere = null;
   if (mi > 0) atomMeshM.computeBoundingSphere();
   if (ni > 0) atomMeshN.computeBoundingSphere();
+  const gridOn = !!(window.__xray && typeof window.__xray.config === 'function' && window.__xray.config().grid);
+  atomMeshGrid.visible = gridOn;
+  if (gridOn) {
+    let gi = 0;
+    for (const [id, at] of atoms) {
+      if (gi >= MAX_ATOMS) break;
+      const r = displayRadius(at.el) * spawnScale(id, now) * 1.08;
+      _p.set(at.pos.x, at.pos.y, at.pos.z);
+      _s.setScalar(r);
+      _m.compose(_p, Q_ID, _s);
+      atomMeshGrid.setMatrixAt(gi++, _m);
+    }
+    atomMeshGrid.count = gi;
+    atomMeshGrid.instanceMatrix.needsUpdate = true;
+    if (gi > 0) atomMeshGrid.computeBoundingSphere();
+  }
   let ci = 0, ii = 0;
   for (const b of bonds.values()) {
     const ma = atoms.get(b.a), mb = atoms.get(b.b);
@@ -57675,6 +58185,8 @@ function syncInstances() {
 function updateSprites() {
   camera.getWorldDirection(_v);
   for (const [id, sp] of labelSprites) {
+    sp.visible = atomLabelsVisible;
+    if (!atomLabelsVisible) continue;
     const at = atoms.get(id);
     if (!at) continue;
     const r = displayRadius(at.el);
@@ -58224,10 +58736,73 @@ function downgradeBond(bid) {
   if (b.order > 1) setBondOrder(bid, b.order - 1);
   else removeBond(bid);
 }
-function spawnAtom(elOrSym) {
+function resolveDropOverlap(el, p, anchorId) {
+  const myR = displayRadius(el);
+  for (let step = 0; step < 24; step++) {
+    let clash = null, clashId = null, bestD = Infinity;
+    for (const [id, a] of atoms) {
+      if (id === anchorId) continue;
+      const d = Math.hypot(a.pos.x - p.x, a.pos.y - p.y, a.pos.z - p.z);
+      if (d >= myR + displayRadius(a.el) + 0.3 || d >= bestD) continue;
+      bestD = d;
+      clash = a;
+      clashId = id;
+    }
+    if (!clash) break;
+    const dx = p.x - clash.pos.x, dy = p.y - clash.pos.y, dz = p.z - clash.pos.z;
+    const dl = Math.hypot(dx, dy, dz) || 0.01;
+    const push = myR + displayRadius(clash.el) + 0.45 - dl;
+    p.x += dx / dl * push;
+    p.y += dy / dl * push;
+    p.z += dz / dl * push;
+    if (clashId === anchorId) break;
+  }
+}
+function worldPointFromScreen(clientX, clientY) {
+  setNDC({ clientX, clientY });
+  raycaster.setFromCamera(ndc, camera);
+  const p = new Vector3();
+  const hitId = pickAtom();
+  if (hitId !== null && hitId !== void 0 && atoms.has(hitId)) {
+    const a = atoms.get(hitId);
+    const center = new Vector3(a.pos.x, a.pos.y, a.pos.z);
+    const closest = raycaster.ray.closestPointToPoint(center, new Vector3());
+    const along = raycaster.ray.origin.distanceToPoint(closest);
+    const gap = displayRadius(a.el) + 1.1;
+    raycaster.ray.at(Math.max(1.2, along - gap), p);
+    return { pos: p, anchorId: hitId };
+  }
+  const forward = camera.getWorldDirection(new Vector3());
+  const dist = gameMode === "survival" ? 7 : Math.max(4, camera.position.distanceTo(controls.target));
+  const anchor = new Vector3().copy(camera.position).add(forward.clone().multiplyScalar(dist));
+  const plane = new Plane().setFromNormalAndCoplanarPoint(forward.clone().negate(), anchor);
+  if (!raycaster.ray.intersectPlane(plane, p)) p.copy(anchor);
+  return { pos: p, anchorId: null };
+}
+function spawnAtomFromScreen(elOrSym, clientX, clientY) {
+  const el = typeof elOrSym === "string" ? elementBySym(elOrSym) : elOrSym;
+  if (!el) return null;
+  let drop;
+  try {
+    drop = worldPointFromScreen(clientX, clientY);
+  } catch {
+    return spawnAtom(el);
+  }
+  const p = drop.pos;
+  p.y = Math.max(-0.4, Math.min(5.4, p.y));
+  resolveDropOverlap(el, p, drop.anchorId);
+  const probe = { pos: { x: p.x, y: p.y, z: p.z } };
+  clampAtomToBounds(probe);
+  return spawnAtom(el, probe.pos);
+}
+function spawnAtom(elOrSym, atPos, opts) {
+  const silent = !!(opts && opts.silent);
   const el = typeof elOrSym === "string" ? elementBySym(elOrSym) : elOrSym;
   if (!el) return;
   let pos = null;
+  if (atPos && Number.isFinite(atPos.x) && Number.isFinite(atPos.y) && Number.isFinite(atPos.z)) {
+    pos = { x: atPos.x, y: atPos.y, z: atPos.z };
+  } else
   for (let t2 = 0; t2 < 60; t2++) {
     const ang = Math.random() * Math.PI * 2;
     const rad = 1.2 + Math.random() * 3.4;
@@ -58253,10 +58828,12 @@ function spawnAtom(elOrSym) {
   worldSync.broadcastAtomAdd(atoms.get(id));
   spawnAnim.set(id, performance.now());
   trackRadioactiveAtom(id, atoms.get(id), performance.now());
-  pushUndo({ type: "add", id });
-  selectAtom(id);
+  if (!silent) {
+    pushUndo({ type: "add", id });
+    selectAtom(id);
+  }
   reanalyze();
-  status(t("status.placed", { name: elName(el) }), "info");
+  if (!silent) status(t("status.placed", { name: elName(el) }), "info");
   return id;
 }
 function duplicateMolecule() {
@@ -58404,22 +58981,27 @@ function undo() {
 const DRIFT_SPEED = 0.4;
 const BOUND_R = 10.5;
 const Y_MIN = -0.2, Y_MAX = 4.6;
+function thermalAgitation() {
+  return Math.max(0.06, Math.min(6, (environment.temperatureK || 298.15) / 298.15));
+}
 function randUnit() {
   return new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
 }
 function updateDrift(dt) {
   if (!tier().drift || drag || lastComps.length === 0) return false;
+  const heat = thermalAgitation();
+  const cruise = DRIFT_SPEED * heat;
   let any = false;
   for (const comp of lastComps) {
     const key = compKey(comp);
     let d = driftState.get(key);
     if (!d) {
-      d = { v: randUnit().multiplyScalar(DRIFT_SPEED * (0.7 + Math.random() * 0.6)), axis: randUnit(), rate: 0.08 + Math.random() * 0.18 };
+      d = { v: randUnit().multiplyScalar(cruise * (0.7 + Math.random() * 0.6)), axis: randUnit(), rate: (0.08 + Math.random() * 0.18) * (0.3 + heat), bob: Math.random() * 6.283, bobY: 0 };
       driftState.set(key, d);
     }
     const sp = d.v.length() || 1e-4;
-    if (sp > DRIFT_SPEED * 1.001) d.v.multiplyScalar(Math.max(DRIFT_SPEED, sp - dt * 2.2) / sp);
-    else if (sp < DRIFT_SPEED * 0.999) d.v.setLength(Math.min(DRIFT_SPEED, sp + dt * 0.4));
+    if (sp > cruise * 1.001) d.v.multiplyScalar(Math.max(cruise, sp - dt * 2.2 * heat) / sp);
+    else if (sp < cruise * 0.999) d.v.setLength(Math.min(cruise, sp + dt * 0.4 * heat));
     const c = new Vector3();
     for (const id of comp.atoms) {
       const p = atoms.get(id).pos;
@@ -58431,18 +59013,24 @@ function updateDrift(dt) {
     const horiz = Math.hypot(c.x, c.z);
     if (horiz > BOUND_R || c.y < Y_MIN || c.y > Y_MAX) {
       _v.set(-c.x, 1.9 - c.y, -c.z).normalize();
-      d.v.lerp(_v, Math.min(1, dt * 1.6)).setLength(DRIFT_SPEED);
+      d.v.lerp(_v, Math.min(1, dt * 1.6)).setLength(cruise);
     }
+    d.bob += dt * (1.1 + heat * 2.6);
+    const bobTarget = Math.sin(d.bob) * Math.min(0.3, 0.05 * heat) * (comp.atoms.length > 6 ? 0.45 : 1);
+    const bobDelta = bobTarget - (d.bobY || 0);
+    d.bobY = bobTarget;
     _q.setFromAxisAngle(d.axis, d.rate * dt);
     for (const id of comp.atoms) {
       const at = atoms.get(id);
       _p.set(at.pos.x, at.pos.y, at.pos.z).sub(c).applyQuaternion(_q).add(c).addScaledVector(d.v, dt);
+      _p.y += bobDelta;
       at.pos.x = _p.x;
       at.pos.y = _p.y;
       at.pos.z = _p.z;
       const tp = targetPos.get(id);
       if (tp) {
         _p.set(tp.x, tp.y, tp.z).sub(c).applyQuaternion(_q).add(c).addScaledVector(d.v, dt);
+        _p.y += bobDelta;
         tp.x = _p.x;
         tp.y = _p.y;
         tp.z = _p.z;
@@ -59155,6 +59743,10 @@ function updateScreenShake(now) {
 }
 let flashMesh = null;
 function triggerFlash(color, durationMs) {
+  if (reactionVFX) {
+    reactionVFX.screenFlash(color, durationMs);
+    return;
+  }
   if (flashMesh) {
     scene.remove(flashMesh);
     flashMesh.geometry.dispose();
@@ -59443,7 +60035,7 @@ function buildPeriodicTable() {
     b.style.borderColor = unlocked ? el.color : "#555";
     b.dataset.sym = el.sym;
     b.dataset.z = z;
-    b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.requires")} ${RANKS.find((r) => getUnlockedElementCount({ rank: r }) >= z)?.name || ""}`;
+    b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
     b.innerHTML = unlocked ? `<span class="z">${z}</span><span class="s">${el.sym}</span>` : `<span class="lock">🔒</span><span class="s">${el.sym}</span>`;
     b.addEventListener("click", () => {
       if (!isElementUnlocked(z, rankManager.getCurrentRank())) {
@@ -59503,7 +60095,7 @@ function buildPool() {
     b.className = "el-chip" + (unlocked ? "" : " locked");
     b.dataset.sym = el.sym;
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)}`.toLowerCase();
-    b.title = unlocked ? `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}` : `🔒 ${t("rank.locked")} — ${t("rank.requires")} ${RANKS.find((r) => getUnlockedElementCount({ rank: r }) >= (el.z || 0))?.name || ""}`;
+    b.title = unlocked ? `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}` : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
     const dot = document.createElement("i");
     dot.style.background = unlocked ? el.color : "#555";
     const s = document.createElement("span");
@@ -59524,7 +60116,7 @@ function buildPool() {
       const del = document.createElement("span");
       del.className = "el-delete";
       del.textContent = "×";
-      del.title = "Delete custom element";
+      del.title = t("custom.deleteTitle");
       del.addEventListener("click", (e) => {
         e.stopPropagation();
         deleteCustomElement(el.sym);
@@ -60202,7 +60794,7 @@ function checkIsomer() {
   const result = document.getElementById("isomer-result");
   const query = input.value.trim();
   if (!query) {
-    result.innerHTML = '<div class="isomer-error">Please enter an arrangement</div>';
+    result.innerHTML = `<div class="isomer-error">${t("iso.needArrangement")}</div>`;
     return;
   }
   const isos = isomerTemplates(an.formula);
@@ -60231,7 +60823,7 @@ function checkIsomer() {
     }
   }
   if (!match) {
-    result.innerHTML = `<div class="isomer-error">Invalid arrangement. Valid isomers: ${isos.map((i) => i.displayFormula || an.formula).join(", ")}</div>`;
+    result.innerHTML = `<div class="isomer-error">${t("iso.invalidArrangement", { list: isos.map((i) => i.displayFormula || an.formula).join(", ") })}</div>`;
     return;
   }
   const cls = classifyMolecule(an.formula, match.tpl.charge || 0, null);
@@ -60240,7 +60832,7 @@ function checkIsomer() {
       <div class="isomer-valid-name">${match.displayName || match.key}</div>
       <div class="isomer-valid-formula">${match.displayFormula || an.formula}</div>
       <span class="isomer-badge ${cls.key || ""}">${cls.label}</span>
-      <button class="isomer-apply-btn">Apply</button>
+      <button class="isomer-apply-btn">${t("iso.apply")}</button>
     </div>
   `;
   const applyBtn = result.querySelector(".isomer-apply-btn");
@@ -60782,10 +61374,11 @@ function executeConsoleCommand(cmd) {
   }
 }
 document.getElementById("btn-console").addEventListener("click", () => {
+  if (!shopGate("console")) return;
   const rankInfo = rankManager.getCurrentRank();
   if (!isFeatureUnlocked("console", rankInfo)) {
     const req = getRequiredRankForFeature("console");
-    status(t("rank.featureLocked", { rank: req?.name || "Further Beyond" }), "err");
+    status(t("rank.featureLocked", { rank: rankName(req) || rankName(RANKS[RANKS.length - 1]) }), "err");
     return;
   }
   mobileConsole.hidden = !mobileConsole.hidden;
@@ -60816,6 +61409,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
       overrides: [...overrides],
       isoSel: [...isoSel],
       rank: { totalStars: rankManager.totalStars, currentRank: rankManager.getCurrentRank() },
+      shop: window.__mol3dShop && typeof window.__mol3dShop.exportState === "function" ? window.__mol3dShop.exportState() : null,
       quests: { stars: questManager.getStars(), completed: [...questManager.completedQuests] },
       player: {
         health: playerHealth,
@@ -60845,14 +61439,37 @@ document.getElementById("btn-export").addEventListener("click", () => {
     status(t("status.exportFailed", { error: err.message }), "err");
   }
 });
+const IMPORT_LOCK_KEY = "mol3d.import.used";
+function importUsed() {
+  try {
+    return localStorage.getItem(IMPORT_LOCK_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function markImportUsed() {
+  try {
+    localStorage.setItem(IMPORT_LOCK_KEY, "1");
+  } catch {
+  }
+}
 document.getElementById("btn-import-progress").addEventListener("click", () => {
-  document.getElementById("import-file-input").click();
   btnMenu.setAttribute("aria-expanded", "false");
   menuDropdown.hidden = true;
+  if (importUsed()) {
+    status(t("status.importLocked"), "err");
+    return;
+  }
+  document.getElementById("import-file-input").click();
 });
 document.getElementById("import-file-input").addEventListener("change", (e) => {
   const file = e.target.files[0];
+  e.target.value = "";
   if (!file) return;
+  if (importUsed()) {
+    status(t("status.importLocked"), "err");
+    return;
+  }
   const reader = new FileReader();
   reader.onload = (event) => {
     try {
@@ -60904,6 +61521,10 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
           rebuildPool();
         }
       }
+      if (data.shop && window.__mol3dShop && typeof window.__mol3dShop.importState === "function") {
+        window.__mol3dShop.importState(data.shop);
+        rebuildPool();
+      }
       if (data.quests) {
         if (typeof data.quests.stars === "number") {
           questManager.stars = data.quests.stars;
@@ -60938,9 +61559,11 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
           }
         }
         if (data.settings.lang) setLang(data.settings.lang);
+        if (QUALITY_MODES.includes(data.settings.quality)) applyMode(data.settings.quality);
       }
       reanalyze();
       save(true);
+      markImportUsed();
       status(t("status.imported", { atoms: atoms.size, discoveries: discoveries.length }), "ok");
     } catch (err) {
       console.error("Import failed:", err);
@@ -60948,7 +61571,6 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
     }
   };
   reader.readAsText(file);
-  e.target.value = "";
 });
 document.getElementById("btn-respawn").addEventListener("click", () => {
   respawnPlayer();
@@ -60966,7 +61588,7 @@ document.getElementById("btn-revive").addEventListener("click", () => {
     if (remotePlayer) {
       remotePlayer.isDead = false;
       remotePlayer.updateVisuals();
-      status(`Revived ${remotePlayer.username}`, "ok");
+      status(t("net.revivedPlayer", { username: remotePlayer.username }), "ok");
     }
   }
   if (modal) {
@@ -61038,16 +61660,12 @@ consoleInput.addEventListener("keydown", (e) => {
     suggestionsDiv.hidden = true;
   }
 });
-document.getElementById("btn-fc").addEventListener("click", () => {
-  fcVisible = !fcVisible;
-  document.getElementById("btn-fc").classList.toggle("on", fcVisible);
-  invalidate();
-});
 document.getElementById("btn-mayhem").addEventListener("click", () => {
+  if (!shopGate("mayhem")) return;
   const rankInfo = rankManager.getCurrentRank();
   if (!isFeatureUnlocked("mayhem", rankInfo)) {
     const req = getRequiredRankForFeature("mayhem");
-    status(t("rank.featureLocked", { rank: req?.name || "Experienced" }), "err");
+    status(t("rank.featureLocked", { rank: rankName(req) || rankName(RANKS[3]) }), "err");
     return;
   }
   mayhemMode = !mayhemMode;
@@ -61104,33 +61722,40 @@ document.getElementById("btn-time-menu").addEventListener("click", () => {
 });
 document.getElementById("time-modal-close").addEventListener("click", closeTimeModal);
 document.getElementById("time-speed-range").addEventListener("input", (e) => {
+  if (!shopGate("timeSpeed")) {
+    updateSpeedSlider();
+    return;
+  }
   const idx = parseInt(e.target.value);
   if (idx >= 0 && idx < SPEED_LEVELS.length) {
     timeSpeed = SPEED_LEVELS[idx];
     updateSpeedSlider();
     updateTimeDisplay();
-    status(`⏱ Speed: ${formatSpeed(timeSpeed)}`);
+    status(t("time.speedNormal", { speed: formatSpeed(timeSpeed) }));
   }
 });
 document.getElementById("btn-modal-freeze").addEventListener("click", () => {
+  if (!shopGate("timeStop")) return;
   toggleFreeze();
   if (timeFrozen) {
     triggerTheWorld();
   } else {
     triggerTimeResume();
   }
-  status(timeFrozen ? " Time frozen" : "▶️ Time resumed");
+  status(timeFrozen ? t("time.frozenOn") : t("time.frozenOff"));
 });
 document.getElementById("btn-modal-rewind").addEventListener("click", () => {
+  if (!shopGate("timeSpeed")) return;
   const idx = SPEED_LEVELS.indexOf(timeSpeed);
   if (idx > 0) {
     timeSpeed = SPEED_LEVELS[idx - 1];
     updateSpeedSlider();
     updateTimeDisplay();
-    status(` Speed: ${formatSpeed(timeSpeed)}`);
+    status(t("time.speedSlow", { speed: formatSpeed(timeSpeed) }));
   }
 });
 document.getElementById("btn-modal-forward").addEventListener("click", () => {
+  if (!shopGate("timeSpeed")) return;
   const idx = SPEED_LEVELS.indexOf(timeSpeed);
   if (idx < SPEED_LEVELS.length - 1) {
     triggerMadeInHeaven(SPEED_LEVELS[idx + 1]);
@@ -61203,7 +61828,7 @@ function triggerMadeInHeaven(targetSpeed) {
       timeSpeed = targetSpeed;
       updateTimeDisplay();
       updateSpeedSlider();
-      status(`⏩ Speed: ${formatSpeed(timeSpeed)}`);
+      status(t("time.speedSet", { speed: formatSpeed(timeSpeed) }));
     }
   }
   requestAnimationFrame(accelerate);
@@ -61224,12 +61849,15 @@ const atmosphere = {
     ["CO2", 4e-4]
   ])
 };
+function updateAtmosphereButton() {
+  const btn = document.getElementById("btn-atmosphere");
+  if (!btn) return;
+  btn.textContent = t("btn.atmosphere", { mode: atmosphere.enabled ? t("status.on") : t("status.off") });
+  btn.title = t("btn.atmosphere.title");
+}
 function toggleAtmosphere() {
   atmosphere.enabled = !atmosphere.enabled;
-  const btn = document.getElementById("btn-atmosphere");
-  if (btn) {
-    btn.textContent = t("btn.atmosphere", { mode: atmosphere.enabled ? t("status.on") : t("status.off") });
-  }
+  updateAtmosphereButton();
   status(atmosphere.enabled ? "🌍 Atmosphere ON — O2, N2, Ar, CO2 present" : " Atmosphere OFF — vacuum");
 }
 document.getElementById("btn-atmosphere").addEventListener("click", toggleAtmosphere);
@@ -61285,6 +61913,67 @@ function envAtmosphereGases() {
   if (environment.pressureAtm < 1e-6) return [];
   return [...atmosphere.composition.keys()];
 }
+const ENV_GAS_ATTACK = [
+  { gas: "F2", sym: "F", prio: 10, ok: (el) => el.cat !== "noble" && el.sym !== "F" && el.sym !== "O" },
+  { gas: "O3", sym: "O", prio: 9, ok: (el) => el.cat !== "noble" && el.sym !== "O" && el.sym !== "F" },
+  { gas: "Cl2", sym: "Cl", prio: 8, ok: (el) => el.cat !== "noble" && el.sym !== "Cl" && el.sym !== "F" && el.sym !== "O" },
+  { gas: "O2", sym: "O", prio: 7, ok: (el) => el.cat !== "noble" && el.sym !== "O" && el.sym !== "F" && el.sym !== "Cl" && el.sym !== "Br" && el.sym !== "I" },
+  { gas: "Br2", sym: "Br", prio: 6, ok: (el) => isMetalCat(el.cat) && el.sym !== "Br" },
+  { gas: "H2O", sym: "O", prio: 5, ok: (el) => el.cat === "alkali" || el.cat === "alkaline" },
+  { gas: "CO2", sym: "O", prio: 4, ok: (el) => ["Li", "Na", "K", "Rb", "Cs", "Ca", "Mg", "Al"].includes(el.sym) },
+  { gas: "SO2", sym: "O", prio: 3, ok: (el) => isMetalCat(el.cat) && el.cat !== "alkali" },
+  { gas: "N2", sym: "N", prio: 2, ok: (el) => ["Li", "Mg", "Ca", "Sr", "Ba", "Al", "Ti", "Sc"].includes(el.sym) },
+  { gas: "H2", sym: "H", prio: 1, ok: (el) => el.cat === "alkali" || el.cat === "alkaline" || ["Ti", "Zr", "La"].includes(el.sym) }
+];
+function envGasFraction(gas) {
+  if (!atmosphere.enabled || environment.pressureAtm < 1e-6) return 0;
+  return atmosphere.composition.get(gas) || 0;
+}
+function envAtmosphereAttack(el) {
+  if (!el || el.maxBonds <= 0) return null;
+  let best = null;
+  for (const g of ENV_GAS_ATTACK) {
+    const fraction = envGasFraction(g.gas);
+    if (fraction <= 0 || !g.ok(el)) continue;
+    if (!best || g.prio > best.prio) best = { sym: g.sym, gas: g.gas, fraction, prio: g.prio };
+  }
+  return best;
+}
+function envAttackChance(fraction) {
+  const density = Math.min(2, Math.max(0, envDensityFactor()));
+  const heat = Math.min(1.6, Math.max(0.04, (environment.temperatureK - 120) / 700));
+  return Math.min(0.85, fraction * density * heat * 0.3);
+}
+function envOxidizerPressure() {
+  if (!atmosphere.enabled || environment.pressureAtm < 1e-6) return 0;
+  const density = Math.min(2, Math.max(0, envDensityFactor()));
+  const heat = Math.min(1.6, Math.max(0.04, (environment.temperatureK - 120) / 700));
+  let p = 0;
+  for (const g of ENV_GAS_ATTACK) {
+    const f = envGasFraction(g.gas);
+    if (f > 0) p += f * density * heat;
+  }
+  return p;
+}
+function envDecayFactor(comp) {
+  const oxPressure = envOxidizerPressure();
+  let attackable = false;
+  if (oxPressure > 0) {
+    for (const id of comp.atoms) {
+      const a = atoms.get(id);
+      if (a && envAtmosphereAttack(a.el)) {
+        attackable = true;
+        break;
+      }
+    }
+  }
+  let f;
+  if (!atmosphere.enabled || environment.pressureAtm < 1e-6) f = 0.45;
+  else f = attackable ? 1 + oxPressure * 1.2 : 1;
+  const inert = envGasFraction("Ar") + envGasFraction("He") + envGasFraction("Ne") + envGasFraction("N2");
+  if (inert > 0) f *= 1 - 0.3 * Math.min(1, inert);
+  return Math.min(3, Math.max(0.3, f));
+}
 function syncAtmosphereComposition() {
   const total = envRatioTotal();
   const next = new Map();
@@ -61294,6 +61983,7 @@ function syncAtmosphereComposition() {
     next.set(f, gas.ratio / total);
   }
   atmosphere.composition = next;
+  updateAtmosphereButton();
 }
 function formatEnvTemperature(k) {
   return (k >= 1e3 ? Math.round(k).toLocaleString("en-US") : Math.round(k * 10) / 10) + "K";
@@ -61504,11 +62194,11 @@ document.getElementById("custom-element-form").addEventListener("submit", (e) =>
   const canAnion = document.getElementById("custom-anion").checked;
   const anionCharge = canAnion ? parseInt(document.getElementById("custom-anion-charge").value) || 1 : 0;
   if (!name || !sym) {
-    status("Name and symbol are required");
+    status(t("custom.needName"));
     return;
   }
   if (elementBySym(sym)) {
-    status(`Element "${sym}" already exists`);
+    status(t("custom.exists", { sym }));
     return;
   }
   const z = 300 + customElements.length;
@@ -61529,7 +62219,7 @@ document.getElementById("custom-element-form").addEventListener("submit", (e) =>
   document.getElementById("custom-element-modal").hidden = true;
   document.getElementById("custom-element-form").reset();
   document.getElementById("anion-charge-row").hidden = true;
-  status(`Created custom element: ${name} (${sym})`);
+  status(t("custom.created", { name, sym }));
 });
 function deleteCustomElement(sym) {
   const idx = customElements.findIndex((e) => e.sym === sym);
@@ -61537,12 +62227,10 @@ function deleteCustomElement(sym) {
   const el = customElements[idx];
   customElements.splice(idx, 1);
   rebuildPool();
-  status(`Deleted custom element: ${el.name} (${sym})`);
+  status(t("custom.deleted", { name: el.name, sym }));
 }
 btnQuality.addEventListener("click", () => {
-  const i = QUALITY_MODES.indexOf(qualityMode);
-  applyMode(QUALITY_MODES[(i + 1) % QUALITY_MODES.length]);
-  status(t("status.quality", { mode: modeLabel() }));
+  document.dispatchEvent(new CustomEvent("mol3d:quality-menu", { detail: { anchor: "btn-quality" } }));
 });
 document.getElementById("btn-save-disc").addEventListener("click", saveDiscoveries);
 document.getElementById("chg-minus").addEventListener("click", () => nudgeCharge(-1));
@@ -61583,7 +62271,6 @@ window.addEventListener("keydown", (e) => {
     selectAtom(null);
   }
 });
-document.getElementById("btn-fc").classList.add("on");
 const THEME_KEY = "mol3d.theme";
 const SCENE_THEMES = {
   dark: { bg: 856343, gridA: 3159613, gridB: 1909546, meta: "#0d1117" },
@@ -61631,6 +62318,11 @@ btnLang.addEventListener("click", () => {
 function refreshTranslations() {
   applyStatic();
   updateQualityHud();
+  updateSettingsDisplay();
+  updateRankWidget();
+  updateTimeDisplay();
+  syncTopBarLabels();
+  updateAtmosphereButton();
   btnTheme.textContent = t("btn.theme", { mode: t(themeMode === "light" ? "theme.light" : "theme.dark") });
   const wrap = document.getElementById("pool-list");
   document.getElementById("pool-view").textContent = wrap.hidden ? t("pool.viewList") : t("pool.viewTable");
@@ -61920,6 +62612,18 @@ window.__mol3d = {
   analyses: () => analyses,
   comps: () => lastComps,
   spawnAtom,
+  spawnAtomFromScreen,
+  status,
+  i18n: { t, getLang, elName },
+  progression: {
+    rankManager,
+    rebuildPool,
+    isElementUnlocked,
+    isFeatureUnlocked,
+    elementTiers: () => ELEMENT_TIERS,
+    featureRanks: () => FEATURE_RANKS,
+    ranks: () => RANKS
+  },
   reanalyze,
   selectAtom,
   undo,
@@ -61938,6 +62642,7 @@ window.__mol3d = {
   closeMobileSheets,
   stabilize: (ids) => stabilizeStrays(Array.isArray(ids) ? ids : [ids], performance.now()),
   triggerDeath: triggerPlayerDeath,
+  triggerNuclearVFX: triggerNuclearExplosionVFX,
   help: () => {
     console.log("%c🧪 Mol3D Console API", "color: #4CAF50; font-weight: bold; font-size: 14px;");
     console.log("%cCore:", "color: #2196F3; font-weight: bold;");
@@ -62010,6 +62715,10 @@ window.__mol3d = {
     },
     clear: clearReactionSel
   },
+  fc: () => fcVisible,
+  setFc: setFcVisible,
+  labels: () => atomLabelsVisible,
+  setLabels: setAtomLabels,
   setQuality: applyMode,
   quality: () => qualityMode,
   tierKey: () => TIER_ORDER[tierIndex],
@@ -62385,7 +63094,7 @@ window.__mol3d = {
       const rank = rankManager.getCurrentRank();
       const info = {
         totalStars: rankManager.totalStars,
-        rank: rank.rank.name,
+        rank: rankName(rank.rank),
         rankIndex: rank.rankIndex,
         grade: rank.grade,
         gradeRoman: rank.gradeRoman,
@@ -62493,6 +63202,8 @@ window.__mol3d = {
 };
 console.log(`%c🧪 Mol3D loaded! Type %c__mol3d.help()%c for console API`, "color: #4CAF50; font-weight: bold;", "color: #2196F3; font-weight: bold;", "color: #4CAF50;");
 applyStatic();
+syncTopBarLabels();
+updateAtmosphereButton();
 load();
 loadDiscoveries();
 buildPool();
@@ -62503,7 +63214,7 @@ updateChallengeList();
 updateDiscList();
 updateUndoBtn();
 updateDeleteBtn();
-updateQualityHud();
+applyMode(qualityMode);
 reanalyze();
 requestAnimationFrame(frame);
 syncInstances();
@@ -62513,7 +63224,6 @@ console.log("%c✓ Scene initialized", "color: #4CAF50; font-weight: bold;", {
   bonds: bonds.size,
   camera: camera.position.toArray()
 });
-initTutorial();
 initMenu();
 chatManager.init();
 voiceChat.init();
@@ -62600,7 +63310,7 @@ function initBackgroundMusic() {
   const questHistory = [];
   btnQuest.addEventListener("click", async () => {
     if (typeof puter === "undefined" || !puter.auth) {
-      addQuestMessage("system", "❌ Puter.js not loaded. Please refresh the page.");
+      addQuestMessage("system", t("quest.puterMissing"));
       questPanel.hidden = false;
       btnQuest.classList.add("active");
       return;
@@ -62610,11 +63320,11 @@ function initBackgroundMusic() {
       questPanel.hidden = false;
       btnQuest.classList.add("active");
       questMessages.innerHTML = "";
-      addQuestMessage("system", "🔐 Sign in required to use AI Quest Guide");
-      addQuestMessage("system", "Click the button below to sign in with your Puter account (free):");
+      addQuestMessage("system", t("quest.signinRequired"));
+      addQuestMessage("system", t("quest.signinHint"));
       const signInBtn = document.createElement("button");
       signInBtn.className = "quest-signin-btn";
-      signInBtn.textContent = "🔑 Sign in with Puter";
+      signInBtn.textContent = t("auth.puter");
       signInBtn.style.cssText = "background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; margin: 16px auto; display: block;";
       signInBtn.onclick = async () => {
         try {
@@ -62622,11 +63332,11 @@ function initBackgroundMusic() {
           const nowSignedIn = await puter.auth.isSignedIn();
           if (nowSignedIn) {
             questMessages.innerHTML = "";
-            addQuestMessage("system", "✅ Signed in successfully! AI Quest Guide is now available.");
-            addQuestMessage("system", ' Ask me about chemistry, molecules, or reactions. Try: "Build water" or "Create methane"');
+            addQuestMessage("system", t("quest.signedIn"));
+            addQuestMessage("system", t("quest.signedInTip"));
           }
         } catch (error) {
-          addQuestMessage("system", "❌ Sign-in failed: " + (error.message || "Unknown error"));
+          addQuestMessage("system", t("quest.signinFailed", { error: error.message || t("quest.unknownError") }));
         }
       };
       questMessages.appendChild(signInBtn);
@@ -62635,7 +63345,7 @@ function initBackgroundMusic() {
     questPanel.hidden = !questPanel.hidden;
     btnQuest.classList.toggle("active", !questPanel.hidden);
     if (!questPanel.hidden && questMessages.children.length === 0) {
-      addQuestMessage("system", '🧪 AI Quest Guide activated! I can answer chemistry questions AND build molecules for you. Try: "Build water" or "Create methane"');
+      addQuestMessage("system", t("quest.activated"));
     }
   });
   questClose.addEventListener("click", () => {
@@ -62645,7 +63355,7 @@ function initBackgroundMusic() {
   questClear.addEventListener("click", () => {
     questMessages.innerHTML = "";
     questHistory.length = 0;
-    addQuestMessage("system", "Chat cleared.");
+    addQuestMessage("system", t("quest.cleared"));
   });
   questSend.addEventListener("click", sendQuestMessage);
   questInput.addEventListener("keydown", (e) => {
@@ -62832,7 +63542,7 @@ function updateRankWidget() {
   const starsEl = document.getElementById("rank-stars");
   const shieldEl = document.getElementById("rank-shield");
   const gradeEl = document.getElementById("rank-grade");
-  if (titleEl) titleEl.textContent = rankInfo.rank.name;
+  if (titleEl) titleEl.textContent = rankName(rankInfo.rank);
   if (starsEl) starsEl.textContent = `${rankInfo.totalStars} ★`;
   if (shieldEl) {
     shieldEl.style.backgroundImage = `url('${rankInfo.rank.image}')`;
@@ -62863,9 +63573,9 @@ function triggerRankUpAnimation(rankInfo) {
   grade.textContent = rankInfo.gradeRoman;
   grade.style.color = rankInfo.rank.textColor;
   if (rankInfo.isRankUp !== false) {
-    label.textContent = `Rank Up! ${rankInfo.rank.name}`;
+    label.textContent = t("rank.upToast", { name: rankName(rankInfo.rank) });
   } else {
-    label.textContent = `Grade ${rankInfo.gradeRoman}!`;
+    label.textContent = t("rank.gradeToast", { grade: rankInfo.gradeRoman });
   }
   confetti.innerHTML = "";
   const colors = ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff", "#ff6bff", "#ff9f45"];
@@ -62908,6 +63618,7 @@ rankManager.on("gradeUp", (data) => {
   }
 });
 rankManager.on("gradeDown", (data) => {
+  triggerRankDownAnimation(data.newRank, data.starsLost, data.isRankDown);
   updateRankWidget();
   const poolWrap = document.getElementById("pool-list");
   if (poolWrap) {
@@ -62929,9 +63640,9 @@ function triggerRankDownAnimation(rankInfo, starsLost, isRankDown) {
   grade.textContent = rankInfo.gradeRoman;
   grade.style.color = "#ff4444";
   if (isRankDown) {
-    label.textContent = `Rank Down! -${starsLost} Stars`;
+    label.textContent = t("rank.downToast", { stars: starsLost });
   } else {
-    label.textContent = `-${starsLost} Stars`;
+    label.textContent = t("rank.starsLost", { stars: starsLost });
   }
   label.style.color = "#ff4444";
   confetti.innerHTML = "";

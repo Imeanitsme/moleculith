@@ -698,7 +698,8 @@ html, body {
   justify-content: center;
 }
 
-#time-display {
+#time-display,
+#env-temp-display {
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 13px;
   font-weight: 600;
@@ -1624,7 +1625,7 @@ body.mobile:has(.side-tab-panel.open) #joy {
     min-width: 80px;
     padding: 0 4px;
   }
-  #time-display { font-size: 11px; }
+  #time-display, #env-temp-display { font-size: 11px; }
   .time-speed { font-size: 9px; }
 
   /* Mobile: sidebar becomes a bottom sheet container when any panel is open.
@@ -1802,7 +1803,7 @@ body.mobile:has(.side-tab-panel.open) #joy {
   .time-controls { padding: 1px 4px; gap: 2px; }
   .time-btn { width: 20px; height: 20px; font-size: 9px; }
   .time-display-box { min-width: 56px; padding: 0 2px; height: 20px; }
-  #time-display { font-size: 9px; }
+  #time-display, #env-temp-display { font-size: 9px; }
   .time-speed { font-size: 8px; }
 
   /* Hide mobile tabs — sidebar accessed via menu or swipe */

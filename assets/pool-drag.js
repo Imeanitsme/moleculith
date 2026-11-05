@@ -76,13 +76,14 @@
   }
 
   function onPointerDown(e) {
+    if (e.target.closest && e.target.closest('#pool-scroll-gutter')) return;
     var chip = e.target.closest('.el-chip');
     if (!chip) return;
     var poolList = document.getElementById('pool-list');
     if (!poolList || !poolList.contains(chip)) return;
     if (chip.classList.contains('locked')) return;
 
-    e.preventDefault();
+    if (e.pointerType === 'mouse') e.preventDefault();
     pendingChip = chip;
     startX = e.clientX;
     startY = e.clientY;
@@ -144,8 +145,14 @@
     var cx = e.clientX;
     var cy = e.clientY;
 
-    if (isOverScene(cx, cy) && dragEl && window.__mol3d && window.__mol3d.spawnAtom) {
-      window.__mol3d.spawnAtom(dragEl);
+    if (isOverScene(cx, cy) && dragEl && window.__mol3d) {
+      var placed = false;
+      if (typeof window.__mol3d.spawnAtomFromScreen === 'function') {
+        placed = window.__mol3d.spawnAtomFromScreen(dragEl, cx, cy) != null;
+      }
+      if (!placed && window.__mol3d.spawnAtom) {
+        window.__mol3d.spawnAtom(dragEl);
+      }
       spawnCinematic(cx, cy);
       if (document.body.classList.contains('mobile')) {
         var closeSheets = window.__mol3d && window.__mol3d.closeMobileSheets;
@@ -169,8 +176,21 @@
     var s = document.createElement('style');
     s.id = 'pool-drag-styles';
     s.textContent = [
-      '.el-chip { -webkit-user-select:none; user-select:none; touch-action:none; }',
+      '.el-chip { -webkit-user-select:none; user-select:none; touch-action:pan-y; }',
       '.el-chip.dragging { opacity:0.35; transform:scale(0.95) !important; }',
+
+      '#pool-list { position:relative; }',
+      '#pool-scroll-gutter {',
+      '  position:absolute; top:0; right:0; bottom:0; width:0;',
+      '  touch-action:pan-y; -webkit-user-select:none; user-select:none;',
+      '  pointer-events:auto; opacity:0;',
+      '}',
+      'body.mobile #pool-list { padding-right:20px; }',
+      'body.mobile #pool-scroll-gutter {',
+      '  width:16px; opacity:1;',
+      '  border-radius:8px;',
+      '  background:repeating-linear-gradient(180deg, rgba(0,212,255,0.22) 0 5px, transparent 5px 13px);',
+      '}',
 
       '#pool-drag-ghost {',
       '  position:fixed; z-index:10000; pointer-events:none;',
@@ -249,6 +269,30 @@
         c.classList.remove('dragging');
       });
     });
+
+    var gutter = document.createElement('div');
+    gutter.id = 'pool-scroll-gutter';
+    gutter.setAttribute('aria-hidden', 'true');
+    var GUTTER_FALLBACK = {
+      en: 'Swipe here to scroll the element list',
+      vi: 'Vuốt ở đây để cuộn danh sách nguyên tố'
+    };
+    var applyGutterTitle = function() {
+      var i18n = window.__mol3d && window.__mol3d.i18n;
+      var lang = document.documentElement.lang === 'vi' ? 'vi' : 'en';
+      var text = i18n && typeof i18n.t === 'function' ? i18n.t('pool.gutterTitle') : GUTTER_FALLBACK[lang];
+      gutter.title = text === 'pool.gutterTitle' ? GUTTER_FALLBACK[lang] : text;
+    };
+    applyGutterTitle();
+    new MutationObserver(applyGutterTitle).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['lang']
+    });
+    var keepGutter = function() {
+      if (poolList.lastElementChild !== gutter) poolList.appendChild(gutter);
+    };
+    keepGutter();
+    new MutationObserver(keepGutter).observe(poolList, { childList: true });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

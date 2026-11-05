@@ -149,7 +149,7 @@
         },
         {
           "target": "#time-speed-range",
-          "text": "Drag the slider to speed up or slow down time — from 0.1× to 1 billion×!",
+          "text": "Drag the slider to speed up or slow down time — from 1× to 1 billion×!",
           "action": "highlight"
         },
         {
@@ -214,6 +214,36 @@
       ]
     },
     {
+      "id": "phase",
+      "name": "Phase Diagram",
+      "steps": [
+        {
+          "text": "Extreme temperature and pressure trigger phase transitions — the matter state changes!",
+          "action": "next"
+        },
+        {
+          "text": "Dense Plasma: T ≥ 5000K and P ≥ 1500 atm. Maximum damage and hyper-conductive lightning arcs!",
+          "action": "next"
+        },
+        {
+          "text": "Dilute Plasma: T ≥ 5000K and P < 100 atm. Triggers an explosive blast pushing all atoms outward!",
+          "action": "next"
+        },
+        {
+          "text": "Compressed Mantle: T 1000-4000K and P ≥ 1000 atm. Crush damage from extreme pressure!",
+          "action": "next"
+        },
+        {
+          "text": "Supercritical Fluid: T > 647K and P > 218 atm. Bonds corrode and break over time!",
+          "action": "next"
+        },
+        {
+          "text": "Watch the phase indicator near the temperature display to see the current state.",
+          "action": "next"
+        }
+      ]
+    },
+    {
       "id": "health",
       "name": "Health & Radiation",
       "steps": [
@@ -268,7 +298,7 @@
         },
         {
           "target": "#bohr-toggle",
-          "text": "The Bohr toggle shows a clean 2D orbital diagram for selected atoms.",
+          "text": "When you select an atom, the Bohr toggle appears showing a clean 2D orbital diagram.",
           "action": "highlight"
         },
         {
@@ -313,8 +343,8 @@
       "name": "Rank & Shop",
       "steps": [
         {
-          "target": "#rank-widget",
-          "text": "This is your rank widget. You start as New Creation with 0 stars.",
+          "target": "#side-dex",
+          "text": "Switch to the DEX tab to see your rank widget. You start as New Creation with 0 stars.",
           "action": "highlight"
         },
         {
@@ -334,8 +364,9 @@
           "action": "next"
         },
         {
+          "target": "#shop-rope",
           "text": "Pull the rope on the left side to open the Shop. Spend stars to buy elements and features.",
-          "action": "next"
+          "action": "highlight"
         },
         {
           "text": "Be careful — spending stars can downgrade your rank if you fall below the threshold!",
@@ -512,7 +543,7 @@
     "Every reaction is stoichiometrically balanced. Try combining H and O to make water!": "Mọi phản ứng đều được cân bằng. Hãy thử kết hợp H và O để tạo nước!",
     "This is the simulation clock. It tracks elapsed time in the lab.": "Đây là đồng hồ mô phỏng. Nó theo dõi thời gian trong phòng thí nghiệm.",
     "Open Time Control to adjust simulation speed.": "Mở Điều khiển thời gian để điều chỉnh tốc độ.",
-    "Drag the slider to speed up or slow down time — from 0.1× to 1 billion×!": "Kéo thanh trượt để tăng hoặc giảm tốc độ — từ 0,1× đến 1 tỷ lần!",
+    "Drag the slider to speed up or slow down time — from 1× to 1 billion×!": "Kéo thanh trượt để tăng hoặc giảm tốc độ — từ 1× đến 1 tỷ lần!",
     "Freeze stops time completely. Molecules hang in space.": "Đóng bºng dừng thời gian hoàn toàn. Các phân tử lưng chừg trong không gian.",
     "Rewind plays time backwards — bonds un-form, molecules un-react!": "Tua lại phát thời gian ngược — liên kết tách ra, phản ứng hoàn tác!",
     "At extreme speeds, you can trigger THE WORLD — a cinematic time-freeze effect with a purple shockwave!": "Ở tốc độ cực cao, bạn có thể kích hoạt THE WORLD — hiệu ứng đóng bºng điện ảnh với sóng xung kích tím!",
@@ -524,6 +555,12 @@
     "Adjust pressure to influence gas-phase reactions and boiling points.": "Điều chỉnh áp suất để ảnh hưởng phản ứng khí và điểm sôi.",
     "Add gases to the environment — O₂, N₂, CO₂, and more. These act as bonus reactants!": "Thêm khí vào môi trường — O₂, N₂, CO₂ và hơn thế. Chúng làm tác nhân bổ sung!",
     "Toggle Atmosphere mode from the Menu. It adds auto H-capping and environmental reactions.": "Bật/tắt chế độ Khí quyển từ Menu. Nó thêm tự động thêm H và phản ứng môi trường.",
+    "Extreme temperature and pressure trigger phase transitions — the matter state changes!": "Nhiệt độ và áp suất cực đoan kích hoạt chuyển pha — trạng thái vật chất thay đổi!",
+    "Dense Plasma: T ≥ 5000K and P ≥ 1500 atm. Maximum damage and hyper-conductive lightning arcs!": "Plasma Đặc: T ≥ 5000K và P ≥ 1500 atm. Sát thương tối đa và vòng sét dẫn điện!",
+    "Dilute Plasma: T ≥ 5000K and P < 100 atm. Triggers an explosive blast pushing all atoms outward!": "Plasma Loãng: T ≥ 5000K và P < 100 atm. Kích hoạt vụ nổ đẩy tất cả nguyên tử ra ngoài!",
+    "Compressed Mantle: T 1000-4000K and P ≥ 1000 atm. Crush damage from extreme pressure!": "Lớp nén: T 1000-4000K và P ≥ 1000 atm. Sát thương nén từ áp suất cực đoan!",
+    "Supercritical Fluid: T > 647K and P > 218 atm. Bonds corrode and break over time!": "Chất lỏng siêu tới hạn: T > 647K và P > 218 atm. Liên kết ăn mòn và phá vỡ theo thời gian!",
+    "Watch the phase indicator near the temperature display to see the current state.": "Xem chỉ báo pha gần hiển thị nhiệt độ để biết trạng thái hiện tại.",
     "This is your health bar. It starts at 100 HP.": "Đây là thanh máu. Bắt đầu với 100 HP.",
     "Radioactive elements (Z > 82, like Uranium and Plutonium) emit radiation that damages you!": "Các nguyên tố phóng xạ (Z > 82, như Uran và Plutoni) phát bức xạ gây sát thương!",
     "The closer you are to a radioactive atom, the more damage you take — following the inverse-square law.": "Càng gần nguyên tử phóng xạ, bạn càng bị sát thương nhiều — theo định luật nghịch đảo bình phương.",
@@ -534,7 +571,7 @@
     "X-Ray mode reveals the internal structure of atoms — nucleus and electron shells!": "Chế độ Tia X tiết lộ cấu trúc nội tại nguyên tử — hạ nhân và lớp electron!",
     "You'll see the proton/neutron nucleus at the center, surrounded by electron cloud layers.": "Bạn sẽ thấy hạ nhân proton/neutron ở giữa, bao quanh bởi các lớp mây electron.",
     "Each shell corresponds to an energy level: K, L, M, N, O, P, Q.": "Mỗi lớp tương ứng mộc năng lượng: K, L, M, N, O, P, Q.",
-    "The Bohr toggle shows a clean 2D orbital diagram for selected atoms.": "Nút Bohr hiển thị sơ đồ quỹ đạo 2D sạch cho nguyên tử được chọn.",
+    "When you select an atom, the Bohr toggle appears showing a clean 2D orbital diagram.": "Khi chọn một nguyên tử, nút Bohr xuất hiện hiển thị sơ đồ quỹ đạo 2D sạch.",
     "In the Format panel, you can toggle individual electron shells on/off for clarity.": "Trong bảng Định dạng, bạn có thể bật/tắt từng lớp electron để dễ nhìn.",
     "Press X as a shortcut to toggle X-Ray mode anytime!": "Nhấn X làm phím tắt để bật/tắt chế độ Tia X bất cứ lúc nào!",
     "The Proton Gun lets you shoot protons into atoms, transmuting them into heavier elements!": "Súng Proton cho phép bắn proton vào nguyên tử, biến đổi chúng thành nguyên tố nặng hơn!",
@@ -542,7 +579,7 @@
     "Shoot a proton into an element with Z > 82 and you'll trigger nuclear fission!": "Bắn proton vào nguyên tố có Z > 82 và bạn sẽ kích hoạt phân hạch nhân!",
     "Fission creates a massive white explosion, breaks all nearby bonds, and splits the atom into lighter elements.": "Phân hạch tạo vụ nổ trắng lớn, phá mọi liên kết gần và tách nguyên tử thành các nguyên tử nhẹ hơn.",
     "The damage follows real inverse-square physics — distance is your best friend during fission!": "Sát thương theo vật lý nghịch đảo bình phương thực — khoảng cách là bạn tốt nhất khi phân hạch!",
-    "This is your rank widget. You start as New Creation with 0 stars.": "Đây là hệm xếp hạng. Bạn bắt đầu là Tạo Mới với 0 sao.",
+    "Switch to the DEX tab to see your rank widget. You start as New Creation with0 sao.": "Chuyển sang tab DEX để thấy hệm xếp hạng. Bạn bắt đầu là Tạo Mới với 0 sao.",
     "Earn stars by discovering new molecules. Each discovery awards stars based on complexity!": "Kiếm sao bằng cách khám phá phân tử mới. Mỗi khám phá thưởng sao theo độ phức tạp!",
     "Every 5 stars = 1 grade up. 5 grades = 1 rank up. There are 6 ranks total.": "Mỗi 5 sao = 1 hạng lên. 5 hạng = 1 cấp lên. Tổng cộng có 6 cấp.",
     "Higher ranks unlock more elements. New Creation gets H through Ca; Further Beyond gets all 118!": "Cấp cao hơn mở khóa nhiều nguyên tố hơn. Tạo Mới được H đến Ca; Vượt Xa Hơn được tất cả 118!",

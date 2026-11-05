@@ -62014,7 +62014,166 @@ function applyEnvironment() {
   updateEnvironmentReadouts();
   reanalyze();
   invalidate();
+  updatePhaseState(0);
 }
+const MatterState = Object.freeze({
+  Standard: "standard",
+  Supercritical: "supercritical",
+  CompressedMantle: "compressed_mantle",
+  DilutePlasma: "dilute_plasma",
+  DensePlasma: "dense_plasma"
+});
+let currentMatterState = MatterState.Standard;
+let _phaseIndicatorEl = null;
+let _lastPhaseTransition = 0;
+function evaluateMatterState(T, P) {
+  if (T >= 5000 && P >= 1500) return MatterState.DensePlasma;
+  if (T >= 5000 && P < 100) return MatterState.DilutePlasma;
+  if (T >= 1000 && T <= 4000 && P >= 1000) return MatterState.CompressedMantle;
+  if (T > 647 && P > 218) return MatterState.Supercritical;
+  return MatterState.Standard;
+}
+function updatePhaseState(dt) {
+  const T = environment.temperatureK;
+  const P = environment.pressureAtm;
+  const newState = evaluateMatterState(T, P);
+  const changed = newState !== currentMatterState;
+  if (changed) {
+    const oldState = currentMatterState;
+    currentMatterState = newState;
+    _lastPhaseTransition = performance.now();
+    onPhaseTransition(oldState, newState, T, P);
+  }
+  if (dt > 0) applyPhaseEffects(newState, T, P, dt);
+  updatePhaseIndicator(newState);
+  updatePhaseSceneFilter(newState, changed);
+}
+function onPhaseTransition(oldState, newState, T, P) {
+  const names = {};
+  names[MatterState.DensePlasma] = "Dense Plasma";
+  names[MatterState.DilutePlasma] = "Dilute Plasma";
+  names[MatterState.CompressedMantle] = "Compressed Mantle";
+  names[MatterState.Supercritical] = "Supercritical Fluid";
+  names[MatterState.Standard] = "Standard";
+  status("\u2668 Phase: " + names[oldState] + " \u2192 " + names[newState] + " (" + Math.round(T) + "K, " + P.toPrecision(3) + " atm)", newState === MatterState.Standard ? "info" : "warn");
+  if (newState === MatterState.DilutePlasma) applyDilutePlasmaBlast();
+}
+function applyDilutePlasmaBlast() {
+  const center = new Vector3(0, 2, 0);
+  for (const [, atom] of atoms) {
+    const pos = new Vector3(atom.pos.x, atom.pos.y, atom.pos.z);
+    const dir = new Vector3().subVectors(pos, center);
+    const dist = dir.length();
+    if (dist > 0.1 && dist < 25) {
+      const force = dir.normalize().multiplyScalar(15 / (dist * 0.5 + 1));
+      atom.vel = atom.vel || { x: 0, y: 0, z: 0 };
+      atom.vel.x = (atom.vel.x || 0) + force.x;
+      atom.vel.y = (atom.vel.y || 0) + force.y;
+      atom.vel.z = (atom.vel.z || 0) + force.z;
+    }
+  }
+  reactionVFX.fission(center, 2.0);
+  const sw = document.getElementById("scene-wrap");
+  if (sw) { sw.classList.add("nuclear-shake"); setTimeout(() => sw.classList.remove("nuclear-shake"), 1500); }
+}
+function applyPhaseEffects(state, T, P, dt) {
+  if (gameMode === "creative") return;
+  switch (state) {
+    case MatterState.DensePlasma: {
+      const dmg = 8 * dt;
+      playerHealth = Math.max(0, playerHealth - dmg);
+      updateHealthBar();
+      if (playerHealth <= 0) triggerPlayerDeath();
+      if (Math.random() < dt * 3) {
+        const ids = [...atoms.keys()];
+        if (ids.length >= 2) {
+          const a1 = atoms.get(ids[Math.floor(Math.random() * ids.length)]);
+          const a2 = atoms.get(ids[Math.floor(Math.random() * ids.length)]);
+          if (a1 && a2 && a1 !== a2) {
+            electricityFX.beam(
+              new Vector3(a1.pos.x, a1.pos.y, a1.pos.z),
+              new Vector3(a2.pos.x, a2.pos.y, a2.pos.z),
+              0.4
+            );
+          }
+        }
+      }
+      break;
+    }
+    case MatterState.CompressedMantle: {
+      const dmg = 3 * dt;
+      playerHealth = Math.max(0, playerHealth - dmg);
+      updateHealthBar();
+      if (playerHealth <= 0) triggerPlayerDeath();
+      break;
+    }
+    case MatterState.Supercritical: {
+      if (Math.random() < dt * 0.15 && bonds.size > 0) {
+        const bondArr = [...bonds.entries()];
+        const [bid, bond] = bondArr[Math.floor(Math.random() * bondArr.length)];
+        bonds.delete(bid);
+        reanalyze();
+        invalidate();
+        const a = atoms.get(bond.a);
+        if (a) status("\u2697 Corrosion broke bond near " + a.el.sym, "warn");
+      }
+      break;
+    }
+  }
+}
+function updatePhaseIndicator(state) {
+  if (!_phaseIndicatorEl) {
+    _phaseIndicatorEl = document.createElement("div");
+    _phaseIndicatorEl.id = "phase-indicator";
+    const box = document.querySelector(".time-controls.env-controls");
+    if (box && box.parentNode) box.parentNode.insertBefore(_phaseIndicatorEl, box.nextSibling);
+    else document.body.appendChild(_phaseIndicatorEl);
+  }
+  const labels = {};
+  labels[MatterState.DensePlasma] = "\u{1F525} Dense Plasma";
+  labels[MatterState.DilutePlasma] = "\u{1F4A5} Dilute Plasma";
+  labels[MatterState.CompressedMantle] = "\u{1FAA8} Compressed";
+  labels[MatterState.Supercritical] = "\u2697\uFE0F Supercritical";
+  labels[MatterState.Standard] = "";
+  _phaseIndicatorEl.textContent = labels[state] || "";
+  _phaseIndicatorEl.className = "phase-indicator phase-" + state;
+  _phaseIndicatorEl.style.display = state === MatterState.Standard ? "none" : "";
+}
+function updatePhaseSceneFilter(state, changed) {
+  const sw = document.getElementById("scene-wrap");
+  if (!sw) return;
+  sw.style.transition = "filter 1.5s ease";
+  switch (state) {
+    case MatterState.DensePlasma:
+      sw.style.filter = "saturate(1.8) brightness(1.3) hue-rotate(-15deg)";
+      break;
+    case MatterState.DilutePlasma:
+      sw.style.filter = "saturate(0.6) brightness(1.5) hue-rotate(200deg)";
+      break;
+    case MatterState.CompressedMantle:
+      sw.style.filter = "saturate(0.4) brightness(0.7) contrast(1.2)";
+      break;
+    case MatterState.Supercritical:
+      sw.style.filter = "saturate(1.3) brightness(1.1) hue-rotate(30deg)";
+      break;
+    default:
+      sw.style.filter = "";
+      break;
+  }
+}
+(function injectPhaseStyles() {
+  if (document.getElementById("phase-styles")) return;
+  const s = document.createElement("style");
+  s.id = "phase-styles";
+  s.textContent = [
+    ".phase-indicator{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-top:2px;text-align:center;letter-spacing:.5px;transition:all .5s ease}",
+    ".phase-dense_plasma{background:rgba(255,60,0,.25);color:#ff6b35;border:1px solid rgba(255,60,0,.5);text-shadow:0 0 6px rgba(255,100,0,.6)}",
+    ".phase-dilute_plasma{background:rgba(100,140,255,.25);color:#88bbff;border:1px solid rgba(100,140,255,.5);text-shadow:0 0 6px rgba(100,180,255,.6)}",
+    ".phase-compressed_mantle{background:rgba(180,180,80,.2);color:#ccaa44;border:1px solid rgba(180,180,80,.4);text-shadow:0 0 4px rgba(200,180,60,.4)}",
+    ".phase-supercritical{background:rgba(0,200,120,.2);color:#44ddaa;border:1px solid rgba(0,200,120,.4);text-shadow:0 0 4px rgba(0,220,140,.4)}"
+  ].join("\n");
+  document.head.appendChild(s);
+})();
 const envRowRefreshers = [];
 function buildEnvGasRow(gas) {
   const row = document.createElement("div");
@@ -62501,6 +62660,7 @@ function frame(now) {
   updateReactivitySweep(now);
   checkAndRearrangeMolecules();
   updateHealth(now, dt);
+  updatePhaseState(dt);
   updateMayhemParticles(dt);
   updateReactionEffects(dt);
   updateScreenShake(now);
@@ -62608,6 +62768,9 @@ window.__mol3d = {
   redox: { analysis: redoxAnalysis, numbers: oxidationNumbers, stamp: stampRedoxFramework, overlay: redoxBlockHtml, reactions: () => REACTIONS.concat(MAYHEM_REACTIONS) },
   environment,
   atmosphere,
+  MatterState,
+  getPhaseState: () => currentMatterState,
+  evaluatePhase: evaluateMatterState,
   vfx: { reactionVFX, catalystFX, electricityFX },
   atomMatM,
   atomMatN,

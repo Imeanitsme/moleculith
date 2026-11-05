@@ -96,7 +96,7 @@
           "action": "next"
         },
         {
-          "text": "You can also tap the ⚛ button to switch to Bohr model view for any atom.",
+          "text": "Select an atom and open the Info tab to find the Bohr Model button — it shows a clean 2D orbital diagram.",
           "action": "next"
         }
       ]
@@ -159,7 +159,7 @@
         },
         {
           "target": "#btn-modal-rewind",
-          "text": "Rewind plays time backwards — bonds un-form, molecules un-react!",
+          "text": "The Slow Down button decreases time speed. Click it repeatedly to go from 1 billion× back down to 1×.",
           "action": "highlight"
         },
         {
@@ -534,7 +534,7 @@
     "Toggle between the chip list and the full periodic table view.": "Chuyển đổi giữa danh sách chip và bảng tuần hoàn đầy đủ.",
     "Drag any element into the 3D scene to place it. Try Hydrogen (H)!": "Kéo bất kỳ nguyên tố nào vào cảnh 3D để đặt. Hãy thử Hidro (H)!",
     "Great job! Atoms appear exactly where you drop them.": "Tuyệt vời! Nguyên tử xuất hiện đúng chỗ bạn thả.",
-    "You can also tap the ⚛ button to switch to Bohr model view for any atom.": "Bạn cũng có thể nhấn nút ⚛ để chuyển sang chế độ mô hình Bohr.",
+    "Select an atom and open the Info tab to find the Bohr Model button — it shows a clean 2D orbital diagram.": "Chọn một nguyên tử và mở tab Thông tin để tìm nút Mô hình Bohr — nó hiển thị sơ đồ quỹ đạo 2D sạch.",
     "Drag a second atom near the first one. They'll bond automatically when close enough!": "Kéo nguyên tử thứ hai đến gần nguyên tử đầu tiên. Chúng sẽ tự động liên kết khi đủ gần!",
     "Atoms bond based on their valence electrons. Hydrogen wants 1 bond, Oxygen wants 2, Carbon wants 4.": "Nguyên tử liên kết dựa trên electron hóa trị. H muốn 1 liên kết, O muốn 2, C muốn 4.",
     "Click a bond (the line between atoms) to cycle its order: single → double → triple → back.": "Nhấn vào liên kết (đường nối giữa các nguyên tử) để đổi bậc: đơn → đôi → ba → lại.",
@@ -545,7 +545,7 @@
     "Open Time Control to adjust simulation speed.": "Mở Điều khiển thời gian để điều chỉnh tốc độ.",
     "Drag the slider to speed up or slow down time — from 1× to 1 billion×!": "Kéo thanh trượt để tăng hoặc giảm tốc độ — từ 1× đến 1 tỷ lần!",
     "Freeze stops time completely. Molecules hang in space.": "Đóng bºng dừng thời gian hoàn toàn. Các phân tử lưng chừg trong không gian.",
-    "Rewind plays time backwards — bonds un-form, molecules un-react!": "Tua lại phát thời gian ngược — liên kết tách ra, phản ứng hoàn tác!",
+    "The Slow Down button decreases time speed. Click it repeatedly to go from 1 billion× back down to 1×.": "Nút Làm chậm giảm tốc độ thời gian. Nhấn nhiều lần để giảm từ 1 tỷ× xuống 1×.",
     "At extreme speeds, you can trigger THE WORLD — a cinematic time-freeze effect with a purple shockwave!": "Ở tốc độ cực cao, bạn có thể kích hoạt THE WORLD — hiệu ứng đóng bºng điện ảnh với sóng xung kích tím!",
     "Temperature affects molecule movement. Higher temp = faster dancing atoms!": "Nhiệt độ ảnh hưởng chuyển động phân tử. Nhiệt cao hơn = nguyên tử nhày nhanh hơn!",
     "This shows the current temperature in Kelvin. Default is 298K (room temp).": "Đây hiển thị nhiệt độ hiện tại theo Kelvin. Mặc định là 298K (nhiệt độ phòng).",

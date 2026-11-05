@@ -57024,6 +57024,7 @@ let decompositionCountReset = 0;
 const MAX_DECOMPOSITIONS_PER_SECOND = 3;
 function updateMolecularDecay(now, realDt) {
   if (timeFrozen || lastComps.length === 0) return;
+  if (currentMatterState === MatterState.DensePlasma) return;
   const simDt = realDt * timeSpeed;
   if (simDt <= 0) return;
   if (now - decompositionCountReset > 1e3) {
@@ -57430,7 +57431,8 @@ function checkAndRearrangeMolecules() {
 }
 let lastReactivitySweep = 0;
 function updateReactivitySweep(now) {
-  if (timeFrozen || now - lastReactivitySweep < envReactivityInterval()) return;
+  if (timeFrozen || currentMatterState === MatterState.DensePlasma) return;
+  if (now - lastReactivitySweep < envReactivityInterval()) return;
   lastReactivitySweep = now;
   const strays = [];
   for (const comp of lastComps) {

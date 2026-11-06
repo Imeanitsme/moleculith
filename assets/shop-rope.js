@@ -8,10 +8,13 @@
   var PCT_THRESHOLD = 2000;
   var PCT_RATE = 0.1;
 
-  var SAVE_KEY = 'mol3d.shop.v1';
+  // v2 belongs to the reset ledger; v1 predates it and is dropped on load so no
+  // ghost of the old purchases can survive next to a brand new save.
+  var SAVE_KEY = 'mol3d.shop.v2';
+  var LEGACY_SAVE_KEY = 'mol3d.shop.v1';
   var FREE_MAX_Z = 20;
 
-  // One ledger: the rank star total (mol3d.rank) IS the shop balance.
+  // One ledger: the rank star total (mol3d.rank.v2) IS the shop balance.
   // Prices are denominated in rank stars, so spending downranks the player.
   var TIERS = [
     { maxZ: 20, stars: 0, price: 0 },
@@ -22,13 +25,15 @@
     { maxZ: 118, stars: 5, price: 280 }
   ];
 
+  // The console has a rank gate of its own and no rank path any more: 2000 stars
+  // is the only way in, and `min` stops dynamic pricing from discounting it.
   var FEATURES = [
     { id: 'xray', icon: 'scan-eye', stars: 2, price: 40 },
     { id: 'proton', icon: 'crosshair', stars: 2, price: 65 },
     { id: 'timeSpeed', icon: 'fast-forward', stars: 3, price: 70 },
     { id: 'timeStop', icon: 'clock', stars: 4, price: 120 },
     { id: 'mayhem', icon: 'flame', stars: 4, price: 150 },
-    { id: 'console', icon: 'terminal', stars: 5, price: 250 }
+    { id: 'console', icon: 'terminal', stars: 5, price: 2000, min: 2000 }
   ];
 
   var INCOME = { discovery: 1, daily: 5 };
@@ -188,6 +193,7 @@
 
   function load() {
     try {
+      localStorage.removeItem(LEGACY_SAVE_KEY);
       var raw = localStorage.getItem(SAVE_KEY);
       if (!raw) { save(); return; }
       var d = JSON.parse(raw);
@@ -251,11 +257,13 @@
     status(fmt(label, { n: n }), 'info');
   }
 
-  function priceOf(base) {
+  function priceOf(base, floor) {
     if (!(base > 0)) return 0;
     var b = balance();
-    if (b > PCT_THRESHOLD) return Math.max(1, Math.round(b * PCT_RATE));
-    return base;
+    var p = base;
+    if (b > PCT_THRESHOLD) p = Math.max(1, Math.round(b * PCT_RATE));
+    var min = floor || 0;
+    return p > min ? p : min;
   }
   function isDynamic() {
     return balance() > PCT_THRESHOLD;
@@ -281,7 +289,7 @@
   function buyFeature(id) {
     var f = featureById(id);
     if (!f || ownsFeature(id)) return;
-    var price = priceOf(f.price);
+    var price = priceOf(f.price, f.min);
     if (balance() < price || !spend(price)) {
       status('⚠ ' + fmt(S('notEnough'), { name: sf(id), price: price }), 'err');
       shake();
@@ -366,7 +374,7 @@
     var b = balance();
     panel.querySelectorAll('.shop-card[data-base], .shop-row[data-base]').forEach(function(node) {
       var owned = node.classList.contains('is-owned');
-      var p = priceOf(Number(node.dataset.base));
+      var p = priceOf(Number(node.dataset.base), Number(node.dataset.min));
       node.classList.toggle('is-poor', !owned && b < p);
       if (owned) return;
       var chip = node.querySelector('.shop-card-price');
@@ -457,10 +465,11 @@
       var owned = ownsFeature(f.id);
       var row = document.createElement('button');
       row.type = 'button';
-      var price = priceOf(f.price);
+      var price = priceOf(f.price, f.min);
       row.className = 'shop-row' + (owned ? ' is-owned' : '') + (balance() >= price ? '' : ' is-poor');
       row.dataset.feature = f.id;
       row.dataset.base = String(f.price);
+      if (f.min) row.dataset.min = String(f.min);
       row.innerHTML =
         '<span class="shop-row-icon"><i data-lucide="' + f.icon + '"></i></span>' +
         '<span class="shop-row-main">' +
@@ -777,7 +786,7 @@
       dynamicPricing: { threshold: PCT_THRESHOLD, rate: PCT_RATE },
       catalogue: { features: FEATURES, tiers: TIERS, freeMaxZ: FREE_MAX_Z },
       exportState: function() {
-        return { version: 1, elements: Array.from(ownedElements), features: Array.from(ownedFeatures) };
+        return { version: 2, elements: Array.from(ownedElements), features: Array.from(ownedFeatures) };
       },
       importState: function(d) {
         if (!d || typeof d !== 'object') return false;

@@ -428,7 +428,7 @@
         },
         {
           "target": "#btn-console",
-          "text": "The Console gives admin commands: setStars(), debugRank(), adminExport(), and more.",
+          "text": "The Console costs 2000 stars in the Rope Shop and runs JavaScript on your live scene.",
           "action": "highlight"
         },
         {
@@ -595,7 +595,7 @@
     "Undo (Ctrl+Z) reverses your last action. Duplicate (Ctrl+D) copies selected atoms.": "Hoàn tác (Ctrl+Z) đảo ngược hành động cuối. Nhân đôi (Ctrl+D) sao chép nguyên tử được chọn.",
     "Delete removes selected atoms. Clear wipes the entire scene.": "Xóa loại bỏ nguyên tử được chọn. Dọn sạch toàn bộ cảnh.",
     "Mayhem mode enables chaotic reactions — explosions, lightning, and wild chemistry!": "Chế độ Hỗn loạn bật các phản ứng hỗn loạn — vỡ nổ, sét và hóa học dồi!",
-    "The Console gives admin commands: setStars(), debugRank(), adminExport(), and more.": "Bảng điều khiển cung cấp lệnh admin: setStars(), debugRank(), adminExport() và hơn thế.",
+    "The Console costs 2000 stars in the Rope Shop and runs JavaScript on your live scene.": "Bảng điều khiển có giá 2000 sao trong Cửa hàng Dây thừng và chạy JavaScript trên cảnh đang mở của bạn.",
     "Quest mode connects you to an AI assistant that gives challenges and answers chemistry questions.": "Chế độ Nhiệm vụ kết nối trợ lý AI đưa thách thức và trả lời câu hỏi hóa học.",
     "Multiplayer lets you host or join rooms via PeerJS. Build molecules together in real-time!": "Chơi nhiều người cho phép tạo hoặc tham gia phòng qua PeerJS. Xây phân tử cùng nhau thời gian thực!",
     "In multiplayer, you get voice chat, text chat, and shared world state synchronization.": "Trong chơi nhiều người, bạn có trò chuyện thoại, trò chuyện văn bản và đồng bộ trạng thái thế giới.",

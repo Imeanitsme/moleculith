@@ -43831,6 +43831,8 @@ const UI = {
     "rank.shopHint": "Buy it in the Rope Shop (drag the cord at the top right)",
     "rank.elementLocked": "This element is locked. Buy it in the Rope Shop — drag the cord at the top right.",
     "rank.featureLocked": "This feature is locked. Reach {rank} rank — or buy it in the Rope Shop!",
+    "rank.consoleLocked": "The Console is not a rank reward — buy it in the Rope Shop for {price} stars.",
+    "rank.discStarCap": "Cascade guard: too many species settled at once — the extras stay in your dex but earn no star.",
     "rank.dailyReward": "Daily Reward",
     "rank.dailyClaimed": "Daily reward claimed! +{stars} stars",
     "rank.dailyStreak": "Day {day} streak!",
@@ -44324,6 +44326,8 @@ const UI = {
     "rank.shopHint": "Mua trong Cửa hàng Dây thừng (kéo sợi dây ở góc trên bên phải)",
     "rank.elementLocked": "Nguyên tố này đang khóa. Hãy mua ở Cửa hàng Dây thừng — kéo sợi dây ở góc trên bên phải.",
     "rank.featureLocked": "Tính năng này đang khóa. Đạt hạng {rank} — hoặc mua tại Cửa hàng Dây thừng!",
+    "rank.consoleLocked": "Bảng điều khiển không mở theo hạng — hãy mua trong Cửa hàng Dây thừng với giá {price} sao.",
+    "rank.discStarCap": "Chốt chặn dây chuyền: quá nhiều loài cùng ổn định — các loài thừa vẫn nằm trong sổ nhưng không nhận sao.",
     "rank.dailyReward": "Phần thưởng hàng ngày",
     "rank.dailyClaimed": "Đã nhận phần thưởng hàng ngày! +{stars} sao",
     "rank.dailyStreak": "Ngày {day} liên tiếp!",
@@ -53498,6 +53502,8 @@ function getRankFromStars(totalStars) {
     isMaxGrade: false
   };
 }
+const RANK_KEY = "mol3d.rank.v2";
+const RANK_SCHEMA = 2;
 class RankManager {
   constructor() {
     this.totalStars = 0;
@@ -53576,21 +53582,23 @@ class RankManager {
    */
   saveProgress() {
     try {
-      localStorage.setItem("mol3d.rank", JSON.stringify({ totalStars: this.totalStars }));
+      localStorage.setItem(RANK_KEY, JSON.stringify({ version: RANK_SCHEMA, stars: this.totalStars }));
     } catch {
     }
   }
   /**
-   * Load progress
+   * Load progress. Schema 2 renamed the field and dropped every pre-existing
+   * save on purpose: an old mol3d.rank blob leaves the player at 0 stars.
    */
   loadProgress() {
     try {
-      const data = JSON.parse(localStorage.getItem("mol3d.rank"));
-      if (data && typeof data.totalStars === "number" && Number.isFinite(data.totalStars) && data.totalStars >= 0) {
-        this.totalStars = Math.min(Math.floor(data.totalStars), 1e6);
-      } else if (data) {
-        console.warn("Rank progress corrupted, resetting to 0", data.totalStars);
+      const data = JSON.parse(localStorage.getItem(RANK_KEY));
+      const ok = data && data.version === RANK_SCHEMA && typeof data.stars === "number" && Number.isFinite(data.stars) && data.stars >= 0;
+      if (ok) {
+        this.totalStars = Math.min(Math.floor(data.stars), 1e6);
+      } else {
         this.totalStars = 0;
+        localStorage.removeItem("mol3d.rank");
         this.saveProgress();
       }
     } catch {
@@ -53624,12 +53632,16 @@ function getUnlockedElementCount(rankInfo) {
   return ELEMENT_TIERS[rankInfo.rank.id] || 20;
 }
 const FEATURE_RANKS = {
-  mayhem: "experienced",
-  console: "further_beyond"
+  mayhem: "experienced"
 };
+// Features that no rank can hand out: the shop is the only way in. The console
+// lives here so that its 2000-star price is a real gate rather than a formality —
+// at 125 stars every rank is reachable, so a rank requirement alone was free.
+const SHOP_ONLY_FEATURES = ["console"];
 function isFeatureUnlocked(feature, rankInfo) {
   const shop = window.__mol3dShop;
   if (shop && typeof shop.ownsFeature === "function" && shop.ownsFeature(feature)) return true;
+  if (SHOP_ONLY_FEATURES.includes(feature)) return false;
   const requiredRankId = FEATURE_RANKS[feature];
   if (!requiredRankId) return true;
   const requiredIdx = RANKS.findIndex((r) => r.id === requiredRankId);
@@ -53639,6 +53651,15 @@ function getRequiredRankForFeature(feature) {
   const id = FEATURE_RANKS[feature];
   if (!id) return null;
   return RANKS.find((r) => r.id === id);
+}
+// The shop owns the price list, including the dynamic one, so a locked message
+// has to read the live number off it instead of hardcoding 2000.
+function shopPriceOf(feature) {
+  const shop = window.__mol3dShop;
+  const list = shop && shop.catalogue && shop.catalogue.features;
+  if (!list || typeof shop.priceOf !== "function") return null;
+  for (const f of list) if (f.id === feature) return shop.priceOf(f.price, f.min);
+  return null;
 }
 const DAILY_REWARD_KEY = "mol3d.dailyReward";
 const DAILY_STREAK_KEY = "mol3d.dailyStreak";
@@ -58405,13 +58426,95 @@ function structureTplOf(comp, an) {
   };
   return { tpl, cKey };
 }
+// Three rules govern the star a discovery is worth, and all three are enforced
+// here: one star per species for its whole lifetime — the ledger outlives a dex
+// deletion, so delete-and-reform is not a faucet; a species must still be in the
+// scene DISC_STAR_SETTLE_MS after it first appeared, which is what stops a
+// proton-gun cascade from paying for its own fleeting intermediates; and at most
+// MAX_DISCOVERY_STARS_PER_SECOND stars may be paid inside any one second.
+const DISC_STAR_KEY = "mol3d.discStars.v2";
+const DISC_STAR_SETTLE_MS = 5e3;
+const MAX_DISCOVERY_STARS_PER_SECOND = 2;
+const paidDiscStars = /* @__PURE__ */ new Set();
+const pendingDiscStars = /* @__PURE__ */ new Map();
+let discStarWindowStart = 0;
+let discStarWindowPaid = 0;
+let discStarCapShown = false;
+function loadDiscStarLedger() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(DISC_STAR_KEY) || "[]");
+    if (Array.isArray(arr)) {
+      for (const k of arr) if (typeof k === "string") paidDiscStars.add(k);
+    }
+  } catch {
+  }
+}
+function saveDiscStarLedger() {
+  try {
+    localStorage.setItem(DISC_STAR_KEY, JSON.stringify(Array.from(paidDiscStars)));
+  } catch {
+  }
+}
+function settleDiscoveryStar(key, now) {
+  if (paidDiscStars.has(key)) return;
+  const since = pendingDiscStars.get(key);
+  if (since === void 0) {
+    // Re-seen after vanishing unsettled: the clock restarts, so a species can
+    // still earn its star later instead of being lost for good.
+    pendingDiscStars.set(key, now);
+    return;
+  }
+  if (now - since < DISC_STAR_SETTLE_MS) return;
+  pendingDiscStars.delete(key);
+  payDiscoveryStar(key, now);
+}
+// Reanalyse is the only thing that calls recordDiscoveries, so a player who
+// builds one molecule and then leaves the scene alone would never be re-checked
+// and the star would sit in the queue forever. This sweep closes the settle
+// window on its own clock; removal is still caught by the prune in
+// recordDiscoveries, because every path that changes the scene reanalyses.
+function sweepDiscStars() {
+  if (pendingDiscStars.size === 0) return;
+  const now = Date.now();
+  for (const [key, since] of Array.from(pendingDiscStars)) {
+    if (now - since >= DISC_STAR_SETTLE_MS) {
+      pendingDiscStars.delete(key);
+      payDiscoveryStar(key, now);
+    }
+  }
+}
+function payDiscoveryStar(key, now) {
+  if (paidDiscStars.has(key)) return;
+  paidDiscStars.add(key);
+  saveDiscStarLedger();
+  if (now - discStarWindowStart > 1e3) {
+    discStarWindowStart = now;
+    discStarWindowPaid = 0;
+    discStarCapShown = false;
+  }
+  if (discStarWindowPaid >= MAX_DISCOVERY_STARS_PER_SECOND) {
+    // The species stays in the dex; only its star is withheld, and the reason is
+    // shown once per second instead of once per molecule.
+    if (!discStarCapShown) {
+      discStarCapShown = true;
+      status(t("rank.discStarCap"), "err");
+    }
+    return;
+  }
+  discStarWindowPaid++;
+  rankManager.addStars(1);
+  updateRankWidget();
+}
 function recordDiscoveries() {
+  const now = Date.now();
+  const present = /* @__PURE__ */ new Set();
   for (let i = 0; i < lastComps.length; i++) {
     const comp = lastComps[i], an = analyses[i];
     if (!an || !an.feasible) continue;
     if (!an.formula || typeof an.formula !== "string") continue;
     if (comp.bonds.length === 0 || comp.atoms.length < 2) continue;
     const key = discKeyOf(an.formula, an.charge);
+    present.add(key);
     const { tpl, cKey } = structureTplOf(comp, an);
     if (seenDisc.has(key)) {
       const existing = discoveries.find((x) => discKeyOf(x.formula, x.charge ?? 0) === key);
@@ -58424,6 +58527,7 @@ function recordDiscoveries() {
         existing.name = nameMolecule(comp.atoms.map((id) => atoms.get(id)), comp.bonds, newFormula, existing.charge, an.per) || null;
         if (existing.saved) persistSavedDiscoveries();
       }
+      settleDiscoveryStar(key, now);
       continue;
     }
     seenDisc.add(key);
@@ -58443,8 +58547,12 @@ function recordDiscoveries() {
     discUnsaved = true;
     toast(t("toast.newDisc", { f: prettyFormula(an.formula) + formulaWithCharge("", an.charge), name: nm ? ` — ${nm}` : "" }));
     questManager.checkDiscovery(an.formula);
-    const rankInfo = rankManager.addStars(1);
-    updateRankWidget();
+    settleDiscoveryStar(key, now);
+  }
+  // A species that vanished before it settled never gets its star: the queue is
+  // pruned against what this analysis pass actually found.
+  for (const key of Array.from(pendingDiscStars.keys())) {
+    if (!present.has(key)) pendingDiscStars.delete(key);
   }
   updateDiscList();
 }
@@ -61293,10 +61401,6 @@ const availableCommands = [
   "__mol3d.hacks.slowmo()",
   "__mol3d.hacks.fastforward()",
   "__mol3d.hacks.normalSpeed()",
-  "__mol3d.hacks.setStars(",
-  "__mol3d.hacks.addStars(",
-  "__mol3d.hacks.removeStars(",
-  "__mol3d.hacks.debugRank()",
   "__mol3d.hacks.adminExport()",
   "__mol3d.hacks.triggerDeath()",
   "__mol3d.spawnAtom(",
@@ -61386,8 +61490,8 @@ document.getElementById("btn-console").addEventListener("click", () => {
   if (!shopGate("console")) return;
   const rankInfo = rankManager.getCurrentRank();
   if (!isFeatureUnlocked("console", rankInfo)) {
-    const req = getRequiredRankForFeature("console");
-    status(t("rank.featureLocked", { rank: rankName(req) || rankName(RANKS[RANKS.length - 1]) }), "err");
+    const price = shopPriceOf("console");
+    status(t("rank.consoleLocked", { price: price === null ? "?" : price }), "err");
     return;
   }
   mobileConsole.hidden = !mobileConsole.hidden;
@@ -61406,7 +61510,7 @@ if (btnReturnLobby) {
 document.getElementById("btn-export").addEventListener("click", () => {
   try {
     const exportData = {
-      version: "1.0",
+      version: "2.0",
       exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
       scene: {
         atoms: [...atoms.values()].map((a2) => ({ id: a2.id, z: a2.el.z, pos: a2.pos })),
@@ -61417,7 +61521,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
       completed: [...completed],
       overrides: [...overrides],
       isoSel: [...isoSel],
-      rank: { totalStars: rankManager.totalStars, currentRank: rankManager.getCurrentRank() },
+      rank: { version: RANK_SCHEMA, stars: rankManager.totalStars, currentRank: rankManager.getCurrentRank() },
       shop: window.__mol3dShop && typeof window.__mol3dShop.exportState === "function" ? window.__mol3dShop.exportState() : null,
       quests: { stars: questManager.getStars(), completed: [...questManager.completedQuests] },
       player: {
@@ -61522,14 +61626,19 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
         }
       }
       if (data.rank) {
-        if (typeof data.rank.totalStars === "number" && Number.isFinite(data.rank.totalStars) && data.rank.totalStars >= 0 && data.rank.totalStars <= 1e6) {
-          rankManager.totalStars = Math.floor(data.rank.totalStars);
+        // Rank only comes back from a schema-2 block; a pre-reset file restores its
+        // scene but never its stars, so an old backup cannot undo the reset.
+        const stars = data.rank.version === RANK_SCHEMA ? data.rank.stars : void 0;
+        if (data.rank.version !== RANK_SCHEMA) {
+          console.warn("Import: rank block is pre-schema-2, stars left at", rankManager.totalStars);
+        } else if (typeof stars === "number" && Number.isFinite(stars) && stars >= 0 && stars <= 1e6) {
+          rankManager.totalStars = Math.floor(stars);
           rankManager.saveProgress();
           rankManager.emit("starsChanged", { totalStars: rankManager.totalStars, rank: rankManager.getCurrentRank() });
           updateRankWidget();
           rebuildPool();
-        } else if (typeof data.rank.totalStars === "number") {
-          console.warn("Import rejected: totalStars out of safe range", data.rank.totalStars);
+        } else if (typeof stars === "number") {
+          console.warn("Import rejected: stars out of safe range", stars);
         }
       }
       if (data.shop && window.__mol3dShop && typeof window.__mol3dShop.importState === "function") {
@@ -62843,12 +62952,9 @@ window.__mol3d = {
     console.log("  __mol3d.hacks.unlockAll() — Unlock all discoveries");
     console.log("  __mol3d.hacks.slowmo() / fastforward() / normalSpeed() — Time control");
     console.log("%cAdmin Debug:", "color: #ff0000; font-weight: bold;");
-    console.log("  __mol3d.hacks.setStars(n) — Set total stars to n");
-    console.log("  __mol3d.hacks.addStars(n) — Add n stars");
-    console.log("  __mol3d.hacks.removeStars(n) — Remove n stars");
-    console.log("  __mol3d.hacks.debugRank() — Log detailed rank info");
     console.log("  __mol3d.hacks.adminExport() — Download debug JSON");
     console.log("  __mol3d.hacks.triggerDeath() — Test death animation");
+    console.log("  Stars and rank have no console command — they are the shop balance.");
     return "API listed above";
   },
   screenPosOf: (id) => {
@@ -63238,53 +63344,10 @@ window.__mol3d = {
       return "Time scale: 1x";
     },
     // Admin debug commands - added 2026-11-01
-    setStars: (n) => {
-      if (typeof n !== "number" || n < 0) return "Usage: setStars(number)";
-      rankManager.totalStars = n;
-      rankManager.saveProgress();
-      rankManager.emit("starsChanged", { totalStars: n, rank: rankManager.getCurrentRank() });
-      updateRankWidget();
-      rebuildPool();
-      console.log(`%c⭐ Stars set to ${n}`, "color: #ffd700; font-weight: bold;");
-      return `Stars: ${n}`;
-    },
-    addStars: (n) => {
-      if (typeof n !== "number" || n <= 0) return "Usage: addStars(number)";
-      const result = rankManager.addStars(n);
-      updateRankWidget();
-      rebuildPool();
-      console.log(`%c⭐ Added ${n} stars. Total: ${result.totalStars}`, "color: #4CAF50; font-weight: bold;");
-      return `Added ${n} stars. Total: ${result.totalStars}`;
-    },
-    removeStars: (n) => {
-      if (typeof n !== "number" || n <= 0) return "Usage: removeStars(number)";
-      const result = rankManager.removeStars(n);
-      updateRankWidget();
-      rebuildPool();
-      console.log(`%c⭐ Removed ${n} stars. Total: ${result.totalStars}`, "color: #ff5722; font-weight: bold;");
-      return `Removed ${n} stars. Total: ${result.totalStars}`;
-    },
-    debugRank: () => {
-      const rank = rankManager.getCurrentRank();
-      const info = {
-        totalStars: rankManager.totalStars,
-        rank: rankName(rank.rank),
-        rankIndex: rank.rankIndex,
-        grade: rank.grade,
-        gradeRoman: rank.gradeRoman,
-        starsInGrade: rank.starsInGrade,
-        nextGradeStars: rank.nextGradeStars,
-        isMaxGrade: rank.isMaxGrade,
-        image: rank.rank.image
-      };
-      console.log("%c═══ RANK DEBUG INFO ═══", "color: #2196F3; font-weight: bold; font-size: 14px;");
-      console.table(info);
-      console.log("%cQuest Stars:", "color: #4CAF50; font-weight: bold;", questManager.getStars());
-      console.log("%cCompleted Quests:", "color: #4CAF50; font-weight: bold;", [...questManager.completedQuests]);
-      console.log("%cPlayer Health:", "color: #ff5722; font-weight: bold;", playerHealth);
-      console.log("%cDiscoveries:", "color: #9c27b0; font-weight: bold;", discoveries.length);
-      return info;
-    },
+    // The rank ledger used to be editable from here (setStars / addStars /
+    // removeStars / debugRank). Stars are now the shop balance and the whole
+    // rank, so a console shortcut for them was a progression switch, not a debug
+    // aid; rank inspection lives in __mol3d.progression instead.
     adminExport: () => {
       const rank = rankManager.getCurrentRank();
       const exportData = {
@@ -63293,7 +63356,7 @@ window.__mol3d = {
           userAgent: navigator.userAgent,
           url: window.location.href
         },
-        version: "1.0",
+        version: "2.0",
         scene: {
           atoms: [...atoms.values()].map((a2) => ({ id: a2.id, z: a2.el.z, sym: a2.el.sym, pos: a2.pos })),
           bonds: [...bonds.values()].map((b) => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic })),
@@ -63304,7 +63367,8 @@ window.__mol3d = {
         overrides: [...overrides],
         isoSel: [...isoSel],
         rank: {
-          totalStars: rankManager.totalStars,
+          version: RANK_SCHEMA,
+          stars: rankManager.totalStars,
           currentRank: rank,
           raw: { ...rankManager }
         },
@@ -63326,7 +63390,7 @@ window.__mol3d = {
           gameMode
         },
         localStorage: {
-          rank: localStorage.getItem("mol3d.rank"),
+          rank: localStorage.getItem(RANK_KEY),
           quests: localStorage.getItem("mol3d.quests"),
           theme: localStorage.getItem("mol3d.theme"),
           volume: localStorage.getItem("mol3d.volume")
@@ -63378,6 +63442,13 @@ console.log(`%c🧪 Mol3D loaded! Type %c__mol3d.help()%c for console API`, "col
 applyStatic();
 syncTopBarLabels();
 updateAtmosphereButton();
+// The ledger has to be in place before the saved scene is analysed, otherwise a
+// reload would hand out stars again for molecules that already earned one.
+loadDiscStarLedger();
+// The settle clock has to run on its own timer: rendering is on-demand and
+// recordDiscoveries only fires from reanalyse, so a molecule left alone in a
+// quiet scene would otherwise sit in the queue and never be paid.
+setInterval(sweepDiscStars, 1e3);
 load();
 loadDiscoveries();
 buildPool();

@@ -71,7 +71,7 @@
       "name": "Element Pool",
       "steps": [
         {
-          "target": "#side-pool",
+          "target": "#pool-bar",
           "text": "This is your element pool — all 118 elements organized by category.",
           "action": "highlight"
         },

@@ -5,7 +5,7 @@
   // ---------- Internationalization ----------
   const I18N = {
     en: {
-      title: "Chemistry Teaching Lab",
+      title: "MOLECULITH - Chemistry Teaching Lab",
       back: "Back to Menu",
       lessons: "Lessons",
       progress: "Progress",
@@ -82,7 +82,7 @@
       biochem: "Biochemistry"
     },
     vi: {
-      title: "Phòng dạy Hóa học",
+      title: "PHÂN TỬ SỐ - Phòng dạy Hóa học",
       back: "Quay lại Menu",
       lessons: "Bài học",
       progress: "Tiến độ",
@@ -3786,6 +3786,7 @@
   // ---------- Language ----------
   function updateAllLanguage() {
     document.documentElement.lang = currentLang;
+    document.title = t('title');
     if (els.lang) { els.lang.textContent = t('langBtn'); els.lang.setAttribute('title', currentLang === 'en' ? 'Chuyển sang tiếng Việt' : 'Switch to English'); }
     if (els.headerTitle) els.headerTitle.textContent = t('title');
     if (els.back) els.back.setAttribute('title', t('back'));

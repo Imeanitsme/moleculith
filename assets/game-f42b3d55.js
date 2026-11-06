@@ -43616,6 +43616,8 @@ const LANG_KEY = "mol3d.lang";
 const LANGS = ["en", "vi"];
 const UI = {
   en: {
+    "app.name": "MOLECULITH",
+    "app.slogan": "From atoms to everything",
     // toolbar
     "btn.undo": "Undo",
     "btn.delete": "Delete",
@@ -43906,7 +43908,7 @@ const UI = {
     "tut.prev": "Back",
     "tut.next": "Next",
     "tut.finish": "Get started!",
-    "tut.welcome.title": "Welcome to Molecule Builder 3D!",
+    "tut.welcome.title": "Welcome to MOLECULITH!",
     "tut.welcome.body": "Build molecules, explore reactions, and discover chemistry in 3D. This quick tutorial will show you the basics.",
     "tut.pool.title": "Element Pool",
     "tut.pool.body": "All 118 elements are here. Click any element to place an atom in the scene. Use the search bar or switch to the periodic table view.",
@@ -44129,6 +44131,8 @@ const UI = {
     "qual.autoHint": "Switches tiers to hold the frame rate"
   },
   vi: {
+    "app.name": "PHÂN TỬ SỐ",
+    "app.slogan": "Từ nguyên tử đến thế giới vật chất",
     "btn.undo": "Hoàn tác",
     "btn.delete": "Xóa",
     "btn.duplicate": "Nhân đôi",
@@ -44407,7 +44411,7 @@ const UI = {
     "tut.prev": "Quay lại",
     "tut.next": "Tiếp",
     "tut.finish": "Bắt đầu!",
-    "tut.welcome.title": "Chào mừng đến Molecule Builder 3D!",
+    "tut.welcome.title": "Chào mừng đến PHÂN TỬ SỐ!",
     "tut.welcome.body": "Xây dựng phân tử, khám phá phản ứng, và tìm hiểu hóa học trong 3D. Hướng dẫn nhanh này sẽ cho bạn biết những điều cơ bản.",
     "tut.pool.title": "Kho nguyên tố",
     "tut.pool.body": "Có đủ 118 nguyên tố ở đây. Bấm vào bất kỳ nguyên tố nào để đặt nguyên tử vào khung cảnh. Dùng thanh tìm kiếm hoặc chuyển sang bảng tuần hoàn.",
@@ -44825,6 +44829,7 @@ function catLabel(cat) {
 }
 function applyStatic() {
   document.documentElement.lang = lang;
+  document.title = t("app.name") + " — " + t("app.slogan");
   for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
   for (const el of document.querySelectorAll("[data-i18n-html]")) el.innerHTML = t(el.dataset.i18nHtml);
   for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
@@ -63115,7 +63120,7 @@ window.__mol3d = {
   triggerDeath: triggerPlayerDeath,
   triggerNuclearVFX: triggerNuclearExplosionVFX,
   help: () => {
-    console.log("%c🧪 Mol3D Console API", "color: #4CAF50; font-weight: bold; font-size: 14px;");
+    console.log("%c🧪 MOLECULITH Console API", "color: #4CAF50; font-weight: bold; font-size: 14px;");
     console.log("%cCore:", "color: #2196F3; font-weight: bold;");
     console.log('  __mol3d.spawnAtom(el) — Spawn an atom (e.g., "C", "O", "H")');
     console.log("  __mol3d.clearAll() — Clear all atoms");
@@ -63644,7 +63649,7 @@ window.__mol3d = {
     return invalidate;
   }
 };
-console.log(`%c🧪 Mol3D loaded! Type %c__mol3d.help()%c for console API`, "color: #4CAF50; font-weight: bold;", "color: #2196F3; font-weight: bold;", "color: #4CAF50;");
+console.log(`%c🧪 MOLECULITH loaded! Type %c__mol3d.help()%c for console API`, "color: #4CAF50; font-weight: bold;", "color: #2196F3; font-weight: bold;", "color: #4CAF50;");
 applyStatic();
 syncTopBarLabels();
 updateAtmosphereButton();
@@ -63906,7 +63911,7 @@ function initBackgroundMusic() {
     try {
       const context = getSceneContext();
       const systemPrompt = isVi()
-        ? `Bạn là hướng dẫn hóa học AI cho ứng dụng xây dựng phân tử 3D. Bạn có thể TRẢ LỜI câu hỏi VÀ thực hiện hành động để xây dựng phân tử.
+        ? `Bạn là hướng dẫn hóa học AI của PHÂN TỬ SỐ, ứng dụng xây dựng phân tử 3D. Bạn có thể TRẢ LỜI câu hỏi VÀ thực hiện hành động để xây dựng phân tử.
 
 Cảnh hiện tại:
 - Nguyên tử: ${context.totalAtoms}
@@ -63934,7 +63939,7 @@ Bạn: "Tôi sẽ tạo H₂O cho bạn - oxy tạo 2 liên kết với hydro.[A
 
 Người dùng: "Metan là gì?"
 Bạn: "Metan (CH₄) là hydrocarbon đơn giản nhất - carbon liên kết với 4 hydro theo hình tứ diện. Bạn có muốn tôi tạo nó không?[ACTION:spawnMolecule:formula=CH4]"`
-        : `You are an AI chemistry guide for a 3D molecule builder app. You can BOTH answer questions AND take actions to build molecules.
+        : `You are an AI chemistry guide for MOLECULITH, a 3D molecule builder. You can BOTH answer questions AND take actions to build molecules.
 
 Current scene:
 - Atoms: ${context.totalAtoms}

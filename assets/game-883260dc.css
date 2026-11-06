@@ -2858,7 +2858,7 @@ body.mobile:has(.side-tab-panel.open) #joy {
   color: #ffcc00;
   font-weight: 900;
   font-size: 18px;
-  letter-spacing: 4px;
+  letter-spacing: 3px;
   padding: 6px 24px;
   border: 2px solid #ffcc00;
   text-transform: uppercase;
@@ -4001,14 +4001,26 @@ body.time-stopped #meltdown-overlay.active {
 .game-title {
   font-size: 64px;
   font-weight: 900;
+  white-space: nowrap;
   color: var(--text);
   text-shadow: 0 0 20px var(--accent-glow), 0 4px 8px rgba(0, 0, 0, 0.5);
-  margin-bottom: 60px;
+  margin-bottom: 12px;
   letter-spacing: 2px;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.game-slogan {
+  margin: 0 0 48px;
+  font-size: clamp(13px, 2.2vw, 18px);
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.82;
+  text-shadow: 0 0 14px var(--accent-glow);
 }
 
 .menu-buttons {

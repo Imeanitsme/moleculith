@@ -702,6 +702,16 @@
     container = assistantEl = dialogEl = spotlightRing = clickIndicator = null;
   }
 
+  function resolveTarget(sel) {
+    var el = document.querySelector(sel);
+    if (!el) return null;
+    // Menu controls live on tabs; an unshown tab has no box to point at.
+    if (el.offsetParent === null && window.__mol3dMenu && el.closest && el.closest('#menu-dropdown')) {
+      el = window.__mol3dMenu.reveal(el) || el;
+    }
+    return el;
+  }
+
   function positionContainer(targetSelector) {
     if (!container) return;
     var vw = window.innerWidth;
@@ -713,7 +723,7 @@
     var assistantH = assistantEl ? (assistantEl.offsetHeight || 56) : 56;
     container.style.visibility = '';
     if (targetSelector) {
-      var target = document.querySelector(targetSelector);
+      var target = resolveTarget(targetSelector);
       if (target) {
         var rect = target.getBoundingClientRect();
         var gap = 12;
@@ -763,7 +773,7 @@
   }
 
   function highlightTarget(selector) {
-    var target = document.querySelector(selector);
+    var target = resolveTarget(selector);
     if (!target) { hideHighlight(); return; }
     var rect = target.getBoundingClientRect();
     var pad = 8;
@@ -832,7 +842,7 @@
     if (btn) {
       btn.addEventListener('click', function() {
         if (s.action === 'highlight' && s.target) {
-          var tgt = document.querySelector(s.target);
+          var tgt = resolveTarget(s.target);
           if (tgt) tgt.click();
         }
         advance();

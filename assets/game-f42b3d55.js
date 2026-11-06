@@ -43657,6 +43657,11 @@ const UI = {
     "btn.mayhem.title": "Toggle mayhem mode — exotic elements and chaotic reactions",
     "btn.import.title": "Create custom elements (Mayhem mode only)",
     "menu.volume": "Volume",
+    "menu.tabs": "Menu sections",
+    "menu.tab.game": "Game",
+    "menu.tab.settings": "Settings",
+    "menu.tab.progress": "Progress",
+    "menu.tab.more": "More",
     "btn.cancel": "Cancel",
     "btn.create": "Create",
     "meltdown.text": "⚠ MELTDOWN — UNSTABLE MOLECULES ",
@@ -43817,7 +43822,10 @@ const UI = {
     "status.sceneChanged": "Scene changed — the selection no longer matches a reaction.",
     "status.reactionDone": "Reaction ({cond}): {eq}",
     "status.reactionFailed": "Reaction failed: missing template for {product}.",
+    "status.reactionRepaired": "⚠️ {n} reaction product(s) needed repair — the details are in the console.",
     "status.mayhemEffect": "{effect} {eq}",
+    "status.mayhemOn": "Mayhem mode ON — exotic elements unlocked!",
+    "status.mayhemOff": "Mayhem mode OFF",
     "status.selCleared": "Reaction selection cleared.",
     "status.selRemoved": "Molecule removed from reaction selection.",
     "status.selAdded": "Molecule added to reaction selection ({n}). Pick a condition below.",
@@ -43830,7 +43838,7 @@ const UI = {
     "rank.requires": "Requires",
     "rank.shopHint": "Buy it in the Rope Shop (drag the cord at the top right)",
     "rank.elementLocked": "This element is locked. Buy it in the Rope Shop — drag the cord at the top right.",
-    "rank.featureLocked": "This feature is locked. Reach {rank} rank — or buy it in the Rope Shop!",
+    "rank.featureLocked": "This feature is locked. Buy it in the Rope Shop for {price} ★ — drag the cord at the top right!",
     "rank.consoleLocked": "The Console is not a rank reward — buy it in the Rope Shop for {price} stars.",
     "rank.discStarCap": "Cascade guard: too many species settled at once — the extras stay in your dex but earn no star.",
     "rank.dailyReward": "Daily Reward",
@@ -44161,6 +44169,11 @@ const UI = {
     "btn.mayhem.title": "Chế độ hỗn loạn — nguyên tố kỳ lạ và phản ứng hỗn loạn",
     "btn.import.title": "Tạo nguyên tố tùy chỉnh (chỉ chế độ Hỗn loạn)",
     "menu.volume": "Âm lượng",
+    "menu.tabs": "Các mục trình đơn",
+    "menu.tab.game": "Trò chơi",
+    "menu.tab.settings": "Cài đặt",
+    "menu.tab.progress": "Tiến độ",
+    "menu.tab.more": "Khác",
     "btn.cancel": "Hủy",
     "btn.create": "Tạo",
     "meltdown.text": "⚠ TAN CHẢY — PHÂN TỬ KHÔNG ỔN ĐỊNH ",
@@ -44312,7 +44325,10 @@ const UI = {
     "status.sceneChanged": "Khung cảnh đã thay đổi — lựa chọn không còn khớp phản ứng nào.",
     "status.reactionDone": "Phản ứng ({cond}): {eq}",
     "status.reactionFailed": "Phản ứng thất bại: thiếu mẫu cho {product}.",
+    "status.reactionRepaired": "⚠️ {n} sản phẩm phản ứng cần được sửa — chi tiết nằm trong console.",
     "status.mayhemEffect": "{effect} {eq}",
+    "status.mayhemOn": "Chế độ Hỗn Loạn BẬT — mở khóa các nguyên tố ngoại lai!",
+    "status.mayhemOff": "Chế độ Hỗn Loạn TẮT",
     "status.selCleared": "Đã xóa lựa chọn phản ứng.",
     "status.selRemoved": "Đã bỏ phân tử khỏi lựa chọn phản ứng.",
     "status.selAdded": "Đã thêm phân tử vào lựa chọn phản ứng ({n}). Chọn điều kiện bên dưới.",
@@ -44325,7 +44341,7 @@ const UI = {
     "rank.requires": "Yêu cầu",
     "rank.shopHint": "Mua trong Cửa hàng Dây thừng (kéo sợi dây ở góc trên bên phải)",
     "rank.elementLocked": "Nguyên tố này đang khóa. Hãy mua ở Cửa hàng Dây thừng — kéo sợi dây ở góc trên bên phải.",
-    "rank.featureLocked": "Tính năng này đang khóa. Đạt hạng {rank} — hoặc mua tại Cửa hàng Dây thừng!",
+    "rank.featureLocked": "Tính năng này đang khóa. Hãy mua tại Cửa hàng Dây thừng với giá {price} ★ — kéo sợi dây ở góc trên bên phải!",
     "rank.consoleLocked": "Bảng điều khiển không mở theo hạng — hãy mua trong Cửa hàng Dây thừng với giá {price} sao.",
     "rank.discStarCap": "Chốt chặn dây chuyền: quá nhiều loài cùng ổn định — các loài thừa vẫn nằm trong sổ nhưng không nhận sao.",
     "rank.dailyReward": "Phần thưởng hàng ngày",
@@ -47696,8 +47712,15 @@ function orderingToCondensedFormula(atoms2, bonds2) {
   }
   const heavyAtoms = [];
   const hCount = /* @__PURE__ */ new Map();
+  let unattachedH = 0;
   for (let i2 = 0; i2 < atoms2.length; i2++) {
-    if (atoms2[i2] === "H") continue;
+    if (atoms2[i2] === "H") {
+      // Hydrogen written next to a heavy atom is that atom's substituent. An H that
+      // only touches other hydrogen (or nothing at all) belongs to no group, and
+      // dropping it would make the label under-count the molecule.
+      if (!adj[i2].some((n) => atoms2[n] !== "H")) unattachedH++;
+      continue;
+    }
     heavyAtoms.push(i2);
     let h = 0;
     for (const neighbor of adj[i2]) {
@@ -47722,6 +47745,7 @@ function orderingToCondensedFormula(atoms2, bonds2) {
     if (totalH > 0) result += totalH > 1 ? `H${totalH}` : "H";
     i += count;
   }
+  if (unattachedH > 0) result += unattachedH > 1 ? `H${unattachedH}` : "H";
   return result;
 }
 function registerIsomer(formula, key, tpl, displayName) {
@@ -53614,43 +53638,18 @@ class RankManager {
   }
 }
 const rankManager = new RankManager();
-const ELEMENT_TIERS = {
-  new_creation: 20,
-  talented: 36,
-  low_intermediate: 54,
-  experienced: 86,
-  researcher: 118,
-  further_beyond: 118
-};
-function isElementUnlocked(z, rankInfo) {
+// Ranks carry status only. Every element and every feature comes out of the Rope
+// Shop, so ownership is the single gate; FREE_ELEMENT_Z mirrors the shop's free tier.
+const FREE_ELEMENT_Z = 20;
+function isElementUnlocked(z) {
   const shop = window.__mol3dShop;
   if (shop && typeof shop.ownsElement === "function") return !!shop.ownsElement(z);
-  const maxZ = ELEMENT_TIERS[rankInfo.rank.id] || 20;
-  return z <= maxZ;
+  return z <= FREE_ELEMENT_Z;
 }
-function getUnlockedElementCount(rankInfo) {
-  return ELEMENT_TIERS[rankInfo.rank.id] || 20;
-}
-const FEATURE_RANKS = {
-  mayhem: "experienced"
-};
-// Features that no rank can hand out: the shop is the only way in. The console
-// lives here so that its 2000-star price is a real gate rather than a formality —
-// at 125 stars every rank is reachable, so a rank requirement alone was free.
-const SHOP_ONLY_FEATURES = ["console"];
-function isFeatureUnlocked(feature, rankInfo) {
+function isFeatureUnlocked(feature) {
   const shop = window.__mol3dShop;
-  if (shop && typeof shop.ownsFeature === "function" && shop.ownsFeature(feature)) return true;
-  if (SHOP_ONLY_FEATURES.includes(feature)) return false;
-  const requiredRankId = FEATURE_RANKS[feature];
-  if (!requiredRankId) return true;
-  const requiredIdx = RANKS.findIndex((r) => r.id === requiredRankId);
-  return rankInfo.rankIndex >= requiredIdx;
-}
-function getRequiredRankForFeature(feature) {
-  const id = FEATURE_RANKS[feature];
-  if (!id) return null;
-  return RANKS.find((r) => r.id === id);
+  if (shop && typeof shop.ownsFeature === "function") return !!shop.ownsFeature(feature);
+  return false;
 }
 // The shop owns the price list, including the dynamic one, so a locked message
 // has to read the live number off it instead of hardcoding 2000.
@@ -57199,6 +57198,33 @@ function hideDeathScreen() {
   const deathScreen = document.getElementById("death-screen");
   if (deathScreen) deathScreen.style.display = "none";
 }
+function frameSceneView() {
+  const center = new Vector3(0, 1.6, 0);
+  const list = [...atoms.values()];
+  let radius = 0;
+  let finite = 0;
+  for (const at of list) {
+    const p = at.pos;
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) continue;
+    center.add(p);
+    finite++;
+  }
+  if (finite) {
+    center.divideScalar(finite);
+    for (const at of list) {
+      const p = at.pos;
+      if (Number.isFinite(p.x)) radius = Math.max(radius, Math.hypot(p.x - center.x, p.y - center.y, p.z - center.z));
+    }
+  } else {
+    center.set(0, 1.6, 0);
+  }
+  const halfV = camera.fov * Math.PI / 360;
+  const halfH = Math.atan(Math.tan(halfV) * Math.min(1, camera.aspect || 1));
+  const dist = Math.min(controls.maxDistance, Math.max(7, (radius + 1.5) / Math.sin(halfH || halfV)));
+  camera.position.copy(center).addScaledVector(new Vector3(0, 0.34, 1).normalize(), dist);
+  controls.target.copy(center);
+  controls.update();
+}
 function setGameMode(mode) {
   gameMode = mode;
   const healthBar = document.getElementById("health-bar-container");
@@ -57215,7 +57241,7 @@ function setGameMode(mode) {
     controls.enabled = true;
     if (joyVert) joyVert.style.display = "flex";
     if (joyJump) joyJump.classList.remove("visible");
-    controls.target.copy(camera.position).add(new Vector3(0, 0, -2).applyQuaternion(camera.quaternion));
+    frameSceneView();
     status(t("status.creativeMode"), "ok");
   } else {
     if (healthBar) healthBar.style.display = "flex";
@@ -58346,6 +58372,18 @@ function updateCatalystTracking() {
     }
   }
 }
+function arrangementMatchesScene(text, comp) {
+  const want = parseFormula(text);
+  const have = /* @__PURE__ */ new Map();
+  for (const id of comp.atoms) {
+    const at = atoms.get(id);
+    if (!at) return false;
+    have.set(at.el.sym, (have.get(at.el.sym) || 0) + 1);
+  }
+  if (want.size === 0 || want.size !== have.size) return false;
+  for (const [sym, n] of want) if (have.get(sym) !== n) return false;
+  return true;
+}
 function reanalyze(pinnedIds = /* @__PURE__ */ new Set()) {
   lastComps = componentsOf(atoms, bonds);
   const keySet = new Set(lastComps.map(compKey));
@@ -58358,8 +58396,17 @@ function reanalyze(pinnedIds = /* @__PURE__ */ new Set()) {
   checkUnstableMolecules();
   runSimulationAnalysis();
   for (let i = 0; i < lastComps.length; i++) {
-    const df = isoSel.get(compKey(lastComps[i]));
-    if (df) analyses[i].displayFormula = df;
+    const key = compKey(lastComps[i]);
+    const df = isoSel.get(key);
+    if (!df) continue;
+    // A chosen arrangement is remembered against the ids of the atoms it was
+    // applied to, so those ids can outlive the structure the label describes: an
+    // atom can decay, be upgraded by the proton gun or leave the molecule without
+    // the id set ever changing. Re-check the label against the atoms actually
+    // present and drop it when they disagree, so the shown formula always contains
+    // every atom of the molecule.
+    if (arrangementMatchesScene(df, lastComps[i])) analyses[i].displayFormula = df;
+    else isoSel.delete(key);
   }
   const solved = solveAll(atoms, bonds, lastComps, analyses, pinnedIds);
   targetPos = /* @__PURE__ */ new Map();
@@ -58371,8 +58418,10 @@ function reanalyze(pinnedIds = /* @__PURE__ */ new Set()) {
     }
   }
   if (drag) {
-    const p = atoms.get(drag.id).pos;
-    targetPos.set(drag.id, { x: p.x, y: p.y, z: p.z });
+    const dragged = atoms.get(drag.id);
+    if (dragged) {
+      targetPos.set(drag.id, { x: dragged.pos.x, y: dragged.pos.y, z: dragged.pos.z });
+    }
   }
   for (const k of [...driftState.keys()]) if (!keySet.has(k)) driftState.delete(k);
   updateFCBadges();
@@ -59119,19 +59168,42 @@ function updateDrift(dt) {
     const sp = d.v.length() || 1e-4;
     if (sp > cruise * 1.001) d.v.multiplyScalar(Math.max(cruise, sp - dt * 2.2 * heat) / sp);
     else if (sp < cruise * 0.999) d.v.setLength(Math.min(cruise, sp + dt * 0.4 * heat));
-    const c = new Vector3();
+    let cx = 0, cy = 0, cz = 0, finite = 0;
     for (const id of comp.atoms) {
       const p = atoms.get(id).pos;
-      c.x += p.x;
-      c.y += p.y;
-      c.z += p.z;
+      if (Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
+        cx += p.x;
+        cy += p.y;
+        cz += p.z;
+        finite++;
+      }
     }
-    c.divideScalar(comp.atoms.length);
+    if (!finite) {
+      let ring = 0;
+      for (const id of comp.atoms) {
+        const p = atoms.get(id).pos;
+        const ang = ring * 1.2;
+        p.x = Math.cos(ang);
+        p.y = 2;
+        p.z = Math.sin(ang);
+        ring++;
+      }
+      driftState.delete(key);
+      continue;
+    }
+    const c = new Vector3(cx / finite, cy / finite, cz / finite);
+    for (const id of comp.atoms) {
+      const p = atoms.get(id).pos;
+      if (!Number.isFinite(p.x)) p.x = c.x;
+      if (!Number.isFinite(p.y)) p.y = c.y;
+      if (!Number.isFinite(p.z)) p.z = c.z;
+    }
     const horiz = Math.hypot(c.x, c.z);
     if (horiz > BOUND_R || c.y < Y_MIN || c.y > Y_MAX) {
       _v.set(-c.x, 1.9 - c.y, -c.z).normalize();
       d.v.lerp(_v, Math.min(1, dt * 1.6)).setLength(cruise);
     }
+    if (!Number.isFinite(d.bob)) d.bob = Math.random() * 6.283;
     d.bob += dt * (1.1 + heat * 2.6);
     const bobTarget = Math.sin(d.bob) * Math.min(0.3, 0.05 * heat) * (comp.atoms.length > 6 ? 0.45 : 1);
     const bobDelta = bobTarget - (d.bobY || 0);
@@ -59141,6 +59213,7 @@ function updateDrift(dt) {
       const at = atoms.get(id);
       _p.set(at.pos.x, at.pos.y, at.pos.z).sub(c).applyQuaternion(_q).add(c).addScaledVector(d.v, dt);
       _p.y += bobDelta;
+      if (!Number.isFinite(_p.x) || !Number.isFinite(_p.y) || !Number.isFinite(_p.z)) continue;
       at.pos.x = _p.x;
       at.pos.y = _p.y;
       at.pos.z = _p.z;
@@ -59403,6 +59476,40 @@ function showRxnOverlay(rx) {
     overlay.setAttribute("aria-hidden", "true");
   }, redoxHtml ? 7e3 : 3e3);
 }
+function verifyReactionProducts(rx, newCompKeys, consumedCount) {
+  const problems = [];
+  let productAtoms = 0;
+  for (const { key, center } of newCompKeys) {
+    const ids = key.split(",").map(Number);
+    for (const id of ids) {
+      const at = atoms.get(id);
+      if (!at) {
+        problems.push(`${key}: atom ${id} vanished`);
+        continue;
+      }
+      productAtoms++;
+      const p = at.pos;
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) {
+        p.x = center.x;
+        p.y = center.y;
+        p.z = center.z;
+        problems.push(`${key}: atom ${id} had a non-finite position, re-placed at the product centre`);
+      }
+    }
+    if (!lastComps.some((c) => compKey(c) === key)) problems.push(`${key}: product not listed in the scene`);
+  }
+  // The two counts are context, not a rule: the atmosphere may donate atoms, so the
+  // product side can legitimately exceed the reactant side. A shortfall cannot.
+  if (productAtoms < consumedCount) {
+    problems.push(`${consumedCount - productAtoms} atom(s) were consumed without reappearing in any product`);
+  }
+  if (problems.length) {
+    console.warn(`[reaction] ${rx.equation} (reactant atoms ${consumedCount}, product atoms ${productAtoms})`, problems.join("; "));
+    status(t("status.reactionRepaired", { n: problems.length }), "err");
+    invalidate();
+  }
+  return problems;
+}
 function executeReaction(rx) {
   const selComps = lastComps.filter((c) => reactionSel.has(compKey(c)));
   if (!selComps.length) return;
@@ -59422,13 +59529,33 @@ function executeReaction(rx) {
   for (const c of selComps) for (const id of c.atoms) consumedIds.push(id);
   const consumedSet = new Set(consumedIds);
   const cen = new Vector3();
+  let finiteCount = 0;
   for (const id of consumedIds) {
     const p = atoms.get(id).pos;
+    // A single poisoned position would make the centroid NaN and place every
+    // product at NaN, i.e. a reaction that visibly loses its molecules.
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) {
+      p.x = 0;
+      p.y = 1.8;
+      p.z = 0;
+      continue;
+    }
     cen.x += p.x;
     cen.y += p.y;
     cen.z += p.z;
+    finiteCount++;
   }
-  cen.divideScalar(consumedIds.length);
+  if (finiteCount) cen.divideScalar(finiteCount);
+  else cen.set(0, 1.8, 0);
+  const instances = [];
+  for (const [key, n] of rx.products) {
+    if (!Number.isInteger(n) || n < 1 || !productTemplate(key)) {
+      status(t("status.reactionFailed", { product: key }), "err");
+      clearReactionSel();
+      return;
+    }
+    for (let i = 0; i < n; i++) instances.push(key);
+  }
   pushUndo({
     type: "snapshot",
     atoms: [...atoms.values()].map(snapAtom),
@@ -59444,15 +59571,6 @@ function executeReaction(rx) {
     executeMayhemEffect(rx, consumedIds, cen);
     catalystFX.dispose();
     return;
-  }
-  const instances = [];
-  for (const [key, n] of rx.products) for (let i = 0; i < n; i++) instances.push(key);
-  for (const key of instances) {
-    if (!productTemplate(key)) {
-      status(t("status.reactionFailed", { product: key }), "err");
-      clearReactionSel();
-      return;
-    }
   }
   const pool = /* @__PURE__ */ new Map();
   for (const id of consumedIds) {
@@ -59527,10 +59645,13 @@ function executeReaction(rx) {
     driftState.set(key, {
       v: dir.multiplyScalar(2.6 + Math.random() * 1.4).add(new Vector3(0, 0.7, 0)),
       axis: randUnit(),
-      rate: 0.1 + Math.random() * 0.2
+      rate: 0.1 + Math.random() * 0.2,
+      bob: Math.random() * 6.283,
+      bobY: 0
     });
   }
   status(t("status.reactionDone", { cond: condLabel(rx.condition), eq: prettyEq(rx.equation) }), "ok");
+  verifyReactionProducts(rx, newCompKeys, consumedIds.length);
   showRxnOverlay(rx);
   if (rx.condition === "spark" || rx.condition === "heat") {
     reactionVFX.explode(cen, 0.8, new Color(16737792));
@@ -60140,12 +60261,11 @@ function handleReactionPick(e) {
 function buildPeriodicTable() {
   const wrap = document.getElementById("ptable");
   wrap.innerHTML = "";
-  const rankInfo = rankManager.getCurrentRank();
   for (let z = 1; z <= 118; z++) {
     const el = ELEMENTS.find((e) => e.z === z);
     const g = gridPos(z);
     const b = document.createElement("button");
-    const unlocked = isElementUnlocked(z, rankInfo);
+    const unlocked = isElementUnlocked(z);
     b.className = "el" + (unlocked ? "" : " locked");
     b.style.gridColumn = g.col;
     b.style.gridRow = g.row;
@@ -60155,7 +60275,7 @@ function buildPeriodicTable() {
     b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
     b.innerHTML = unlocked ? `<span class="z">${z}</span><span class="s">${el.sym}</span>` : `<span class="lock">🔒</span><span class="s">${el.sym}</span>`;
     b.addEventListener("click", () => {
-      if (!isElementUnlocked(z, rankManager.getCurrentRank())) {
+      if (!isElementUnlocked(z)) {
         status(`🔒 ${t("rank.elementLocked")}`, "err");
         return;
       }
@@ -60182,20 +60302,19 @@ function buildLegend() {
 }
 const fold = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
 function renderPoolNames() {
-  const rankInfo = rankManager.getCurrentRank();
   for (const b of document.querySelectorAll("#pool-list .el-chip")) {
     const el = elementBySym(b.dataset.sym);
     if (!el) continue;
-    const unlocked = isElementUnlocked(el.z || 0, rankInfo);
+    const unlocked = isElementUnlocked(el.z || 0);
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)} ${fold(el.name)} ${fold(elName(el))}`.toLowerCase();
-    b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")}`;
+    b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
     b.querySelector(".n").textContent = elName(el);
   }
   for (const b of document.querySelectorAll("#ptable .el[data-sym]")) {
     const el = elementBySym(b.dataset.sym);
     if (el) {
-      const unlocked = isElementUnlocked(el.z || 0, rankInfo);
-      b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")}`;
+      const unlocked = isElementUnlocked(el.z || 0);
+      b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
     }
   }
 }
@@ -60205,10 +60324,9 @@ function buildPool() {
   const allElements = [...ELEMENTS];
   if (mayhemMode) allElements.push(...MAYHEM_ELEMENTS);
   allElements.push(...customElements);
-  const rankInfo = rankManager.getCurrentRank();
   for (const el of allElements) {
     const b = document.createElement("button");
-    const unlocked = el.z ? isElementUnlocked(el.z, rankInfo) : true;
+    const unlocked = el.z ? isElementUnlocked(el.z) : true;
     b.className = "el-chip" + (unlocked ? "" : " locked");
     b.dataset.sym = el.sym;
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)}`.toLowerCase();
@@ -60243,7 +60361,7 @@ function buildPool() {
     }
     if (!window.__poolDragActive) {
     b.addEventListener("click", () => {
-      if (!isElementUnlocked(el.z || 0, rankManager.getCurrentRank())) {
+      if (!isElementUnlocked(el.z || 0)) {
         status(`🔒 ${t("rank.elementLocked")}`, "err");
         return;
       }
@@ -60830,7 +60948,8 @@ function updateMoleculeList() {
   }
   let shown = 0;
   lastComps.forEach((comp, i) => {
-    if (comp.bonds.length === 0) return;
+    // Lone atoms are real species (metals from electrolysis, noble gases), so they
+    // belong in the list even though they carry no bonds.
     shown++;
     const an = analyses[i];
     const row = document.createElement("div");
@@ -61332,12 +61451,85 @@ document.getElementById("btn-duplicate").addEventListener("click", duplicateMole
 document.getElementById("btn-clear").addEventListener("click", clearAll);
 const btnMenu = document.getElementById("btn-menu");
 const menuDropdown = document.getElementById("menu-dropdown");
+function isShownStrip(el) {
+  if (!el) return false;
+  const cs = getComputedStyle(el);
+  if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return false;
+  const r = el.getBoundingClientRect();
+  // Only strips that live in the lower half of the screen can be under the panel;
+  // the sidebars are full-height columns on a wide screen.
+  return r.height > 0 && r.top >= window.innerHeight * 0.5;
+}
+function placeMenuDropdown() {
+  const strips = [
+    document.querySelector(".bottom-bar"),
+    document.getElementById("mtabs"),
+    document.querySelector(".right-sidebar"),
+    document.querySelector(".left-sidebar"),
+  ].filter(isShownStrip);
+  let topEdge = window.innerHeight;
+  for (const el of strips) topEdge = Math.min(topEdge, el.getBoundingClientRect().top);
+  let bottom = Math.max(8, window.innerHeight - topEdge + 6);
+  const maxBottom = Math.max(8, window.innerHeight - menuDropdown.offsetHeight - 8);
+  menuDropdown.style.bottom = `${Math.min(bottom, maxBottom)}px`;
+}
 btnMenu.addEventListener("click", (e) => {
   e.stopPropagation();
   const expanded = btnMenu.getAttribute("aria-expanded") === "true";
   btnMenu.setAttribute("aria-expanded", !expanded);
   menuDropdown.hidden = expanded;
+  if (!expanded) placeMenuDropdown();
 });
+window.addEventListener("resize", () => {
+  if (!menuDropdown.hidden) placeMenuDropdown();
+});
+const menuTabs = [...document.querySelectorAll("#menu-dropdown .menu-tab")];
+const menuPanels = [...document.querySelectorAll("#menu-dropdown .menu-panel")];
+const MENU_TAB_KEY = "mol3d-menu-tab";
+function showMenuTab(name) {
+  const tab = menuTabs.find((b) => b.dataset.menuTab === name) || menuTabs[0];
+  if (!tab) return "";
+  const panelId = tab.getAttribute("aria-controls");
+  for (const b of menuTabs) {
+    const on = b === tab;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  }
+  for (const p of menuPanels) p.hidden = p.id !== panelId;
+  localStorage.setItem(MENU_TAB_KEY, tab.dataset.menuTab);
+  return tab.dataset.menuTab;
+}
+function openMenuDropdown() {
+  btnMenu.setAttribute("aria-expanded", "true");
+  menuDropdown.hidden = false;
+  placeMenuDropdown();
+}
+for (const tab of menuTabs) {
+  tab.addEventListener("click", () => {
+    showMenuTab(tab.dataset.menuTab);
+    placeMenuDropdown();
+  });
+}
+showMenuTab(localStorage.getItem(MENU_TAB_KEY) || "game");
+window.__mol3dMenu = {
+  tabs: () => menuTabs.map((b) => b.dataset.menuTab),
+  current: () => localStorage.getItem(MENU_TAB_KEY) || "game",
+  show: (name) => showMenuTab(name),
+  open: (name) => {
+    if (name) showMenuTab(name);
+    openMenuDropdown();
+  },
+  // The tutorial highlights controls by id, and a control that sits on a tab which
+  // is not showing has no box to highlight. Bring the tab, and the panel, up first.
+  reveal: (target) => {
+    const el = typeof target === "string" ? document.querySelector(target) : target;
+    if (!el) return null;
+    const panel = el.closest(".menu-panel");
+    if (panel) showMenuTab(panel.dataset.menuTab);
+    openMenuDropdown();
+    return el;
+  }
+};
 document.addEventListener("click", (e) => {
   if (!btnMenu.contains(e.target) && !menuDropdown.contains(e.target)) {
     btnMenu.setAttribute("aria-expanded", "false");
@@ -61488,8 +61680,7 @@ function executeConsoleCommand(cmd) {
 }
 document.getElementById("btn-console").addEventListener("click", () => {
   if (!shopGate("console")) return;
-  const rankInfo = rankManager.getCurrentRank();
-  if (!isFeatureUnlocked("console", rankInfo)) {
+  if (!isFeatureUnlocked("console")) {
     const price = shopPriceOf("console");
     status(t("rank.consoleLocked", { price: price === null ? "?" : price }), "err");
     return;
@@ -61782,17 +61973,16 @@ consoleInput.addEventListener("keydown", (e) => {
 });
 document.getElementById("btn-mayhem").addEventListener("click", () => {
   if (!shopGate("mayhem")) return;
-  const rankInfo = rankManager.getCurrentRank();
-  if (!isFeatureUnlocked("mayhem", rankInfo)) {
-    const req = getRequiredRankForFeature("mayhem");
-    status(t("rank.featureLocked", { rank: rankName(req) || rankName(RANKS[3]) }), "err");
+  if (!isFeatureUnlocked("mayhem")) {
+    const price = shopPriceOf("mayhem");
+    status(t("rank.featureLocked", { price: price === null ? "?" : price }), "err");
     return;
   }
   mayhemMode = !mayhemMode;
   document.getElementById("btn-mayhem").classList.toggle("on", mayhemMode);
   document.getElementById("btn-import").hidden = !mayhemMode;
   rebuildPool();
-  status(mayhemMode ? "Mayhem mode ON — exotic elements unlocked!" : "Mayhem mode OFF");
+  status(t(mayhemMode ? "status.mayhemOn" : "status.mayhemOff"));
 });
 const SPEED_LEVELS = [1, 2, 5, 10, 50, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9];
 function playSFX(id) {
@@ -62903,8 +63093,6 @@ window.__mol3d = {
     rebuildPool,
     isElementUnlocked,
     isFeatureUnlocked,
-    elementTiers: () => ELEMENT_TIERS,
-    featureRanks: () => FEATURE_RANKS,
     ranks: () => RANKS
   },
   reanalyze,
@@ -63277,6 +63465,24 @@ window.__mol3d = {
       if (atomList.length === 0) {
         console.error(`Could not parse formula: ${formula}`);
         return "Parse error";
+      }
+      // A formula names a composition, and the template library already holds a
+      // bonded structure for most of them. Building from that structure keeps every
+      // atom in the molecule: the proximity auto-bonder below bonds pairs in scan
+      // order and can strand an H2 out of the molecule, which then shows up as a
+      // formula with fewer hydrogens than the one that was asked for.
+      const hill = orderingToFormula(atomList);
+      const registered = (ISOMERS[hill] || [])[0];
+      const tpl = registered ? registered.tpl : productTemplate(hill);
+      if (tpl && tpl.atoms && tpl.atoms.length === atomList.length && orderingToFormula(tpl.atoms) === hill) {
+        const spot = findSpawnSpot();
+        const { ids } = buildMoleculeAt(tpl, spot.x, spot.y, spot.z);
+        if (registered && registered.displayFormula && arrangementMatchesScene(registered.displayFormula, { atoms: ids })) {
+          isoSel.set(compKey({ atoms: ids }), registered.displayFormula);
+        }
+        reanalyze();
+        const tplBonds = [...bonds.values()].filter((b) => ids.includes(b.a) && ids.includes(b.b)).length;
+        return `Spawned ${formula} with ${ids.length} atoms and ${tplBonds} bonds`;
       }
       const atomIds = [];
       const positions = computeInitialPositions(atomList);
@@ -63801,8 +64007,8 @@ function updateRankWidget() {
   }
   const mayhemBtn = document.getElementById("btn-mayhem");
   const consoleBtn = document.getElementById("btn-console");
-  if (mayhemBtn) mayhemBtn.classList.toggle("feature-locked", !isFeatureUnlocked("mayhem", rankInfo));
-  if (consoleBtn) consoleBtn.classList.toggle("feature-locked", !isFeatureUnlocked("console", rankInfo));
+  if (mayhemBtn) mayhemBtn.classList.toggle("feature-locked", !isFeatureUnlocked("mayhem"));
+  if (consoleBtn) consoleBtn.classList.toggle("feature-locked", !isFeatureUnlocked("console"));
 }
 function triggerRankUpAnimation(rankInfo) {
   const overlay = document.getElementById("rankup-overlay");

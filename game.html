@@ -9,9 +9,9 @@
   <!-- PeerJS (Peer-to-Peer WebRTC) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=3"></script>
+  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=11"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-d41d8cd9.js">
-  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css">
+  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css?v=4">
 </head>
 <body>
   <div id="app">
@@ -284,26 +284,39 @@
       </div>
     </div>
 
-    <!-- Menu dropdown -->
+    <!-- Menu dropdown: feature groups on tabs, one group at a time -->
     <div id="menu-dropdown" class="menu-dropdown" hidden>
-      <button id="btn-tutorial" data-i18n="btn.tutorial">Tutorial</button>
-      <button id="btn-mayhem" class="toggle" data-i18n="btn.mayhem" data-i18n-title="btn.mayhem.title">Mayhem</button>
-      <button id="btn-import" data-i18n="btn.import" data-i18n-title="btn.import.title" hidden>Custom Elements</button>
-      <button id="btn-quality" data-i18n-title="btn.quality.title">Quality: Auto</button>
-      <button id="btn-theme" data-i18n-title="btn.theme.title">Theme: Dark</button>
-      <button id="btn-atmosphere" data-i18n-title="btn.atmosphere.title">Atmosphere: OFF</button>
-      <div class="volume-row">
-        <span class="volume-label" data-i18n="menu.volume">Volume</span>
-        <input type="range" id="volume-slider" min="0" max="100" value="50" />
+      <div class="menu-tabs" role="tablist" data-i18n-aria="menu.tabs">
+        <button type="button" class="menu-tab active" id="menu-tab-game" role="tab" data-menu-tab="game" aria-controls="menu-panel-game" aria-selected="true" data-i18n="menu.tab.game">Game</button>
+        <button type="button" class="menu-tab" id="menu-tab-settings" role="tab" data-menu-tab="settings" aria-controls="menu-panel-settings" aria-selected="false" data-i18n="menu.tab.settings">Settings</button>
+        <button type="button" class="menu-tab" id="menu-tab-progress" role="tab" data-menu-tab="progress" aria-controls="menu-panel-progress" aria-selected="false" data-i18n="menu.tab.progress">Progress</button>
+        <button type="button" class="menu-tab" id="menu-tab-more" role="tab" data-menu-tab="more" aria-controls="menu-panel-more" aria-selected="false" data-i18n="menu.tab.more">More</button>
       </div>
-      <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
-      <button id="btn-credits" data-i18n="btn.credits">Credits</button>
-      <button id="btn-console" data-i18n="btn.console">Console</button>
-      <button id="btn-return-lobby" data-i18n="btn.returnLobby" hidden>Return to Lobby</button>
-      <div class="menu-divider"></div>
-      <button id="btn-game-mode" data-i18n="btn.gameMode" data-i18n-title="btn.gameMode.title">Mode: Survival</button>
-      <button id="btn-export" data-i18n="btn.export" data-i18n-title="btn.export.title">Export Progress</button>
-      <button id="btn-import-progress" data-i18n="btn.importProgress" data-i18n-title="btn.importProgress.title">Import Progress</button>
+      <div class="menu-panel" id="menu-panel-game" data-menu-tab="game" role="tabpanel" aria-labelledby="menu-tab-game">
+        <button id="btn-tutorial" data-i18n="btn.tutorial">Tutorial</button>
+        <button id="btn-mayhem" class="toggle" data-i18n="btn.mayhem" data-i18n-title="btn.mayhem.title">Mayhem</button>
+        <button id="btn-import" data-i18n="btn.import" data-i18n-title="btn.import.title" hidden>Custom Elements</button>
+        <button id="btn-atmosphere" data-i18n-title="btn.atmosphere.title">Atmosphere: OFF</button>
+        <button id="btn-game-mode" data-i18n="btn.gameMode" data-i18n-title="btn.gameMode.title">Mode: Survival</button>
+        <button id="btn-return-lobby" data-i18n="btn.returnLobby" hidden>Return to Lobby</button>
+      </div>
+      <div class="menu-panel" id="menu-panel-settings" data-menu-tab="settings" role="tabpanel" aria-labelledby="menu-tab-settings" hidden>
+        <button id="btn-quality" data-i18n-title="btn.quality.title">Quality: Auto</button>
+        <button id="btn-theme" data-i18n-title="btn.theme.title">Theme: Dark</button>
+        <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
+        <div class="volume-row">
+          <span class="volume-label" data-i18n="menu.volume">Volume</span>
+          <input type="range" id="volume-slider" min="0" max="100" value="50" />
+        </div>
+      </div>
+      <div class="menu-panel" id="menu-panel-progress" data-menu-tab="progress" role="tabpanel" aria-labelledby="menu-tab-progress" hidden>
+        <button id="btn-export" data-i18n="btn.export" data-i18n-title="btn.export.title">Export Progress</button>
+        <button id="btn-import-progress" data-i18n="btn.importProgress" data-i18n-title="btn.importProgress.title">Import Progress</button>
+      </div>
+      <div class="menu-panel" id="menu-panel-more" data-menu-tab="more" role="tabpanel" aria-labelledby="menu-tab-more" hidden>
+        <button id="btn-console" data-i18n="btn.console">Console</button>
+        <button id="btn-credits" data-i18n="btn.credits">Credits</button>
+      </div>
       <input type="file" id="import-file-input" accept=".json" hidden />
     </div>
 
@@ -754,10 +767,10 @@
   <script src="./assets/proton-gun.js?v=7"></script>
   <script src="./assets/format-menu.js?v=2"></script>
   <script src="./assets/quality-menu.js?v=1"></script>
-  <script src="./assets/tutorial-revamped.js?v=9"></script>
-  <script src="./assets/pool-drag.js?v=4"></script>
-  <script src="./assets/shop-rope.js?v=8"></script>
-  <script src="./assets/science-guide.js?v=4"></script>
+  <script src="./assets/tutorial-revamped.js?v=10"></script>
+  <script src="./assets/pool-drag.js?v=5"></script>
+  <script src="./assets/shop-rope.js?v=9"></script>
+  <script src="./assets/science-guide.js?v=8"></script>
   <script src="./assets/molecular-engine.js?v=11"></script>
 </body>
 </html>

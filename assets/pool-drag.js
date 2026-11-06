@@ -81,7 +81,13 @@
     if (!chip) return;
     var poolList = document.getElementById('pool-list');
     if (!poolList || !poolList.contains(chip)) return;
-    if (chip.classList.contains('locked')) return;
+    if (chip.classList.contains('locked')) {
+      var api = window.__mol3d;
+      if (api && api.status && api.i18n) {
+        api.status('\uD83D\uDD12 ' + api.i18n.t('rank.elementLocked'), 'err');
+      }
+      return;
+    }
 
     if (e.pointerType === 'mouse') e.preventDefault();
     pendingChip = chip;

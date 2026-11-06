@@ -222,26 +222,12 @@
   }
   function ownsFeature(id) {
     if (!featureById(id)) return true;
-    return ownedFeatures.has(id) || rankQualifies(id);
-  }
-  function rankQualifies(id) {
-    try {
-      var map = api.progression.featureRanks();
-      var reqId = map && map[id];
-      if (!reqId) return false;
-      var order = api.progression.ranks();
-      var reqIdx = -1;
-      for (var i = 0; i < order.length; i++) if (order[i].id === reqId) reqIdx = i;
-      if (reqIdx < 0) return false;
-      return api.progression.rankManager.getCurrentRank().rankIndex >= reqIdx;
-    } catch (e) {
-      return false;
-    }
+    return ownedFeatures.has(id);
   }
   function blocksFeature(id) {
     var f = featureById(id);
     if (!f || ownedFeatures.has(id)) return false;
-    return !rankQualifies(id);
+    return true;
   }
   function lockedMessage(id) {
     var f = featureById(id);

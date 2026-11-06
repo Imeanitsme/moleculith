@@ -722,26 +722,72 @@ html, body {
   right: 16px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px;
+  border-radius: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 150px;
+  gap: 8px;
+  width: min(272px, calc(100vw - 24px));
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 1000;
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 
 .menu-dropdown[hidden] { display: none; }
 
-.menu-dropdown button {
+.menu-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+}
+
+.menu-tab {
+  min-height: 30px;
+  padding: 6px 2px;
+  font-size: 11px;
+  text-align: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-tab:hover { color: var(--text); border-color: transparent; }
+
+.menu-tab.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.menu-panel { display: flex; flex-direction: column; gap: 5px; }
+.menu-panel[hidden] { display: none; }
+
+.menu-panel button {
   width: 100%;
+  min-width: 0;
+  min-height: 34px;
   text-align: left;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  border-radius: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .menu-dropdown button.feature-locked {
   opacity: 0.4;
   position: relative;
+  padding-right: 26px;
 }
 
 .menu-dropdown button.feature-locked::after {
@@ -1148,11 +1194,11 @@ body.mobile:has(.side-tab-panel.open) #joy {
 .volume-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: 6px;
+  padding: 2px 6px;
 }
 .volume-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -1799,6 +1845,19 @@ body.mobile:has(.side-tab-panel.open) #joy {
   .bottom-right { flex: 0; gap: 4px; }
   .bottom-right #keys-hint { display: none; }
   .menu-tab-btn { width: 24px; height: 24px; font-size: 14px; }
+
+  /* Menu: stay above the 28px bar and fit a short viewport */
+  .menu-dropdown {
+    bottom: 34px;
+    right: 8px;
+    width: min(252px, calc(100vw - 16px));
+    max-height: calc(100vh - 44px);
+    padding: 6px;
+    gap: 6px;
+  }
+  .menu-tab { min-height: 28px; font-size: 10px; padding: 5px 2px; }
+  .menu-panel button { min-height: 32px; font-size: 12px; padding: 6px 9px; }
+  .volume-label { font-size: 10px; }
 
   .time-controls { padding: 1px 4px; gap: 2px; }
   .time-btn { width: 20px; height: 20px; font-size: 9px; }

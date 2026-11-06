@@ -24,6 +24,8 @@
     welcomeP1: L('Select a topic from the menu to learn about the chemistry and physics happening in the lab.', 'Chọn một chủ đề trong danh mục để tìm hiểu về hóa học và vật lý đang diễn ra trong phòng thí nghiệm.'),
     welcomeP2: L('Every phenomenon is simulated with real scientific principles!', 'Mọi hiện tượng đều được mô phỏng theo các nguyên lý khoa học thực tế!'),
     menuBtn: L('🔬 Science Guide', '🔬 Cẩm nang khoa học'),
+    navPrev: L('Previous topics', 'Chủ đề trước'),
+    navNext: L('Next topics', 'Chủ đề tiếp'),
     panelTitle: L('Science', 'Khoa học')
   };
 
@@ -429,16 +431,22 @@
     guidePanel = document.createElement('div');
     guidePanel.id = 'science-guide-panel';
     guidePanel.innerHTML = `
-      <div class="guide-header">
-        <div class="guide-title">${tx(UI.guideTitle)}</div>
-        <button class="guide-close" id="guide-close-btn">✕</button>
-      </div>
-      <div class="guide-nav" id="guide-nav"></div>
-      <div class="guide-content" id="guide-content">
-        <div class="guide-welcome">
-          <h2>${tx(UI.welcomeH)}</h2>
-          <p>${tx(UI.welcomeP1)}</p>
-          <p>${tx(UI.welcomeP2)}</p>
+      <div class="guide-card">
+        <div class="guide-header">
+          <div class="guide-title">${tx(UI.guideTitle)}</div>
+          <button class="guide-close" id="guide-close-btn">✕</button>
+        </div>
+        <div class="guide-nav-bar">
+          <button class="guide-nav-arrow" id="guide-nav-prev" type="button">&#8249;</button>
+          <div class="guide-nav" id="guide-nav"></div>
+          <button class="guide-nav-arrow" id="guide-nav-next" type="button">&#8250;</button>
+        </div>
+        <div class="guide-content" id="guide-content" tabindex="0">
+          <div class="guide-welcome">
+            <h2>${tx(UI.welcomeH)}</h2>
+            <p>${tx(UI.welcomeP1)}</p>
+            <p>${tx(UI.welcomeP2)}</p>
+          </div>
         </div>
       </div>
     `;
@@ -448,9 +456,77 @@
     const closeBtn = guidePanel.querySelector('#guide-close-btn');
     closeBtn.addEventListener('click', closeGuide);
 
+    // One row of tabs is the only layout that keeps the reading area tall enough,
+    // so the row itself has to be scrollable: a plain mouse wheel reports deltaY
+    // and would otherwise be ignored by a horizontal-only container.
+    const navEl = guidePanel.querySelector('#guide-nav');
+    navEl.addEventListener('wheel', (event) => {
+      const canScroll = navEl.scrollWidth - navEl.clientWidth;
+      if (canScroll <= 0 || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      navEl.scrollLeft += event.deltaY;
+    }, { passive: false });
+
+    // The arrows are the visible affordance for the same horizontal scroll, so
+    // touch and mouse readers both get an obvious way to reach the last tabs.
+    guidePanel.querySelector('#guide-nav-prev').addEventListener('click', () => stepNav(-1));
+    guidePanel.querySelector('#guide-nav-next').addEventListener('click', () => stepNav(1));
+    navEl.addEventListener('scroll', updateNavArrows, { passive: true });
+    labelNavArrows();
+
     lastLang = lang();
     buildNav();
     return guidePanel;
+  }
+
+  function labelNavArrows() {
+    if (!guidePanel) return;
+    const map = [['#guide-nav-prev', UI.navPrev], ['#guide-nav-next', UI.navNext]];
+    for (const [sel, label] of map) {
+      const btn = guidePanel.querySelector(sel);
+      if (!btn) continue;
+      btn.setAttribute('aria-label', tx(label));
+      btn.title = tx(label);
+    }
+  }
+
+  // A fixed page step would leave the tabs that straddle the edge permanently
+  // unreachable, so the pivot is always a tab that is not fully visible yet and
+  // the strip moves exactly far enough to bring it flush with the far edge of
+  // the view: the largest step that cannot pass a tab over in that direction.
+  function stepNav(dir) {
+    if (!guidePanel) return;
+    const navEl = guidePanel.querySelector('#guide-nav');
+    if (!navEl || navEl.clientWidth === 0) return;
+    const box = navEl.getBoundingClientRect();
+    const btns = Array.from(navEl.querySelectorAll('.guide-nav-btn'));
+    if (dir > 0) {
+      const pivot = btns.find(b => b.getBoundingClientRect().right > box.right + 1);
+      if (!pivot) return;
+      const shift = pivot.getBoundingClientRect().left - box.left;
+      if (shift <= 0) return;
+      navEl.scrollTo({ left: navEl.scrollLeft + shift, behavior: 'smooth' });
+    } else {
+      const hidden = btns.filter(b => b.getBoundingClientRect().left < box.left - 1);
+      const pivot = hidden[hidden.length - 1];
+      if (!pivot) return;
+      const shift = pivot.getBoundingClientRect().right - box.right;
+      if (shift >= 0) return;
+      navEl.scrollTo({ left: navEl.scrollLeft + shift, behavior: 'smooth' });
+    }
+  }
+
+  function updateNavArrows() {
+    if (!guidePanel) return;
+    const bar = guidePanel.querySelector('.guide-nav-bar');
+    const navEl = guidePanel.querySelector('#guide-nav');
+    if (!bar || !navEl) return;
+    // Nothing is measurable while the overlay is hidden, and writing a state
+    // learned from zero-width layout would hide the arrows permanently.
+    if (navEl.clientWidth === 0) return;
+    bar.classList.toggle('no-overflow', navEl.scrollWidth - navEl.clientWidth <= 4);
+    bar.querySelector('#guide-nav-prev').disabled = navEl.scrollLeft <= 2;
+    bar.querySelector('#guide-nav-next').disabled = navEl.scrollLeft + navEl.clientWidth >= navEl.scrollWidth - 2;
   }
 
   function buildNav() {
@@ -465,6 +541,23 @@
       btn.addEventListener('click', () => showGuide(key));
       nav.appendChild(btn);
     }
+    updateNavArrows();
+    centerActiveTab();
+  }
+
+  // The active tab is the one the reader is looking at; keeping it in the visible
+  // part of the strip is what makes the off-screen tabs reachable by tapping the
+  // edge ones and scrolling, rather than hunting for a thin scrollbar.
+  function centerActiveTab() {
+    const navEl = guidePanel.querySelector('#guide-nav');
+    const btn = guidePanel.querySelector('.guide-nav-btn.active');
+    if (!navEl || !btn) return;
+    const navBox = navEl.getBoundingClientRect();
+    const btnBox = btn.getBoundingClientRect();
+    navEl.scrollTo({
+      left: navEl.scrollLeft + (btnBox.left + btnBox.right - navBox.left - navBox.right) / 2,
+      behavior: 'smooth'
+    });
   }
 
   function showGuide(key) {
@@ -473,6 +566,9 @@
 
     currentGuide = key;
     createGuidePanel();
+    // The strip metrics are only meaningful once the panel is laid out, so the
+    // arrows are measured here rather than while the overlay is still display:none.
+    guidePanel.style.display = 'flex';
 
     const nav = guidePanel.querySelectorAll('.guide-nav-btn');
     nav.forEach(btn => btn.classList.toggle('active', btn.dataset.guide === key));
@@ -491,7 +587,8 @@
 
     content.innerHTML = html;
     content.scrollTop = 0;
-    guidePanel.style.display = 'flex';
+    updateNavArrows();
+    centerActiveTab();
     lastLang = lang();
   }
 
@@ -505,6 +602,8 @@
   function openGuide() {
     createGuidePanel();
     guidePanel.style.display = 'flex';
+    updateNavArrows();
+    if (currentGuide) centerActiveTab();
     syncLanguage();
   }
 
@@ -517,6 +616,7 @@
     lastLang = l;
     const title = guidePanel.querySelector('.guide-title');
     if (title) title.textContent = tx(UI.guideTitle);
+    labelNavArrows();
     if (!currentGuide) {
       const welcome = guidePanel.querySelector('.guide-welcome');
       if (welcome) {
@@ -615,19 +715,22 @@
         justify-content: center;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       }
-      #science-guide-panel > div {
+      .guide-card {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         border: 2px solid #0f3460;
         border-radius: 12px;
         width: 90%;
         max-width: 800px;
         height: 85%;
+        max-height: 85%;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
       }
       .guide-header {
         display: flex;
+        flex-shrink: 0;
         justify-content: space-between;
         align-items: center;
         padding: 16px 20px;
@@ -655,15 +758,56 @@
         background: #ff6b6b;
         transform: scale(1.1);
       }
-      .guide-nav {
+      .guide-nav-bar {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 12px 16px;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 6px;
+        padding: 0 8px;
         border-bottom: 1px solid #0f3460;
         background: rgba(15, 52, 96, 0.2);
       }
+      .guide-nav-bar.no-overflow .guide-nav-arrow {
+        display: none;
+      }
+      .guide-nav-arrow {
+        flex-shrink: 0;
+        width: 30px;
+        padding: 5px 0;
+        background: rgba(15, 52, 96, 0.5);
+        border: 1px solid #0f3460;
+        border-radius: 6px;
+        color: #a8dadc;
+        font-size: 18px;
+        line-height: 1.1;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .guide-nav-arrow:hover:not(:disabled) {
+        background: rgba(233, 69, 96, 0.3);
+        border-color: #e94560;
+      }
+      .guide-nav-arrow:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+      .guide-nav {
+        display: flex;
+        flex-wrap: nowrap;
+        flex: 1;
+        min-width: 0;
+        gap: 8px;
+        padding: 12px 6px;
+        background: transparent;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #0f3460 rgba(15, 52, 96, 0.2);
+      }
       .guide-nav-btn {
+        flex-shrink: 0;
         background: rgba(15, 52, 96, 0.5);
         border: 1px solid #0f3460;
         color: #a8dadc;
@@ -671,6 +815,7 @@
         border-radius: 6px;
         cursor: pointer;
         font-size: 13px;
+        white-space: nowrap;
         transition: all 0.2s;
       }
       .guide-nav-btn:hover {
@@ -684,9 +829,21 @@
       }
       .guide-content {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #e94560 rgba(15, 52, 96, 0.2);
         padding: 20px;
         color: #f1faee;
+      }
+      .guide-content:focus {
+        outline: none;
+      }
+      .guide-content:focus-visible {
+        outline: 1px solid #e94560;
+        outline-offset: -4px;
       }
       .guide-content h2 {
         color: #e94560;
@@ -728,6 +885,13 @@
         line-height: 1.6;
         margin: 12px 0;
       }
+      .guide-nav::-webkit-scrollbar {
+        height: 6px;
+      }
+      .guide-nav::-webkit-scrollbar-thumb {
+        background: #0f3460;
+        border-radius: 3px;
+      }
       .guide-content::-webkit-scrollbar {
         width: 8px;
       }
@@ -740,13 +904,21 @@
         border-radius: 4px;
       }
       @media (max-width: 768px) {
-        #science-guide-panel > div {
+        .guide-card {
           width: 95%;
           height: 90%;
+          max-height: 90%;
+        }
+        .guide-nav-bar {
+          padding: 0 6px;
+        }
+        .guide-nav-arrow {
+          width: 26px;
+          font-size: 16px;
         }
         .guide-nav {
           gap: 6px;
-          padding: 10px 12px;
+          padding: 10px 4px;
         }
         .guide-nav-btn {
           padding: 6px 10px;
@@ -773,6 +945,7 @@
     }, 500);
 
     window.addEventListener('mol3d:lang', syncLanguage);
+    window.addEventListener('resize', updateNavArrows);
     window.addEventListener('storage', function(e) {
       if (e.key === LANG_KEY) syncLanguage();
     });

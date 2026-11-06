@@ -29,10 +29,14 @@
     return !!shop.ownsElement(z);
   }
   function tierPriceFor(z) {
-    const tiers = window.__mol3dShop && window.__mol3dShop.catalogue && window.__mol3dShop.catalogue.tiers;
+    const shop = window.__mol3dShop;
+    const tiers = shop && shop.catalogue && shop.catalogue.tiers;
     if (!Array.isArray(tiers)) return null;
-    for (let i = 0; i < tiers.length; i++) if (z <= tiers[i].maxZ) return tiers[i].price;
-    return null;
+    let base = null;
+    for (let i = 0; i < tiers.length; i++) if (z <= tiers[i].maxZ) { base = tiers[i].price; break; }
+    if (base === null) return null;
+    if (typeof shop.priceOf === 'function') return shop.priceOf(base);
+    return base;
   }
   function elNameOf(el) {
     const i18n = window.__mol3d && window.__mol3d.i18n;

@@ -2,6 +2,12 @@
 (function() {
   'use strict';
 
+  // Above PCT_THRESHOLD stars, shop items stop costing a fixed price and instead
+  // cost PCT_RATE of the player's current star balance. Rate is deliberately
+  // headroom-heavy so late-game stars keep a use without becoming infinite money.
+  var PCT_THRESHOLD = 2000;
+  var PCT_RATE = 0.1;
+
   var SAVE_KEY = 'mol3d.shop.v1';
   var FREE_MAX_Z = 20;
 
@@ -9,20 +15,20 @@
   // Prices are denominated in rank stars, so spending downranks the player.
   var TIERS = [
     { maxZ: 20, stars: 0, price: 0 },
-    { maxZ: 36, stars: 1, price: 8 },
-    { maxZ: 54, stars: 2, price: 18 },
-    { maxZ: 86, stars: 3, price: 36 },
-    { maxZ: 110, stars: 4, price: 64 },
-    { maxZ: 118, stars: 5, price: 100 }
+    { maxZ: 36, stars: 1, price: 25 },
+    { maxZ: 54, stars: 2, price: 55 },
+    { maxZ: 86, stars: 3, price: 110 },
+    { maxZ: 110, stars: 4, price: 180 },
+    { maxZ: 118, stars: 5, price: 280 }
   ];
 
   var FEATURES = [
-    { id: 'xray', icon: 'scan-eye', stars: 2, price: 16 },
-    { id: 'proton', icon: 'crosshair', stars: 2, price: 28 },
-    { id: 'timeSpeed', icon: 'fast-forward', stars: 3, price: 24 },
-    { id: 'timeStop', icon: 'clock', stars: 4, price: 44 },
-    { id: 'mayhem', icon: 'flame', stars: 4, price: 60 },
-    { id: 'console', icon: 'terminal', stars: 5, price: 90 }
+    { id: 'xray', icon: 'scan-eye', stars: 2, price: 40 },
+    { id: 'proton', icon: 'crosshair', stars: 2, price: 65 },
+    { id: 'timeSpeed', icon: 'fast-forward', stars: 3, price: 70 },
+    { id: 'timeStop', icon: 'clock', stars: 4, price: 120 },
+    { id: 'mayhem', icon: 'flame', stars: 4, price: 150 },
+    { id: 'console', icon: 'terminal', stars: 5, price: 250 }
   ];
 
   var INCOME = { discovery: 1, daily: 5 };
@@ -45,6 +51,7 @@
       hint: 'Drag the rope down to open the shop',
       close: 'Close',
       spendHint: 'Your stars are your rank progress — buying spends them and can downrank you',
+      dynMode: 'Dynamic pricing: each item costs {pct}% of your {stars} ★ balance',
       rankNow: '{rank} · {stars} ★ left',
       f: {
         xray: 'X-Ray Vision',
@@ -78,6 +85,7 @@
       hint: 'Kéo dây thừng xuống để mở cửa hàng',
       close: 'Đóng',
       spendHint: 'Sao cũng chính là tiến độ cấp bậc — mua sắm sẽ tiêu sao và có thể hạ cấp bạn',
+      dynMode: 'Giá động: mỗi món tốn {pct}% số dư {stars} ★ của bạn',
       rankNow: '{rank} · còn {stars} ★',
       f: {
         xray: 'Tia X',
@@ -243,34 +251,47 @@
     status(fmt(label, { n: n }), 'info');
   }
 
+  function priceOf(base) {
+    if (!(base > 0)) return 0;
+    var b = balance();
+    if (b > PCT_THRESHOLD) return Math.max(1, Math.round(b * PCT_RATE));
+    return base;
+  }
+  function isDynamic() {
+    return balance() > PCT_THRESHOLD;
+  }
+
   function buyElement(z) {
     var el = elementByZ(z);
     if (!el) return;
     if (ownsElement(z)) return;
-    var tier = tierOf(z);
-    if (balance() < tier.price || !spend(tier.price)) {
-      status('⚠ ' + fmt(S('notEnough'), { name: nameOf(el), price: tier.price }), 'err');
+    var price = priceOf(tierOf(z).price);
+    if (balance() < price || !spend(price)) {
+      status('⚠ ' + fmt(S('notEnough'), { name: nameOf(el), price: price }), 'err');
       shake();
       return;
     }
     ownedElements.add(z);
     save();
+    render();
     rebuildPool();
-    announce(tier.price, nameOf(el));
+    announce(price, nameOf(el));
     pop(el);
   }
   function buyFeature(id) {
     var f = featureById(id);
     if (!f || ownsFeature(id)) return;
-    if (balance() < f.price || !spend(f.price)) {
-      status('⚠ ' + fmt(S('notEnough'), { name: sf(id), price: f.price }), 'err');
+    var price = priceOf(f.price);
+    if (balance() < price || !spend(price)) {
+      status('⚠ ' + fmt(S('notEnough'), { name: sf(id), price: price }), 'err');
       shake();
       return;
     }
     ownedFeatures.add(id);
     save();
+    render();
     refreshFeatureLocks();
-    announce(f.price, sf(id));
+    announce(price, sf(id));
     pop(null, id);
   }
   // The rank ledger may have moved down as a side effect of the purchase.
@@ -327,27 +348,47 @@
     if (balanceEl) balanceEl.textContent = balance() + ' ★';
     var rankEl = document.getElementById('shop-rank');
     if (rankEl) rankEl.textContent = rankLabel();
+    updateDynMode();
   }
 
   var renderedTab = null;
   var renderedSig = '';
 
   function ownershipSig() {
-    return tab + '|' + ownedElements.size + '|' + Array.from(ownedFeatures).sort().join(',');
+    return tab + '|' + lang() + '|' + ownedElements.size + '|' + Array.from(ownedFeatures).sort().join(',');
   }
 
   // Star changes fire on every discovery; rebuilding 90+ cards for that is wasteful,
   // so the cheap path only refreshes the chips and the affordability styling.
+  // The chips must be rewritten too: with dynamic pricing the number depends on balance.
   function refreshAffordability() {
     if (!panel) return;
     var b = balance();
-    panel.querySelectorAll('.shop-card[data-z]').forEach(function(card) {
-      var t = tierOf(Number(card.dataset.z));
-      card.classList.toggle('is-poor', b < t.price);
+    panel.querySelectorAll('.shop-card[data-base], .shop-row[data-base]').forEach(function(node) {
+      var owned = node.classList.contains('is-owned');
+      var p = priceOf(Number(node.dataset.base));
+      node.classList.toggle('is-poor', !owned && b < p);
+      if (owned) return;
+      var chip = node.querySelector('.shop-card-price');
+      if (chip) chip.textContent = p + ' ★';
     });
-    panel.querySelectorAll('.shop-row[data-feature]').forEach(function(row) {
-      var f = featureById(row.dataset.feature);
-      if (f) row.classList.toggle('is-poor', b < f.price);
+  }
+
+  function priceChip(owned, price) {
+    return owned ? esc(S('owned')) : esc(String(price)) + ' ★';
+  }
+
+  function updateDynMode() {
+    var el = document.getElementById('shop-dyn');
+    if (!el) return;
+    if (!isDynamic()) {
+      el.hidden = true;
+      return;
+    }
+    el.hidden = false;
+    el.textContent = '⚡ ' + fmt(S('dynMode'), {
+      pct: Math.round(PCT_RATE * 100),
+      stars: balance()
     });
   }
 
@@ -383,13 +424,14 @@
       var owned = ownsElement(el.z);
       var card = document.createElement('button');
       card.type = 'button';
-      card.className = 'shop-card' + (owned ? ' is-owned' : '') + (balance() >= tier.price ? '' : ' is-poor');
+      card.className = 'shop-card' + (owned ? ' is-owned' : '') + (balance() >= priceOf(tier.price) ? '' : ' is-poor');
       card.dataset.z = String(el.z);
+      card.dataset.base = String(tier.price);
       card.innerHTML =
         '<span class="shop-card-sym">' + esc(el.sym) + '</span>' +
         '<span class="shop-card-name">' + esc(nameOf(el)) + '</span>' +
         '<span class="shop-card-stars">' + starRow(tier.stars, 5) + '</span>' +
-        '<span class="shop-card-price">' + (owned ? esc(S('owned')) : esc(String(tier.price)) + ' ★') + '</span>';
+        '<span class="shop-card-price">' + priceChip(owned, priceOf(tier.price)) + '</span>';
       card.addEventListener('click', function() { buyElement(el.z); });
       wrap.appendChild(card);
     });
@@ -415,8 +457,10 @@
       var owned = ownsFeature(f.id);
       var row = document.createElement('button');
       row.type = 'button';
-      row.className = 'shop-row' + (owned ? ' is-owned' : '') + (balance() >= f.price ? '' : ' is-poor');
+      var price = priceOf(f.price);
+      row.className = 'shop-row' + (owned ? ' is-owned' : '') + (balance() >= price ? '' : ' is-poor');
       row.dataset.feature = f.id;
+      row.dataset.base = String(f.price);
       row.innerHTML =
         '<span class="shop-row-icon"><i data-lucide="' + f.icon + '"></i></span>' +
         '<span class="shop-row-main">' +
@@ -425,7 +469,7 @@
         '</span>' +
         '<span class="shop-row-right">' +
           '<span class="shop-card-stars">' + starRow(f.stars, 5) + '</span>' +
-          '<span class="shop-card-price">' + (owned ? esc(S('owned')) : esc(String(f.price)) + ' ★') + '</span>' +
+          '<span class="shop-card-price">' + priceChip(owned, price) + '</span>' +
         '</span>';
       row.addEventListener('click', function() { buyFeature(f.id); });
       wrap.appendChild(row);
@@ -583,6 +627,9 @@
       '.shop-tab{flex:1;padding:6px 8px;border-radius:10px 10px 0 0;border:1px solid var(--border);',
       '  border-bottom:none;background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;}',
       '.shop-tab.on{color:var(--text);background:var(--panel-2);}',
+      '.shop-dyn{display:block;padding:6px 12px;font-size:10px;font-weight:600;color:#ffcf5c;',
+      '  background:rgba(255,207,92,.10);border-bottom:1px solid var(--border);}',
+      '.shop-dyn[hidden]{display:none;}',
       '.shop-body{max-height:min(46vh,380px);overflow-y:auto;padding:10px 12px 12px;',
       '  touch-action:pan-y;-webkit-overflow-scrolling:touch;}',
       '.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;}',
@@ -652,11 +699,16 @@
     tabs.className = 'shop-tabs';
     tabs.innerHTML = '<button type="button" class="shop-tab" data-tab="elements">' + esc(S('tabElements')) + '</button>' +
       '<button type="button" class="shop-tab" data-tab="features">' + esc(S('tabFeatures')) + '</button>';
+    var dyn = document.createElement('div');
+    dyn.className = 'shop-dyn';
+    dyn.id = 'shop-dyn';
+    dyn.hidden = true;
     var body = document.createElement('div');
     body.className = 'shop-body';
 
     panel.appendChild(head);
     panel.appendChild(tabs);
+    panel.appendChild(dyn);
     panel.appendChild(body);
     rig.appendChild(rope);
     rig.appendChild(hint);
@@ -720,6 +772,9 @@
       rankLabel: rankLabel,
       buyElement: buyElement,
       buyFeature: buyFeature,
+      priceOf: priceOf,
+      isDynamic: isDynamic,
+      dynamicPricing: { threshold: PCT_THRESHOLD, rate: PCT_RATE },
       catalogue: { features: FEATURES, tiers: TIERS, freeMaxZ: FREE_MAX_Z },
       exportState: function() {
         return { version: 1, elements: Array.from(ownedElements), features: Array.from(ownedFeatures) };

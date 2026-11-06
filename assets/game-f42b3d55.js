@@ -47710,8 +47710,8 @@ function orderingToCondensedFormula(atoms2, bonds2) {
     let count = 1;
     let totalH = h;
     while (i + count < heavyAtoms.length && atoms2[heavyAtoms[i + count]] === sym) {
-      count++;
       totalH += hCount.get(heavyAtoms[i + count]);
+      count++;
     }
     result += sym;
     if (count > 1) result += count;

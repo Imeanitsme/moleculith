@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <title>Molecule Builder 3D - Teacher Mode</title>
+  <link rel="stylesheet" href="./assets/teacher-mode.css">
+</head>
+<body>
+  <div id="teacher-app">
+    <!-- Header -->
+    <header class="teacher-header">
+      <div class="header-left">
+        <button id="btn-back" class="btn-icon" title="Back to Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <h1>Chemistry Teaching Lab</h1>
+      </div>
+      <div class="header-right">
+        <button id="btn-lang" class="btn-small" title="Chuyển sang tiếng Việt">Tiếng Việt</button>
+        <select id="topic-selector" class="topic-select">
+          <option value="overview">Course Overview</option>
+          <option value="atomic">Atomic Structure</option>
+          <option value="bonding">Chemical Bonding</option>
+          <option value="reactions">Reactions &amp; Stoichiometry</option>
+          <option value="thermo">Thermochemistry</option>
+          <option value="kinetics">Kinetics &amp; Equilibrium</option>
+          <option value="solutions">Solutions</option>
+          <option value="acid-base">Acid-Base Chemistry</option>
+          <option value="electro">Electrochemistry</option>
+          <option value="organic">Organic Chemistry</option>
+          <option value="nuclear">Nuclear Chemistry</option>
+          <option value="spectroscopy">Spectroscopy</option>
+          <option value="gas-laws">Gas Laws</option>
+          <option value="crystal">Crystal Structures</option>
+          <option value="quantum">Quantum Mechanics</option>
+          <option value="equilibrium">Chemical Equilibrium</option>
+          <option value="photochem">Photochemistry</option>
+          <option value="surface">Surface Chemistry</option>
+          <option value="analytical">Analytical Chemistry</option>
+          <option value="green">Green Chemistry</option>
+          <option value="biochem">Biochemistry</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="teacher-main">
+      <!-- Sidebar: Lesson Navigation -->
+      <aside class="lesson-sidebar">
+        <div class="sidebar-header">
+          <h2>Lessons</h2>
+          <button id="btn-progress" class="btn-small">Progress</button>
+        </div>
+        <nav id="lesson-nav" class="lesson-nav">
+          <!-- Dynamically populated -->
+        </nav>
+      </aside>
+
+      <!-- Content Area -->
+      <section class="content-area">
+        <!-- Lesson Content -->
+        <div id="lesson-content" class="lesson-content">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Interactive Simulation Area -->
+        <div id="simulation-area" class="simulation-area">
+          <div class="sim-header">
+            <h3>Interactive Simulation</h3>
+            <div class="sim-controls">
+              <button id="btn-reset" class="btn-control">Reset</button>
+              <button id="btn-play" class="btn-control">▶ Play</button>
+              <button id="btn-pause" class="btn-control">⏸ Pause</button>
+            </div>
+          </div>
+          <div id="sim-canvas" class="sim-canvas">
+            <!-- Canvas for simulations -->
+            <canvas id="simulation-canvas"></canvas>
+          </div>
+          <div id="sim-params" class="sim-params">
+            <!-- Dynamic parameters -->
+          </div>
+        </div>
+
+        <!-- Assessment Panel -->
+        <div id="assessment-panel" class="assessment-panel">
+          <h3>Knowledge Check</h3>
+          <div id="quiz-container" class="quiz-container">
+            <!-- Quiz questions -->
+          </div>
+          <button id="btn-submit-answer" class="btn-primary">Submit Answer</button>
+          <div id="feedback-area" class="feedback-area"></div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Reference & Tools -->
+      <aside class="reference-sidebar">
+        <div class="ref-section">
+          <h3>Periodic Table</h3>
+          <div id="mini-ptable" class="mini-ptable"></div>
+        </div>
+        <div class="ref-section">
+          <h3>Calculator</h3>
+          <div id="chem-calculator" class="chem-calc">
+            <input type="text" id="calc-input" placeholder="e.g., H2O molar mass">
+            <button id="btn-calculate">Calculate</button>
+            <div id="calc-result" class="calc-result"></div>
+          </div>
+        </div>
+        <div class="ref-section">
+          <h3>Constants</h3>
+          <div id="constants-list" class="constants-list">
+            <div class="constant-item">
+              <span class="const-name">R (gas constant)</span>
+              <span class="const-value">8.314 J/(mol·K)</span>
+            </div>
+            <div class="constant-item">
+              <span class="const-name">Nₐ (Avogadro)</span>
+              <span class="const-value">6.022×10²³ mol⁻¹</span>
+            </div>
+            <div class="constant-item">
+              <span class="const-name">h (Planck)</span>
+              <span class="const-value">6.626×10⁻³⁴ J·s</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Progress Modal -->
+    <div id="progress-modal" class="modal-overlay" hidden>
+      <div class="modal-content">
+        <button class="modal-close" data-close="progress-modal">&times;</button>
+        <h2>Your Progress</h2>
+        <div id="progress-stats" class="progress-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-lessons">0</div>
+            <div class="stat-label">Lessons Completed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-quizzes">0</div>
+            <div class="stat-label">Quizzes Passed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-score">0%</div>
+            <div class="stat-label">Average Score</div>
+          </div>
+        </div>
+        <div id="progress-chart" class="progress-chart">
+          <canvas id="progress-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./assets/teacher-mode.js"></script>
+  <script src="./assets/molecular-engine.js?v=11"></script>
+</body>
+</html>

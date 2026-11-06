@@ -32,8 +32,8 @@
   <link rel="modulepreload" crossorigin href="./assets/i18n-83625b1b.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-8ccc4c8a.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-d3b0d586.js">
-  <link rel="modulepreload" crossorigin href="./assets/i18n-b5efd1bd.js">
-  <link rel="modulepreload" crossorigin href="./assets/i18n-83f75225.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-b5efd1bd.js">
+  <link rel="modulepreload" crossorigin href="./assets/i18n-83f75225.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-d2475b1e.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-08fdb8fb.js">
   <link rel="modulepreload" crossorigin href="./assets/i18n-b302bd1c.js">
@@ -62,6 +62,10 @@
         <button id="btn-singleplayer" class="menu-btn primary">
           <i data-lucide="user"></i>
           <span data-i18n="menu.singleplayer">Singleplayer</span>
+        </button>
+        <button id="btn-teacher" class="menu-btn">
+          <i data-lucide="graduation-cap"></i>
+          <span>Teacher Mode</span>
         </button>
         <button id="btn-settings" class="menu-btn">
           <i data-lucide="settings"></i>
@@ -100,6 +104,10 @@
 
   <script>
     lucide.createIcons();
+
+    document.getElementById('btn-teacher').addEventListener('click', () => {
+      window.location.href = 'teacher-mode.html';
+    });
   </script>
 
   <!-- Sound Effects -->

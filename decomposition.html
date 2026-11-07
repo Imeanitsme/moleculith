@@ -370,7 +370,7 @@
       // cards
       elCards.innerHTML =
         card('Rate constant k(T)', fmtExp(kT) + ' s\u207B\u00B9', 'sum of ' + active.length + ' pathway' + (active.length > 1 ? 's' : '')) +
-        card('Half-life t\u00BD', tDisp(thalf) + ' ' + unit, 'ln(2)/k') +
+        card('Decay time t\u00BD', tDisp(thalf) + ' ' + unit, 'ln(2)/k') +
         card('90% degraded t\u2089\u2080', tDisp(t90) + ' ' + unit, 'ln(10)/k') +
         card('Model window', '5 \u00D7 t\u00BD', tDisp(5 * thalf) + ' ' + unit + ' shown');
       elWin.textContent = ' \u2014 window: 5 \u00D7 t\u00BD (' + tDisp(5 * thalf) + ' ' + unit + ')';

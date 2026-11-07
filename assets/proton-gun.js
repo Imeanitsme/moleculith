@@ -21,11 +21,134 @@
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, params) : key;
   }
 
-  // The proton gun may only push an atom into an element the player actually owns.
-  function ownsElement(z) {
-    const shop = window.__mol3dShop;
-    if (!shop || typeof shop.ownsElement !== 'function') return true;
-    return !!shop.ownsElement(z);
+  // --- Strings the gun owns ---
+  // The panel text cannot live in the app's i18n bundle (that file is not this
+  // module's to edit), so both languages ship here, exactly like the fission
+  // cinematic's CINE_STR below. L() still prefers the game's t() whenever that
+  // table answers the key, so the strings can be moved over later untouched.
+  const STR = {
+    en: {
+      panelTitle: 'Neutron + Proton gun',
+      mProton: 'Proton',
+      mNeutron: 'Neutron',
+      kProton: 'proton',
+      kNeutron: 'neutron',
+      modeHint: 'Click an atom to fire the selected particle.',
+      ammoProton: 'Proton ammo',
+      ammoNeutron: 'Neutron ammo',
+      ammoUnknown: 'not readable',
+      buyButton: 'buy {n}',
+      buyNote: '{price}★ each, in the Rope Shop',
+      buyNoteNoPrice: 'priced in the Rope Shop',
+      lastShot: 'Last shot',
+      none: 'nothing fired yet',
+      isotopeLine: 'A={a} = Z{z} + N{n}',
+      dropped: 'no isotope record',
+      droppedNote: 'No isotope record: {sym} occurs in nature heavier than the nucleus that just left the barrel, and this gun only tracks neutrons it added itself.',
+      modeSet: 'Firing {kind}s — every shot spends 1 {kind} ({price}★ in the Rope Shop).',
+      modeSetNoPrice: 'Firing {kind}s — every shot spends 1 {kind} from the Rope Shop.',
+      armedNote: 'Mode: {kind} · {left} left',
+      noAmmo: 'No {kind}s left — each one costs {price}★ in the Rope Shop. Drag the rope to open it; nothing was fired and nothing was spent.',
+      noAmmoNoPrice: 'No {kind}s left — buy them in the Rope Shop. Drag the rope to open it; nothing was fired.',
+      spent: '· 1 {kind} spent, {left} left',
+      spentUnknown: '· 1 {kind} spent',
+      refunded: 'The {kind} is back in the magazine — that shot was not possible, so nothing was spent.',
+      ammoApiMissing: 'The shop exposes no ammo stock, so shots stay free.',
+      neutronAdded: 'Neutron captured: {sym}-{a} (Z={z}, N={n}) — the element and its chemistry are unchanged.',
+      inBand: 'Inside the band of stability: the heaviest stable isotope of {sym} is {sym}-{max}.',
+      neutronRich: '⚠ {sym}-{a} is neutron-rich — the heaviest stable isotope of {sym} is {sym}-{max}, so this nucleus has a decay time of its own: it would β⁻-decay into {daughter}-{a}. Radioactivity in this build is keyed to the proton number alone (Z > 82), so nothing here will ever count that decay time down.',
+      neutronRichNoDaughter: '⚠ {sym}-{a} is neutron-rich — the heaviest stable isotope of {sym} is {sym}-{max}, so this nucleus has a decay time of its own: it would β⁻-decay. Radioactivity in this build is keyed to the proton number alone (Z > 82), so nothing here will ever count that decay time down.',
+      noStable: '⚠ {sym} has no stable isotope at all: every isotope of it has a finite decay time, so all of them are radioactive. Radioactivity in this build is keyed to the proton number alone (Z > 82), so it will not decay here either.',
+      heavy: '☢ Every nuclide with Z > 82 is radioactive, and this build does simulate that — a shot at it runs the fission countdown.',
+      pastAll: '⚠ {sym}-{a} lies past every isotope of {sym} ever measured: no nucleus binds this many extra neutrons. That is not simulated here, so the gun only records what it was asked to do.',
+      vInBand: 'in the band',
+      vRich: 'neutron-rich',
+      vPast: 'past every measured isotope',
+      vNoStable: 'no stable isotope',
+      vHeavy: 'radioactive by proton number',
+      close: 'Close'
+    },
+    vi: {
+      panelTitle: 'Súng neutron + proton',
+      mProton: 'Proton',
+      mNeutron: 'Neutron',
+      kProton: 'proton',
+      kNeutron: 'neutron',
+      modeHint: 'Bấm vào một nguyên tử để bắn hạt đang chọn.',
+      ammoProton: 'Đạn proton',
+      ammoNeutron: 'Đạn neutron',
+      ammoUnknown: 'không đọc được',
+      buyButton: 'mua {n}',
+      buyNote: 'mỗi hạt {price}★, mua ở Cửa hàng Dây thừng',
+      buyNoteNoPrice: 'có bán trong Cửa hàng Dây thừng',
+      lastShot: 'Lần bắn cuối',
+      none: 'chưa bắn phát nào',
+      isotopeLine: 'A={a} = Z{z} + N{n}',
+      dropped: 'không còn sổ đồng vị',
+      droppedNote: 'Không còn sổ đồng vị: {sym} trong tự nhiên nặng hơn hạt nhân vừa rời nòng, và cây súng này chỉ theo dõi những neutron do chính nó thêm vào.',
+      modeSet: 'Đang bắn {kind} — mỗi phát tốn 1 {kind} ({price}★ ở Cửa hàng Dây thừng).',
+      modeSetNoPrice: 'Đang bắn {kind} — mỗi phát tốn 1 {kind} từ Cửa hàng Dây thừng.',
+      armedNote: 'Chế độ: {kind} · còn {left} viên',
+      noAmmo: 'Hết {kind} — mỗi hạt giá {price}★ trong Cửa hàng Dây thừng. Kéo sợi dây để mở cửa hàng; không phát nào được bắn và không tốn gì.',
+      noAmmoNoPrice: 'Hết {kind} — hãy mua trong Cửa hàng Dây thừng. Kéo sợi dây để mở cửa hàng; không phát nào được bắn.',
+      spent: '· đã dùng 1 {kind}, còn {left}',
+      spentUnknown: '· đã dùng 1 {kind}',
+      refunded: 'Hạt {kind} đã được trả lại băng đạn — phát đó không thể thực hiện nên bạn không tốn gì.',
+      ammoApiMissing: 'Cửa hàng không cung cấp kho đạn, nên mỗi phát vẫn miễn phí.',
+      neutronAdded: 'Đã bắt một neutron: {sym}-{a} (Z={z}, N={n}) — vẫn là nguyên tố cũ, hóa học không đổi.',
+      inBand: 'Nằm trong dải bền: đồng vị bền nặng nhất của {sym} là {sym}-{max}.',
+      neutronRich: '⚠ {sym}-{a} giàu neutron — đồng vị bền nặng nhất của {sym} là {sym}-{max}, nên hạt nhân này có thời gian phân hủy riêng: nó sẽ phân rã β⁻ thành {daughter}-{a}. Trong bản này tính phóng xạ chỉ gắn với số proton (Z > 82), nên không có gì ở đây đếm hết thời gian phân hủy đó.',
+      neutronRichNoDaughter: '⚠ {sym}-{a} giàu neutron — đồng vị bền nặng nhất của {sym} là {sym}-{max}, nên hạt nhân này có thời gian phân hủy riêng: nó sẽ phân rã β⁻. Trong bản này tính phóng xạ chỉ gắn với số proton (Z > 82), nên không có gì ở đây đếm hết thời gian phân hủy đó.',
+      noStable: '⚠ {sym} hoàn toàn không có đồng vị bền: mọi đồng vị của nó đều có thời gian phân hủy hữu hạn, nên tất cả đều phóng xạ. Trong bản này tính phóng xạ chỉ gắn với số proton (Z > 82), nên ở đây nó cũng không tự phân rã.',
+      heavy: '☢ Mọi hạt nhân có Z > 82 đều phóng xạ, và bản này có mô phỏng điều đó — bắn vào nó sẽ chạy đếm ngược phân hạch.',
+      pastAll: '⚠ {sym}-{a} vượt quá mọi đồng vị của {sym} từng được đo: không hạt nhân nào giữ nổi nhiều neutron thừa đến thế. Điều đó không được mô phỏng ở đây, nên súng chỉ ghi lại những gì nó đã làm.',
+      vInBand: 'trong dải bền',
+      vRich: 'giàu neutron',
+      vPast: 'vượt mọi đồng vị từng đo',
+      vNoStable: 'không có đồng vị bền',
+      vHeavy: 'phóng xạ theo số proton',
+      close: 'Đóng'
+    }
+  };
+
+  // Neither language may be left half-done, and a missing key would otherwise show
+  // up as a raw key on screen. Silent while both tables hold the same keys.
+  (function checkStrings() {
+    var missing = [];
+    Object.keys(STR.en).forEach(function (k) { if (typeof STR.vi[k] !== 'string') missing.push('vi.' + k); });
+    Object.keys(STR.vi).forEach(function (k) { if (typeof STR.en[k] !== 'string') missing.push('en.' + k); });
+    if (missing.length && window.console && console.warn) {
+      console.warn('[proton-gun] untranslated strings:', missing.join(', '));
+    }
+  })();
+
+  function fill(s, params) {
+    if (!params) return s;
+    Object.keys(params).forEach(function (p) {
+      const v = params[p] === undefined || params[p] === null ? '' : String(params[p]);
+      s = s.split('{' + p + '}').join(v);
+    });
+    return s;
+  }
+
+  function L(key, params) {
+    const viaGame = tt(key, params);
+    if (typeof viaGame === 'string' && viaGame !== key) return viaGame;
+    const table = STR[cineLang()] || STR.en;
+    let s = typeof table[key] === 'string' ? table[key] : STR.en[key];
+    if (typeof s !== 'string') return key;
+    return fill(s, params);
+  }
+
+  // A transmutation is a crate transaction: the unit of the element above is spent,
+  // the unit this atom was bought as comes back, and the crate's id ledger follows
+  // the nucleus. Asking instead "is this element unlocked" was dead code once the
+  // shop traded every element, so one star of proton ammo could ladder an atom up
+  // the price table and mint expensive atoms nobody had paid for.
+  function crateTransmute(atomId, newZ) {
+    const c = window.__mol3d && window.__mol3d.crate;
+    if (!c || typeof c.transmute !== 'function') return true;
+    return c.transmute(atomId, newZ) === true;
   }
   function tierPriceFor(z) {
     const shop = window.__mol3dShop;
@@ -44,15 +167,484 @@
     } catch (e) {}
     return el ? (el.name || el.sym) : '';
   }
-  function refuseUpgrade(newEl) {
+  function refuseUpgrade(newEl, extra) {
     const price = tierPriceFor(newEl.z);
     const params = { sym: newEl.sym, name: elNameOf(newEl), price: price };
     const msg = price === null || price === undefined
       ? tt('pg.needOwn', params)
       : tt('pg.needOwnPrice', params);
-    showStatus('🔒 ' + msg, 'err');
+    showStatus('🔒 ' + msg + (typeof extra === 'string' ? extra : ''), 'err');
     const shop = window.__mol3dShop;
     if (shop && typeof shop.open === 'function') shop.open();
+  }
+
+  // ============================ NEUTRON + PROTON GUN ============================
+  // The gun used to fire one kind of particle for free. It now fires two, and the
+  // magazine lives in the Rope Shop (window.__mol3dShop v3): one particle per shot,
+  // and a shot only happens after the shop has handed the particle over.
+  const KINDS = ['proton', 'neutron'];
+  const BUY_PACK = 10;      // the panel's shortcut buys a pack, never a single shot
+  let mode = 'proton';      // proton mode is the original behaviour, unchanged
+
+  function shopApi() { return window.__mol3dShop || null; }
+  function shopHasAmmoApi() {
+    const s = shopApi();
+    return !!(s && typeof s.takeAmmo === 'function');
+  }
+  function ammoCount(kind) {
+    const s = shopApi();
+    if (!s || typeof s.ammoOf !== 'function') return null;
+    const n = s.ammoOf(kind);
+    return (typeof n === 'number' && isFinite(n)) ? Math.max(0, Math.floor(n)) : null;
+  }
+  // Never a literal price: the catalogue owns both the per-particle cost and the
+  // ammo rows that carry it, so a shop-side rebalance reaches these strings as-is.
+  function ammoPrice(kind) {
+    const s = shopApi();
+    const cat = s && s.catalogue;
+    if (!cat) return null;
+    if (typeof cat.ammoPrice === 'number' && isFinite(cat.ammoPrice) && cat.ammoPrice > 0) {
+      return cat.ammoPrice;
+    }
+    const list = Array.isArray(cat.ammo) ? cat.ammo : [];
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i];
+      if (row && row.id === kind && typeof row.stars === 'number' && row.stars > 0) return row.stars;
+    }
+    return null;
+  }
+  function kindKey(kind) { return kind === 'proton' ? 'kProton' : 'kNeutron'; }
+  // A shot the shop itself declines (the next element is not unlocked yet) hands
+  // the particle straight back: paying for nothing is not a fair reading of
+  // "you must buy protons and neutrons to shoot".
+  function refundAmmo(kind) {
+    const s = shopApi();
+    if (s && typeof s.refundAmmo === 'function') s.refundAmmo(kind);
+  }
+  // Returning the particle is invisible money work, so the status line says so —
+  // otherwise the player reasonably believes they paid for a shot that never happened.
+  function refundNote(kind) {
+    if (!shopHasAmmoApi()) return '';
+    return ' ' + L('refunded', { kind: L(kindKey(kind)) });
+  }
+
+  // The one call site that decides whether a shot exists at all. A shop that
+  // exposes no ammo API is the pre-v3 build, where shots were free; the gun keeps
+  // working there instead of silently bricking itself.
+  function spendAmmo(kind) {
+    const s = shopApi();
+    if (!s || typeof s.takeAmmo !== 'function') return { ok: true, legacy: true, left: null };
+    if (s.takeAmmo(kind) === true) return { ok: true, legacy: false, left: ammoCount(kind) };
+    return { ok: false, legacy: false, left: ammoCount(kind) };
+  }
+
+  function refuseForAmmo(kind) {
+    const price = ammoPrice(kind);
+    const params = { kind: L(kindKey(kind)), price: price };
+    showStatus('⚠ ' + (price === null ? L('noAmmoNoPrice', params) : L('noAmmo', params)), 'err');
+    const s = shopApi();
+    // Point at the rope instead of opening a panel over the scene: the player was
+    // aiming at an atom, and the shop is one drag away.
+    if (s && typeof s.flash === 'function') s.flash();
+    setLastShot(null, null);
+    paintGun();
+  }
+
+  function spendTail(paid, kind) {
+    if (!paid || paid.legacy) return '';
+    const params = { kind: L(kindKey(kind)), left: paid.left };
+    return ' ' + (paid.left === null ? L('spentUnknown', params) : L('spent', params));
+  }
+
+  // --- The neutron ledger ---
+  // An atom in this build carries nothing but its element, so isotope mass cannot
+  // live on the atom (and must not live on ELEMENTS, which is shared by every atom
+  // of that element). This Map of atomId -> extra neutrons is the record: it
+  // survives repeated shots at the same atom, is re-anchored when a proton shot
+  // moves the nucleus up a row, and is pruned so a deleted atom cannot leak.
+  const neutronLedger = new Map();
+  const LEDGER_PRUNE_MS = 2000;
+  const LEDGER_KEY = 'mol3d.isotopes.v1';
+
+  // The ledger is written to storage because a shot is bought with a star: a
+  // reload that forgot the isotope would take the nucleus back and leave the
+  // player holding nothing they paid for. Every record carries the Z it was shot
+  // into, because ids are reused after a clear - an id alone would let the spare
+  // neutron of a 14C land on the next carbon to inherit that number. A record
+  // that no longer matches its atom reads as nothing and is swept away, so an
+  // edited file can fail to show an isotope but cannot invent one.
+  function liveAtom(atomId) {
+    const atoms = window.__mol3d && window.__mol3d.atoms;
+    return atoms && typeof atoms.get === 'function' ? atoms.get(atomId) : null;
+  }
+  function excessOf(atomId) {
+    const rec = neutronLedger.get(atomId);
+    if (!rec || !(rec.n > 0)) return 0;
+    const atom = liveAtom(atomId);
+    if (atom && atom.el && atom.el.z !== rec.z) return 0;
+    return Math.floor(rec.n);
+  }
+  function saveLedger() {
+    const rows = [];
+    neutronLedger.forEach(function (rec, id) { rows.push([id, rec.z, rec.n]); });
+    try { localStorage.setItem(LEDGER_KEY, JSON.stringify(rows)); } catch (e) {}
+  }
+  function loadLedger() {
+    let rows;
+    try { rows = JSON.parse(localStorage.getItem(LEDGER_KEY) || '[]'); } catch (e) { return; }
+    if (!Array.isArray(rows)) return;
+    for (const row of rows) {
+      if (!Array.isArray(row) || row.length < 3) continue;
+      const z = Number(row[1]), n = Math.floor(Number(row[2]));
+      if (!(z > 0) || !(n > 0)) continue;
+      neutronLedger.set(row[0], { z: z, n: n });
+    }
+  }
+  function pruneLedger() {
+    const atoms = window.__mol3d && window.__mol3d.atoms;
+    if (!atoms || typeof atoms.has !== 'function') return;
+    let swept = false;
+    neutronLedger.forEach(function (rec, id) {
+      const atom = atoms.has(id) ? atoms.get(id) : null;
+      if (!atom || !atom.el || atom.el.z !== rec.z) { neutronLedger.delete(id); swept = true; }
+    });
+    if (swept) saveLedger();
+  }
+  function setExcess(atomId, n) {
+    const atom = liveAtom(atomId);
+    const z = atom && atom.el ? atom.el.z : null;
+    if (n > 0 && z !== null) neutronLedger.set(atomId, { z: z, n: Math.floor(n) });
+    else neutronLedger.delete(atomId);
+    saveLedger();
+  }
+
+  // The app's own masses are standard atomic weights, so the nucleus a player
+  // placed is, to within a hair, the element's dominant natural isotope. That is
+  // the baseline the ledger adds to; a broken row falls back to a symmetric one.
+  function baseA(el) {
+    const z = (el && typeof el.z === 'number') ? el.z : 1;
+    const m = (el && typeof el.mass === 'number' && isFinite(el.mass)) ? Math.round(el.mass) : null;
+    return (m !== null && m >= z) ? m : Math.max(1, z * 2 - 1);
+  }
+  function massNumberOf(atomId, atom) { return baseA(atom.el) + excessOf(atomId); }
+  function isotopeOf(el, a) { return { sym: el.sym, a: a, z: el.z, n: a - el.z, label: el.sym + '-' + a }; }
+  function isotopeOfAtom(atomId, atom) { return isotopeOf(atom.el, massNumberOf(atomId, atom)); }
+
+  // The engine paints atom labels while it boots, which lands between this file
+  // running and init(), so the record and the reader that exposes it both have to
+  // exist now - otherwise every restored nucleus comes back wearing its plain
+  // element symbol and the mass a player paid a star for is invisible.
+  loadLedger();
+  if (!window.__protonGun) {
+    window.__protonGun = {
+      neutronExcessOf: excessOf,
+      isotopeOf: function (atomId) {
+        const atom = liveAtom(atomId);
+        return atom ? isotopeOfAtom(atomId, atom) : null;
+      }
+    };
+  }
+
+  // Heaviest isotope that is stable, or so long-lived it still occurs in nature,
+  // per atomic number: the standard table of primordial nuclides, indexed by Z and
+  // ending at bismuth-209. 43 and 61 are 0 because no isotope of technetium or
+  // promethium is stable, and nothing above 83 is tabulated: this build already
+  // treats every Z > 82 as radioactive, which is a louder statement than the band.
+  const STABLE_MAX_A = [
+    0,
+    2, 4, 7, 9, 11, 13, 15, 18, 19, 22,
+    23, 26, 27, 30, 31, 36, 37, 40, 41, 48,
+    45, 50, 51, 54, 55, 58, 59, 64, 65, 70,
+    71, 76, 75, 82, 81, 86, 85, 88, 89, 96,
+    93, 100, 0, 104, 103, 110, 109, 116, 115, 124,
+    123, 130, 127, 136, 133, 138, 139, 142, 141, 150,
+    0, 154, 153, 160, 159, 164, 165, 170, 169, 176,
+    176, 180, 181, 186, 187, 192, 193, 198, 197, 204,
+    205, 208, 209
+  ];
+  const MAX_STABLE_Z = STABLE_MAX_A.length - 1;
+  // How far past the band an isotope has to sit before it is past every isotope
+  // ever *measured* for that element. Deliberately generous: the real neutron drip
+  // line runs closest for the lightest elements and furthest for the heaviest, and
+  // this wording is only used for the absurd cases, never to refuse a shot.
+  const DRIP_GUARD = 14;
+
+  function stabilityVerdict(z, a) {
+    if (z > MAX_STABLE_Z) return { key: 'heavy', verdictKey: 'vHeavy', bandMax: null };
+    const lim = STABLE_MAX_A[z] || 0;
+    if (lim === 0) return { key: 'noStable', verdictKey: 'vNoStable', bandMax: 0 };
+    if (a <= lim) return { key: 'inBand', verdictKey: 'vInBand', bandMax: lim };
+    if (a <= lim + DRIP_GUARD) return { key: 'neutronRich', verdictKey: 'vRich', bandMax: lim };
+    return { key: 'pastAll', verdictKey: 'vPast', bandMax: lim };
+  }
+
+  // The reason goes in the status line in full: an isotope the player just built
+  // is a teaching moment, and hiding the caveat would be the fake part.
+  function verdictText(el, iso, v) {
+    const params = { sym: el.sym, a: iso.a, z: iso.z, n: iso.n, max: v.bandMax };
+    if (v.key === 'inBand') return L('inBand', params);
+    if (v.key === 'noStable') return L('noStable', params);
+    if (v.key === 'heavy') return L('heavy', params);
+    if (v.key === 'pastAll') return L('pastAll', params);
+    const daughter = findElement(el.z + 1);
+    params.daughter = daughter ? daughter.sym : '';
+    return daughter ? L('neutronRich', params) : L('neutronRichNoDaughter', params);
+  }
+
+  let lastShot = null;
+  function setLastShot(iso, v) {
+    lastShot = iso && v ? { iso: iso, verdictKey: v.verdictKey, warn: v.key !== 'inBand' } : null;
+  }
+  // A shot that leaves the gun with nothing honest to say about the isotope. The
+  // symbol is stored, not the sentence, so a language switch can rebuild it.
+  function setDroppedShot(sym) {
+    lastShot = { dropped: true, sym: sym };
+  }
+
+  function addNeutron(atom, atomId, paid) {
+    pruneLedger();
+    const el = atom.el;
+    const a = baseA(el) + excessOf(atomId) + 1;
+    const iso = isotopeOf(el, a);
+    const v = stabilityVerdict(el.z, a);
+    // Nothing about the atom is touched: same Z, same electrons, same chemistry -
+    // which is exactly why the engine needs no reanalyze for this shot either.
+    setExcess(atomId, a - baseA(el));
+    // The nucleus changed, so the atom's own label has to say so: the ledger is the
+    // only record of A, and a paid-for neutron that only shows while the gun panel
+    // happens to be open is not the same nucleus the player is looking at.
+    if (window.__mol3d && window.__mol3d.updateAtomLabel) {
+      window.__mol3d.updateAtomLabel(atomId, atom.el);
+    }
+    showStatus('⚛ ' + L('neutronAdded', { sym: el.sym, a: iso.a, z: iso.z, n: iso.n }) + ' ' +
+      verdictText(el, iso, v) + spendTail(paid, 'neutron'), v.key === 'inBand' ? 'ok' : 'err');
+    setLastShot(iso, v);
+    // The x-ray, unlike the engine, draws the nucleus itself - and that nucleus is
+    // another isotope now. One atom is repainted here, exactly the way a proton shot
+    // repaints one atom, so a shot-heavy nucleus reads its real mass number the
+    // moment the shot lands instead of at the next rebuild.
+    if (window.__xray && window.__xray.isActive && window.__xray.isActive()) {
+      window.__xray.updateAtom(atomId, atom);
+    }
+    paintGun();
+  }
+
+  // --- The gun panel: mode selector, live ammo, isotope record ---
+  // It opens with the gun and closes with it, so there is exactly one source of
+  // truth for "armed": no hidden mode the player can still shoot with, and no
+  // panel left floating over the scene once the gun is off.
+  const NG_CSS = [
+    '#neutron-gun-panel{position:fixed;z-index:1201;width:min(258px,70vw);background:var(--panel);',
+    '  border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.5);',
+    '  backdrop-filter:blur(12px);padding:9px 10px 10px;display:none;}',
+    '#neutron-gun-panel.open{display:block;}',
+    '.ng-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;}',
+    '.ng-title{font-size:11.5px;font-weight:700;letter-spacing:.3px;}',
+    '.ng-close{margin-left:auto;width:20px;height:20px;border-radius:6px;border:1px solid var(--border);',
+    '  background:transparent;color:var(--muted);cursor:pointer;font-size:12px;line-height:1;}',
+    '.ng-close:hover{color:var(--text);border-color:var(--accent);}',
+    '.ng-modes{display:flex;gap:5px;}',
+    '.ng-mode{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 4px;',
+    '  border-radius:9px;border:1px solid var(--border);background:var(--panel-2);color:var(--muted);',
+    '  font:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:border-color .16s,color .16s;}',
+    '.ng-mode b{font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;}',
+    '.ng-mode.on{color:var(--text);border-color:var(--accent);background:var(--accent-soft);}',
+    '.ng-mode:hover{border-color:var(--accent);}',
+    '.ng-ammo{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:10.5px;color:var(--muted);}',
+    '.ng-ammo-main{flex:1;min-width:0;}',
+    '.ng-count{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;}',
+    '.ng-buy{flex:none;border:1px solid var(--border);border-radius:8px;background:var(--panel-2);',
+    '  color:var(--text);font:inherit;font-size:10px;font-weight:700;cursor:pointer;padding:4px 7px;}',
+    '.ng-buy:hover{border-color:var(--accent);}',
+    '.ng-note{margin-top:4px;font-size:9.5px;line-height:1.4;color:var(--muted);}',
+    '.ng-iso{margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:10px;',
+    '  line-height:1.45;color:var(--muted);}',
+    '.ng-iso b{color:var(--text);font-variant-numeric:tabular-nums;}',
+    '.ng-iso .ng-flag{color:#ffb347;}',
+    '@media (max-width:640px){#neutron-gun-panel{width:min(232px,66vw);padding:8px}.ng-mode{font-size:10px}}'
+  ].join('\n');
+
+  let panel = null;
+  let gunBtn = null;
+
+  function buildGun() {
+    if (panel) return panel;
+    if (!document.getElementById('ng-gun-styles')) {
+      const style = document.createElement('style');
+      style.id = 'ng-gun-styles';
+      style.textContent = NG_CSS;
+      document.head.appendChild(style);
+    }
+    panel = document.createElement('div');
+    panel.id = 'neutron-gun-panel';
+    panel.setAttribute('role', 'group');
+    panel.innerHTML =
+      '<div class="ng-head"><span class="ng-title"></span>' +
+        '<button type="button" class="ng-close" aria-label="' + esc(L('close')) + '">×</button></div>' +
+      '<div class="ng-modes"></div>' +
+      '<div class="ng-ammo"><span class="ng-ammo-main"></span>' +
+        '<button type="button" class="ng-buy"></button></div>' +
+      '<div class="ng-note"></div>' +
+      '<div class="ng-iso"></div>';
+
+    const modes = panel.querySelector('.ng-modes');
+    KINDS.forEach(function (kind) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'ng-mode';
+      chip.dataset.kind = kind;
+      chip.addEventListener('click', function () { setMode(kind); });
+      modes.appendChild(chip);
+    });
+
+    // The close button routes through the toolbar button rather than mutating the
+    // armed flag, so the toggle keeps owning the one piece of state it always did.
+    panel.querySelector('.ng-close').addEventListener('click', function () {
+      if (gunBtn) gunBtn.click(); else setArmed(false);
+    });
+    panel.querySelector('.ng-buy').addEventListener('click', function () {
+      const s = shopApi();
+      if (s && typeof s.buyAmmo === 'function') {
+        s.buyAmmo(mode, BUY_PACK);   // the shop charges, announces and repaints itself
+      } else if (s && typeof s.open === 'function') {
+        s.open();
+      }
+      paintGun();
+    });
+
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  function setMode(kind, quiet) {
+    if (KINDS.indexOf(kind) < 0) return;
+    mode = kind;
+    paintGun();
+    if (quiet) return;
+    const price = ammoPrice(kind);
+    const params = { kind: L(kindKey(kind)), price: price };
+    showStatus('🎯 ' + (price === null ? L('modeSetNoPrice', params) : L('modeSet', params)));
+  }
+
+  function paintGun() {
+    if (!panel) return;
+    panel.querySelector('.ng-title').textContent = L('panelTitle');
+    panel.setAttribute('aria-label', L('panelTitle'));
+    panel.querySelector('.ng-close').setAttribute('aria-label', L('close'));
+
+    const chips = panel.querySelectorAll('.ng-mode');
+    for (let i = 0; i < chips.length; i++) {
+      const chip = chips[i];
+      const kind = chip.dataset.kind;
+      const held = ammoCount(kind);
+      chip.classList.toggle('on', kind === mode);
+      chip.setAttribute('aria-pressed', kind === mode ? 'true' : 'false');
+      chip.innerHTML = '<span>' + esc(L(kind === 'proton' ? 'mProton' : 'mNeutron')) + '</span>' +
+        '<b>×' + esc(held === null ? '—' : held) + '</b>';
+      chip.title = L(kind === 'proton' ? 'ammoProton' : 'ammoNeutron') + ': ' +
+        (held === null ? L('ammoUnknown') : held);
+    }
+
+    const held = ammoCount(mode);
+    const main = panel.querySelector('.ng-ammo-main');
+    main.innerHTML = esc(L(mode === 'proton' ? 'ammoProton' : 'ammoNeutron')) + ': ' +
+      '<span class="ng-count">' +
+      esc(held === null ? L('ammoUnknown') : held) + '</span>';
+    const buy = panel.querySelector('.ng-buy');
+    buy.textContent = L('buyButton', { n: BUY_PACK });
+    buy.title = L('buyButton', { n: BUY_PACK }) + ' · ' + ammoPriceNote();
+
+    const note = panel.querySelector('.ng-note');
+    note.textContent = L('modeHint') + ' ' + ammoPriceNote();
+
+    const isoLine = panel.querySelector('.ng-iso');
+    if (!lastShot) {
+      isoLine.textContent = L('lastShot') + ': ' + L('none');
+    } else if (lastShot.dropped) {
+      isoLine.innerHTML = esc(L('lastShot')) + ': <b>' + esc(L('dropped')) + '</b>' +
+        '<div>' + esc(L('droppedNote', { sym: lastShot.sym })) + '</div>';
+    } else {
+      const s = lastShot.iso;
+      isoLine.innerHTML = esc(L('lastShot')) + ': <b>' + esc(s.label) + '</b> · ' +
+        esc(L('isotopeLine', { a: s.a, z: s.z, n: s.n })) +
+        (lastShot.warn ? '<div class="ng-flag">⚠ ' + esc(L(lastShot.verdictKey)) + '</div>'
+                       : '<div>' + esc(L(lastShot.verdictKey)) + '</div>');
+    }
+  }
+
+  function ammoPriceNote() {
+    const price = ammoPrice(mode);
+    return price === null ? L('buyNoteNoPrice') : L('buyNote', { price: price });
+  }
+
+  // The sidebar can sit on either edge and the format panel shares this side of it,
+  // so the gun stacks under whatever is already open instead of covering it.
+  function placeGun() {
+    if (!panel || !gunBtn) return;
+    const r = gunBtn.getBoundingClientRect();
+    const towardLeft = r.right > window.innerWidth / 2;
+    panel.style.right = '';
+    panel.style.left = '';
+    if (towardLeft) panel.style.right = Math.round(window.innerWidth - r.left + 8) + 'px';
+    else panel.style.left = Math.round(r.right + 8) + 'px';
+    const format = document.getElementById('format-panel');
+    let top = r.top - 8;
+    if (format && format.classList.contains('open')) {
+      const fr = format.getBoundingClientRect();
+      if (fr.left < r.left && fr.right > panel.getBoundingClientRect().left - 40) top = fr.bottom + 8;
+    }
+    const h = panel.offsetHeight || 190;
+    top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+    panel.style.top = Math.round(top) + 'px';
+    panel.style.bottom = 'auto';
+  }
+
+  function showGun() {
+    buildGun();
+    paintGun();
+    panel.classList.add('open');
+    placeGun();
+  }
+  function hideGun() {
+    if (panel) panel.classList.remove('open');
+  }
+
+  function setArmed(on) {
+    active = !!on;
+    if (gunBtn) gunBtn.classList.toggle('on', active);
+    if (active) showGun(); else hideGun();
+    // Toggling off never clears the critical timer: fission runs on its own.
+  }
+
+  let shopWatched = false;
+  function attachShopWatch() {
+    const s = shopApi();
+    if (!s || typeof s.onStockChange !== 'function') return false;
+    if (!shopWatched) {
+      shopWatched = true;
+      // fn takes no args by contract; the readout re-reads what it needs.
+      s.onStockChange(function () { paintGun(); });
+    }
+    paintGun();
+    return true;
+  }
+
+  function armedNote() {
+    if (!shopHasAmmoApi()) return L('ammoApiMissing');
+    const params = { kind: L(kindKey(mode)) };
+    const held = ammoCount(mode);
+    params.left = held === null ? L('ammoUnknown') : held;
+    return L('armedNote', params);
+  }
+
+  // The toolbar tooltip is still owned by the app's own i18n key, so data-i18n-title
+  // stays exactly where it is; this only overlays the new name and re-applies it
+  // after the app's translator has had its turn.
+  function relabelButton() {
+    if (!gunBtn) return;
+    const label = L('panelTitle');
+    gunBtn.title = label;
+    gunBtn.setAttribute('aria-label', label);
   }
 
   // --- Cinematic screen effects ---
@@ -130,7 +722,7 @@
         '1 kg U-235 phân hạch hoàn toàn: ≈ 8,3 × 10¹³ J ≈ 20 tấn TNT — đương lượng của một quả bom trút xuống một thành phố.',
         'Hiroshima, 6-8-1945: quả Little Boy chở 64 kg uranium, chưa tới 1 kg kịp phân hạch; 90.000 – 146.000 người đã chết trước cuối năm đó.',
         'Một liên kết hóa học bạn vừa xây ở đây: ≈ 4 eV. Phân hạch mạnh gấp ≈ 5 × 10⁷ lần.',
-        'Chu kỳ bán rã của Pu-239 là 24.100 năm: sau 240 thế kỷ, một nửa chất độc vẫn còn đó — lâu hơn mọi nền văn minh trên mặt đất.'
+        'Thời gian phân hủy của Pu-239 là 24.100 năm: sau đúng một thời gian phân hủy — 240 thế kỷ — một nửa chất độc vẫn còn đó, lâu hơn mọi nền văn minh trên mặt đất.'
       ],
       dialogue: [
         { who: 'aria', text: 'Bạn còn ở đó không? Ánh sáng vừa tan, và tôi không còn thấy phân tử nào nữa.' },
@@ -169,7 +761,7 @@
         '1 kg of U-235 fully fissioned: ≈ 8.3 × 10¹³ J ≈ 20 tonnes of TNT — the yield of a bomb dropped on a city.',
         'Hiroshima, 6 August 1945: Little Boy carried 64 kg of uranium and less than 1 kg actually fissioned; 90,000 – 146,000 people were dead by the end of that year.',
         'A chemical bond you just built in here: ≈ 4 eV. Fission is ≈ 5 × 10⁷ times stronger per event.',
-        'Pu-239 has a half-life of 24,100 years: after 240 centuries half the poison is still there — longer than every civilisation on this ground.'
+        'Pu-239 has a decay time of 24,100 years: after exactly one decay time — 240 centuries — half the poison is still there, longer than every civilisation on this ground.'
       ],
       dialogue: [
         { who: 'aria', text: 'Are you still there? The light just cleared, and I cannot find a single molecule left.' },
@@ -712,22 +1304,62 @@
         showStatus(tt('pg.alreadyCritical'));
         return;
       }
+      // A particle that starts a chain reaction is still a particle that was fired,
+      // so the countdown is paid for too - and refused before anything happens if
+      // the magazine is empty.
+      const paidHeavy = spendAmmo(mode);
+      if (!paidHeavy.ok) { refuseForAmmo(mode); return; }
       startCriticalTimer(atom, atomId);
+      paintGun();
     } else {
-      addProton(atom, atomId);
+      // The shop hands over the particle first: a shot that was not paid for does
+      // not exist, and an empty magazine must leave the atom exactly as it was.
+      const paid = spendAmmo(mode);
+      if (!paid.ok) { refuseForAmmo(mode); return; }
+      if (mode === 'neutron') addNeutron(atom, atomId, paid);
+      else addProton(atom, atomId, paid);
     }
   }
 
-  function addProton(atom, atomId) {
-    var newZ = atom.el.z + 1;
+  function addProton(atom, atomId, paid) {
+    var oldEl = atom.el;
+    var newZ = oldEl.z + 1;
     var newEl = findElement(newZ);
-    if (!newEl) { showStatus(tt('pg.noAbove', { z: atom.el.z })); return; }
-    if (!ownsElement(newZ)) { refuseUpgrade(newEl); return; }
+    if (!newEl) {
+      // The particle was paid for, then the transmutation declined: give it back.
+      refundAmmo('proton');
+      showStatus(tt('pg.noAbove', { z: oldEl.z }) + refundNote('proton'));
+      paintGun();
+      return;
+    }
+    if (!crateTransmute(atomId, newZ)) {
+      refundAmmo('proton');
+      refuseUpgrade(newEl, refundNote('proton'));
+      paintGun();
+      return;
+    }
 
-    var oldSym = atom.el.sym;
+    var oldSym = oldEl.sym;
+    // Proton capture lifts Z by one and A by one while N stands still, so the
+    // isotope the ledger holds has to be re-anchored against the new element's own
+    // baseline: 13C + p is 14N, not a natural nitrogen with a stray record.
+    var aBefore = baseA(oldEl) + excessOf(atomId);
     var isNoble = NOBLE_GASES.has(newZ);
     atom.el = newEl;
+    var newExcess = (aBefore + 1) - baseA(newEl);
+    var after = null, verdict = null;
+    if (newExcess >= 0) {
+      setExcess(atomId, newExcess);
+      after = isotopeOfAtom(atomId, atom);
+      verdict = stabilityVerdict(newZ, after.a);
+    } else {
+      // The ledger counts only neutrons the gun itself added. When the element
+      // above is naturally heavier than this nucleus, the honest statement is that
+      // the gun has no isotope record for it any more - never a guessed one.
+      setExcess(atomId, 0);
+    }
 
+    var tail = spendTail(paid, 'proton');
     if (isNoble) {
       var bondsBroken = 0;
       for (var entry of window.__mol3d.bonds) {
@@ -737,10 +1369,13 @@
           bondsBroken++;
         }
       }
-      showStatus(tt('pg.addedProtonNoble', { from: oldSym, to: newEl.name, z: newZ, n: bondsBroken }));
+      showStatus(tt('pg.addedProtonNoble', { from: oldSym, to: newEl.name, z: newZ, n: bondsBroken }) + tail);
     } else {
-      showStatus(tt('pg.addedProton', { from: oldSym, to: newEl.name, z: newZ }));
+      showStatus(tt('pg.addedProton', { from: oldSym, to: newEl.name, z: newZ }) + tail);
     }
+
+    if (after && verdict) setLastShot(after, verdict);
+    else setDroppedShot(newEl.sym);
 
     if (window.__mol3d.updateAtomLabel) {
       window.__mol3d.updateAtomLabel(atomId, newEl);
@@ -756,6 +1391,7 @@
 
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();
+    paintGun();
   }
 
   function startCriticalTimer(atom, atomId) {
@@ -822,6 +1458,12 @@
     if (!el1 || !el2) return;
 
     window.__mol3d.atoms.delete(atomId);
+    // The atom is gone, so its isotope record goes with it; the sweep below would
+    // catch it a second later, but fission is exactly when the ledger should be
+    // clean because the wasteland reset can reuse ids.
+    neutronLedger.delete(atomId);
+    saveLedger();
+    setLastShot(null, null);
     for (var entry of window.__mol3d.bonds) {
       var b = entry[1];
       if (b.a === atomId || b.b === atomId) window.__mol3d.bonds.delete(entry[0]);
@@ -856,7 +1498,9 @@
 
   function init() {
     var btn = document.getElementById('btn-proton');
+    gunBtn = btn;
     if (btn) {
+      relabelButton();
       btn.addEventListener('click', function() {
         if (window.__mol3dShop && window.__mol3dShop.blocksFeature('proton')) {
           showStatus(window.__mol3dShop.lockedMessage('proton'));
@@ -865,7 +1509,10 @@
         }
         active = !active;
         btn.classList.toggle('on', active);
-        showStatus(active ? tt('pg.on') : tt('pg.off'));
+        var msg = active ? tt('pg.on') : tt('pg.off');
+        if (active) { showGun(); msg += ' · ' + armedNote(); }
+        else hideGun();
+        showStatus(msg);
         // Don't clear critical timer when toggling off - fission continues independently
       });
     }
@@ -882,13 +1529,50 @@
       var poll = setInterval(function() { if (attachClick()) clearInterval(poll); }, 200);
     }
 
+    // The shop builds itself only once the engine has handed over its element
+    // table, so the ammo subscription is armed the same patient way.
+    if (!attachShopWatch()) {
+      var pollShop = setInterval(function () { if (attachShopWatch()) clearInterval(pollShop); }, 400);
+    }
+
+    // Atoms leave the scene through the engine's own delete paths, which this
+    // module may not hook; a slow sweep keeps the neutron ledger from keeping
+    // records of atoms that no longer exist. The records themselves were read
+    // before the engine booted, because its labels ask for them.
+    setInterval(pruneLedger, LEDGER_PRUNE_MS);
+
+    window.addEventListener('mol3d:lang', function () {
+      relabelButton();
+      paintGun();
+      if (panel && panel.classList.contains('open')) placeGun();
+    });
+    window.addEventListener('resize', function () { if (panel && panel.classList.contains('open')) placeGun(); });
+
     window.__protonGun = {
       toggle: function() { if (btn) btn.click(); },
       isActive: function() { return active; },
       shoot: shootProton,
       fission: triggerFission,
       playCinematic: playFissionCinematic,
-      stopCinematic: cineStop
+      stopCinematic: cineStop,
+      // Two barrels now, and an isotope record: anything outside this file asks
+      // these instead of guessing at what the last shot put into an atom.
+      mode: function() { return mode; },
+      setMode: function(kind) { setMode(kind); },
+      kinds: function() { return KINDS.slice(); },
+      ammoOf: ammoCount,
+      ammoPriceOf: ammoPrice,
+      neutronExcessOf: excessOf,
+      isotopeOf: function(atomId) {
+        var atoms = window.__mol3d && window.__mol3d.atoms;
+        var atom = atoms && typeof atoms.get === 'function' ? atoms.get(atomId) : null;
+        return atom ? isotopeOfAtom(atomId, atom) : null;
+      },
+      stabilityOf: function(atomId) {
+        var iso = this.isotopeOf(atomId);
+        return iso ? stabilityVerdict(iso.z, iso.a) : null;
+      },
+      panelOpen: function() { return !!(panel && panel.classList.contains('open')); }
     };
   }
 

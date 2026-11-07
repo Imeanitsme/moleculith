@@ -63,6 +63,86 @@
     return shells;
   }
 
+  // --- Isotope readout for the nucleus ---
+  // An atom in this build carries nothing but its element: the neutrons the
+  // neutron barrel captured live in the gun's own ledger (window.__protonGun),
+  // so the x-ray asks the gun for them instead of trusting the tabulated average
+  // atomic mass. The value is read when a structure is built and is never kept
+  // across frames - a shot can land between two of them.
+  function neutronExcess(atomId) {
+    var gun = window.__protonGun;
+    if (!gun || typeof gun.neutronExcessOf !== 'function') return 0;
+    var n;
+    try { n = gun.neutronExcessOf(atomId); } catch (e) { return 0; }
+    return (typeof n === 'number' && isFinite(n) && n > 0) ? Math.floor(n) : 0;
+  }
+
+  // Z comes from the element, A from the element's own mass number plus every
+  // neutron the gun added, N = A - Z. The baseline rule mirrors the gun's
+  // mass-number readout exactly, so the panel and the x-ray can never disagree
+  // about which isotope an atom is.
+  function nuclideOf(atom, atomId) {
+    var el = atom.el;
+    var z = (typeof el.z === 'number') ? el.z : 0;
+    var m = (typeof el.mass === 'number' && isFinite(el.mass)) ? Math.round(el.mass) : null;
+    var base = (m !== null && m >= z) ? m : Math.max(1, z * 2 - 1);
+    var a = base + neutronExcess(atomId);
+    return { z: z, n: a - z, a: a, label: el.sym + '-' + a };
+  }
+
+  // The tag is a texture, not geometry: a nuclide that was drawn before is reused
+  // as it is, so repainting an atom after a shot costs a Map lookup instead of a
+  // fresh canvas. The key is the full nuclide label, so a cached image can never
+  // describe a different isotope. Entries are shared by every sprite showing that
+  // nuclide, so an overflow drops the oldest one instead of disposing it -
+  // disposing a texture another atom still displays would blank that one out.
+  var NUCLIDE_TEX_MAX = 128;
+  var nuclideTextures = new Map();
+
+  function nuclideTexture(label, THREE) {
+    var cached = nuclideTextures.get(label);
+    if (cached) return cached;
+    var canvas = document.createElement('canvas');
+    canvas.width = 192;
+    canvas.height = 64;
+    var g = canvas.getContext('2d');
+    if (!g) return null;
+    g.font = 'bold 40px "Segoe UI", Arial, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 8;
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(8,12,18,0.9)';
+    g.strokeText(label, 96, 34);
+    // Warm rather than the symbol's white: this line belongs to the nucleus, and
+    // the element label floating on the same atom already uses white.
+    g.fillStyle = '#ffd9a8';
+    g.fillText(label, 96, 34);
+    var tex = new THREE.CanvasTexture(canvas);
+    if (nuclideTextures.size >= NUCLIDE_TEX_MAX) {
+      nuclideTextures.delete(nuclideTextures.keys().next().value);
+    }
+    nuclideTextures.set(label, tex);
+    return tex;
+  }
+
+  function createNuclideTag(nuclide, THREE, atomRadius) {
+    if (!THREE || typeof THREE.Sprite !== 'function' ||
+        typeof THREE.SpriteMaterial !== 'function' ||
+        typeof THREE.CanvasTexture !== 'function') return null;
+    var tex = nuclideTexture(nuclide.label, THREE);
+    if (!tex) return null;
+    var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthWrite: false
+    }));
+    // The canvas is 3:1, so the sprite keeps that ratio and the text stays upright.
+    var h = 0.24 + atomRadius * 0.16;
+    sprite.scale.set(h * 3, h, 1);
+    sprite.position.set(0, -(0.22 + atomRadius * 0.5), 0);
+    sprite.userData.nuclide = nuclide.label;
+    return sprite;
+  }
+
   function createNucleus(protons, neutrons, THREE) {
     var group = new THREE.Group();
     var nucleusRadius = 0.15;
@@ -183,11 +263,14 @@
     return { group: group, cloudData: cloudData };
   }
 
-  function createAtomStructure(atom, THREE) {
+  function createAtomStructure(atom, THREE, atomId) {
     var group = new THREE.Group();
     var el = atom.el;
-    var protons = el.z;
-    var neutrons = Math.round(el.mass) - protons;
+    // The isotope the gun leaves behind, not the periodic table's average: a
+    // carbon that has swallowed two neutrons has to be drawn as carbon-14.
+    var nuclide = nuclideOf(atom, atomId);
+    var protons = nuclide.z;
+    var neutrons = nuclide.n;
     var shells = electronShells(protons);
 
     var atomRadius = 0.5;
@@ -197,11 +280,15 @@
 
     var nucleus = createNucleus(protons, neutrons, THREE);
     group.add(nucleus);
+    // Null only when the renderer's build predates sprites; the nucleus itself is
+    // still the correct isotope without it.
+    var tag = createNuclideTag(nuclide, THREE, atomRadius);
+    if (tag) group.add(tag);
 
     var shellData = createElectronShells(shells, THREE, atomRadius);
     group.add(shellData.group);
 
-    return { group: group, shellData: shellData };
+    return { group: group, shellData: shellData, nuclide: nuclide };
   }
 
   // Update single atom's x-ray structure (for real-time proton gun updates)
@@ -211,7 +298,10 @@
       // Remove old structure
       window.__mol3d.scene.remove(existing.group);
       existing.group.traverse(function(child) {
-        if (child.geometry) child.geometry.dispose();
+        // three keeps one shared geometry for every Sprite, so disposing it here
+        // would take the engine's own atom labels with it. Materials are per
+        // sprite and still go.
+        if (child.geometry && !child.isSprite) child.geometry.dispose();
         if (child.material) {
           if (Array.isArray(child.material)) {
             child.material.forEach(function(m) { m.dispose(); });
@@ -223,7 +313,7 @@
     }
 
     // Create new structure
-    var structure = createAtomStructure(atom, THREE);
+    var structure = createAtomStructure(atom, THREE, atomId);
     structure.group.position.set(atom.pos.x, atom.pos.y, atom.pos.z);
     window.__mol3d.scene.add(structure.group);
     shellObjects.set(atomId, structure);
@@ -234,7 +324,8 @@
     if (!obj || !window.__mol3d || !window.__mol3d.scene) return;
     window.__mol3d.scene.remove(obj.group);
     obj.group.traverse(function(child) {
-      if (child.geometry) child.geometry.dispose();
+      // Shared sprite geometry is never disposed - see updateAtomStructure.
+      if (child.geometry && !child.isSprite) child.geometry.dispose();
       if (child.material) {
         if (Array.isArray(child.material)) {
           child.material.forEach(function(m) { m.dispose(); });
@@ -311,7 +402,7 @@
     clearAllShells();
 
     window.__mol3d.atoms.forEach(function(atom, id) {
-      var structure = createAtomStructure(atom, THREE);
+      var structure = createAtomStructure(atom, THREE, id);
       structure.group.position.set(atom.pos.x, atom.pos.y, atom.pos.z);
       window.__mol3d.scene.add(structure.group);
       shellObjects.set(id, structure);
@@ -429,6 +520,20 @@
       updateAtom: function(atomId, atom) {
         if (!active || !window.__mol3d || !window.__mol3d.THREE) return;
         updateAtomStructure(atomId, atom, window.__mol3d.THREE);
+      },
+      // Read-only, for the inspector and for tests: the isotope this view draws for
+      // an atom right now (Z, N, A and the nuclide label). Asking here instead of
+      // recomputing N from the tabulated average mass is the whole point of the
+      // neutron barrel.
+      nuclideOf: function(atomId) {
+        var atoms = window.__mol3d && window.__mol3d.atoms;
+        var atom = atoms && typeof atoms.get === 'function' ? atoms.get(atomId) : null;
+        return atom ? nuclideOf(atom, atomId) : null;
+      },
+      // The isotope currently on screen for an atom, or null while it has no shell.
+      shownNuclide: function(atomId) {
+        var obj = shellObjects.get(atomId);
+        return obj && obj.nuclide ? obj.nuclide : null;
       }
     };
   }

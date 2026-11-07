@@ -2635,10 +2635,34 @@
     var dt = opts.dt || 3e-16;                              // s, ~1/50 of the fastest bond period
     var dtMax = opts.dtMax || 1e-15;
     var alpha = opts.alpha === undefined ? 0.1 : opts.alpha;
+    // Wall-clock ceiling. The step count is not a usable budget for a call made
+    // while a player is waiting: the cost of a step grows with the number of
+    // non-bonded pairs, so the same 3000 steps cost 3 ms for ammonia and 22 s for
+    // C40H82. A caller that needs an answer before the next frame says how long
+    // it has, and the relaxation stops when the time is spent with the geometry
+    // it reached, which is always lower in energy than the placement it started
+    // from. It is reported as not converged, because it is not.
+    var deadlineMs = opts.deadlineMs > 0 ? opts.deadlineMs : 0;
+    // Checked every step: a step costs microseconds for ammonia and tens of
+    // milliseconds for a 122-atom chain, so a coarser interval would let the
+    // expensive cases overshoot the budget by several times. The clock itself is
+    // nanoseconds against either.
+    var checkEvery = opts.deadlineCheckEvery || 1;
+    var clock = function() { return typeof performance !== 'undefined' ? performance.now() : Date.now(); };
+    var tEnd = deadlineMs ? clock() + deadlineMs : 0;
     var A = mol.atoms, i;
     var v = A.map(function() { return { x: 0, y: 0, z: 0 }; });
     var dtStart = dt, Nf = 0, E = Optimizer.energy(mol), step = 0;
     for (step = 0; step < maxSteps; step++) {
+      if (tEnd && (step % checkEvery) === 0 && clock() >= tEnd) {
+        return {
+          ok: true, method: 'FIRE', steps: step, converged: false,
+          energy: E, maxGradient: Optimizer.maxGradient(mol),
+          timeSpentMs: deadlineMs,
+          reason: 'time budget of ' + deadlineMs + ' ms exhausted after ' + step +
+            ' steps before the force criterion was met'
+        };
+      }
       var P = 0, K = 0, M = 0;
       for (i = 0; i < A.length; i++) {
         if (A[i].fixed) continue;
@@ -2804,7 +2828,7 @@
       var undo = write(v);
       var res = (opts.relax && canRelax) ? Optimizer.minimize(mol, { maxSteps: opts.relaxSteps || 400 }) : null;
       var E = Optimizer.energy(mol);
-      curve.push({ value: kind === 'bond' ? v / ANGSTROM : v * 180 / Math.PI, E: E, relaxed: !!res });
+      curve.push({ value: kind === 'bond' ? v * 1e9 : v * 180 / Math.PI, E: E, relaxed: !!res });
       undo();
       for (var rb = 0; rb < A.length; rb++) {
         A[rb].x = restoreAll[rb].x; A[rb].y = restoreAll[rb].y; A[rb].z = restoreAll[rb].z;
@@ -2816,7 +2840,7 @@
     var Emax = Math.max.apply(null, curve.map(function(p) { return p.E; }));
     return {
       ok: true, kind: kind, curve: curve,
-      units: kind === 'bond' ? { x: 'angstrom', y: 'joule' } : { x: 'degree', y: 'joule' },
+      units: kind === 'bond' ? { x: 'nanometre', y: 'joule' } : { x: 'degree', y: 'joule' },
       barrierKJmol: (Emax - Emin) * CONST.N_A / 1000,
       minima: curve.filter(function(p, k) { return k > 0 && k < curve.length - 1 && p.E <= curve[k - 1].E && p.E <= curve[k + 1].E; }),
       maxima: curve.filter(function(p, k) { return k > 0 && k < curve.length - 1 && p.E >= curve[k - 1].E && p.E >= curve[k + 1].E; })
@@ -3223,6 +3247,9 @@
     var explicitCharges = spec.atoms.some(function(s) { return s.charge; });
     for (i = 0; i < bondList.length; i++) {
       var bi = bondList[i][0], bj = bondList[i][1], ord = bondList[i][2] || 1;
+      if (!mol.atoms[bi] || !mol.atoms[bj]) {
+        return { ok: false, mol: mol, reason: 'bond ' + i + ' refers to atom ' + (mol.atoms[bi] ? bj : bi) + ', but the spec has only ' + mol.atoms.length + ' atoms' };
+      }
       var b = mol.addBond(bi, bj, ord);
       if (!b) return { ok: false, mol: mol, reason: 'no bond data for ' + mol.atoms[bi].sym + '-' + mol.atoms[bj].sym };
       // Pauling's criterion: above an electronegativity difference of 1.7 the
@@ -3257,6 +3284,10 @@
     if (fc.notes.length) mol.notes = (mol.notes || []).concat(fc.notes);
     for (i = 0; i < mol.atoms.length; i++) if (!meta[i].placed) unplaced.push(i);
     var geom = null;
+    // A deadline given to build() is a budget for the whole answer, not for the
+    // minimiser alone: the placement is what costs 25 ms on a 12-atom ring, and a
+    // caller waiting for a click cannot pay that and then another 30 ms on top.
+    var tBudget = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (unplaced.length) {
       geom = Builder.placeByVSEPR(mol, meta, unplaced, opts);
       if (!geom.ok) return { ok: false, mol: mol, reason: geom.reason };
@@ -3269,7 +3300,11 @@
     if (opts.charges !== false) chargeInfo = assignChargesEEM(mol, opts.eem);
     var refine = null;
     if (opts.optimize !== false) {
-      refine = Optimizer.minimize(mol, { maxSteps: opts.optimizeSteps || 3000, tol: opts.tol });
+      var left = opts.deadlineMs > 0 ? opts.deadlineMs - ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - tBudget) : opts.deadlineMs;
+      refine = left > 0 ? Optimizer.minimize(mol, { maxSteps: opts.optimizeSteps || 3000, tol: opts.tol, deadlineMs: left })
+        : { ok: true, method: 'FIRE', steps: 0, converged: false,
+            energy: Optimizer.energy(mol), maxGradient: Optimizer.maxGradient(mol),
+            reason: 'the ' + opts.deadlineMs + ' ms budget was used up by the placement, so the geometry is the ideal VSEPR one the placement produced' };
       Builder.connectValences(mol);
       mol.buildExclusions();
       // the equilibration was solved on the pre-refinement geometry; charges and
@@ -3332,7 +3367,7 @@
       // torsion brings them together. The cycle is therefore laid out as a
       // closed polygon first - exact by construction - and the side chains hang
       // off it; the minimiser relaxes the conformation from there.
-      var ringAtoms = Builder.placeRing(mol, meta, group, locked, parentOf);
+      var ringAtoms = Builder.placeRing(mol, meta, group, locked, parentOf, steric);
       if (!ringAtoms.length && !anchored) {
         var rv = vseprValence(mol.atoms[gRoot].el);
         if (!rv.ok) return { ok: false, reason: rv.reason };
@@ -3356,8 +3391,19 @@
         if (!children.length) continue;
         // slots of the parent geometry, lone pairs removed, one reserved for the
         // direction it came from
-        var slots = Builder.slotsFor(parent, steric, lp, mol, parentOf);
         var origin = { x: mol.atoms[parent].x, y: mol.atoms[parent].y, z: mol.atoms[parent].z };
+        // Neighbours of this centre that are already in place are facts about it
+        // that the arriving bond alone does not pin down: the two arms of a ring
+        // fix the twist about the ring bond, and without that constraint a
+        // trigonal centre in a six-ring can hang its substituent anywhere on the
+        // cone around the bond. Fitting the twist to them is what keeps benzene
+        // and its derivatives planar instead of puckered.
+        var held = meta[parent].neighbours.filter(function(x) {
+          return x !== parentOf[parent] && meta[x].placed;
+        }).map(function(x) {
+          return vunit({ x: mol.atoms[x].x - origin.x, y: mol.atoms[x].y - origin.y, z: mol.atoms[x].z - origin.z });
+        });
+        var slots = Builder.slotsFor(parent, steric, lp, mol, parentOf, held);
         for (ci = 0; ci < children.length; ci++) {
           var child = children[ci];
           if (locked[child]) { seen[child] = 1; parentOf[child] = parent; next.push(child); continue; }
@@ -3393,8 +3439,8 @@
             if (!(h2 > 0)) {
               mol.notes.push('ring closure ' + mol.atoms[parent].sym + '-' +
                 mol.atoms[child].sym + '-' + q2.sym + ' cannot satisfy both bond lengths (' +
-                (D * 1e10).toFixed(3) + ' A apart, ' + (len * 1e10).toFixed(3) + ' + ' +
-                (L2 * 1e10).toFixed(3) + ' A of bonds) - the ring is strained and the ' +
+                (D * 1e9).toFixed(4) + ' nm apart, ' + (len * 1e9).toFixed(4) + ' + ' +
+                (L2 * 1e9).toFixed(4) + ' nm of bonds) - the ring is strained and the ' +
                 'minimiser will report it');
               continue;
             }
@@ -3444,7 +3490,7 @@
         var shift = 6e-10 * gi;
         for (j = 0; j < group.length; j++) mol.atoms[group[j]].x += shift;
         mol.notes.push('fragment of ' + group.length + ' atoms is not bonded to fragment 0; ' +
-          'placed as a separate species ' + (6 * gi).toFixed(1) + ' A away');
+          'placed as a separate species ' + (0.6 * gi).toFixed(2) + ' nm away');
       }
     }
     Builder.closeRings(mol, meta, parentOf);
@@ -3469,7 +3515,21 @@
   // hang off ring atoms whose directions are already known. Rings that are fused
   // or bridged, or whose atoms were given by the caller, are left to the torsion
   // scan and the minimiser and are reported there.
-  Builder.placeRing = function (mol, meta, group, locked, parentOf) {
+  // Identity counter for the exact polygons placeRing writes; see closeRings.
+  Builder.polygonSeq = 0;
+
+  function ringIsTetrahedral(mol, order, steric) {
+    if (!steric) return false;
+    for (var k = 0; k < order.length; k++) {
+      var nx = order[(k + 1) % order.length];
+      if (steric[order[k]] !== 4 || steric[nx] !== 4) return false;
+      var rb = mol.findBond(order[k], nx);
+      if (!rb || rb.order !== 1) return false;
+    }
+    return true;
+  }
+
+  Builder.placeRing = function (mol, meta, group, locked, parentOf, steric) {
     var adj = {}, i, k;
     for (i = 0; i < group.length; i++) adj[group[i]] = [];
     for (i = 0; i < mol.bonds.length; i++) {
@@ -3510,17 +3570,41 @@
       sum += Builder.bondDistance(mol.atoms[order[i]].el, mol.atoms[nx].el, eb ? eb.order : 1);
     }
     var side = sum / order.length;
-    var R = side / (2 * Math.sin(Math.PI / order.length));
+    var nSide = order.length;
+    // Alternating the out-of-plane offset by d opens the endocyclic angle while
+    // keeping every bond exactly side long: with c the projected chord and A the
+    // interior angle of the polygon, cos(phi) = (c*c*cos(A) + 4*d*d) / side*side
+    // and c*c + 4*d*d = side*side. Solving the pair gives
+    // 4*d*d = side*side*(cos(phi) - cos(A)) / (1 - cos(A)), which is positive
+    // only when the polygon is already wider than the tetrahedral angle - six
+    // membered and larger - so a flat triangle, square or pentagon stays flat:
+    // leaving the plane would make its angles worse, not better.
+    var cosA = -Math.cos(2 * Math.PI / nSide);
+    var lift = 0;
+    if (nSide >= 6 && nSide % 2 === 0 && ringIsTetrahedral(mol, order, steric)) {
+      var pucker = (-1 / 3 - cosA) / (1 - cosA);
+      if (pucker > 0 && pucker < 0.5) lift = side * Math.sqrt(pucker) / 2;
+    }
+    var R = lift > 0
+      ? Math.sqrt(side * side - 4 * lift * lift) / (2 * Math.sin(Math.PI / nSide))
+      : side / (2 * Math.sin(Math.PI / nSide));
+    // One identity per polygon laid out, so the torsion scan can recognise the
+    // ring as already closed instead of trying to re-close it.
+    var polygonId = ++Builder.polygonSeq;
     for (i = 0; i < order.length; i++) {
       var th = 2 * Math.PI * i / order.length;
       mol.atoms[order[i]].x = R * Math.cos(th);
       mol.atoms[order[i]].y = R * Math.sin(th);
-      mol.atoms[order[i]].z = 0;
+      mol.atoms[order[i]].z = lift > 0 ? (i % 2 ? -lift : lift) : 0;
       meta[order[i]].placed = true;
+      meta[order[i]].polygonId = polygonId;
+      meta[order[i]].polygonSide = side;
       parentOf[order[i]] = i ? order[i - 1] : -1;
     }
     mol.notes.push(order.length + '-membered ring laid out as a closed polygon of ' +
-      (side * 1e10).toFixed(3) + ' A sides, then relaxed by the minimiser');
+      (side * 1e9).toFixed(4) + ' nm sides' + (lift > 0
+        ? ', puckered alternately ' + (nSide === 6 ? 'chair' : 'out of plane') + ' by ' +
+          (lift * 1e9).toFixed(4) + ' nm' : ' in one plane') + ', then relaxed by the minimiser');
     return order;
   };
 
@@ -3587,7 +3671,19 @@
       };
     }
     function bondTarget(b) {
-      return Builder.bondDistance(mol.atoms[b.i].el, mol.atoms[b.j].el, b.order);
+      // A bond drawn in the polygon the ring layout just wrote is exact by
+      // construction: its endpoints are two neighbours on a regular polygon whose
+      // side is the mean of the ring bond lengths, so the ring closes no matter how
+      // the substituents are turned. What is left over is a per-bond length error
+      // (in an aromatic ring the alternating single/double targets cannot all be
+      // met at once on a regular polygon), and a length error is the minimiser's
+      // job. Scoring it as an unclosed ring instead makes the torsion scan leave
+      // the plane looking for a closure that is already there, which is how benzene
+      // came out puckered and a six-ring cost 300 ms instead of 19.
+      var t = Builder.bondDistance(mol.atoms[b.i].el, mol.atoms[b.j].el, b.order);
+      var pi = meta[b.i], pj = meta[b.j];
+      if (pi && pj && pi.polygonId && pi.polygonId === pj.polygonId) return pi.polygonSide;
+      return t;
     }
     function score(members, moved) {
       var pos = {}, t;
@@ -3679,8 +3775,8 @@
     for (var t = 0; t < still.length; t++) {
       var b3 = still[t].b;
       mol.warnings.push('ring bond ' + mol.atoms[b3.i].sym + b3.i + '-' + mol.atoms[b3.j].sym + b3.j +
-        ' is at ' + (bondLength(mol.atoms[b3.i], mol.atoms[b3.j]) * 1e10).toFixed(3) + ' A, target ' +
-        (bondTarget(b3) * 1e10).toFixed(3) + ' A: the graph needs a conformation the torsion scan ' +
+        ' is at ' + (bondLength(mol.atoms[b3.i], mol.atoms[b3.j]) * 1e9).toFixed(4) + ' nm, target ' +
+        (bondTarget(b3) * 1e9).toFixed(4) + ' nm: the graph needs a conformation the torsion scan ' +
         'could not reach (fused or bridged ring)');
     }
     return { ok: still.length === 0, openRings: still.length };
@@ -3689,7 +3785,7 @@
 
   // the lone-pair slots removed, rotated so that the direction back to the atom
   // it was placed from lines up with a retained slot.
-  Builder.slotsFor = function(idx, steric, lp, mol, parentOf) {
+  Builder.slotsFor = function(idx, steric, lp, mol, parentOf, held) {
     var sn = steric[idx];
     var vecs = (Builder.IDEAL[sn] || Builder.IDEAL[4]).map(function(v) { return v.slice(); });
     var loneSlots = VSEPR.loneOrder[sn] ? VSEPR.loneOrder[sn].slice(0, lp[idx]) : [];
@@ -3708,9 +3804,41 @@
       var e = { x: vecs[anchorSlot][0], y: vecs[anchorSlot][1], z: vecs[anchorSlot][2] };
       rot = rotationFromTo(e, u);
       occupied = occupied.filter(function(x) { return x !== anchorSlot; });
+      // Aligning the arriving bond uses two of the three rotational degrees of
+      // freedom; the twist about it is still free and is decided by whatever
+      // other neighbours of this centre are already fixed. Scanning the twist is
+      // a least-squares fit of the ideal geometry onto those directions, and for
+      // a ring atom the fit is exact: the two ring bonds are 120 degrees apart,
+      // which is where the substituent slot then lands, in the ring plane.
+      if (held && held.length) {
+        var bestPhi = 0, bestCost = Infinity, STEPS = 360;
+        for (var phi_i = 0; phi_i < STEPS; phi_i++) {
+          var phi = 2 * Math.PI * phi_i / STEPS;
+          var cand = phi === 0 ? rot : multiply3(rotationMatrix(u, phi), rot);
+          var cost = 0;
+          for (var hi = 0; hi < held.length; hi++) {
+            var closest = 0;
+            for (var oi = 0; oi < occupied.length; oi++) {
+              var d = applyRot(cand, vecs[occupied[oi]]);
+              var c = vdot(d, held[hi]);
+              if (c > closest) closest = c;
+            }
+            cost += 1 - closest;
+          }
+          if (cost < bestCost) { bestCost = cost; bestPhi = phi; }
+        }
+        if (bestPhi !== 0) rot = multiply3(rotationMatrix(u, bestPhi), rot);
+      }
     }
     return { vecs: vecs, free: occupied, rot: rot };
   };
+
+  function multiply3(A, B) {
+    var out = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++)
+      out[r][c] = A[r][0] * B[0][c] + A[r][1] * B[1][c] + A[r][2] * B[2][c];
+    return out;
+  }
 
   // Sigma-bonded neighbours beyond two define the angle terms; three define
   // torsions. Built from the graph, not from a template.
@@ -4768,7 +4896,7 @@
     measured: LS('measured', 'đo thực nghiệm'),
     estimated: LS('estimated', 'ước lượng'),
     ionicChar: LS('ionic character', 'phần ion'),
-    angleTable: LS('Valence angles', 'Góc hóa trị'),
+    angleTable: LS('Bond angles', 'Gốc liên kết'),
     angle: LS('Angle', 'Góc'),
     ideal: LS('VSEPR θ₀', 'θ₀ VSEPR'),
     source: LS('Source', 'Nguồn'),
@@ -4787,8 +4915,8 @@
     uPair: LS('U pair', 'U cặp'),
     nOrder: LS('n Pauling', 'n Pauling'),
     superseded: LS('no 12-6 on this surface', 'bề mặt này không dùng 12-6'),
-    pairZero: LS('U pair is the energy of the two atoms against the same pair separated and at rest: negative means the contact is bound, positive means the field pushes them apart. All three columns come from the same potentials the integrator steps. A dash in the bond-curve column means no bonding surface is written for that contact because the two atoms already belong to the same molecule, so only dispersion and electrostatics act between them; D0 stays listed because it is a property of the element pair, and it is exactly the depth of the well a new bond would have if the pair were two separate species. Pairs farther apart than 4 Å are left out of the list to keep it readable, though the field still counts their very small dispersion.',
-      'U cặp là năng lượng của hai nguyên tử so với chính cặp đó tách xa và đứng yên: âm nghĩa là tiếp xúc có liên kết, dương nghĩa là trường lực đẩy chúng ra. Cả ba cột đều lấy từ các thế mà integrator đang tích phân. Dấu gạch trong cột đường cong liên kết nghĩa là không có bề mặt liên kết nào được ghi cho tiếp xúc này vì hai nguyên tử đã thuộc cùng một phân tử, nên chỉ phân tán và tĩnh điện tác động giữa chúng; D₀ vẫn được liệt kê vì đó là tính chất của cặp nguyên tố, và chính là độ sâu của hố thế mà một liên kết mới sẽ có nếu hai nguyên tử là hai loài tách biệt. Những cặp cách xa quá 4 Å được xếp ra ngoài danh sách cho dễ đọc, dù trường lực vẫn tính thành phần phân tán rất nhỏ của chúng.'),
+    pairZero: LS('U pair is the energy of the two atoms against the same pair separated and at rest: negative means the contact is bound, positive means the field pushes them apart. All three columns come from the same potentials the integrator steps. A dash in the bond-curve column means no bonding surface is written for that contact because the two atoms already belong to the same molecule, so only dispersion and electrostatics act between them; D0 stays listed because it is a property of the element pair, and it is exactly the depth of the well a new bond would have if the pair were two separate species. Pairs farther apart than 0.4 nm are left out of the list to keep it readable, though the field still counts their very small dispersion.',
+      'U cặp là năng lượng của hai nguyên tử so với chính cặp đó tách xa và đứng yên: âm nghĩa là tiếp xúc có liên kết, dương nghĩa là trường lực đẩy chúng ra. Cả ba cột đều lấy từ các thế mà integrator đang tích phân. Dấu gạch trong cột đường cong liên kết nghĩa là không có bề mặt liên kết nào được ghi cho tiếp xúc này vì hai nguyên tử đã thuộc cùng một phân tử, nên chỉ phân tán và tĩnh điện tác động giữa chúng; D₀ vẫn được liệt kê vì đó là tính chất của cặp nguyên tố, và chính là độ sâu của hố thế mà một liên kết mới sẽ có nếu hai nguyên tử là hai loài tách biệt. Những cặp cách xa quá 0,4 nm được xếp ra ngoài danh sách cho dễ đọc, dù trường lực vẫn tính thành phần phân tán rất nhỏ của chúng.'),
     logTitle: LS('Engine log', 'Nhật ký engine'),
     logNote: LS('Raw messages from the calculations (English only). Anything the engine could not model is listed here instead of being hidden.',
       'Thông báo gốc từ các phép tính (chỉ tiếng Anh). Mọi thứ engine không mô hình hoá được đều ghi ở đây thay vì bị ẩn.'),
@@ -4874,8 +5002,8 @@
       'cân bằng - mọi thay đổi topology đều được trả bằng chuyển động của cặp, và của các nguyên tử còn lại khi cặp không đủ'),
     heatOpen: LS('open - neither the pair nor the rest of the system had this much motion to give',
       'chưa cân bằng - cả cặp lẫn phần còn lại của hệ không đủ chuyển động để trả phần nhiệt này'),
-    coreRule: LS('A pair whose two atoms each still carry an unpartnered valence electron, with no bond path between them, is held on the measured Morse bond curve of the molecule it would form (tabulated De, re, k) and feels no Lennard-Jones wall. That curve becomes the graph bond the moment it is written, so forming or breaking changes the total energy by exactly nothing. Without it the 12-6 core - fitted to bonded, saturated matter - turns every approach around near 1.6 A and bonding distance is never reached.',
-      'Cặp mà mỗi nguyên tử vẫn còn một electron hóa trị chưa bắt đôi, và không có đường liên kết giữa chúng, được mô tả bằng đường cong Morse đo được của phân tử mà chúng sẽ tạo (De, re, k trong bảng) và không chịu tường Lennard-Jones. Đường cong ấy chính là liên kết trong đồ thị ngay khi được ghi nhận, nên việc tạo hay phá liên kết không làm thay đổi tổng năng lượng chút nào. Nếu không, lõi 12-6 - vốn khớp cho vật chất đã liên kết và bão hòa - sẽ đẩy mọi lần tiếp cận ở khoảng 1,6 A và không bao giờ tới được khoảng cách liên kết.'),
+    coreRule: LS('A pair whose two atoms each still carry an unpartnered valence electron, with no bond path between them, is held on the measured Morse bond curve of the molecule it would form (tabulated De, re, k) and feels no Lennard-Jones wall. That curve becomes the graph bond the moment it is written, so forming or breaking changes the total energy by exactly nothing. Without it the 12-6 core - fitted to bonded, saturated matter - turns every approach around near 0.16 nm and bonding distance is never reached.',
+      'Cặp mà mỗi nguyên tử vẫn còn một electron hóa trị chưa bắt đôi, và không có đường liên kết giữa chúng, được mô tả bằng đường cong Morse đo được của phân tử mà chúng sẽ tạo (De, re, k trong bảng) và không chịu tường Lennard-Jones. Đường cong ấy chính là liên kết trong đồ thị ngay khi được ghi nhận, nên việc tạo hay phá liên kết không làm thay đổi tổng năng lượng chút nào. Nếu không, lõi 12-6 - vốn khớp cho vật chất đã liên kết và bão hòa - sẽ đẩy mọi lần tiếp cận ở khoảng 0,16 nm và không bao giờ tới được khoảng cách liên kết.'),
     ledgerTitle: LS('Reactive ledger (Pauling bond order, not ReaxFF)',
       'Sổ cái phản ứng (bậc liên kết Pauling, không phải ReaxFF)'),
     conserved: LS('Conservation check', 'Kiểm tra bảo toàn'),
@@ -5297,8 +5425,8 @@
         g.bonds.map(function(b) {
           return [
             esc(b.key), b.order + (b.ionic ? ' <span class="mpe-pill">' + num(b.ionicCharacter * 100, 0) + '% ' + esc(TXT(STR.ionicChar)) + '</span>' : ''),
-            num(b.rAngstrom, 4) + ' Å', num(b.eqAngstrom, 4) + ' Å',
-            '<span class="' + (Math.abs(b.deltaAngstrom) > 0.08 ? 'mpe-err' : 'mpe-ok') + '">' + (b.deltaAngstrom >= 0 ? '+' : '') + num(b.deltaAngstrom, 4) + '</span>',
+            num(b.rAngstrom / 10, 5) + ' nm', num(b.eqAngstrom / 10, 5) + ' nm',
+            '<span class="' + (Math.abs(b.deltaAngstrom) > 0.08 ? 'mpe-err' : 'mpe-ok') + '">' + (b.deltaAngstrom >= 0 ? '+' : '') + num(b.deltaAngstrom / 10, 5) + '</span>',
             num(b.kNm, 0),
             '<span class="' + (b.uBondKJmol < 0 ? 'mpe-ok' : 'mpe-err') + '">' + num(b.uBondKJmol, 1) + '</span>',
             num(b.DeKJmol, 1),
@@ -5323,7 +5451,7 @@
           [TXT(STR.contact), 'd', TXT(STR.uElec), TXT(STR.uVdw), TXT(STR.uCurve),
             TXT(STR.uPair), TXT(STR.nOrder), TXT(STR.dissociation)],
           g.nonbonded.map(function(p) {
-            return [esc(p.pair), num(p.rAngstrom, 3) + ' Å',
+            return [esc(p.pair), num(p.rAngstrom / 10, 4) + ' nm',
               num(p.electrostaticKJmol, 1),
               // On the bonding surface the 12-6 core is switched off by the field,
               // so the dispersion column says why instead of printing a fake zero.
@@ -5776,7 +5904,7 @@
       var oh = bondLength(w.mol.atoms[0], w.mol.atoms[1]) / ANGSTROM;
       var ang = angleValue(w.mol.atoms[1], w.mol.atoms[0], w.mol.atoms[2]) * 180 / Math.PI;
       record('water built from the graph', approx(oh, 0.958, 0.05) && approx(ang, 104.5, 8),
-        'O–H ' + num(oh, 3) + ' Å · ∠HOH ' + num(ang, 1) + '°', 'VSEPR + FIRE on the fitted constants');
+        'O–H ' + num(oh / 10, 4) + ' nm · ∠HOH ' + num(ang, 1) + '°', 'VSEPR + FIRE on the fitted constants');
     } else record('water built from the graph', false, '', w.reason);
 
     // 2. Charge conservation on an ion: Σq must equal the requested charge.
@@ -5929,7 +6057,7 @@
     var drift4 = Math.abs(r4.totalEnergy() - eStart4) / Math.abs(eStart4);
     record('bond formation follows the bond curve', rx4.ledger.formed === 1 && pair.bonds.length === 1 &&
       chk4.ok && rx4.ledger.conserved && rx4.ledger.topologyWork === 0 && r4.status !== 'unstable',
-      'closest approach ' + num(minR4 / ANGSTROM, 3) + ' Å · topology work ' +
+      'closest approach ' + num(minR4 * 1e9, 4) + ' nm · topology work ' +
       sci(rx4.ledger.topologyWork, 2) + ' J',
       'E ' + sci(eStart4, 3) + ' → ' + sci(r4.totalEnergy(), 3) + ' J, relative drift ' + sci(drift4, 2) +
       ' - the pair already sat on the Morse curve, so writing the bond into the topology cost nothing');

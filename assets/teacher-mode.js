@@ -1116,19 +1116,19 @@
 <p>Mọi phương trình hạt nhân bảo toàn cả số khối lẫn điện tích — đó là cách dự đoán hạt nhân con.</p>`)
         },
         {
-          title: L('Half-life and Kinetics of Decay', 'Chu kỳ bán rã và động học phân rã'),
+          title: L('Decay time and Kinetics of Decay', 'Thời gian phân hủy và động học phân rã'),
           duration: 9,
           body: L(`
 <h3>First-order, unstoppable</h3>
-<p>Decay is a random process for one nucleus but perfectly statistical for many. The number left follows first-order kinetics with a constant half-life unaffected by temperature, pressure or chemistry.</p>
+<p>Decay is a random process for one nucleus but perfectly statistical for many. The number left follows first-order kinetics with a constant decay time unaffected by temperature, pressure or chemistry.</p>
 <div class="formula">N = N₀ (½)^(t / t½)&nbsp;&nbsp;&nbsp;λ = ln 2 / t½&nbsp;&nbsp;&nbsp;activity = λN</div>
-<div class="example">Carbon-14 (t½ = 5730 yr): a sample with 25% of modern ¹⁴C is two half-lives old, about 11460 years.</div>
-<p>Activity is measured in becquerel (one decay per second). Radiometric dating works because the parent isotope’s half-life is known and constant.</p>`, `
+<div class="example">Carbon-14 (t½ = 5730 yr): a sample with 25% of modern ¹⁴C is two decay times old, about 11460 years.</div>
+<p>Activity is measured in becquerel (one decay per second). Radiometric dating works because the parent isotope’s decay time is known and constant.</p>`, `
 <h3>Bậc một, không thể ngăn</h3>
-<p>Phân rã là ngẫu nhiên với một hạt nhân nhưng hoàn toàn thống kê với nhiều hạt nhân. Số còn lại tuân động học bậc một với chu kỳ bán rã không đổi, không phụ thuộc nhiệt độ, áp suất hay hóa học.</p>
+<p>Phân rã là ngẫu nhiên với một hạt nhân nhưng hoàn toàn thống kê với nhiều hạt nhân. Số còn lại tuân động học bậc một với thời gian phân hủy không đổi, không phụ thuộc nhiệt độ, áp suất hay hóa học.</p>
 <div class="formula">N = N₀ (½)^(t / t½)&nbsp;&nbsp;&nbsp;λ = ln 2 / t½&nbsp;&nbsp;&nbsp;hoạt độ = λN</div>
-<div class="example">Carbon-14 (t½ = 5730 năm): mẫu còn 25% ¹⁴C hiện đại nghĩa là hai chu kỳ, khoảng 11460 năm.</div>
-<p>Hoạt độ đo bằng becquerel (một phân rã mỗi giây). Phương pháp đồng vị phóng xạ hoạt động vì chu kỳ bán rã của đồng vị mẹ đã biết và không đổi.</p>`)
+<div class="example">Carbon-14 (t½ = 5730 năm): mẫu còn 25% ¹⁴C hiện đại nghĩa là hai thời gian phân hủy, khoảng 11460 năm.</div>
+<p>Hoạt độ đo bằng becquerel (một phân rã mỗi giây). Phương pháp đồng vị phóng xạ hoạt động vì thời gian phân hủy của đồng vị mẹ đã biết và không đổi.</p>`)
         },
         {
           title: L('Fission, Fusion and Binding Energy', 'Phân hạch, nhiệt hạch và năng lượng liên kết'),
@@ -1154,8 +1154,8 @@
           ex: L('A − 4 = 234, Z − 2 = 90, which is thorium.', 'A − 4 = 234, Z − 2 = 90 là thori.')
         },
         {
-          q: L('After three half-lives, what fraction of a sample remains?',
-               'Sau ba chu kỳ bán rã, mẫu còn lại bao nhiêu phần?'),
+          q: L('After three decay times, what fraction of a sample remains?',
+               'Sau ba thời gian phân hủy, mẫu còn lại bao nhiêu phần?'),
           opts: [L('1/2', '1/2'), L('1/4', '1/4'), L('1/8', '1/8'), L('1/16', '1/16')],
           a: 2,
           ex: L('(1/2)³ = 1/8.', '(1/2)³ = 1/8.')
@@ -3730,7 +3730,7 @@
       acidKind: 'Acid type', conc: 'Concentration', pKa: 'pKa', anode: 'Anode', cathode: 'Cathode',
       group: 'Functional group', gAlcohol: 'Alcohol –OH', gAldehyde: 'Aldehyde –CHO', gKetone: 'Ketone C=O',
       gAcid: 'Carboxylic acid –COOH', gEster: 'Ester –COO–', gAmine: 'Amine –NH₂', gAlkene: 'Alkene C=C',
-      gHalide: 'Halide C–X', halfLife: 'Half-life', decayMode: 'Decay mode', wavenumber: 'Cursor wavenumber',
+      gHalide: 'Halide C–X', halfLife: 'Decay time', decayMode: 'Decay mode', wavenumber: 'Cursor wavenumber',
       moles: 'Amount n', lattice: 'Lattice', wavelength: 'Wavelength λ', workFn: 'Work function φ',
       intensity: 'Intensity', surfaceArea: 'Surface area', acidConc: 'Acid concentration',
       acidVol: 'Acid volume', baseConc: 'Titrant concentration', added: 'Burette volume added',
@@ -3749,7 +3749,7 @@
       acidKind: 'Loại axit', conc: 'Nồng độ', pKa: 'pKa', anode: 'Anot', cathode: 'Catot',
       group: 'Nhóm chức', gAlcohol: 'Rượu –OH', gAldehyde: 'Andehit –CHO', gKetone: 'Xeton C=O',
       gAcid: 'Axit cacboxylic –COOH', gEster: 'Este –COO–', gAmine: 'Amin –NH₂', gAlkene: 'Anken C=C',
-      gHalide: 'Dẫn xuất halogen C–X', halfLife: 'Chu kỳ bán rã', decayMode: 'Kiểu phân rã',
+      gHalide: 'Dẫn xuất halogen C–X', halfLife: 'Thời gian phân hủy', decayMode: 'Kiểu phân rã',
       wavenumber: 'Số sóng tại con trỏ', moles: 'Lượng n', lattice: 'Mạng tinh thể',
       wavelength: 'Bước sóng λ', workFn: 'Công thoát φ', intensity: 'Cường độ',
       surfaceArea: 'Diện tích bề mặt', acidConc: 'Nồng độ axit', acidVol: 'Thể tích axit',

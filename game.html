@@ -9,9 +9,9 @@
   <!-- PeerJS (Peer-to-Peer WebRTC) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=34"></script>
+  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=52"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-d41d8cd9.js">
-  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css?v=9">
+  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css?v=11">
 </head>
 <body>
   <div id="app">
@@ -97,11 +97,27 @@
                   <span id="kinetic-ea" class="kinetic-value">200 kJ/mol</span>
                 </div>
                 <div class="kinetic-stat">
+                  <span class="kinetic-label" data-i18n="kinetics.dh">Enthalpy hoạt hóa</span>
+                  <span id="kinetic-dh" class="kinetic-value">—</span>
+                </div>
+                <div class="kinetic-stat">
+                  <span class="kinetic-label" data-i18n="kinetics.ds">Entropy hoạt hóa</span>
+                  <span id="kinetic-ds" class="kinetic-value">—</span>
+                </div>
+                <div class="kinetic-stat">
+                  <span class="kinetic-label" data-i18n="kinetics.dg">Năng lượng tự do hoạt hóa</span>
+                  <span id="kinetic-dg" class="kinetic-value">—</span>
+                </div>
+                <div class="kinetic-stat">
+                  <span class="kinetic-label" data-i18n="kinetics.kappa">Hệ số chui hầm</span>
+                  <span id="kinetic-kappa" class="kinetic-value">—</span>
+                </div>
+                <div class="kinetic-stat">
                   <span class="kinetic-label" data-i18n="kinetics.rate">Hằng số tốc độ</span>
                   <span id="kinetic-rate" class="kinetic-value">—</span>
                 </div>
                 <div class="kinetic-stat">
-                  <span class="kinetic-label" data-i18n="kinetics.halflife">Chu kỳ bán rã</span>
+                  <span class="kinetic-label" data-i18n="kinetics.halflife">Thời gian phân hủy</span>
                   <span id="kinetic-halflife" class="kinetic-value">—</span>
                 </div>
                 <div class="kinetic-stat">
@@ -389,6 +405,7 @@
       <button id="isomer-check-btn" class="isomer-check-btn" data-i18n="iso.check">Kiểm Tra</button>
     </div>
     <div id="isomer-result" class="isomer-result"></div>
+    <div id="isomer-predict" class="isomer-predict"></div>
   </div>
 
   <div id="custom-element-modal" class="modal" hidden>
@@ -746,16 +763,19 @@
   </div>
 
   <script src="https://js.puter.com/v2/"></script>
-  <script src="./assets/xray.js?v=6"></script>
-  <script src="./assets/proton-gun.js?v=8"></script>
+  <script src="./assets/xray.js?v=7"></script>
+  <script src="./assets/proton-gun.js?v=13"></script>
   <script src="./assets/format-menu.js?v=2"></script>
-  <script src="./assets/quality-menu.js?v=1"></script>
+  <script src="./assets/quality-menu.js?v=2"></script>
   <script src="./assets/tutorial-revamped.js?v=14"></script>
   <script src="./assets/pool-drag.js?v=5"></script>
-  <script src="./assets/shop-rope.js?v=11"></script>
+  <script src="./assets/shop-rope.js?v=14"></script>
   <script src="./assets/how-to-play.js?v=6"></script>
   <script src="./assets/ui-bars.js?v=13"></script>
   <script src="./assets/science-guide.js?v=9"></script>
-  <script src="./assets/molecular-engine.js?v=18"></script>
+  <script src="./assets/molecular-engine.js?v=20"></script>
+  <script src="./assets/blueprint.js?v=3"></script>
+  <script src="./assets/organic-names.js?v=2"></script>
+  <script src="./assets/isomer-engine.js?v=2"></script>
 </body>
 </html>

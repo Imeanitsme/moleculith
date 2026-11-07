@@ -42946,6 +42946,136 @@ function anionPathFeasible(el, covSum, ionAfter) {
     if (!anionStateError(el, covSum, k)) return true;
   return false;
 }
+// A second-row centre is not limited to its neutral valence: it may carry one
+// bond more when the octet still closes and the extra bond is paid for with a
+// formal charge of +1. This is ordinary Lewis chemistry - it is the central
+// oxygen of ozone (3 bonds, 1 lone pair, FC +1) and the nitrogen of ammonium -
+// and refusing it is what left three oxygens nothing better to do than weld
+// themselves into a triangle. The count is done as Lewis bookkeeping, not as a
+// table: with formal charge q the atom keeps V - q - sum electrons as lone
+// pairs, its octet wants sum + lonePairs <= 4, and no atom may give up more
+// electrons than it has. Hydrogen falls out of that on its own (one electron,
+// so one bond), which is why the duet never needs a special case here.
+function orderCapacityOf(el) {
+  const base = Math.max(1, el.maxBonds || 1);
+  const V = el.valenceElectrons;
+  if (!Number.isFinite(V) || el.z > 10) return base;
+  let best = base;
+  for (const q of [0, 1]) {
+    for (let s = Math.min(4, 8 - V + q, V - q); s >= 1; s--) {
+      if ((V - q - s) % 2 === 0) {
+        if (s > best) best = s;
+        break;
+      }
+    }
+  }
+  return best;
+}
+// The number of bonds an atom makes while it carries no formal charge: enough to
+// fill its own shell, and never more than it can coordinate. `maxBonds` in the
+// element data is the coordination ceiling, not this number - nitrogen is listed
+// at 4 because ammonium exists - so the octet decides it for the second row and
+// the ceiling stands for the rows above it, where sulfur really does hold six.
+function neutralCovalenceOf(el) {
+  const ceiling = Math.max(1, el.maxBonds || 1);
+  const V = el.valenceElectrons;
+  if (el.z > 10 || !Number.isFinite(V)) return ceiling;
+  return Math.max(1, Math.min(ceiling, 8 - V));
+}
+// A +1 formal charge only stands in a neutral molecule if a neighbour takes the
+// matching -1. That is checked as Lewis bookkeeping on the finished structure: an
+// atom pays if some whole number of lone pairs leaves it at formal charge -1 with
+// its octet still closed. Hydrogen cannot - one electron, one bond, half a lone
+// pair left over - so ammonia has nobody to pay for a fourth bond on its nitrogen
+// and NH4 is refused, while the far oxygen of ozone (one bond, three lone pairs)
+// and the carbon of carbon monoxide (three bonds, one lone pair) both can.
+// Only the centre's own neighbours are searched: a charge separated across the
+// molecule by several bonds is not the pair that makes this structure valid.
+function chargeCompensationExists(atoms2, bonds2, seedIds, centreId) {
+  const payer = (id, incoming) => {
+    if (id === centreId) return false;
+    const at = atoms2.get(id);
+    if (!at || at.el.z > 10) return false;
+    if (ionicCountOf(atoms2, bonds2, id)) return false;
+    const V = at.el.valenceElectrons;
+    if (!Number.isFinite(V)) return false;
+    const sum = orderSumOf(atoms2, bonds2, id) + incoming;
+    const lp = (V - sum + 1) / 2;
+    if (!Number.isInteger(lp) || lp < 0) return false;
+    return sum + lp <= 4 && sum <= orderCapacityOf(at.el);
+  };
+  for (const id of seedIds) if (payer(id, 1)) return true;
+  for (const b of bonds2.values()) {
+    if (b.ionic) continue;
+    if (b.a === centreId && payer(b.b, 0)) return true;
+    else if (b.b === centreId && payer(b.a, 0)) return true;
+  }
+  return false;
+}
+// Lone pairs need room. In a three-membered ring every centre is forced to 60
+// degrees; a centre with a spare valence electron reinforces those bonds (the
+// "banana" bonding of cyclopropane, 115 kJ/mol of strain and still a minimum),
+// but a centre whose spare electrons are all lone pairs puts two lone pairs on
+// each of three atoms 60 degrees apart. No such ring is a minimum: the three
+// closed-shell oxygens of cyclic ozone are the textbook case.
+function ringClosureOf(atoms2, bonds2, aId, bId) {
+  const adj = /* @__PURE__ */ new Map();
+  for (const b of bonds2.values()) {
+    if (b.ionic) continue;
+    if (!adj.has(b.a)) adj.set(b.a, []);
+    if (!adj.has(b.b)) adj.set(b.b, []);
+    adj.get(b.a).push(b.b);
+    adj.get(b.b).push(b.a);
+  }
+  if (aId === bId) return null;
+  const prev = /* @__PURE__ */ new Map();
+  const queue = [aId];
+  prev.set(aId, null);
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === bId) break;
+    for (const nb of adj.get(cur) || []) {
+      if (prev.has(nb)) continue;
+      prev.set(nb, cur);
+      queue.push(nb);
+    }
+  }
+  if (!prev.has(bId)) return null;
+  const path = [];
+  for (let at = bId; at !== null && at !== undefined; at = prev.get(at)) {
+    path.push(at);
+    if (at === aId) break;
+  }
+  if (path[0] !== bId || path[path.length - 1] !== aId) return null;
+  return { atoms: path.reverse(), size: path.length };
+}
+function lonePairsAt(el, bondSum) {
+  const V = el.valenceElectrons;
+  if (!Number.isFinite(V)) return 0;
+  return Math.max(0, (V - bondSum) / 2);
+}
+// A three-membered ring bends every bond pair it contains away from its ideal
+// angle. That costs angle-strain energy but is still a genuine minimum as long as
+// the centres feed the thin ring bonds with spare valence electrons - cyclopropane
+// and oxirane do, which is why they exist. It stops being a minimum when every
+// centre in the ring is left holding two lone pairs at 60 degrees from their
+// neighbours: there are no electrons left to bond with, only closed shells
+// repelling each other. Cyclic ozone (each O: two bonds, two lone pairs) is that
+// case, and the check is on the electron count, not on the element list.
+function ringCrowded$1(atoms2, ringIds) {
+  return ringIds.every((id) => {
+    const at = atoms2.get(id);
+    if (!at || at.el.z > 10) return false;
+    // A three-membered ring gives every member exactly two ring bonds. Read as
+    // singles - the Lewis structure with no formal charge anywhere - they leave
+    // V - 2 electrons to pair, so a second-row chalcogen keeps two lone pairs
+    // 60 degrees from both of its neighbours. Promoting a ring bond to a double
+    // bond does not relieve that, it only moves the electrons into formal
+    // charge, so this count ignores the orders the bonds currently have and the
+    // refusal cannot be dodged by drawing the ring in a different order.
+    return lonePairsAt(at.el, 2) >= 2;
+  });
+}
 function covalentCheck(atoms2, bonds2, aId, bId) {
   const a = atoms2.get(aId), b = atoms2.get(bId);
   if (isMetal$1(a.el) || isMetal$1(b.el)) {
@@ -42957,9 +43087,22 @@ function covalentCheck(atoms2, bonds2, aId, bId) {
     return { ok: false, reason: { key: "chem.nobleNoCompound" } };
   if (a.el.cat === "noble" && !nobleAllowedPartner(b.el) || b.el.cat === "noble" && !nobleAllowedPartner(a.el))
     return { ok: false, reason: { key: "chem.nobleOnlyFO" } };
-  const free = (at) => at.el.maxBonds - orderSumOf(atoms2, bonds2, at.id);
-  if (free(a) <= 0) return { ok: false, reason: { key: "chem.noCapacity", p: { sym: a.el.sym, max: a.el.maxBonds } } };
-  if (free(b) <= 0) return { ok: false, reason: { key: "chem.noCapacity", p: { sym: b.el.sym, max: b.el.maxBonds } } };
+  let paid = false;
+  const room = (at) => {
+    const after = orderSumOf(atoms2, bonds2, at.id) + 1;
+    const cap = orderCapacityOf(at.el);
+    if (after > cap) return { ok: false, key: "chem.noCapacity", max: cap };
+    if (after > neutralCovalenceOf(at.el)) {
+      if (!chargeCompensationExists(atoms2, bonds2, [aId, bId], at.id))
+        return { ok: false, key: "chem.chargeUnpaid", max: neutralCovalenceOf(at.el) };
+      paid = true;
+    }
+    return { ok: true };
+  };
+  for (const at of [a, b]) {
+    const r = room(at);
+    if (!r.ok) return { ok: false, reason: { key: r.key, p: { sym: at.el.sym, max: r.max } } };
+  }
   for (const at of [a, b]) {
     if (isMetal$1(at.el)) continue;
     const ionU = ionicCountOf(atoms2, bonds2, at.id);
@@ -42971,7 +43114,7 @@ function covalentCheck(atoms2, bonds2, aId, bId) {
       reason: err === "octet" ? { key: "chem.octet", p: { sym: at.el.sym } } : { key: "chem.anionClosedShare", p: { sym: at.el.sym, n: ionU, s: ionU > 1 ? "s" : "" } }
     };
   }
-  return { ok: true, type: "covalent" };
+  return { ok: true, type: "covalent", paid };
 }
 function ionicCheck(atoms2, bonds2, aId, bId) {
   const a = atoms2.get(aId), b = atoms2.get(bId);
@@ -43001,7 +43144,12 @@ function bondCheck(atoms2, bonds2, aId, bId) {
   if (bondsOf(atoms2, bonds2, aId).some((b) => partnerId(b, aId) === bId))
     return { ok: false, reason: { key: "chem.alreadyBonded" } };
   const covalent = covalentCheck(atoms2, bonds2, aId, bId);
-  if (covalent.ok) return covalent;
+  if (covalent.ok) {
+    const ring = ringClosureOf(atoms2, bonds2, aId, bId);
+    if (ring && ring.size === 3 && ringCrowded$1(atoms2, ring.atoms))
+      return { ok: false, reason: { key: "chem.ringLonePair", p: { n: ring.size } } };
+    return covalent;
+  }
   const ionic = ionicCheck(atoms2, bonds2, aId, bId);
   if (ionic.ok) return ionic;
   return covalent.reason?.key && !covalent.reason.key.startsWith("chem.metal") ? covalent : ionic;
@@ -43105,10 +43253,18 @@ function upgradeCheck(atoms2, bonds2, bond) {
     const a = atoms2.get(bond.a).el.sym, b = atoms2.get(bond.b).el.sym;
     return { ok: false, reason: cap2 === 1 ? { key: "chem.pairCapSingle", p: { a, b } } : cap2 === 2 ? { key: "chem.pairCapDouble", p: { a, b } } : { key: "chem.pairCapTriple", p: { a, b } } };
   }
+  let paid = false;
   for (const id of [bond.a, bond.b]) {
     const at = atoms2.get(id);
-    if (orderSumOf(atoms2, bonds2, id) + 1 > at.el.maxBonds)
-      return { ok: false, reason: { key: "chem.capacityMax", p: { sym: at.el.sym, max: at.el.maxBonds } } };
+    const after = orderSumOf(atoms2, bonds2, id) + 1;
+    const cap = orderCapacityOf(at.el);
+    if (after > cap)
+      return { ok: false, reason: { key: "chem.capacityMax", p: { sym: at.el.sym, max: cap } } };
+    if (!isMetal$1(at.el) && after > neutralCovalenceOf(at.el)) {
+      if (!chargeCompensationExists(atoms2, bonds2, [bond.a, bond.b], id))
+        return { ok: false, reason: { key: "chem.chargeUnpaid", p: { sym: at.el.sym, max: neutralCovalenceOf(at.el) } } };
+      paid = true;
+    }
     if (isMetal$1(at.el)) continue;
     const ionU = ionicCountOf(atoms2, bonds2, id);
     if (!ionU) continue;
@@ -43118,7 +43274,7 @@ function upgradeCheck(atoms2, bonds2, bond) {
     if (err === "octet")
       return { ok: false, reason: { key: "chem.octet", p: { sym: at.el.sym } } };
   }
-  return { ok: true };
+  return { ok: true, paid };
 }
 function componentsOf(atoms2, bonds2) {
   const comps = [];
@@ -43796,6 +43952,8 @@ const UI = {
     "sel.title": "Selection",
     "sel.empty": "Click an atom to inspect it.",
     "sel.stats": "{cat} · mass {mass} · EN {en} · max bonds {max}",
+    "sel.nucleus": "{label} · {p} protons · {n} neutrons",
+    "sel.nucleusShot": " (+{s} neutron shot)",
     "bohr.toggle": "Bohr Model",
     "bohr.atomic": "Atomic #",
     "bohr.mass": "Mass",
@@ -43846,6 +44004,8 @@ const UI = {
     "dex.notSaved": "Not saved yet",
     "dex.spawn": "Spawn",
     "dex.spawnTitle": "Spawn this molecule into the scene",
+    "dex.spawnCost": "Summoning pays for the atoms this molecule needs that are not already in your crate",
+    "dex.spawnOwned": "Every atom is already in your crate - summoning costs no stars",
     "dex.deleteTitle": "Delete this discovery",
     "dex.chal": "Challenges",
     "btn.reset": "Reset progress",
@@ -43880,7 +44040,7 @@ const UI = {
     "status.covBond": "Covalent bond {a}–{b} formed.",
     "status.orderIonic": "Electron transfer set to {n}.",
     "status.bondLowered": "Bond order lowered to {n}. Shift+click or right-click the bond to raise it again.",
-    "status.decomposed": "{formula} decomposed — half-life elapsed.",
+    "status.decomposed": "{formula} decomposed — its decay time elapsed.",
     "status.stabilized": "Stray atom stabilized as {formula} — valence complete.",
     "status.exported": "Progress exported — {count} discoveries saved.",
     "status.exportFailed": "Export failed: {error}",
@@ -43924,9 +44084,11 @@ const UI = {
     "rank.locked": "Locked",
     "rank.requires": "Requires",
     "rank.shopHint": "Buy it in the Rope Shop (drag the cord at the top right)",
+    "crate.empty": "{name} is not in the crate. Buy atoms for {price}★ in the Rope Shop — {hint}",
+    "crate.needStars": "Not enough stars: the atoms in this molecule cost {n}★ and the balance is {have}★ — {hint}",
     "rank.elementLocked": "This element is locked. Buy it in the Rope Shop — drag the cord at the top right.",
     "rank.featureLocked": "This feature is locked. Buy it in the Rope Shop for {price} ★ — drag the cord at the top right!",
-    "rank.discStarCap": "Cascade guard: too many species settled at once — the extras stay in your dex but earn no star.",
+    "rank.discStarCap": "Cascade guard: the discovery tap is full this second — the species keeps its place in the dex and is paid next tick.",
     "rank.dailyReward": "Daily Reward",
     "rank.dailyClaimed": "Daily reward claimed! +{stars} stars",
     "rank.dailyStreak": "Day {day} streak!",
@@ -43936,8 +44098,15 @@ const UI = {
     "kinetics.temp": "Temperature",
     "kinetics.ea": "Activation Energy",
     "kinetics.rate": "Rate Constant",
-    "kinetics.halflife": "Half-life",
+    "kinetics.halflife": "Decay time",
+    "kinetics.halflifeMark": "t decay",
     "kinetics.decomp": "Decomposition",
+    "kinetics.dh": "Activation enthalpy",
+    "kinetics.ds": "Activation entropy",
+    "kinetics.dg": "Activation free energy",
+    "kinetics.kappa": "Tunnelling factor",
+    "kinetics.kappaReliable": "Wigner parabolic-barrier estimate, inside its valid range",
+    "kinetics.kappaLimit": "Barrier motion is past the range the Wigner estimate is valid for, so the factor is held at that limit",
     "kinetics.graph": "Concentration vs Time",
     "status.lang": "Language: English",
     "status.saveFail": "Could not save discoveries (storage unavailable).",
@@ -43957,6 +44126,8 @@ const UI = {
     "chem.nobleNoCompound": "Noble gas does not form compounds",
     "chem.nobleOnlyFO": "Noble gases only bond with F or O",
     "chem.noCapacity": "{sym} has no bonding capacity left (max {max})",
+    "chem.chargeUnpaid": "{sym} would exceed its neutral valence of {max} and carry an unpaid formal charge — no compensating opposite charge is bonded to it",
+    "chem.ringLonePair": "A {n}-membered ring would leave every atom with only lone pairs — closed shells 60° apart only repel",
     "chem.anionClosedShare": "{sym} is an anion — it accepted {n} electron{s} and its shell is closed, so it cannot share electrons",
     "chem.ionicNeedMetal": "Ionic bonds need a metal",
     "chem.metalMax": "{sym} has transferred its maximum electrons (max +{max})",
@@ -44134,6 +44305,21 @@ const UI = {
     "iso.newlyValid": "A correct structure that was not on the list — it has been added as an isomer of this formula.",
     "iso.formalCharges": "Formal charges: {charges}",
     "iso.formulaOnly": "A molecular formula gives composition, not arrangement. Shown here is one structure the formula can have; valid arrangements: {list}",
+    "iso.predictTitle": "Every arrangement these atoms can take",
+    "iso.predictMissing": "Isomer prediction engine not loaded.",
+    "iso.predictCharged": "Charged species are outside the prediction engine: it enumerates neutral structures only.",
+    "iso.predictNone": "No arrangement of these atoms satisfies the bonding rules.",
+    "iso.predictPartial": "This list is not complete: {reason}",
+    "iso.predictCount": "{n} arrangements shown.",
+    "iso.predictCurrent": "in the scene",
+    "iso.predictUnlisted": "The arrangement in the scene is not among those listed above.",
+    "iso.rel.chain": "skeleton",
+    "iso.rel.position": "position",
+    "iso.rel.functional": "functional group",
+    "iso.rel.tautomer": "tautomer",
+    "iso.rel.ring": "ring-chain",
+    "iso.rel.geometric": "geometric",
+    "iso.rel.optical": "optical",
     "iso.apply": "Apply",
     "settings.languageLabel": "Language: {name}",
     "rank.upToast": "Rank Up! {name}",
@@ -44307,6 +44493,8 @@ const UI = {
     "sel.title": "Lựa chọn",
     "sel.empty": "Bấm vào một nguyên tử để xem chi tiết.",
     "sel.stats": "{cat} · khối lượng {mass} · độ âm điện {en} · tối đa {max} liên kết",
+    "sel.nucleus": "{label} · {p} proton · {n} neutron",
+    "sel.nucleusShot": " (đã bắn thêm {s} neutron)",
     "bohr.toggle": "Mô hình Bohr",
     "bohr.atomic": "Số hiệu Z",
     "bohr.mass": "Khối lượng",
@@ -44356,6 +44544,8 @@ const UI = {
     "dex.notSaved": "Chưa lưu",
     "dex.spawn": "Tạo",
     "dex.spawnTitle": "Tạo phân tử này vào khung cảnh",
+    "dex.spawnCost": "Triệu hồi trả cho những nguyên tử cần mà thùng chưa có",
+    "dex.spawnOwned": "Mọi nguyên tử đã có trong thùng - triệu hồi không tốn sao",
     "dex.deleteTitle": "Xóa phát hiện này",
     "dex.chal": "Thử thách",
     "btn.reset": "Đặt lại tiến trình",
@@ -44386,7 +44576,7 @@ const UI = {
     "status.covBond": "Đã tạo liên kết cộng hóa trị {a}–{b}.",
     "status.orderIonic": "Đã đặt mức chuyển electron thành {n}.",
     "status.bondLowered": "Đã giảm bậc liên kết xuống {n}. Shift+click hoặc click phải vào liên kết để tăng lại.",
-    "status.decomposed": "{formula} đã phân hủy — hết chu kỳ bán rã.",
+    "status.decomposed": "{formula} đã phân hủy — hết thời gian phân hủy.",
     "status.stabilized": "Nguyên tử lạc đã ổn định thành {formula} — đủ hóa trị.",
     "status.exported": "Đã xuất tiến độ — {count} khám phá được lưu.",
     "status.exportFailed": "Xuất thất bại: {error}",
@@ -44430,9 +44620,11 @@ const UI = {
     "rank.locked": "Đã khóa",
     "rank.requires": "Yêu cầu",
     "rank.shopHint": "Mua trong Cửa hàng Dây thừng (kéo sợi dây ở góc trên bên phải)",
+    "crate.empty": "Trong thùng hấng không còn {name}. Hãy mua nguyên tử giá {price}★ trong Cửa hàng Dây thồng — {hint}",
+    "crate.needStars": "Không đủ sao: nguyên tử của phân tử này tốn {n}★, số dư hiện có là {have}★ — {hint}",
     "rank.elementLocked": "Nguyên tố này đang khóa. Hãy mua ở Cửa hàng Dây thừng — kéo sợi dây ở góc trên bên phải.",
     "rank.featureLocked": "Tính năng này đang khóa. Hãy mua tại Cửa hàng Dây thừng với giá {price} ★ — kéo sợi dây ở góc trên bên phải!",
-    "rank.discStarCap": "Chốt chặn dây chuyền: quá nhiều loài cùng ổn định — các loài thừa vẫn nằm trong sổ nhưng không nhận sao.",
+    "rank.discStarCap": "Chốt chắn dây chuyền: ngân sách sao mỗi giây đã dùng hết — loài của bạn vẫn trong sổ và sẽ được trả ở giây tiếp theo.",
     "rank.dailyReward": "Phần thưởng hàng ngày",
     "rank.dailyClaimed": "Đã nhận phần thưởng hàng ngày! +{stars} sao",
     "rank.dailyStreak": "Ngày {day} liên tiếp!",
@@ -44442,8 +44634,15 @@ const UI = {
     "kinetics.temp": "Nhiệt độ",
     "kinetics.ea": "Năng lượng hoạt hóa",
     "kinetics.rate": "Hằng số tốc độ",
-    "kinetics.halflife": "Chu kỳ bán rã",
+    "kinetics.halflife": "Thời gian phân hủy",
+    "kinetics.halflifeMark": "t decay",
     "kinetics.decomp": "Phân hủy",
+    "kinetics.dh": "Enthalpy hoạt hóa",
+    "kinetics.ds": "Entropy hoạt hóa",
+    "kinetics.dg": "Năng lượng tự do hoạt hóa",
+    "kinetics.kappa": "Hệ số chui hầm",
+    "kinetics.kappaReliable": "Ước lượng Wigner hàng rào parabol, trong khoảng hợp lệ",
+    "kinetics.kappaLimit": "Chuyển động hàng rào vượt ngoài khoảng ước lượng Wigner hợp lệ, nên hệ số bị giữ ở giới hạn đó",
     "kinetics.graph": "Nồng độ theo thời gian",
     "status.lang": "Ngôn ngữ: Tiếng Việt",
     "status.saveFail": "Không thể lưu khám phá (bộ nhớ không khả dụng).",
@@ -44461,6 +44660,8 @@ const UI = {
     "chem.nobleNoCompound": "Khí hiếm không tạo thành hợp chất",
     "chem.nobleOnlyFO": "Khí hiếm chỉ liên kết với F hoặc O",
     "chem.noCapacity": "{sym} không còn khả năng liên kết (tối đa {max})",
+    "chem.chargeUnpaid": "{sym} sẽ vượt hóa trị trung hòa {max} và mang điện tích chính thức không được bù trừ — không có điện tích trái dấu liên kết với nó",
+    "chem.ringLonePair": "Vòng {n} cạnh sẽ khiến mọi nguyên tử chỉ còn cặp electron tự do — các lớp vỏ kín cách nhau 60° chỉ đẩy nhau",
     "chem.anionClosedShare": "{sym} là anion — đã nhận {n} electron nên lớp vỏ đã kín, không thể dùng chung electron",
     "chem.ionicNeedMetal": "Liên kết ion cần kim loại",
     "chem.metalMax": "{sym} đã chuyển toàn bộ electron tối đa (tối đa +{max})",
@@ -44637,6 +44838,21 @@ const UI = {
     "iso.newlyValid": "Một cấu trúc đúng nhưng chưa có trong danh sách — đã được thêm làm đồng phân của công thức này.",
     "iso.formalCharges": "Điện tích hình thức: {charges}",
     "iso.formulaOnly": "Công thức phân tử chỉ cho thành phần, không cho cách sắp xếp. Đây là một cấu trúc mà công thức có thể có; các cách sắp xếp hợp lệ: {list}",
+    "iso.predictTitle": "Mọi cách sắp xếp mà các nguyên tử này có thể tạo thành",
+    "iso.predictMissing": "Chưa tải mô-đun dự đoán đồng phân.",
+    "iso.predictCharged": "Loài mang điện nằm ngoài phạm vi dự đoán: mô-đun chỉ liệt kê cấu trúc trung hòa.",
+    "iso.predictNone": "Không có cách sắp xếp nào của các nguyên tử này thỏa quy tắc liên kết.",
+    "iso.predictPartial": "Danh sách chưa đầy đủ: {reason}",
+    "iso.predictCount": "Đã hiển thị {n} cách sắp xếp.",
+    "iso.predictCurrent": "đang ở trong cảnh",
+    "iso.predictUnlisted": "Cách sắp xếp đang có trong cảnh không nằm trong danh sách trên.",
+    "iso.rel.chain": "mạch carbon",
+    "iso.rel.position": "vị trí",
+    "iso.rel.functional": "nhóm chức",
+    "iso.rel.tautomer": "tautomer",
+    "iso.rel.ring": "mạch-vòng",
+    "iso.rel.geometric": "hình học",
+    "iso.rel.optical": "quang học",
     "iso.apply": "Áp dụng",
     "settings.languageLabel": "Ngôn ngữ: {name}",
     "rank.upToast": "LÊN HẠNG! {name}",
@@ -44720,14 +44936,14 @@ const UI = {
   }
 };
 const EL_VI = {
-  1: "Hidro",
+  1: "Hydro",
   2: "Heli",
   3: "Liti",
   4: "Beryli",
   5: "Bo",
   6: "Cacbon",
   7: "Nitơ",
-  8: "Oxi",
+  8: "Oxy",
   9: "Flo",
   10: "Neon",
   11: "Natri",
@@ -44906,7 +45122,6 @@ function trReason(r) {
 function elName(el) {
   if (lang === "vi") {
     const n = EL_VI[el.z];
-    if (n && n !== el.name) return `${el.name} (${n})`;
     if (n) return n;
   }
   return el.name;
@@ -45052,181 +45267,21 @@ const ANION_ROOT = {
   Lv: "livermoride"
 };
 const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
-const COMMON_VI = {
-  "H2O": "Nước",
-  "CO2": "Cacbon dioxit",
-  "CO": "Cacbon monooxit",
-  "CH4": "Metan",
-  "NH3": "Amoniac",
-  "H2O2": "Hiđro peroxit",
-  "SO2": "Lưu huỳnh dioxit",
-  "SO3": "Lưu huỳnh trioxit",
-  "NO": "Nitơ monooxit",
-  "NO2": "Nitơ dioxit",
-  "N2O": "Đinitơ monooxit (khí cười)",
-  "N2O3": "Đinitơ trioxit",
-  "N2O4": "Đinitơ tetraoxit",
-  "N2O5": "Đinitơ pentaoxit",
-  "SF6": "Lưu huỳnh hexaflorua",
-  "PH3": "Photphin",
-  "SiO2": "Silic dioxit",
-  "C2H6": "Etan",
-  "C2H4": "Eten",
-  "C2H2": "Etin",
-  "C3H8": "Propan",
-  "C3H6": "Propen",
-  "C3H4": "Propin",
-  "C4H10": "Butan",
-  "C5H12": "Pentan",
-  "C6H6": "Benzên",
-  "C6H12": "Cyclohexan",
-  "C6H14": "Hexan",
-  "C2H6O": "Etanol (hoặc dimetyl ete)",
-  "CH4O": "Metanol",
-  "CH2O": "Methanal (fomanđehit)",
-  "CHCl3": "Triclorometan (cloroform)",
-  "CCl4": "Tetraclorometan (cacbon tetraclorua)",
-  "CS2": "Cacbon disunfua",
-  "BF3": "Bo triflorua",
-  "BCl3": "Bo triclorua",
-  "BH3": "Boran",
-  "NH4Cl": "Amoni clorua",
-  "SiH4": "Silan",
-  "GeH4": "German",
-  "AsH3": "Arsin",
-  "H2S": "Hiđro sunfua",
-  "HF": "Hiđro florua",
-  "HBr": "Hiđro bromua",
-  "HI": "Hiđro iodua",
-  "HCl": "Hiđro clorua",
-  "H2": "Hiđro",
-  "N2": "Nitơ",
-  "O2": "Đioxi",
-  "O3": "Ozôn",
-  "F2": "Điflo",
-  "Cl2": "Điclo",
-  "Br2": "Đibrom",
-  "I2": "Điiod",
-  "P4": "Tetraphotpho",
-  "S8": "Cyclo-octasunfua",
-  "PCl3": "Photpho triclorua",
-  "PCl5": "Photpho pentaclorua",
-  "XeF2": "Xenon diflorua",
-  "XeF4": "Xenon tetraflorua",
-  "XeF6": "Xenon hexaflorua",
-  "XeO3": "Xenon trioxit",
-  "XeO4": "Xenon tetraoxit",
-  "KrF2": "Krypton diflorua",
-  "N2H4": "Hiđrazin"
-};
-const POLYATOMIC_VI = {
-  "OH-1": "Hidroxit",
-  "NH4+1": "Amoni",
-  "H3O+1": "Hidroni",
-  "NO3-1": "Nitrat",
-  "NO2-1": "Nitrit",
-  "CO3-2": "Cacbonat",
-  "HCO3-1": "Hiđrocacbonat",
-  "SO4-2": "Sunfat",
-  "SO3-2": "Sunfit",
-  "HSO4-1": "Hiđrosunfat",
-  "PO4-3": "Photphat",
-  "PO3-3": "Photphit",
-  "ClO-1": "Hypoclorit",
-  "ClO2-1": "Clorit",
-  "ClO3-1": "Clorat",
-  "ClO4-1": "Perclorat",
-  "BrO3-1": "Bromat",
-  "IO3-1": "Iodat",
-  "MnO4-1": "Permanaganat",
-  "CrO4-2": "Cromat",
-  "Cr2O7-2": "Đicromat",
-  "CN-1": "Xianua",
-  "O2-2": "Peroxit",
-  "C2O4-2": "Oxalat",
-  "CNS-1": "Thiocyanat"
-};
-const ANION_ROOT_VI = {
-  O: "oxit",
-  F: "florua",
-  Cl: "clorua",
-  Br: "bromua",
-  I: "iodua",
-  At: "astatua",
-  S: "sunfua",
-  Se: "selenua",
-  Te: "telurua",
-  N: "nitrua",
-  P: "photphua",
-  As: "asenua",
-  Sb: "antimonua",
-  C: "cacbua",
-  Si: "silicua",
-  B: "borua",
-  Ge: "germanua",
-  H: "hiđrua",
-  Po: "polonua",
-  Ts: "tennessua",
-  Lv: "livermorua"
-};
-const PREFIX_VI = ["mono", "đi", "tri", "tetra", "penta", "hexa", "hepta", "octa", "nona", "deca"];
 const BASE_EN = ["meth", "eth", "prop", "but", "pent", "hex", "hept", "oct", "non", "dec"];
-const BASE_VI = ["met", "et", "prop", "but", "pent", "hex", "hept", "oct", "non", "dec"];
-const LOWER_EL_VI = {
-  C: "cacbon",
-  H: "hiđro",
-  N: "nitơ",
-  O: "oxi",
-  S: "lưu huỳnh",
-  P: "photpho",
-  F: "flo",
-  Cl: "clo",
-  Br: "brôm",
-  I: "iot",
-  Se: "selen",
-  Si: "silic",
-  B: "bo",
-  As: "asen",
-  Te: "tellur"
-};
-const ACID_VI = {
-  "sunfat": "sunfuric",
-  "sunfit": "sunfurơ",
-  "nitrat": "nitric",
-  "nitrit": "nitrơ",
-  "photphat": "photphoric",
-  "photphit": "photphơ",
-  "hypoclorit": "hypoclorơ",
-  "clorit": "clorơ",
-  "hiđrosunfat": "sunfuric",
-  "xianua": "xianhidric"
-};
 function prefix(n) {
-  return (isVi() ? PREFIX_VI : PREFIX)[n - 1] || `${n}`;
+  return PREFIX[n - 1] || `${n}`;
 }
-function acidVi(ion) {
-  const k = ion.toLowerCase();
-  if (ACID_VI[k]) return "axit " + ACID_VI[k];
-  if (k.endsWith("at")) return "axit " + k.replace(/at$/, "ic");
-  if (k.endsWith("it")) return "axit " + k.replace(/it$/, "ơ");
-  if (k.endsWith("ua")) return "axit " + k.replace(/ua$/, "hidric");
-  return "axit " + k;
-}
-function lowerElVi(sym) {
-  return LOWER_EL_VI[sym] || sym.toLowerCase();
-}
-function isonitrileStem(rest, vi) {
+function isonitrileStem(rest) {
   if (!rest.length) return null;
   if (rest.length === 1 && rest[0].el.sym === "H") return "hydrogen";
   if (!rest.every((a) => a.el.sym === "C" || a.el.sym === "H")) return null;
   const n = rest.filter((a) => a.el.sym === "C").length;
-  const base = (vi ? BASE_VI : BASE_EN)[n - 1];
+  const base = BASE_EN[n - 1];
   return base ? base + "yl" : null;
 }
 function nameCovalent(atoms2, charge, bonds2) {
-  const vi = isVi();
-  const common2 = vi ? COMMON_VI : COMMON;
-  const poly = vi ? POLYATOMIC_VI : POLYATOMIC;
+  const common2 = COMMON;
+  const poly = POLYATOMIC;
   const formula = hillOf(atoms2);
   // An isonitrile is not the nitrile the common-name table knows: its carbon is
   // terminal and the nitrogen carries the rest of the molecule, so R-N#C names
@@ -45249,8 +45304,20 @@ function nameCovalent(atoms2, charge, bonds2) {
       if (!carbon) continue;
       const deg = (id) => bonds2.filter((o) => o.a === id || o.b === id).length;
       if (deg(carbon.id) !== 1 || deg(nitrogen.id) < 2) continue;
-      const stem = isonitrileStem(atoms2.filter((a) => a.id !== carbon.id && a.id !== nitrogen.id), vi);
-      if (stem) return cap(vi ? `${stem} isoxianua` : `${stem} isocyanide`);
+      const stem = isonitrileStem(atoms2.filter((a) => a.id !== carbon.id && a.id !== nitrogen.id));
+      if (stem) return cap(`${stem} isocyanide`);
+    }
+  }
+  // Bonds decide the name before the formula table does: C2H6O is ethanol or
+  // methoxymethane depending on which atom the acidic hydrogen sits on, and a
+  // formula-keyed table can only ever know one of them. The organic namer works
+  // from connectivity, so it answers first; when it declines - a metal, an ion,
+  // a family its rules do not cover - the formula paths below still speak.
+  if (charge === 0 && bonds2 && window.__organicNames) {
+    const org = window.__organicNames;
+    if (org.isOrganic(atoms2, bonds2)) {
+      const structured = org.name(atoms2, bonds2);
+      if (structured && structured.name) return cap(structured.name);
     }
   }
   if (charge === 0 && common2[formula]) return common2[formula];
@@ -45261,13 +45328,13 @@ function nameCovalent(atoms2, charge, bonds2) {
     const n = atoms2.filter((a) => a.el.sym === "C").length;
     const h = atoms2.filter((a) => a.el.sym === "H").length;
     if (n >= 1 && n <= 10) {
-      const base = (vi ? BASE_VI : BASE_EN)[n - 1];
-      if (h === 2 * n + 2) return cap(base + (vi ? "an" : "ane"));
+      const base = BASE_EN[n - 1];
+      if (h === 2 * n + 2) return cap(base + "ane");
       if (h === 2 * n) {
-        if (bonds2.some((b) => b.order === 3)) return cap(base + (vi ? "in" : "yne"));
-        return cap(base + (vi ? "en" : "ene"));
+        if (bonds2.some((b) => b.order === 3)) return cap(base + "yne");
+        return cap(base + "ene");
       }
-      if (h === 2 * n - 2) return cap(bonds2.some((b) => b.order === 3) ? base + (vi ? "in" : "yne") : base + (vi ? "ađien" : "diene"));
+      if (h === 2 * n - 2) return cap(bonds2.some((b) => b.order === 3) ? base + "yne" : base + "diene");
     }
   }
   if (charge === 0) {
@@ -45277,7 +45344,6 @@ function nameCovalent(atoms2, charge, bonds2) {
       const restFormula = hillOf(rest);
       const restKey = `${restFormula}-${hCount}`;
       if (poly[restKey] && rest.length > 1) {
-        if (vi) return cap(acidVi(poly[restKey]));
         const ionName = poly[restKey].toLowerCase();
         if (ACID_EN[ionName]) return cap(ACID_EN[ionName] + " acid");
         if (ionName.endsWith("ate")) return cap(ionName.replace(/ate$/, "ic") + " acid");
@@ -45291,8 +45357,8 @@ function nameCovalent(atoms2, charge, bonds2) {
     for (const a of atoms2) count.set(a.el.sym, (count.get(a.el.sym) || 0) + 1);
     const [first, second] = [...count.keys()].sort((x, y) => enOf(atoms2, x) - enOf(atoms2, y));
     const parts = [];
-    parts.push((count.get(first) === 1 && first !== "C" ? "" : prefix(count.get(first))) + (vi ? lowerElVi(first) : lowerEl(first)));
-    const root = vi ? ANION_ROOT_VI[second] || second.toLowerCase() + "ua" : ANION_ROOT[second] || second.toLowerCase() + "ide";
+    parts.push((count.get(first) === 1 && first !== "C" ? "" : prefix(count.get(first))) + lowerEl(first));
+    const root = ANION_ROOT[second] || second.toLowerCase() + "ide";
     parts.push(prefix(count.get(second)) + root);
     return cap(parts.join(" "));
   }
@@ -45360,7 +45426,7 @@ function nameMolecule(atoms2, bonds2, formula, charge, per = null) {
       const roman = el.charges && el.charges.length > 1 ? `(${ROMAN[q] || q})` : "";
       const key = "cat:" + el.sym + roman;
       cationCounts.set(key, (cationCounts.get(key) || 0) + 1);
-      nameParts.push({ key, name: elName(el) + roman });
+      nameParts.push({ key, name: el.name + roman });
     } else {
       const nm = nameCovalent(c.atoms, c.charge, c.bonds);
       const key = "cat:" + (nm || hillOf(c.atoms) + c.charge);
@@ -45373,7 +45439,7 @@ function nameMolecule(atoms2, bonds2, formula, charge, per = null) {
     let nm;
     if (an.atoms.length === 1) {
       const el = an.atoms[0].el;
-      nm = isVi() ? ANION_ROOT_VI[el.sym] || el.name.toLowerCase() + "ua" : ANION_ROOT[el.sym] || el.name.toLowerCase() + "ide";
+      nm = ANION_ROOT[el.sym] || el.name.toLowerCase() + "ide";
     } else {
       nm = nameCovalent(an.atoms, an.charge, an.bonds);
       nm = nm ? nm.toLowerCase() : `ion ${hillOf(an.atoms)}`;
@@ -45384,7 +45450,7 @@ function nameMolecule(atoms2, bonds2, formula, charge, per = null) {
   const cationPart = [...cationCounts.entries()].map(([key]) => nameParts.find((p) => p.key === key).name).join(" ");
   const anionPart = [...anionCounts.entries()].map(([key]) => key.slice(3)).join(" ");
   const name = cap(`${cationPart} ${anionPart}`.trim());
-  if (charge !== 0) return `${name} (${isVi() ? "điện tích" : "net charge"} ${charge > 0 ? "+" : ""}${charge})`;
+  if (charge !== 0) return `${name} (net charge ${charge > 0 ? "+" : ""}${charge})`;
   return name;
 }
 function enOf(atoms2, sym) {
@@ -45424,27 +45490,27 @@ function classifyMolecule(formula, charge, comp) {
   const hasC = counts.has("C");
   const hasN = counts.has("N");
   const hasS = counts.has("S");
-  if (syms.length === 1) return { key: "element", label: isVi() ? "Nguyên tố" : "Element" };
-  if (formula === "H2O") return { key: "oxide", label: isVi() ? "Oxit" : "Oxide" };
+  if (syms.length === 1) return { key: "element", label: "Element" };
+  if (formula === "H2O") return { key: "oxide", label: "Oxide" };
   if (hasC && counts.get("H") > 0 && syms.filter((s) => s !== "C" && s !== "H").length === 0) {
     const c = counts.get("C") || 1;
     const h = counts.get("H") || 0;
-    if (h === 2 * c + 2) return { key: "alkane", label: isVi() ? "Ankan" : "Alkane" };
-    if (h === 2 * c) return { key: "alkene", label: isVi() ? "Anken" : "Alkene" };
-    if (h === 2 * c - 2) return { key: "alkyne", label: isVi() ? "Ankin" : "Alkyne" };
-    return { key: "organic", label: isVi() ? "Hữu cơ" : "Organic" };
+    if (h === 2 * c + 2) return { key: "alkane", label: "Alkane" };
+    if (h === 2 * c) return { key: "alkene", label: "Alkene" };
+    if (h === 2 * c - 2) return { key: "alkyne", label: "Alkyne" };
+    return { key: "organic", label: "Organic" };
   }
   if (hasC && !hasMetal) {
     if (formula === "CO" || formula === "CO2" || formula === "C3O2") {
     } else if (formula === "CS2") {
     } else if (formula === "HCN" || formula === "CHN") {
-      return { key: "acid", label: isVi() ? "Axit" : "Acid" };
+      return { key: "acid", label: "Acid" };
     } else if (!hasH && !hasO && !hasS && hasN && syms.length === 2) {
-      return { key: "binary", label: isVi() ? "Hợp chất nhị nguyên" : "Binary compound" };
+      return { key: "binary", label: "Binary compound" };
     } else if (!hasH && hasN && hasO && !hasS && syms.length === 3) {
-      return { key: "compound", label: isVi() ? "Hợp chất" : "Compound" };
+      return { key: "compound", label: "Compound" };
     } else if (!hasH && hasN && hasS && !hasO && syms.length === 3) {
-      return { key: "compound", label: isVi() ? "Hợp chất" : "Compound" };
+      return { key: "compound", label: "Compound" };
     } else if (hasC && !hasH && !hasO && !hasN && !hasS) {
     } else {
       const cN = counts.get("C") || 1;
@@ -45455,161 +45521,161 @@ function classifyMolecule(formula, charge, comp) {
       const nonCHO = syms.filter((s) => s !== "C" && s !== "H" && s !== "O" && s !== "N" && s !== "F" && s !== "Cl" && s !== "Br" && s !== "I");
       if (hasO && nonCHO.length === 0) {
         if (oN === 1 && hN === 2 * cN + 2 && !hasN)
-          return { key: "alcohol", label: isVi() ? "Ancol" : "Alcohol" };
+          return { key: "alcohol", label: "Alcohol" };
         if (oN === 1 && hN === 2 * cN && !hasN) {
-          if (cN < 3) return { key: "aldehyde", label: isVi() ? "Anđehit" : "Aldehyde" };
-          return { key: "ketone", label: isVi() ? "Xeton" : "Ketone" };
+          if (cN < 3) return { key: "aldehyde", label: "Aldehyde" };
+          return { key: "ketone", label: "Ketone" };
         }
         if (oN === 2 && hN === 2 * cN && !hasN)
-          return { key: "carboxylicAcid", label: isVi() ? "Axit cacboxylic" : "Carboxylic acid" };
+          return { key: "carboxylicAcid", label: "Carboxylic acid" };
       }
       if (hasN && !hasO && nonCHO.length === 0 && nN === 1 && hN === 2 * cN + 3)
-        return { key: "amine", label: isVi() ? "Amin" : "Amine" };
+        return { key: "amine", label: "Amine" };
       if (halSyms.length > 0 && nonCHO.length === 0 && !hasO && !hasN)
-        return { key: "haloalkane", label: isVi() ? "Dẫn xuất halogen" : "Haloalkane" };
+        return { key: "haloalkane", label: "Haloalkane" };
       if (!(hasO && syms.length === 2))
-        return { key: "organic", label: isVi() ? "Hữu cơ" : "Organic" };
+        return { key: "organic", label: "Organic" };
     }
   }
   if (hasMetal && hasO && hasH) {
-    return { key: "base", label: isVi() ? "Bazơ" : "Base" };
+    return { key: "base", label: "Base" };
   }
   if (hasH && syms.length >= 2 && !hasMetal) {
     const nonH = syms.filter((s) => s !== "H");
     if (nonH.length === 1 && (nonH[0] === "F" || nonH[0] === "Cl" || nonH[0] === "Br" || nonH[0] === "I")) {
-      return { key: "acid", label: isVi() ? "Axit" : "Acid" };
+      return { key: "acid", label: "Acid" };
     }
     if (nonH.some((s) => s === "S" || s === "N" || s === "P")) {
-      return { key: "acid", label: isVi() ? "Axit" : "Acid" };
+      return { key: "acid", label: "Acid" };
     }
   }
   if (hasO && syms.length === 2) {
     const other = syms.find((s) => s !== "O");
     const otherEl = elementBySym$1(other);
-    if (otherEl && isMetal$1(otherEl)) return { key: "basicOxide", label: isVi() ? "Oxit bazơ" : "Basic oxide" };
-    return { key: "acidicOxide", label: isVi() ? "Oxit axit" : "Acidic oxide" };
+    if (otherEl && isMetal$1(otherEl)) return { key: "basicOxide", label: "Basic oxide" };
+    return { key: "acidicOxide", label: "Acidic oxide" };
   }
   if (hasO && hasH && !hasMetal) {
-    return { key: "acid", label: isVi() ? "Axit" : "Acid" };
+    return { key: "acid", label: "Acid" };
   }
   if (hasMetal && hasO && !hasH) {
-    return { key: "basicOxide", label: isVi() ? "Oxit bazơ" : "Basic oxide" };
+    return { key: "basicOxide", label: "Basic oxide" };
   }
   if (hasMetal) {
-    return { key: "salt", label: isVi() ? "Muối" : "Salt" };
+    return { key: "salt", label: "Salt" };
   }
   if (syms.length === 2 && !hasMetal) {
-    return { key: "binary", label: isVi() ? "Hợp chất nhị nguyên" : "Binary compound" };
+    return { key: "binary", label: "Binary compound" };
   }
-  return { key: "compound", label: isVi() ? "Hợp chất" : "Compound" };
+  return { key: "compound", label: "Compound" };
 }
 const CHALLENGES = [
   // Tier 1: Simple diatomics and basic molecules
-  { tier: 1, formula: "H2O", charge: 0, name: "Water", vi: "Nước" },
-  { tier: 1, formula: "CO2", charge: 0, name: "Carbon dioxide", vi: "Cacbon dioxit" },
-  { tier: 1, formula: "CH4", charge: 0, name: "Methane", vi: "Metan" },
-  { tier: 1, formula: "NH3", charge: 0, name: "Ammonia", vi: "Amoniac" },
-  { tier: 1, formula: "O2", charge: 0, name: "Dioxygen", vi: "Đioxi" },
-  { tier: 1, formula: "N2", charge: 0, name: "Dinitrogen", vi: "Nitơ" },
-  { tier: 1, formula: "NaCl", charge: 0, name: "Sodium chloride", vi: "Natri clorua" },
-  { tier: 1, formula: "HCl", charge: 0, name: "Hydrogen chloride", vi: "Hiđro clorua" },
-  { tier: 1, formula: "CO", charge: 0, name: "Carbon monoxide", vi: "Cacbon monoxit" },
-  { tier: 1, formula: "H2", charge: 0, name: "Dihydrogen", vi: "Hiđro" },
+  { tier: 1, formula: "H2O", charge: 0, name: "Water" },
+  { tier: 1, formula: "CO2", charge: 0, name: "Carbon dioxide" },
+  { tier: 1, formula: "CH4", charge: 0, name: "Methane" },
+  { tier: 1, formula: "NH3", charge: 0, name: "Ammonia" },
+  { tier: 1, formula: "O2", charge: 0, name: "Dioxygen" },
+  { tier: 1, formula: "N2", charge: 0, name: "Dinitrogen" },
+  { tier: 1, formula: "NaCl", charge: 0, name: "Sodium chloride" },
+  { tier: 1, formula: "HCl", charge: 0, name: "Hydrogen chloride" },
+  { tier: 1, formula: "CO", charge: 0, name: "Carbon monoxide" },
+  { tier: 1, formula: "H2", charge: 0, name: "Dihydrogen" },
   // Tier 2: Small hydrocarbons, common oxides, and binary salts
-  { tier: 2, formula: "C2H6", charge: 0, name: "Ethane", vi: "Etan" },
-  { tier: 2, formula: "C2H4", charge: 0, name: "Ethene", vi: "Eten" },
-  { tier: 2, formula: "C2H2", charge: 0, name: "Ethyne", vi: "Etin" },
-  { tier: 2, formula: "H2O2", charge: 0, name: "Hydrogen peroxide", vi: "Hiđro peroxit" },
-  { tier: 2, formula: "SO2", charge: 0, name: "Sulfur dioxide", vi: "Lưu huỳnh dioxit" },
-  { tier: 2, formula: "MgO", charge: 0, name: "Magnesium oxide", vi: "Magie oxit" },
-  { tier: 2, formula: "CaCl2", charge: 0, name: "Calcium chloride", vi: "Canxi clorua" },
-  { tier: 2, formula: "NaOH", charge: 0, name: "Sodium hydroxide", vi: "Natri hidroxit" },
-  { tier: 2, formula: "O3", charge: 0, name: "Ozone", vi: "Ozon" },
-  { tier: 2, formula: "HCN", charge: 0, name: "Hydrogen cyanide", vi: "Axit xianhiđric" },
+  { tier: 2, formula: "C2H6", charge: 0, name: "Ethane" },
+  { tier: 2, formula: "C2H4", charge: 0, name: "Ethene" },
+  { tier: 2, formula: "C2H2", charge: 0, name: "Ethyne" },
+  { tier: 2, formula: "H2O2", charge: 0, name: "Hydrogen peroxide" },
+  { tier: 2, formula: "SO2", charge: 0, name: "Sulfur dioxide" },
+  { tier: 2, formula: "MgO", charge: 0, name: "Magnesium oxide" },
+  { tier: 2, formula: "CaCl2", charge: 0, name: "Calcium chloride" },
+  { tier: 2, formula: "NaOH", charge: 0, name: "Sodium hydroxide" },
+  { tier: 2, formula: "O3", charge: 0, name: "Ozone" },
+  { tier: 2, formula: "HCN", charge: 0, name: "Hydrogen cyanide" },
   // Tier 3: Acids, standard polyatomic ions, and symmetric structures
-  { tier: 3, formula: "OH-1", charge: -1, name: "Hydroxide ion", vi: "Ion hidroxit" },
-  { tier: 3, formula: "NH4+1", charge: 1, name: "Ammonium ion", vi: "Ion amoni" },
-  { tier: 3, formula: "H3O+1", charge: 1, name: "Hydronium ion", vi: "Ion hidroni" },
-  { tier: 3, formula: "H2SO4", charge: 0, name: "Sulfuric acid", vi: "Axit sunfuric" },
-  { tier: 3, formula: "CaCO3", charge: 0, name: "Calcium carbonate", vi: "Canxi cacbonat" },
-  { tier: 3, formula: "NO3-1", charge: -1, name: "Nitrate ion", vi: "Ion nitrat" },
-  { tier: 3, formula: "SO4-2", charge: -2, name: "Sulfate ion", vi: "Ion sunfat" },
-  { tier: 3, formula: "SF6", charge: 0, name: "Sulfur hexafluoride", vi: "Lưu huỳnh hexaflorua" },
-  { tier: 3, formula: "C6H6", charge: 0, name: "Benzene", vi: "Benzên" },
-  { tier: 3, formula: "XeF4", charge: 0, name: "Xenon tetrafluoride", vi: "Xenon tetraflorua" },
-  { tier: 3, formula: "CH4O", charge: 0, name: "Methanol", vi: "Metanol" },
-  { tier: 3, formula: "C2H4O2", charge: 0, name: "Acetic acid", vi: "Axit axetic" },
+  { tier: 3, formula: "OH-1", charge: -1, name: "Hydroxide ion" },
+  { tier: 3, formula: "NH4+1", charge: 1, name: "Ammonium ion" },
+  { tier: 3, formula: "H3O+1", charge: 1, name: "Hydronium ion" },
+  { tier: 3, formula: "H2SO4", charge: 0, name: "Sulfuric acid" },
+  { tier: 3, formula: "CaCO3", charge: 0, name: "Calcium carbonate" },
+  { tier: 3, formula: "NO3-1", charge: -1, name: "Nitrate ion" },
+  { tier: 3, formula: "SO4-2", charge: -2, name: "Sulfate ion" },
+  { tier: 3, formula: "SF6", charge: 0, name: "Sulfur hexafluoride" },
+  { tier: 3, formula: "C6H6", charge: 0, name: "Benzene" },
+  { tier: 3, formula: "XeF4", charge: 0, name: "Xenon tetrafluoride" },
+  { tier: 3, formula: "CH4O", charge: 0, name: "Methanol" },
+  { tier: 3, formula: "C2H4O2", charge: 0, name: "Acetic acid" },
   // Tier 4: Complex organic molecules, polyatomic ions, and higher-order fluorides
-  { tier: 4, formula: "PO4-3", charge: -3, name: "Phosphate ion", vi: "Ion photphat" },
-  { tier: 4, formula: "CO3-2", charge: -2, name: "Carbonate ion", vi: "Ion cacbonat" },
-  { tier: 4, formula: "C3H8", charge: 0, name: "Propane", vi: "Propan" },
-  { tier: 4, formula: "C4H10", charge: 0, name: "Butane", vi: "Butan" },
-  { tier: 4, formula: "C3H6O", charge: 0, name: "Acetone", vi: "Axeton" },
-  { tier: 4, formula: "C2H6O", charge: 0, name: "Ethanol", vi: "Etanol" },
-  { tier: 4, formula: "PF5", charge: 0, name: "Phosphorus pentafluoride", vi: "Photpho pentaflorua" },
-  { tier: 4, formula: "MnO4-1", charge: -1, name: "Permanganate ion", vi: "Ion pemanganat" },
-  { tier: 4, formula: "HNO3", charge: 0, name: "Nitric acid", vi: "Axit nitric" },
-  { tier: 4, formula: "H3PO4", charge: 0, name: "Phosphoric acid", vi: "Axit photphoric" },
+  { tier: 4, formula: "PO4-3", charge: -3, name: "Phosphate ion" },
+  { tier: 4, formula: "CO3-2", charge: -2, name: "Carbonate ion" },
+  { tier: 4, formula: "C3H8", charge: 0, name: "Propane" },
+  { tier: 4, formula: "C4H10", charge: 0, name: "Butane" },
+  { tier: 4, formula: "C3H6O", charge: 0, name: "Acetone" },
+  { tier: 4, formula: "C2H6O", charge: 0, name: "Ethanol" },
+  { tier: 4, formula: "PF5", charge: 0, name: "Phosphorus pentafluoride" },
+  { tier: 4, formula: "MnO4-1", charge: -1, name: "Permanganate ion" },
+  { tier: 4, formula: "HNO3", charge: 0, name: "Nitric acid" },
+  { tier: 4, formula: "H3PO4", charge: 0, name: "Phosphoric acid" },
   // Tier 5: Advanced multi-carbon structures, heavy elements, and complex ions
-  { tier: 5, formula: "C6H12O6", charge: 0, name: "Glucose", vi: "Glucozơ" },
-  { tier: 5, formula: "C8H18", charge: 0, name: "Octane", vi: "Octan" },
-  { tier: 5, formula: "Cr2O7-2", charge: -2, name: "Dichromate ion", vi: "Ion đicromat" },
-  { tier: 5, formula: "UF6", charge: 0, name: "Uranium hexafluoride", vi: "Urani hexaflorua" },
-  { tier: 5, formula: "CCl4", charge: 0, name: "Carbon tetrachloride", vi: "Cacbon tetraclorua" },
-  { tier: 5, formula: "CH2Cl2", charge: 0, name: "Dichloromethane", vi: "Điclometan" },
-  { tier: 5, formula: "CHO3-1", charge: -1, name: "Bicarbonate ion", vi: "Ion bicacbonat" },
-  { tier: 5, formula: "HSO4-1", charge: -1, name: "Bisulfate ion", vi: "Ion bisunfat" },
+  { tier: 5, formula: "C6H12O6", charge: 0, name: "Glucose" },
+  { tier: 5, formula: "C8H18", charge: 0, name: "Octane" },
+  { tier: 5, formula: "Cr2O7-2", charge: -2, name: "Dichromate ion" },
+  { tier: 5, formula: "UF6", charge: 0, name: "Uranium hexafluoride" },
+  { tier: 5, formula: "CCl4", charge: 0, name: "Carbon tetrachloride" },
+  { tier: 5, formula: "CH2Cl2", charge: 0, name: "Dichloromethane" },
+  { tier: 5, formula: "CHO3-1", charge: -1, name: "Bicarbonate ion" },
+  { tier: 5, formula: "HSO4-1", charge: -1, name: "Bisulfate ion" },
   // Tier 6: High-tier alkanes, complex halogenated compounds, and organic acids
-  { tier: 6, formula: "C5H12", charge: 0, name: "Pentane", vi: "Pentan" },
-  { tier: 6, formula: "C6H14", charge: 0, name: "Hexane", vi: "Hекsan" },
-  { tier: 6, formula: "C2H4O2", charge: 0, name: "Methyl formate", vi: "Metyl fomat" },
-  { tier: 6, formula: "C3H6O2", charge: 0, name: "Methyl acetate", vi: "Metyl axetat" },
-  { tier: 6, formula: "C2H5ClO", charge: 0, name: "Hypochlorous ethylic ester", vi: "Etyl hipoclorit" },
-  { tier: 6, formula: "C6H6O", charge: 0, name: "Phenol", vi: "Phenol" },
-  { tier: 6, formula: "C2O4-2", charge: -2, name: "Oxalate ion", vi: "Ion oxalat" },
-  { tier: 6, formula: "ClO4-1", charge: -1, name: "Perchlorate ion", vi: "Ion perclorat" },
+  { tier: 6, formula: "C5H12", charge: 0, name: "Pentane" },
+  { tier: 6, formula: "C6H14", charge: 0, name: "Hexane" },
+  { tier: 6, formula: "C2H4O2", charge: 0, name: "Methyl formate" },
+  { tier: 6, formula: "C3H6O2", charge: 0, name: "Methyl acetate" },
+  { tier: 6, formula: "C2H5ClO", charge: 0, name: "Hypochlorous ethylic ester" },
+  { tier: 6, formula: "C6H6O", charge: 0, name: "Phenol" },
+  { tier: 6, formula: "C2O4-2", charge: -2, name: "Oxalate ion" },
+  { tier: 6, formula: "ClO4-1", charge: -1, name: "Perchlorate ion" },
   // Tier 7: Master Tier (Biomolecules, large rings, and complex functional architectures)
-  { tier: 7, formula: "C12H22O11", charge: 0, name: "Sucrose", vi: "Saccarozơ" },
-  { tier: 7, formula: "C5H10O5", charge: 0, name: "Ribose", vi: "Ribozơ" },
-  { tier: 7, formula: "C3H5N3O9", charge: 0, name: "Nitroglycerin", vi: "Nitroglycerin" },
-  { tier: 7, formula: "C2H5NO2", charge: 0, name: "Glycine", vi: "Glyxin" },
-  { tier: 7, formula: "C6H5NO2", charge: 0, name: "Nicotinic acid (Niacin)", vi: "Axit nicotinic" },
-  { tier: 7, formula: "Fe(CN)6-3", charge: -3, name: "Ferricyanide ion", vi: "Ion ferricyanua" },
+  { tier: 7, formula: "C12H22O11", charge: 0, name: "Sucrose" },
+  { tier: 7, formula: "C5H10O5", charge: 0, name: "Ribose" },
+  { tier: 7, formula: "C3H5N3O9", charge: 0, name: "Nitroglycerin" },
+  { tier: 7, formula: "C2H5NO2", charge: 0, name: "Glycine" },
+  { tier: 7, formula: "C6H5NO2", charge: 0, name: "Nicotinic acid (Niacin)" },
+  { tier: 7, formula: "Fe(CN)6-3", charge: -3, name: "Ferricyanide ion" },
   // Tier 8: Elite Tier (Polyfunctional organic structures, aromatic derivatives, and complex clusters)
-  { tier: 8, formula: "C7H8O", charge: 0, name: "Benzyl alcohol", vi: "Benzyl alcol" },
-  { tier: 8, formula: "C7H6O2", charge: 0, name: "Benzoic acid", vi: "Axit benzoic" },
-  { tier: 8, formula: "C8H10N4O2", charge: 0, name: "Caffeine", vi: "Caffeine" },
-  { tier: 8, formula: "C6H8O6", charge: 0, name: "Ascorbic acid (Vitamin C)", vi: "Axit ascorbic" },
-  { tier: 8, formula: "C3H8O3", charge: 0, name: "Glycerol", vi: "Glicerol" },
-  { tier: 8, formula: "Fe(CN)6-4", charge: -4, name: "Ferrocyanide ion", vi: "Ion ferrocyanua" },
+  { tier: 8, formula: "C7H8O", charge: 0, name: "Benzyl alcohol" },
+  { tier: 8, formula: "C7H6O2", charge: 0, name: "Benzoic acid" },
+  { tier: 8, formula: "C8H10N4O2", charge: 0, name: "Caffeine" },
+  { tier: 8, formula: "C6H8O6", charge: 0, name: "Ascorbic acid (Vitamin C)" },
+  { tier: 8, formula: "C3H8O3", charge: 0, name: "Glycerol" },
+  { tier: 8, formula: "Fe(CN)6-4", charge: -4, name: "Ferrocyanide ion" },
   // Tier 9: Grandmaster Tier (Advanced biomolecules, structural isomers, and heavy coordination ions)
-  { tier: 9, formula: "C10H14N2O", charge: 0, name: "Nicotine", vi: "Nicotin" },
-  { tier: 9, formula: "C9H8O4", charge: 0, name: "Aspirin", vi: "Aspirin" },
-  { tier: 9, formula: "C6H13NO2", charge: 0, name: "Leucine", vi: "Leuxin" },
-  { tier: 9, formula: "C4H6O6", charge: 0, name: "Tartaric acid", vi: "Axit tartaric" },
-  { tier: 9, formula: "PtCl4-2", charge: -2, name: "Tetrachloroplatinate ion", vi: "Ion tetracloroplatinat" },
+  { tier: 9, formula: "C10H14N2O", charge: 0, name: "Nicotine" },
+  { tier: 9, formula: "C9H8O4", charge: 0, name: "Aspirin" },
+  { tier: 9, formula: "C6H13NO2", charge: 0, name: "Leucine" },
+  { tier: 9, formula: "C4H6O6", charge: 0, name: "Tartaric acid" },
+  { tier: 9, formula: "PtCl4-2", charge: -2, name: "Tetrachloroplatinate ion" },
   // Tier 10: Legendary Tier (Ultra-complex macrostructures, synthetic milestones, and deep chemistry architectures)
-  { tier: 10, formula: "C16H18N2O4S", charge: 0, name: "Penicillin G", vi: "Penicillin G" },
-  { tier: 10, formula: "C20H25N3O", charge: 0, name: "LSD", vi: "LSD" },
-  { tier: 10, formula: "C17H19NO3", charge: 0, name: "Morphine", vi: "Moocphin" },
-  { tier: 10, formula: "Co(NH3)6+3", charge: 3, name: "Hexaamminecobalt(III) ion", vi: "Ion hexaamminecoban(III)" },
+  { tier: 10, formula: "C16H18N2O4S", charge: 0, name: "Penicillin G" },
+  { tier: 10, formula: "C20H25N3O", charge: 0, name: "LSD" },
+  { tier: 10, formula: "C17H19NO3", charge: 0, name: "Morphine" },
+  { tier: 10, formula: "Co(NH3)6+3", charge: 3, name: "Hexaamminecobalt(III) ion" },
   // Tier 11: Industrial & Inorganic Compounds
-  { tier: 11, formula: "Fe2O3", charge: 0, name: "Iron(III) oxide", vi: "Sắt(III) oxit" },
-  { tier: 11, formula: "NO2", charge: 0, name: "Nitrogen dioxide", vi: "Nitơ dioxit" },
-  { tier: 11, formula: "HNO3", charge: 0, name: "Nitric acid", vi: "Axit nitric" },
-  { tier: 11, formula: "NaNO3", charge: 0, name: "Sodium nitrate", vi: "Natri nitrat" },
-  { tier: 11, formula: "KNO3", charge: 0, name: "Potassium nitrate", vi: "Kali nitrat" },
-  { tier: 11, formula: "CaSO4", charge: 0, name: "Calcium sulfate", vi: "Canxi sulfat" },
-  { tier: 11, formula: "ZnSO4", charge: 0, name: "Zinc sulfate", vi: "Kẽm sulfat" },
-  { tier: 11, formula: "AgNO3", charge: 0, name: "Silver nitrate", vi: "Bạc nitrat" },
-  { tier: 11, formula: "CuSO4", charge: 0, name: "Copper(II) sulfate", vi: "Đồng(II) sulfat" },
-  { tier: 11, formula: "CH4N2O", charge: 0, name: "Urea", vi: "Urê" },
+  { tier: 11, formula: "Fe2O3", charge: 0, name: "Iron(III) oxide" },
+  { tier: 11, formula: "NO2", charge: 0, name: "Nitrogen dioxide" },
+  { tier: 11, formula: "HNO3", charge: 0, name: "Nitric acid" },
+  { tier: 11, formula: "NaNO3", charge: 0, name: "Sodium nitrate" },
+  { tier: 11, formula: "KNO3", charge: 0, name: "Potassium nitrate" },
+  { tier: 11, formula: "CaSO4", charge: 0, name: "Calcium sulfate" },
+  { tier: 11, formula: "ZnSO4", charge: 0, name: "Zinc sulfate" },
+  { tier: 11, formula: "AgNO3", charge: 0, name: "Silver nitrate" },
+  { tier: 11, formula: "CuSO4", charge: 0, name: "Copper(II) sulfate" },
+  { tier: 11, formula: "CH4N2O", charge: 0, name: "Urea" },
   // Tier 12: Amino Acids & Coordination Compounds
-  { tier: 12, formula: "C3H7NO2", charge: 0, name: "Alanine", vi: "Alanin" },
-  { tier: 12, formula: "C5H11NO2", charge: 0, name: "Valine", vi: "Valin" },
-  { tier: 12, formula: "C3H7NO3", charge: 0, name: "Serine", vi: "Serin" },
-  { tier: 12, formula: "CuH12N4", charge: 2, name: "Tetraamminecopper(II) ion", vi: "Ion tetraamminedong(II)" },
-  { tier: 12, formula: "AgH6N2", charge: 1, name: "Diamminesilver(I) ion", vi: "Ion diamminebac(I)" }
+  { tier: 12, formula: "C3H7NO2", charge: 0, name: "Alanine" },
+  { tier: 12, formula: "C5H11NO2", charge: 0, name: "Valine" },
+  { tier: 12, formula: "C3H7NO3", charge: 0, name: "Serine" },
+  { tier: 12, formula: "CuH12N4", charge: 2, name: "Tetraamminecopper(II) ion" },
+  { tier: 12, formula: "AgH6N2", charge: 1, name: "Diamminesilver(I) ion" }
 ];
 const MAYHEM_ELEMENTS = [
   {
@@ -46442,6 +46508,27 @@ function redoxSigned(v) {
   if (Math.abs(r) < 1e-9) return "0";
   return (r < 0 ? "-" : "+") + redoxNum(Math.abs(r));
 }
+const REDOX_SUP = {
+  "-": "\u207B",
+  "+": "\u207A",
+  "0": "\u2070",
+  "1": "\xB9",
+  "2": "\xB2",
+  "3": "\xB3",
+  "4": "\u2074",
+  "5": "\u2075",
+  "6": "\u2076",
+  "7": "\u2077",
+  "8": "\u2078",
+  "9": "\u2079",
+  ".": "\u02D9",
+  "/": "\u2044"
+};
+// Oxidation numbers are written as superscripts on the symbol (H⁰, Fe⁺³), the
+// way they are typeset on paper, so they never read as a charge in parentheses.
+function redoxSup(v) {
+  return redoxSigned(v).replace(/[-+0-9./]/g, (c) => REDOX_SUP[c]);
+}
 function parseRedoxEquation(eq) {
   if (typeof eq !== "string" || !eq) return null;
   const arrow = eq.includes("->") ? "->" : eq.includes("→") ? "→" : null;
@@ -46581,8 +46668,8 @@ function redoxHalfReactions(ledger) {
       const oxidized = t.electrons > 0;
       const e = Math.abs(t.electrons);
       const n = t.atoms === 1 ? "" : String(t.atoms);
-      const lhsAtom = `${n}${ch.sym}(${redoxSigned(t.from)})`;
-      const rhsAtom = `${n}${ch.sym}(${redoxSigned(t.to)})`;
+      const lhsAtom = `${n}${ch.sym}${redoxSup(t.from)}`;
+      const rhsAtom = `${n}${ch.sym}${redoxSup(t.to)}`;
       out.push({
         kind: oxidized ? "oxidation" : "reduction",
         sym: ch.sym,
@@ -46595,7 +46682,7 @@ function redoxHalfReactions(ledger) {
         product: seg(dst),
         agentFormulas: src.map((sp) => sp.formula),
         productFormulas: dst.map((sp) => sp.formula),
-        text: oxidized ? `${lhsAtom} -> ${rhsAtom} + ${redoxNum(e)}e-` : `${lhsAtom} + ${redoxNum(e)}e- -> ${rhsAtom}`
+        text: oxidized ? `${lhsAtom} -> ${rhsAtom} + ${redoxNum(e)}e` : `${lhsAtom} + ${redoxNum(e)}e -> ${rhsAtom}`
       });
     }
   }
@@ -52493,15 +52580,15 @@ class ThermodynamicSystem {
         "C-H": 413,
         "C-C": 348,
         "C-O": 358,
-        "O-H": 463,
-        "N-H": 391,
+        "H-O": 463,
+        "H-N": 391,
         "C-N": 305,
         "O-O": 146,
         "C-F": 485,
         "C-Cl": 339
       },
       2: { "C=C": 614, "C=O": 799, "N=N": 418, "O=O": 498 },
-      3: { "C≡C": 839, "CN": 891, "N≡N": 945 }
+      3: { "C≡C": 839, "C≡N": 891, "N≡N": 945 }
     };
     const order = bond.order || 1;
     const atomA = atomsMap instanceof Map ? atomsMap.get(bond.a) : atomsMap.find((a) => a.id === bond.a);
@@ -52625,25 +52712,87 @@ class KineticsEngine {
     };
   }
   /**
-   * Calculate rate constant using Arrhenius equation
-   * k = A * exp(-Ea / (R * T))
-   * @param {number} ea - Activation energy in kJ/mol
+   * Calculate rate constant using transition-state theory
+   * k = kappa * (kB T / h) * exp(dS / R) * exp(-dH / (R T))
+   * @param {number} ea - Barrier quoted at 298.15 K, in kJ/mol
    * @param {number} temperature - Temperature in Kelvin
-   * @param {string} reactionType - Type of reaction for pre-exponential factor
+   * @param {string} reactionType - Channel that owns the pre-exponential factor
+   * @param {{frequencyHz: number}} barrier - Barrier motion for the tunnelling factor
    */
-  calculateRateConstant(ea, temperature = null, reactionType = "unimolecular") {
-    const T2 = temperature || this.globalTemperature;
+  calculateRateConstant(ea, temperature = null, reactionType = "unimolecular", barrier = null) {
+    return this.transitionState(ea, temperature, reactionType, barrier).rateConstant;
+  }
+  /**
+   * One barrier described at one temperature through the Eyring lens.
+   * Ea = dH + nRT, so the Arrhenius number the panel shows moves with the
+   * temperature while dH stays the enthalpic part of the barrier. dS is
+   * calibrated from the channel pre-exponential factor at 298.15 K, which
+   * makes this agree with the old Arrhenius number there and differ from it
+   * only through the temperature dependence. dG = dH - T dS is its own
+   * quantity and is never reported as Ea.
+   */
+  transitionState(ea, temperature = null, reactionType = "unimolecular", barrier = null) {
+    const T2 = temperature > 0 ? temperature : this.globalTemperature;
     const A = this.preExponentialFactors[reactionType] || 1e13;
-    const eaJ = ea * 1e3;
-    const k = A * Math.exp(-eaJ / (R_GAS$1 * T2));
-    return k;
+    const nRt = (reactionType === "unimolecular" ? 1 : 2) * R_GAS$1;
+    const dhJ = ea * 1e3 - nRt * T_STANDARD;
+    const dsJ = R_GAS$1 * Math.log(A * H_PLANCK / (Math.E * K_BOLTZMANN * T_STANDARD));
+    const dgJ = dhJ - T2 * dsJ;
+    const thermalFrequency = K_BOLTZMANN * T2 / H_PLANCK;
+    const nu = barrier && barrier.frequencyHz > 0 ? barrier.frequencyHz : 0;
+    const wigner = this.tunnelingCorrection(nu, T2);
+    const k = wigner.kappa * thermalFrequency * Math.exp(dsJ / R_GAS$1) * Math.exp(-dhJ / (R_GAS$1 * T2));
+    return {
+      temperature: T2,
+      reactionType,
+      preExponential: A,
+      deltaH: dhJ * 1e-3,
+      deltaS: dsJ,
+      deltaG: dgJ * 1e-3,
+      thermalFrequency,
+      barrierFrequency: nu,
+      kappa: wigner.kappa,
+      tunnelingReliable: wigner.reliable,
+      activationEnergy: (dhJ + nRt * T2) * 1e-3,
+      rateConstant: k
+    };
+  }
+  /**
+   * Wigner parabolic-barrier tunnelling factor for one barrier frequency.
+   * The x^2 term is a small-x approximation, so past x = 2 the factor is held
+   * at its boundary value instead of extrapolating a number the formula never
+   * claimed; the caller still learns the correction left its valid range.
+   */
+  tunnelingCorrection(frequencyHz, temperature = null) {
+    const T2 = temperature > 0 ? temperature : this.globalTemperature;
+    if (!(frequencyHz > 0) || !(T2 > 0)) return { kappa: 1, reliable: false, x: 0 };
+    const x = H_PLANCK * frequencyHz / (K_BOLTZMANN * T2);
+    const reliable = x < 2;
+    const capped = reliable ? x : 2;
+    return { kappa: 1 + capped * capped / 24, reliable, x };
+  }
+  /**
+   * Stretch frequency of the bond that breaks, from a Morse curvature
+   * (k = 2 D a^2 with a ~ 1.8 per angstrom) and the pair reduced mass.
+   * @param {number} bde - Bond dissociation energy in kJ/mol
+   * @param {number} massA - Molar mass of the first atom in g/mol
+   * @param {number} massB - Molar mass of the second atom in g/mol
+   */
+  bondStretchFrequency(bde, massA, massB) {
+    if (!(bde > 0) || !(massA > 0) || !(massB > 0)) return 0;
+    const dJ = bde * 1e3 / N_AVOGADRO;
+    const morseWidth = 1.8e10;
+    const forceConstant = 2 * dJ * morseWidth * morseWidth;
+    const reducedKg = massA * massB / (massA + massB) * 1e-3 / N_AVOGADRO;
+    if (!(reducedKg > 0)) return 0;
+    return Math.sqrt(forceConstant / reducedKg) / (2 * Math.PI);
   }
   /**
    * Calculate half-life for first-order decomposition
    * t1/2 = ln(2) / k
    */
-  calculateHalfLife(ea, temperature = null) {
-    const k = this.calculateRateConstant(ea, temperature);
+  calculateHalfLife(ea, temperature = null, reactionType = "unimolecular", barrier = null) {
+    const k = this.calculateRateConstant(ea, temperature, reactionType, barrier);
     if (k <= 0) return Infinity;
     return Math.LN2 / k;
   }
@@ -52651,9 +52800,9 @@ class KineticsEngine {
    * Check if molecule will thermally decompose at given temperature
    * Returns decomposition probability per second
    */
-  calculateDecompositionProbability(ea, temperature = null, dt = 1) {
-    const k = this.calculateRateConstant(ea, temperature);
-    return 1 - Math.exp(-k * dt);
+  calculateDecompositionProbability(ea, temperature = null, dt = 1, reactionType = "unimolecular", barrier = null) {
+    const k = this.calculateRateConstant(ea, temperature, reactionType, barrier);
+    return -Math.expm1(-k * dt);
   }
   /**
    * Set global temperature
@@ -52676,16 +52825,7 @@ class KineticsEngine {
     }
     return this.globalTemperature;
   }
-  /**
-   * Calculate activation energy modifier based on temperature
-   * Higher temperature effectively lowers Ea barrier
-   */
-  getEffectiveActivationEnergy(ea, temperature = null) {
-    const T2 = temperature || this.globalTemperature;
-    const TRef = T_STANDARD;
-    const scaleFactor = Math.exp((T2 - TRef) / 100);
-    return ea / scaleFactor;
-  }
+
   /**
    * Calculate average kinetic energy per molecule
    * KE = 3/2 * k_B * T
@@ -52781,28 +52921,78 @@ class StructuralStrain {
     return strainEnergy;
   }
   /**
-   * Detect rings in molecular graph
+   * The simulation hands these helpers a Map of atoms keyed by id. Iterating a
+   * Map yields [id, atom] pairs, so every `atom.id` / `atom.el` lookup below it
+   * silently failed: no ring, no strain, no steric term was ever measured.
+   */
+  atomListOf(atoms2) {
+    return atoms2 instanceof Map ? Array.from(atoms2.values()) : Array.from(atoms2);
+  }
+  /**
+   * Detect rings in molecular graph.
+   * Every bond that is not a tree edge closes exactly one cycle, and there are
+   * E - V + 1 of them per component, so one spanning search per component yields
+   * the whole cycle basis in linear time. The previous version restarted a fresh
+   * DFS from every atom but shared one `visited` set between the restarts, so by
+   * the time it looked for a three-membered ring the neighbours were already
+   * marked and it reported no rings at all - cyclopropane carried zero strain.
    */
   detectRings(atoms2, bonds2) {
-    const rings = [];
-    const visited = /* @__PURE__ */ new Set();
     const adjList = this.buildAdjacencyList(atoms2, bonds2);
-    for (const atom of atoms2) {
-      if (!visited.has(atom.id)) {
-        const ring = this.findRing(atom.id, adjList, visited);
-        if (ring && ring.length >= 3) {
-          rings.push(ring);
-        }
+    const bondList = bonds2 instanceof Map ? Array.from(bonds2.values()) : Array.from(bonds2);
+    const pairs = bondList.map((bond) => [bond.a, bond.b]);
+    const rings = [];
+    const claimed = /* @__PURE__ */ new Set();
+    for (const atom of this.atomListOf(atoms2)) {
+      if (claimed.has(atom.id)) continue;
+      for (const ring of this.componentCycles(atom.id, adjList, pairs, claimed)) {
+        if (ring.length >= 3) rings.push(ring);
       }
     }
     return rings;
+  }
+  /**
+   * The cycle basis of the component reached from startId: its spanning tree,
+   * then every bond that is not a tree edge, closed back through the tree.
+   */
+  componentCycles(startId, adjList, pairs, claimed) {
+    const parent = /* @__PURE__ */ new Map();
+    const stack = [startId];
+    parent.set(startId, null);
+    claimed.add(startId);
+    while (stack.length > 0) {
+      const cur = stack.pop();
+      for (const neighbor of adjList.get(cur) || []) {
+        if (claimed.has(neighbor)) continue;
+        claimed.add(neighbor);
+        parent.set(neighbor, cur);
+        stack.push(neighbor);
+      }
+    }
+    const cycles = [];
+    for (const [a, b] of pairs) {
+      if (!parent.has(a) || !parent.has(b)) continue;
+      // A bond that joins an atom to its own parent is a tree edge and closes no
+      // cycle; every other bond adds exactly one ring to the basis.
+      if (parent.get(a) === b || parent.get(b) === a) continue;
+      const above = new Set();
+      for (let at = a; at !== null && at !== undefined; at = parent.get(at)) above.add(at);
+      let top = b;
+      while (!above.has(top)) top = parent.get(top);
+      const ring = [];
+      for (let at = a; at !== top; at = parent.get(at)) ring.push(at);
+      for (let at = b; at !== top; at = parent.get(at)) ring.push(at);
+      ring.push(top);
+      cycles.push(ring);
+    }
+    return cycles;
   }
   /**
    * Build adjacency list from bonds
    */
   buildAdjacencyList(atoms2, bonds2) {
     const adj = /* @__PURE__ */ new Map();
-    for (const atom of atoms2) {
+    for (const atom of this.atomListOf(atoms2)) {
       adj.set(atom.id, []);
     }
     for (const bond of bonds2) {
@@ -52814,32 +53004,11 @@ class StructuralStrain {
     return adj;
   }
   /**
-   * Find ring starting from atom (DFS)
-   */
-  findRing(startId, adjList, visited) {
-    const stack = [{ id: startId, path: [startId] }];
-    visited.add(startId);
-    while (stack.length > 0) {
-      const { id, path } = stack.pop();
-      const neighbors2 = adjList.get(id) || [];
-      for (const neighbor of neighbors2) {
-        if (neighbor === startId && path.length >= 3) {
-          return path;
-        }
-        if (!visited.has(neighbor)) {
-          visited.add(neighbor);
-          stack.push({ id: neighbor, path: [...path, neighbor] });
-        }
-      }
-    }
-    return null;
-  }
-  /**
    * Calculate steric strain from bulky groups
    */
   calculateStericStrain(atoms2, geometry = null) {
     let stericEnergy = 0;
-    for (const atom of atoms2) {
+    for (const atom of this.atomListOf(atoms2)) {
       if (!atom || !atom.el) continue;
       const substituentSize = this.stericParameters[atom.el.sym] || 0;
       if (substituentSize > 50) {
@@ -52869,20 +53038,23 @@ class StructuralStrain {
    */
   getModifiedActivationEnergy(baseEa, atoms2, bonds2) {
     let modifiedEa = baseEa;
-    for (const bond of bonds2) {
-      if (this.isPeroxideBond(bond, atoms2)) {
-        modifiedEa *= this.bdeModifiers.peroxide;
-      }
-      if (this.isRadicalBond(bond, atoms2, bonds2)) {
-        modifiedEa *= this.bdeModifiers.radical;
-      }
-    }
-    const rings = this.detectRings(atoms2, bonds2);
+    const bondList = bonds2 instanceof Map ? Array.from(bonds2.values()) : bonds2;
+    // A unimolecular decomposition breaks one bond, so the barrier belongs to
+    // the channel, not to the sum of the channels. Multiplying one shared number
+    // once per qualifying bond charged ozone twice for its two oxygen-oxygen
+    // contacts, drove it onto the floor below, and it fell apart in 4e-5 s.
+    if (bondList.some((bond) => this.isPeroxideBond(bond, atoms2)))
+      modifiedEa *= this.bdeModifiers.peroxide;
+    if (this.isRadicalSpecies(atoms2, bondList)) modifiedEa *= this.bdeModifiers.radical;
+    const rings = this.detectRings(atoms2, bondList);
     for (const ring of rings) {
       const strain = this.ringStrain[ring.length] || 0;
       modifiedEa -= strain * 0.5;
     }
-    return Math.max(50, modifiedEa);
+    // Ring opening can pay for the bond it breaks. When the relief outweighs the
+    // bond there is no barrier left, and the species comes apart instead of
+    // decaying - a negative activation energy has no meaning here.
+    return Math.max(0, modifiedEa);
   }
   isPeroxideBond(bond, atomsMap) {
     const atomA = atomsMap instanceof Map ? atomsMap.get(bond.a) : atomsMap.find((a) => a.id === bond.a);
@@ -52890,18 +53062,20 @@ class StructuralStrain {
     if (!atomA || !atomB) return false;
     return atomA.el.sym === "O" && atomB.el.sym === "O" && bond.order === 1;
   }
-  isRadicalBond(bond, atomsMap, bonds2) {
-    const atomA = atomsMap instanceof Map ? atomsMap.get(bond.a) : atomsMap.find((a) => a.id === bond.a);
-    const atomB = atomsMap instanceof Map ? atomsMap.get(bond.b) : atomsMap.find((a) => a.id === bond.b);
-    if (!atomA || !atomB) return false;
-    const bondList = bonds2 instanceof Map ? Array.from(bonds2.values()) : bonds2;
-    const bondsForA = bondList.filter((b) => b.a === atomA.id || b.b === atomA.id).length;
-    const bondsForB = bondList.filter((b) => b.a === atomB.id || b.b === atomB.id).length;
-    const bondedElectronsA = bondList.filter((b) => b.a === atomA.id || b.b === atomA.id).reduce((sum, b) => sum + (b.order || 1), 0);
-    const bondedElectronsB = bondList.filter((b) => b.a === atomB.id || b.b === atomB.id).reduce((sum, b) => sum + (b.order || 1), 0);
-    const totalElectronsA = (atomA.el.valenceElectrons || 0) + bondedElectronsA;
-    const totalElectronsB = (atomB.el.valenceElectrons || 0) + bondedElectronsB;
-    return totalElectronsA % 2 !== 0 || totalElectronsB % 2 !== 0;
+  // Radical character is a property of the species, not of one bond: an odd
+  // number of electrons cannot all be paired, so the fission leaves unpaired
+  // electrons and the barrier drops. The old test added each atom's valence
+  // count to its bond orders and asked about that parity, which says nothing
+  // about pairing - it branded the closed-shell oxygens of ozone radicals
+  // because the central atom's odd count is carried by its +1 formal charge.
+  isRadicalSpecies(atoms2, bonds2) {
+    let electrons = 0;
+    for (const atom of this.atomListOf(atoms2)) {
+      const el = atom.el || atom;
+      electrons += el.valenceElectrons || 0;
+      if (Number.isFinite(atom.charge)) electrons -= atom.charge;
+    }
+    return electrons % 2 !== 0;
   }
 }
 class QMInterface {
@@ -53236,14 +53410,22 @@ class SimulationEngine {
     const strainEnergy = this.strain.calculateStrainEnergy(atomsMap, bonds2);
     const bondList = bonds2 instanceof Map ? Array.from(bonds2.values()) : bonds2;
     let baseEa = 200;
+    let weakest = null;
     if (bondList.length > 0) {
       const bondEnergies = bondList.map((b) => this.thermo.getBondDissociationEnergy(b, atomsMap));
       baseEa = Math.min(...bondEnergies);
+      weakest = bondList[bondEnergies.indexOf(baseEa)];
     }
     const effectiveEa = this.strain.getModifiedActivationEnergy(baseEa, atomsMap, bonds2);
     const temp = this.kinetics.getTemperature(moleculeId);
-    const decompProb = this.kinetics.calculateDecompositionProbability(effectiveEa, temp);
-    const halfLife = this.kinetics.calculateHalfLife(effectiveEa, temp);
+    const pairA = weakest ? atomsMap.get(weakest.a) : null;
+    const pairB = weakest ? atomsMap.get(weakest.b) : null;
+    const barrier = pairA && pairB ? {
+      frequencyHz: this.kinetics.bondStretchFrequency(baseEa, pairA.el && pairA.el.mass, pairB.el && pairB.el.mass)
+    } : null;
+    const ts = this.kinetics.transitionState(effectiveEa, temp, "unimolecular", barrier);
+    const decompProb = this.kinetics.calculateDecompositionProbability(effectiveEa, temp, 1, "unimolecular", barrier);
+    const halfLife = this.kinetics.calculateHalfLife(effectiveEa, temp, "unimolecular", barrier);
     const mo = this.qm.calculateMolecularOrbitals(atomsMap, bonds2);
     return {
       thermodynamics: thermo,
@@ -53252,8 +53434,16 @@ class SimulationEngine {
         rings: this.strain.detectRings(atomsMap, bonds2)
       },
       kinetics: {
-        activationEnergy: effectiveEa,
-        rateConstant: this.kinetics.calculateRateConstant(effectiveEa, temp),
+        activationEnergy: ts.activationEnergy,
+        barrierAtStandardTemperature: effectiveEa,
+        deltaH: ts.deltaH,
+        deltaS: ts.deltaS,
+        deltaG: ts.deltaG,
+        thermalFrequency: ts.thermalFrequency,
+        barrierFrequency: ts.barrierFrequency,
+        kappa: ts.kappa,
+        tunnelingReliable: ts.tunnelingReliable,
+        rateConstant: ts.rateConstant,
         halfLife,
         decompositionProbability: decompProb,
         temperature: temp
@@ -53468,7 +53658,10 @@ class QuestManager {
     quest.progress = 100;
     this.completedQuests.add(questId);
     if (quest.reward.stars) {
+      // The quest counter is a tally; the money is the rank ledger. Paying only
+      // the tally made every quest in the game a reward that never arrived.
       this.stars += quest.reward.stars;
+      rankManager.addStars(QUEST_STAR_UNIT * quest.reward.stars);
     }
     this.emit("questCompleted", { quest, rewards: quest.reward });
     this.updateQuestAvailability();
@@ -53697,20 +53890,131 @@ function getRankFromStars(totalStars) {
 }
 const RANK_KEY = "mol3d.rank.v2";
 const RANK_SCHEMA = 2;
+// The rank blob is player-editable JSON and the import button reads files another
+// player wrote, so `stars` inside one is a claim rather than a fact. What is a fact
+// is this ledger: every star this browser was paid and every star it was charged,
+// written from inside addStars/removeStars only. A claim above earned-minus-spent
+// cannot be honoured, which is what stops a shared "admin" file from minting stars.
+// One quest reward unit is worth this many stars; the quest table is written in
+// units so its ladder can be retuned without rewriting eleven entries.
+const QUEST_STAR_UNIT = 8;
+const STAR_LEDGER_KEY = "mol3d.starLedger.v1";
+const LEDGER_SALT_KEY = "mol3d.starLedger.salt";
+const starLedger = { earned: 0, spent: 0, seq: 0 };
+// The seal runs over a salt only this browser holds, so a ledger copied from
+// another machine cannot seal here and an edited number stops sealing. That is
+// evidence of tampering rather than a lock: the salt and the algorithm both ship
+// in this bundle, so a player who opens devtools can still forge their own copy.
+// What this stops is the shared save file.
+function sealLedger(salt, earned, spent, seq) {
+  const s = salt + "|" + earned + "|" + spent + "|" + seq;
+  let h1 = 2166136261 >>> 0;
+  let h2 = 3432345061 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
+    h2 = Math.imul(h2 + c, 2246822519) >>> 0;
+  }
+  return (h1 >>> 0).toString(36) + "." + (h2 >>> 0).toString(36);
+}
+function ledgerSalt() {
+  let salt = null;
+  try {
+    salt = localStorage.getItem(LEDGER_SALT_KEY);
+  } catch {
+  }
+  if (typeof salt === "string" && salt.length >= 32) return salt;
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  let hex = "";
+  for (const b of bytes) hex += b.toString(16).padStart(2, "0");
+  try {
+    localStorage.setItem(LEDGER_SALT_KEY, hex);
+  } catch {
+  }
+  return hex;
+}
+function saveStarLedger() {
+  starLedger.seq = (starLedger.seq + 1) % 1e9;
+  const seal = sealLedger(ledgerSalt(), starLedger.earned, starLedger.spent, starLedger.seq);
+  try {
+    localStorage.setItem(STAR_LEDGER_KEY, JSON.stringify({
+      earned: starLedger.earned,
+      spent: starLedger.spent,
+      seq: starLedger.seq,
+      seal
+    }));
+  } catch {
+  }
+}
+// Loading is all-or-nothing: a ledger whose seal does not reproduce is dropped
+// whole, so the numbers it claims go with it.
+function loadStarLedger() {
+  let d = null;
+  try {
+    d = JSON.parse(localStorage.getItem(STAR_LEDGER_KEY));
+  } catch {
+    return;
+  }
+  if (!d || typeof d !== "object") return;
+  const earned = Math.floor(Number(d.earned));
+  const spent = Math.floor(Number(d.spent));
+  const seq = Math.floor(Number(d.seq)) || 0;
+  if (!Number.isFinite(earned) || earned < 0 || earned > 1e9) return;
+  if (!Number.isFinite(spent) || spent < 0 || spent > earned) return;
+  const unsigned = typeof d.seal !== "string";
+  if (!unsigned && d.seal !== sealLedger(ledgerSalt(), earned, spent, seq)) {
+    console.warn("Ledger: seal mismatch - edited or copied from another browser, its stars are not payable");
+    return;
+  }
+  starLedger.earned = earned;
+  starLedger.spent = spent;
+  starLedger.seq = seq;
+  if (unsigned) {
+    console.warn("Ledger: pre-seal ledger sealed for this browser");
+    saveStarLedger();
+  }
+}
+function recordStars(kind, delta) {
+  if (!(delta > 0)) return;
+  starLedger[kind] += Math.floor(delta);
+  if (starLedger.spent > starLedger.earned) starLedger.spent = starLedger.earned;
+  saveStarLedger();
+}
 class RankManager {
   constructor() {
     this.totalStars = 0;
     this.previousRank = null;
     this.listeners = /* @__PURE__ */ new Map();
+    loadStarLedger();
     this.loadProgress();
+    // A save with stars and no sealed ledger is not honoured, and the ledger is
+    // never minted from the save it is supposed to audit: seeding it would let
+    // deleting one localStorage key turn any hand-written balance into proof.
+    const cap = this.payableStars();
+    if (this.totalStars > cap) {
+      console.warn("Rank: saved balance", this.totalStars, "exceeds the ledger cap", cap, "- clamped");
+      this.totalStars = cap;
+      this.saveProgress();
+    }
     this.previousRank = this.getCurrentRank();
+  }
+  /** The most stars this browser can prove it was given. */
+  payableStars() {
+    return Math.max(0, starLedger.earned - starLedger.spent);
   }
   /**
    * Add stars (e.g., from discovering a molecule)
    */
   addStars(count) {
     const oldRank = this.getCurrentRank();
+    const before = this.totalStars;
     this.totalStars = Math.min(this.totalStars + Math.max(0, Math.floor(count)), 1e6);
+    recordStars("earned", this.totalStars - before);
     const newRank = this.getCurrentRank();
     if (newRank.grade > oldRank.grade || newRank.rankIndex > oldRank.rankIndex) {
       this.emit("gradeUp", {
@@ -53728,14 +54032,16 @@ class RankManager {
    */
   removeStars(count) {
     const oldRank = this.getCurrentRank();
+    const before = this.totalStars;
     this.totalStars = Math.max(0, this.totalStars - count);
+    recordStars("spent", before - this.totalStars);
     const newRank = this.getCurrentRank();
     if (newRank.grade < oldRank.grade || newRank.rankIndex < oldRank.rankIndex) {
       this.emit("gradeDown", {
         oldRank,
         newRank,
         isRankDown: newRank.rankIndex < oldRank.rankIndex,
-        starsLost: count
+        starsLost: before - this.totalStars
       });
     }
     this.emit("starsChanged", { totalStars: this.totalStars, rank: newRank });
@@ -53802,6 +54108,9 @@ class RankManager {
    */
   reset() {
     this.totalStars = 0;
+    starLedger.earned = 0;
+    starLedger.spent = 0;
+    saveStarLedger();
     this.saveProgress();
     this.emit("starsChanged", { totalStars: 0, rank: this.getCurrentRank() });
   }
@@ -53829,7 +54138,271 @@ function shopPriceOf(feature) {
   for (const f of list) if (f.id === feature) return shop.priceOf(f.price, f.min);
   return null;
 }
+// THE CRATE. Elements are no longer unlocked once and then placed for free: every
+// atom the player puts on the table is one unit out of a stock bought in the shop,
+// and every atom that leaves the table goes back into it. Three rules make that
+// hold without a hole:
+//   1. only a placement the player asked for pays. Reactions, decay, the
+//      atmosphere, fission fragments and other players' atoms are consequences of
+//      chemistry, not purchases, and the shop would have to price a bug.
+//   2. a refund is only owed while the crate says the world still holds the atom,
+//      so Ne bought at 2 stars, shot into Na and deleted cannot return 25.
+//   3. the return trip is read off the live scene, not off a list of call sites.
+//      cratePaid maps an atom id to the z it was bought as; the sweep in the
+//      animation loop refunds whatever id has stopped existing. A path that forgets
+//      to say so can then lose the player a refund, never print a new atom.
+const cratePaid = /* @__PURE__ */ new Map();
+let crateDropShown = 0;
+function crateShop() {
+  const s = window.__mol3dShop;
+  return s && typeof s.takeAtom === "function" ? s : null;
+}
+function crateFreePlays() {
+  return !!window.__mol3d && window.__mol3d._godMode === true;
+}
+function crateStockOf(z) {
+  const s = crateShop();
+  return s ? s.stockOf(z) : Infinity;
+}
+function cratePriceOf(z) {
+  const s = crateShop();
+  return s ? s.unitPrice(z) : 0;
+}
+// Price of a build the way the player actually pays it. Atoms already lying in
+// the crate were bought on an earlier trip, so a whole structure bills only the
+// gap between the drawing and the crate - the same rule a hand placement follows
+// when it takes an atom out of stock instead of reaching for stars.
+function crateShortfall(atomsLike) {
+  const s = crateShop();
+  if (!s) return [];
+  const seen = /* @__PURE__ */ new Map();
+  const short = [];
+  for (const a of atomsLike || []) {
+    const z = s.zOf(a);
+    if (!(z > 0)) continue;
+    const n = (seen.get(z) || 0) + 1;
+    seen.set(z, n);
+    if (n > crateStockOf(z)) short.push(a);
+  }
+  return short;
+}
+function crateBillPrice(atomsLike) {
+  const s = crateShop();
+  return s ? s.priceOfAtoms(crateShortfall(atomsLike)) : 0;
+}
+// A formula string prices the same as a structure: expand it to its atoms first.
+function formulaAtomList(f) {
+  const list = [];
+  try {
+    for (const [sym, n] of parseFormula(String(f || ""))) {
+      for (let i = 0; i < n; i++) list.push(sym);
+    }
+  } catch {
+  }
+  return list;
+}
+function crateAnnounceDrop(z) {
+  const now = performance.now();
+  if (now - crateDropShown < 120) return;
+  crateDropShown = now;
+  const el = ELEMENTS.find((e) => e.z === z);
+  status(`📦 ${t("crate.empty", {
+    name: el ? elName(el) : `Z=${z}`,
+    price: cratePriceOf(z),
+    hint: t("rank.shopHint")
+  })}`, "err");
+  const s = crateShop();
+  if (s && typeof s.flash === "function") s.flash();
+}
+// Takes one atom out of the crate for a placement the player asked for.
+function crateTake(el, quiet) {
+  const s = crateShop();
+  if (!s) return true;
+  if (!el || !el.z) return true;
+  if (crateFreePlays()) return true;
+  if (s.takeAtom(el.z)) return true;
+  if (!quiet) crateAnnounceDrop(el.z);
+  return false;
+}
+function crateRegister(id, el) {
+  if (!el || !el.z) return;
+  if (crateFreePlays()) return;
+  cratePaid.set(id, el.z);
+}
+
+// The proton gun pushes a nucleus up one element. That is a crate transaction,
+// not a free mint: the crate has to hold a unit of the element above, the unit
+// this atom was bought as comes back, and the id ledger is re-anchored so that
+// deleting the atom later returns what the crate actually paid for it.
+function crateTransmute(id, newZ) {
+  const s = crateShop();
+  if (!s || crateFreePlays()) return true;
+  if (!(newZ > 0)) return false;
+  if (s.takeAtom(newZ) !== true) return false;
+  const oldZ = cratePaid.get(id);
+  if (oldZ !== void 0) {
+    cratePaid.delete(id);
+    s.refundAtom(oldZ);
+  }
+  cratePaid.set(id, newZ);
+  rebuildCrateBadges();
+  return true;
+}
+// Buys a whole molecule's atoms into the crate. The dex summon and the assistant
+// both charge the sum of the parts, so a summoned water costs what its two
+// hydrogens and one oxygen cost on the shelf - minus whatever the crate is
+// already holding for them.
+function crateBuy(atomsLike, quiet) {
+  const s = crateShop();
+  if (!s || crateFreePlays()) return true;
+  const short = crateShortfall(atomsLike);
+  const cost = s.priceOfAtoms(short);
+  if (cost <= 0) return true;
+  const bought = s.buyAtoms(short);
+  if (bought && bought.ok) return true;
+  if (!quiet) {
+    status(`⭐ ${t("crate.needStars", { n: cost, have: s.balance(), hint: t("rank.shopHint") })}`, "err");
+    if (typeof s.flash === "function") s.flash();
+  }
+  return false;
+}
+// Moves atoms the crate just paid for out of the crate and onto the table, by the
+// ids the builder handed back. Reading the element off the live atom rather than
+// off the template is what keeps the ledger straight when a symbol is unknown and
+// the builder skipped it.
+function crateMarkTaken(ids) {
+  const s = crateShop();
+  if (!s || crateFreePlays()) return;
+  let moved = 0;
+  for (const id of ids) {
+    const at = atoms.get(id);
+    if (!at || !at.el || !at.el.z || cratePaid.has(id)) continue;
+    if (s.takeAtom(at.el.z)) {
+      crateRegister(id, at.el);
+      moved++;
+    }
+  }
+  if (moved) rebuildCrateBadges();
+}
+// A bulk placement - duplicating a molecule, dropping a whole structure - is billed
+// as one order: the crate is checked for the full bill first, so a copy either
+// happens complete or not at all instead of half-drawing stock.
+function crateTakeList(elList, quiet) {
+  const s = crateShop();
+  if (!s || crateFreePlays()) return true;
+  const need = /* @__PURE__ */ new Map();
+  for (const el of elList || []) if (el && el.z) need.set(el.z, (need.get(el.z) || 0) + 1);
+  for (const [z, n] of need) {
+    if (crateStockOf(z) < n) {
+      if (!quiet) crateAnnounceDrop(z);
+      return false;
+    }
+  }
+  for (const [z, n] of need) {
+    for (let i = 0; i < n; i++) s.takeAtom(z);
+  }
+  rebuildCrateBadges();
+  return true;
+}
+// An isomer swap is the same atoms in a different order, so the crate bill moves
+// across with them: what leaves is refunded and what arrives is taken straight back
+// out, in one step, so a player who owns nothing but the molecule on the table can
+// still rearrange it without paying twice or getting a free extra.
+function crateTransfer(outIds, inIds) {
+  const s = crateShop();
+  const leaving = [];
+  for (const id of outIds || []) {
+    const z = cratePaid.get(id);
+    if (z === void 0) continue;
+    leaving.push(z);
+    cratePaid.delete(id);
+  }
+  if (!s || crateFreePlays()) return;
+  for (const z of leaving) s.refundAtom(z);
+  let moved = 0;
+  for (const id of inIds || []) {
+    const at = atoms.get(id);
+    if (!at || !at.el || !at.el.z) continue;
+    if (s.takeAtom(at.el.z)) {
+      crateRegister(id, at.el);
+      moved++;
+    }
+  }
+  if (moved) rebuildCrateBadges();
+}
+// Runs against the live scene every physics tick. Cost is one map iteration over
+// the atoms the player personally bought, which is zero most of the time.
+function crateSweep() {
+  const s = crateShop();
+  if (!s || cratePaid.size === 0) return;
+  let returned = 0;
+  for (const [id, z] of Array.from(cratePaid)) {
+    if (atoms.has(id)) continue;
+    cratePaid.delete(id);
+    if (s.refundAtom(z)) returned++;
+  }
+  if (returned) rebuildCrateBadges();
+}
+// Atoms a snapshot puts back on the table were taken out of the crate when they
+// were first placed, so undo pays for them again; if the crate cannot cover it the
+// atoms still come back (undo must never fail) but they come back unpaid.
+function crateRecover(list) {
+  const s = crateShop();
+  if (!s) return;
+  for (const at of list) {
+    if (!at || cratePaid.has(at.id)) continue;
+    if (crateTake(at.el, true)) crateRegister(at.id, at.el);
+  }
+  rebuildCrateBadges();
+}
+// A reload keeps the crate but empties the id ledger, so the atoms already on the
+// table would stop refunding when deleted. The shop hands out one owed slot per
+// scene atom, which is exactly the number the crate gave away last session.
+function crateAdoptScene() {
+  const s = crateShop();
+  if (!s || crateFreePlays() || typeof s.claimOwed !== "function") return;
+  let adopted = 0;
+  for (const [, at] of atoms) {
+    if (!at || !at.el || !at.el.z || cratePaid.has(at.id)) continue;
+    if (s.claimOwed(at.el.z)) {
+      cratePaid.set(at.id, at.el.z);
+      adopted++;
+    }
+  }
+  if (adopted) rebuildCrateBadges();
+}
+// The pool tile and the periodic table cell each carry the crate count, so the
+// player sees what they can place before clicking. An empty tile stays clickable
+// and legible: the shop is where the missing atoms come from, not a locked door.
+function updatePoolBadge(tile, badge) {
+  const s = crateShop();
+  const b = badge || tile.querySelector(".el-qty");
+  if (!b) return;
+  const z = Number(tile.dataset.z);
+  if (!s || !(z > 0)) {
+    b.textContent = "";
+    return;
+  }
+  const n = s.stockOf(z);
+  b.textContent = n > 0 ? String(n) : "";
+  tile.classList.toggle("crate-empty", n <= 0);
+}
+function updatePoolStock() {
+  for (const tile of document.querySelectorAll("#pool-list .el-chip[data-z], #ptable .el[data-z]"))
+    updatePoolBadge(tile);
+}
+function rebuildCrateBadges() {
+  try {
+    if (typeof updatePoolStock === "function") updatePoolStock();
+  } catch (e) {
+  }
+}
 const DAILY_REWARD_KEY = "mol3d.dailyReward";
+// A day's pay is a base plus a streak bonus. The base is the same number the
+// rope shop advertises for a daily claim, so popup and shop cannot drift.
+const DAILY_BASE_STARS = 20;
+const DAILY_STREAK_BONUS = 10;
+const DAILY_MAX_STARS = 120;
 const DAILY_STREAK_KEY = "mol3d.dailyStreak";
 function checkDailyReward() {
   const today = (/* @__PURE__ */ new Date()).toDateString();
@@ -53848,7 +54421,7 @@ function checkDailyReward() {
   } else {
     streak = 1;
   }
-  const stars = Math.min(streak, 5);
+  const stars = Math.min(DAILY_BASE_STARS + DAILY_STREAK_BONUS * Math.max(0, streak - 1), DAILY_MAX_STARS);
   return { streak, stars };
 }
 function claimDailyReward() {
@@ -57165,7 +57738,7 @@ function updateRadioactiveDecay(now) {
     spawnAnim.set(id, now);
     const label = labelSprites.get(id);
     if (label) {
-      label.material.map = labelTex(newEl.sym);
+      label.material.map = atomLabelTex(id, newEl);
       label.material.needsUpdate = true;
       const r = displayRadius(newEl);
       const s = 0.42 + r * 0.55;
@@ -57669,7 +58242,7 @@ function updateReactivitySweep(now) {
             y: sPos.y + tilt,
             z: sPos.z + Math.sin(ang) * 1.5
           };
-          const gid = spawnAtom(gasEl, gPos, { silent: true });
+          const gid = spawnAtom(gasEl, gPos, { silent: true, charge: false });
           if (gid) {
             attacks++;
             if (autoBondPair(sid, gid)) bonded = true;
@@ -57681,35 +58254,45 @@ function updateReactivitySweep(now) {
     const REACTIVE_RADIUS = 8;
     const candidates = [...atoms.keys()].filter((id) => {
       if (id === sid) return false;
-      if (freeValenceOf(id) <= 0) return false;
       const p = atoms.get(id).pos;
       const dist = Math.hypot(p.x - sPos.x, p.y - sPos.y, p.z - sPos.z);
-      return dist < REACTIVE_RADIUS;
+      if (!(dist < REACTIVE_RADIUS)) return false;
+      // A partner already at its neutral covalence can still accept a bond when
+      // the extra formal charge is paid inside the same component — that is how
+      // the third oxygen of ozone attaches to an O2 pair, so the bond checker,
+      // not the neutral valence count alone, has the last word here.
+      if (freeValenceOf(id) <= 0 && !bondCheck(atoms, bonds, sid, id).ok) return false;
+      return true;
     }).sort((a, b) => {
       const pa = atoms.get(a).pos, pb = atoms.get(b).pos;
       return Math.hypot(pa.x - sPos.x, pa.y - sPos.y, pa.z - sPos.z) - Math.hypot(pb.x - sPos.x, pb.y - sPos.y, pb.z - sPos.z);
     });
     let acted = false;
-    for (const pid of candidates) {
-      const existing = bondBetween(sid, pid);
-      if (!existing) continue;
-      const before = existing.order;
-      const up = autoBondPair(sid, pid);
-      if (up && up.order > before) {
-        acted = true;
-        bonded = true;
-        break;
-      }
-    }
-    if (!acted) {
+    // Charge-paid routings are tried last, so a molecule that can complete its
+    // skeleton with plain covalence never gets charge-separated by accident.
+    const fitsPass = (pid, paidOnly) => paidOnly ? bondNeedsCharge(sid, pid) : !bondNeedsCharge(sid, pid);
+    for (const paidOnly of [false, true]) {
       for (const pid of candidates) {
-        if (bondBetween(sid, pid)) continue;
+        const existing = bondBetween(sid, pid);
+        if (!existing || !fitsPass(pid, paidOnly)) continue;
+        const before = existing.order;
+        const up = autoBondPair(sid, pid);
+        if (up && up.order > before) {
+          acted = true;
+          bonded = true;
+          break;
+        }
+      }
+      if (acted) break;
+      for (const pid of candidates) {
+        if (bondBetween(sid, pid) || !fitsPass(pid, paidOnly)) continue;
         if (autoBondPair(sid, pid)) {
           acted = true;
           bonded = true;
           break;
         }
       }
+      if (acted) break;
     }
     if (!acted && candidates.length > 0) {
       const target = atoms.get(candidates[0]);
@@ -57747,6 +58330,18 @@ function isHungryAtom(id) {
   }
   return true;
 }
+// Whether joining these two atoms - by a new bond, or by raising the bond they
+// already have - has to be paid for with a formal charge. The auto-bonder tries
+// the plain-covalence routings first: a molecule that can finish its skeleton
+// without charge separation should not be steered into a charge-separated one
+// just because the checker permits that too, which is how an epoxide lost its
+// carbon-carbon bond to a C=O nobody asked for.
+function bondNeedsCharge(aId, bId) {
+  const bond = bondBetween(aId, bId);
+  if (!bond) return bondCheck(atoms, bonds, aId, bId).paid === true;
+  if (bond.ionic) return false;
+  return upgradeCheck(atoms, bonds, { ...bond, order: bond.order + 1 }).paid === true;
+}
 function autoBondPair(aId, bId) {
   const A = atoms.get(aId), B = atoms.get(bId);
   if (!A || !B) return null;
@@ -57760,13 +58355,22 @@ function autoBondPair(aId, bId) {
     bonds.set(nb, bond);
     worldSync.broadcastBondAdd(bond);
   }
-  if (bond.ionic) return bond;
+  if (bond.ionic) {
+    if (created) reshapeBondedComponent(aId);
+    return bond;
+  }
+  const orderBefore = bond.order;
   const cap = Math.min(3, pairOrderCap(A.el, B.el));
   while (bond.order < cap) {
     if (freeValenceOf(aId) < 1 || freeValenceOf(bId) < 1) break;
     if (!upgradeCheck(atoms, bonds, { ...bond, order: bond.order + 1 }).ok) break;
     bond.order += 1;
   }
+  // Contact-bonded pairs sit wherever the drift left them, which is a collision
+  // distance, not a bond length, and says nothing about the angles. Reshape on the
+  // events that change the topology or the hybridisation, never on the steps that
+  // only re-find a bond that already exists: the physics loop runs every frame.
+  if (created || bond.order !== orderBefore) reshapeBondedComponent(aId);
   if (!created && bond.order > 1) worldSync.broadcastBondAdd(bond);
   return bond;
 }
@@ -57781,32 +58385,39 @@ function stabilizeStrays(strayIds, now) {
       const REACTIVE_RADIUS = 12;
       const candidates = [...atoms.keys()].filter((id) => {
         if (id === sid) return false;
-        if (freeValenceOf(id) <= 0) return false;
         const p = atoms.get(id).pos;
-        return Math.hypot(p.x - sPos.x, p.y - sPos.y, p.z - sPos.z) < REACTIVE_RADIUS;
+        if (!(Math.hypot(p.x - sPos.x, p.y - sPos.y, p.z - sPos.z) < REACTIVE_RADIUS)) return false;
+        // Same rule as the reactivity sweep: an atom at its neutral covalence is
+        // still a partner when the bond checker says the formal charge is paid.
+        if (freeValenceOf(id) <= 0 && !bondCheck(atoms, bonds, sid, id).ok) return false;
+        return true;
       }).sort((a, b) => {
         const pa = atoms.get(a).pos, pb = atoms.get(b).pos;
         return Math.hypot(pa.x - sPos.x, pa.y - sPos.y, pa.z - sPos.z) - Math.hypot(pb.x - sPos.x, pb.y - sPos.y, pb.z - sPos.z);
       });
       let acted = false;
-      for (const pid of candidates) {
-        const existing = bondBetween(sid, pid);
-        if (!existing) continue;
-        const before = existing.order;
-        const up = autoBondPair(sid, pid);
-        if (up && up.order > before) {
-          acted = true;
-          break;
-        }
-      }
-      if (!acted) {
+      // Neutral routings first, charge-paid ones only if nothing else is left.
+      const fitsPass = (pid, paidOnly) => paidOnly ? bondNeedsCharge(sid, pid) : !bondNeedsCharge(sid, pid);
+      for (const paidOnly of [false, true]) {
         for (const pid of candidates) {
-          if (bondBetween(sid, pid)) continue;
+          const existing = bondBetween(sid, pid);
+          if (!existing || !fitsPass(pid, paidOnly)) continue;
+          const before = existing.order;
+          const up = autoBondPair(sid, pid);
+          if (up && up.order > before) {
+            acted = true;
+            break;
+          }
+        }
+        if (acted) break;
+        for (const pid of candidates) {
+          if (bondBetween(sid, pid) || !fitsPass(pid, paidOnly)) continue;
           if (autoBondPair(sid, pid)) {
             acted = true;
             break;
           }
         }
+        if (acted) break;
       }
       if (!acted && candidates.length > 0) {
         const target = atoms.get(candidates[0]);
@@ -57851,6 +58462,17 @@ function stabilizeStrays(strayIds, now) {
     if (freeValenceOf(sid) === 0) stabilized.push(sid);
   }
   if (!stabilized.length) return;
+  // Capping a radical adds a bonding pair, and with it a new ideal geometry: the
+  // flat CH3 left by a fission run becomes a tetrahedral CH4, at a C-H length
+  // rather than wherever the atmosphere's hydrogen happened to arrive.
+  const capped = /* @__PURE__ */ new Set();
+  for (const sid of stabilized) {
+    const comp = componentOf(atoms, bonds, sid);
+    const key = compKey(comp);
+    if (capped.has(key)) continue;
+    capped.add(key);
+    reshapeComponent(comp);
+  }
   reanalyze();
   const formulas = [...new Set(stabilized.map((sid) => {
     const comp = lastComps.find((c) => c.atoms.includes(sid));
@@ -58225,6 +58847,9 @@ function applyMode(m) {
   throttle.reset();
   if (m !== "auto") applyTier(TIER_ORDER.indexOf(m));
   updateQualityHud();
+  // The settings modal keeps its own copy of this label, so a pick made from
+  // either entry point has to refresh both.
+  updateSettingsDisplay();
 }
 function autoTick(now) {
   if (now - lastAuto < 500) return;
@@ -58240,24 +58865,64 @@ function autoTick(now) {
   if (fpsChip) fpsChip.textContent = `${Math.round(fps)} fps · ${modeLabel()}`;
 }
 const labelCache = /* @__PURE__ */ new Map();
-function labelTex(sym) {
-  if (labelCache.has(sym)) return labelCache.get(sym);
+function superscriptDigit(n) {
+  const map2 = { "0": "\u2070", "1": "\u00b9", "2": "\u00b2", "3": "\u00b3", "4": "\u2074", "5": "\u2075", "6": "\u2076", "7": "\u2077", "8": "\u2078", "9": "\u2079" };
+  return String(n).split("").map((d) => map2[d] ?? d).join("");
+}
+function labelTex(sym, a) {
+  const isotope = Number.isFinite(a) && a > 0;
+  if (!isotope && labelCache.has(sym)) return labelCache.get(sym);
   const c = document.createElement("canvas");
   c.width = 128;
   c.height = 128;
   const g = c.getContext("2d");
-  g.font = 'bold 68px "Segoe UI", Arial, sans-serif';
+  const sup = isotope ? superscriptDigit(a) : "";
+  let size = 68;
+  let supW = 0;
+  let symW = 0;
   g.textAlign = "center";
   g.textBaseline = "middle";
-  g.lineWidth = 10;
   g.lineJoin = "round";
+  g.font = 'bold 68px "Segoe UI", Arial, sans-serif';
+  symW = g.measureText(sym).width;
+  if (isotope)
+    for (; size > 24; size -= 4) {
+      g.font = `bold ${size}px "Segoe UI", Arial, sans-serif`;
+      symW = g.measureText(sym).width;
+      g.font = `bold ${Math.round(size * 0.58)}px "Segoe UI", Arial, sans-serif`;
+      supW = g.measureText(sup).width;
+      if (supW + symW <= 116) break;
+    }
+  const left = 64 - (supW + symW) / 2;
+  g.font = `bold ${size}px "Segoe UI", Arial, sans-serif`;
+  g.lineWidth = isotope ? Math.max(4, size * 0.15) : 10;
   g.strokeStyle = "rgba(8,12,18,0.9)";
-  g.strokeText(sym, 64, 68);
   g.fillStyle = "#f4f8ff";
-  g.fillText(sym, 64, 68);
+  const symX = left + supW + symW / 2;
+  g.strokeText(sym, symX, 68);
+  g.fillText(sym, symX, 68);
+  if (isotope) {
+    g.font = `bold ${Math.round(size * 0.58)}px "Segoe UI", Arial, sans-serif`;
+    g.lineWidth = Math.max(3, size * 0.09);
+    const supX = left + supW / 2;
+    g.strokeText(sup, supX, 38);
+    g.fillText(sup, supX, 38);
+  }
   const t2 = new CanvasTexture(c);
-  labelCache.set(sym, t2);
+  if (!isotope) labelCache.set(sym, t2);
   return t2;
+}
+function atomLabelTex(id, el) {
+  const gun = window.__protonGun;
+  if (!gun || typeof gun.isotopeOf !== "function" || !el) return labelTex(el && el.sym);
+  let iso = null;
+  try {
+    iso = gun.isotopeOf(id);
+  } catch {
+    iso = null;
+  }
+  if (!iso || !Number.isFinite(iso.a) || iso.a <= 0 || iso.z !== el.z) return labelTex(el.sym);
+  return labelTex(el.sym, iso.a);
 }
 const badgeCache = /* @__PURE__ */ new Map();
 function badgeTex(fc) {
@@ -58285,7 +58950,7 @@ function syncSprites() {
     if (!labelSprites.has(id)) {
       const r = displayRadius(at.el);
       const s = 0.42 + r * 0.55;
-      const label = new Sprite(new SpriteMaterial({ map: labelTex(at.el.sym), transparent: true, depthWrite: false }));
+      const label = new Sprite(new SpriteMaterial({ map: atomLabelTex(id, at.el), transparent: true, depthWrite: false }));
       label.scale.set(s, s, 1);
       labelSprites.set(id, label);
       scene.add(label);
@@ -58688,16 +59353,7 @@ function safeName(comp, an) {
   try {
     const formulaToName = an.displayFormula || an.formula;
     const name = nameMolecule(comp.atoms.map((id) => atoms.get(id)), comp.bonds, formulaToName, an.charge, an.per);
-    if (isVi()) {
-      const enName = COMMON[formulaToName] || null;
-      const viName = name || COMMON_VI[formulaToName] || null;
-      if (enName && viName && enName !== viName) return `${enName} (${viName})`;
-      return viName || enName || null;
-    }
-    if (!name) {
-      return COMMON[formulaToName] || null;
-    }
-    return name || null;
+    return name || COMMON[formulaToName] || null;
   } catch (e) {
     console.error("safeName error:", e);
     return null;
@@ -58721,7 +59377,9 @@ function structureTplOf(comp, an) {
 // MAX_DISCOVERY_STARS_PER_SECOND stars may be paid inside any one second.
 const DISC_STAR_KEY = "mol3d.discStars.v2";
 const DISC_STAR_SETTLE_MS = 5e3;
-const MAX_DISCOVERY_STARS_PER_SECOND = 2;
+// The tap is measured in stars, not in species: a heavy molecule is worth more
+// and still cannot arrive faster than the budget allows.
+const MAX_DISCOVERY_STARS_PER_SECOND = 100;
 const paidDiscStars = /* @__PURE__ */ new Set();
 const pendingDiscStars = /* @__PURE__ */ new Map();
 let discStarWindowStart = 0;
@@ -58752,8 +59410,7 @@ function settleDiscoveryStar(key, now) {
     return;
   }
   if (now - since < DISC_STAR_SETTLE_MS) return;
-  pendingDiscStars.delete(key);
-  payDiscoveryStar(key, now);
+  if (payDiscoveryStar(key, now)) pendingDiscStars.delete(key);
 }
 // Reanalyse is the only thing that calls recordDiscoveries, so a player who
 // builds one molecule and then leaves the scene alone would never be re-checked
@@ -58764,33 +59421,47 @@ function sweepDiscStars() {
   if (pendingDiscStars.size === 0) return;
   const now = Date.now();
   for (const [key, since] of Array.from(pendingDiscStars)) {
-    if (now - since >= DISC_STAR_SETTLE_MS) {
-      pendingDiscStars.delete(key);
-      payDiscoveryStar(key, now);
-    }
+    if (now - since < DISC_STAR_SETTLE_MS) continue;
+    // A species the per-second tap cannot pay yet stays in the queue and is tried
+    // again next tick, so the cap delays a star rather than cancelling it.
+    if (payDiscoveryStar(key, now)) pendingDiscStars.delete(key);
   }
 }
+// What a species is worth the one time it is discovered: the shop's discovery
+// ladder summed over its atoms. It is deliberately smaller than the shelf price of
+// the same atoms, so discovering pays for the idea while buying still costs money.
+function discoveryStarValue(key) {
+  const s = crateShop();
+  const d = discoveries.find((x) => discKeyOf(x.formula, x.charge ?? 0) === key);
+  if (!d || !s || typeof s.starsOf !== "function" || typeof s.zOf !== "function") return 1;
+  let v = 0;
+  const parts = d.tpl && d.tpl.atoms ? d.tpl.atoms : formulaAtomList(d.displayFormula || d.formula);
+  for (const part of parts) v += s.starsOf(s.zOf(part));
+  return Math.max(1, Math.min(Math.floor(v), MAX_DISCOVERY_STARS_PER_SECOND));
+}
 function payDiscoveryStar(key, now) {
-  if (paidDiscStars.has(key)) return;
-  paidDiscStars.add(key);
-  saveDiscStarLedger();
+  if (paidDiscStars.has(key)) return true;
+  const value = discoveryStarValue(key);
   if (now - discStarWindowStart > 1e3) {
     discStarWindowStart = now;
     discStarWindowPaid = 0;
     discStarCapShown = false;
   }
-  if (discStarWindowPaid >= MAX_DISCOVERY_STARS_PER_SECOND) {
+  if (discStarWindowPaid + value > MAX_DISCOVERY_STARS_PER_SECOND) {
     // The species stays in the dex; only its star is withheld, and the reason is
     // shown once per second instead of once per molecule.
     if (!discStarCapShown) {
       discStarCapShown = true;
       status(t("rank.discStarCap"), "err");
     }
-    return;
+    return false;
   }
-  discStarWindowPaid++;
-  rankManager.addStars(1);
+  paidDiscStars.add(key);
+  saveDiscStarLedger();
+  discStarWindowPaid += value;
+  rankManager.addStars(value);
   updateRankWidget();
+  return true;
 }
 function recordDiscoveries() {
   const now = Date.now();
@@ -58849,7 +59520,10 @@ function loadDiscoveries() {
     for (const d of arr) {
       if (!d || !d.formula) continue;
       d.saved = true;
-      if (!d.name && d.tpl) {
+      // Names are re-derived from the stored structure rather than trusted: the
+      // nomenclature tables moved to international terms, so a persisted name is
+      // stale data (old Vietnamese or half-translated).
+      if (d.tpl) {
         const tpl = d.tpl;
         const fakeAtoms = tpl.atoms.map((sym, i) => ({
           id: i,
@@ -58869,7 +59543,7 @@ function loadDiscoveries() {
           charge: d.charge ?? 0,
           per: null
         };
-        d.name = safeName(fakeComp, fakeAn);
+        d.name = safeName(fakeComp, fakeAn) || d.name || null;
       }
       discoveries.push(d);
       seenDisc.add(discKeyOf(d.formula, d.charge ?? 0));
@@ -58940,6 +59614,7 @@ function spawnDiscovery(d) {
     return;
   }
   const c = findSpawnSpot();
+  if (!crateBuy(tpl.atoms)) return;
   pushUndo({
     type: "snapshot",
     atoms: [...atoms.values()].map(snapAtom),
@@ -58953,6 +59628,7 @@ function spawnDiscovery(d) {
     status(t("status.spawnFail", { f: prettyFormula(d.formula) + formulaWithCharge("", d.charge ?? 0) }), "err");
     return;
   }
+  crateMarkTaken(ids);
   const key = compKey({ atoms: ids, bonds: [] });
   if (tpl.charge) overrides.set(key, tpl.charge);
   if (d.displayFormula) isoSel.set(key, d.displayFormula);
@@ -58991,7 +59667,17 @@ function updateDiscList() {
     const spawnBtn = document.createElement("button");
     spawnBtn.className = "d-btn d-spawn";
     spawnBtn.textContent = t("dex.spawn");
-    spawnBtn.title = t("dex.spawnTitle");
+    // Summoning pays the shelf price of every atom in the molecule, so the button
+    // states that number instead of leaving the player to discover it by failure.
+    const billAtoms = d.tpl ? d.tpl.atoms : formulaAtomList(d.displayFormula || d.formula);
+    const summonCost = crateBillPrice(billAtoms);
+    if (summonCost > 0) {
+      spawnBtn.textContent = `${t("dex.spawn")} ${summonCost}\u2605`;
+      spawnBtn.title = t("dex.spawnCost", { n: summonCost });
+    } else {
+      spawnBtn.textContent = t("dex.spawn");
+      spawnBtn.title = billAtoms.length ? t("dex.spawnOwned") : t("dex.spawnTitle");
+    }
     spawnBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       spawnDiscovery(d);
@@ -59039,6 +59725,7 @@ function createBond(aId, bId) {
     overrides.set(compKey(componentOf(atoms, bonds, aId)), vA !== void 0 ? vA : vB);
   }
   pushUndo({ type: "bond", bondId: id });
+  reshapeBondedComponent(aId);
   reanalyze();
   save(true);
   const elA = atoms.get(aId).el.sym, elB = atoms.get(bId).el.sym;
@@ -59060,6 +59747,15 @@ function removeBond(bid, undoable = true) {
     if (pick) overrides.set(compKey(pick), ov);
   }
   if (undoable) pushUndo({ type: "delBond", snap: { ...b } });
+  // Cutting a bond changes the valence count on both sides of the break, so both
+  // fragments are reshaped: the CH3 left behind by removing an H from methane is
+  // pyramidal, not a copy of the tetrahedron it came from.
+  const cut = [componentOf(atoms, bonds, b.a)];
+  const otherSide = componentOf(atoms, bonds, b.b);
+  if (compKey(otherSide) !== compKey(cut[0])) cut.push(otherSide);
+  for (const piece of cut) {
+    reshapeComponent(piece);
+  }
   reanalyze();
 }
 function removeAtom(id, undoable = true) {
@@ -59082,6 +59778,20 @@ function removeAtom(id, undoable = true) {
     if (pieces[0]) overrides.set(compKey(pieces[0]), ov);
   }
   if (undoable) pushUndo({ type: "delAtom", atom: snapAtom(at), bonds: bondSnaps });
+  // Deleting an atom changes the steric number of everything it was bonded to:
+  // the OH left behind by pulling an H out of water is a radical with one bond,
+  // and a fragment keeps the shape its own valence asks for rather than the shape
+  // of the atom that was removed from it.
+  const reshaped = /* @__PURE__ */ new Set();
+  for (const s of bondSnaps) {
+    const nId = s.a === id ? s.b : s.a;
+    if (!atoms.has(nId)) continue;
+    const piece = componentOf(atoms, bonds, nId);
+    const key = compKey(piece);
+    if (reshaped.has(key)) continue;
+    reshaped.add(key);
+    reshapeComponent(piece);
+  }
   reanalyze();
 }
 function setBondOrder(bid, n) {
@@ -59089,6 +59799,10 @@ function setBondOrder(bid, n) {
   if (!b) return;
   pushUndo({ type: "order", bondId: bid, prev: b.order });
   b.order = n;
+  // Bond order is a change of hybridisation, not only of the cylinder between two
+  // atoms: sp3 carbon is 109.5 degrees, sp2 is 120 and planar, sp is 180 and
+  // shorter. The angles have to follow the order the player just set.
+  reshapeBondedComponent(b.a);
   worldSync.broadcastBondAdd(b);
   reanalyze();
   status(b.ionic ? t("status.orderIonic", { n }) : t("status.orderCov", { n }), "ok");
@@ -59186,6 +59900,7 @@ function spawnAtom(elOrSym, atPos, opts) {
   const el = typeof elOrSym === "string" ? elementBySym(elOrSym) : elOrSym;
   if (!el) return;
   if (!sceneHasRoom(1, silent)) return null;
+  if (!(opts && opts.charge === false) && !crateTake(el, silent)) return null;
   let pos = null;
   if (atPos && Number.isFinite(atPos.x) && Number.isFinite(atPos.y) && Number.isFinite(atPos.z)) {
     pos = { x: atPos.x, y: atPos.y, z: atPos.z };
@@ -59212,6 +59927,7 @@ function spawnAtom(elOrSym, atPos, opts) {
   const atomData = { id, el, pos };
   clampAtomToBounds(atomData);
   atoms.set(id, atomData);
+  if (!(opts && opts.charge === false)) crateRegister(id, el);
   worldSync.broadcastAtomAdd(atoms.get(id));
   spawnAnim.set(id, performance.now());
   trackRadioactiveAtom(id, atoms.get(id), performance.now());
@@ -59230,6 +59946,7 @@ function duplicateMolecule() {
   }
   const comp = lastComps.find((c) => c.atoms.includes(selectedId));
   if (!comp) return;
+  if (!crateTakeList(comp.atoms.map((id) => atoms.get(id).el))) return;
   const idMap = /* @__PURE__ */ new Map();
   const newAtoms = [];
   const cx = comp.atoms.reduce((s, id) => s + atoms.get(id).pos.x, 0) / comp.atoms.length;
@@ -59252,6 +59969,7 @@ function duplicateMolecule() {
   });
   for (const at of newAtoms) {
     atoms.set(at.id, at);
+    crateRegister(at.id, at.el);
     spawnAnim.set(at.id, performance.now());
   }
   for (const b of comp.bonds) {
@@ -59323,6 +60041,7 @@ function undo() {
       const at = a.atom;
       atoms.set(at.id, at);
       for (const b of a.bonds) bonds.set(b.id, { ...b });
+      crateRecover([at]);
       reanalyze();
       break;
     }
@@ -59331,6 +60050,7 @@ function undo() {
       for (const b of a.bonds) bonds.set(b.id, { ...b });
       for (const [k, v] of a.overrides) overrides.set(k, v);
       nextId = Math.max(nextId, a.nextId);
+      crateRecover(a.atoms);
       reanalyze();
       break;
     }
@@ -59356,6 +60076,7 @@ function undo() {
       for (const [k, v] of a.overrides) overrides.set(k, v);
       for (const [k, v] of a.iso || []) isoSel.set(k, v);
       nextId = Math.max(nextId, a.nextId);
+      crateRecover(a.atoms);
       selectedId = null;
       hoverId = null;
       clearReactionSel();
@@ -59661,12 +60382,12 @@ function escHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function prettyRedox(s) {
-  return escHtml(prettyEq(s).replace(/e-/g, "e\u207B"));
+  return escHtml(prettyEq(s));
 }
 function redoxHalfHtml(h) {
   const isOx = h.kind === "oxidation";
   return `<div class="rxn-half ${isOx ? "is-ox" : "is-red"}">
-    <div class="rxn-half-head"><span>${isOx ? t("redox.oxidation") : t("redox.reduction")}</span><b>${redoxNum(h.electrons)} e\u207B</b></div>
+    <div class="rxn-half-head"><span>${isOx ? t("redox.oxidation") : t("redox.reduction")}</span><b>${redoxNum(h.electrons)} e</b></div>
     <div class="rxn-half-eq">${prettyRedox(h.text)}</div>
     <div class="rxn-half-role">${isOx ? t("redox.reducingAgent") : t("redox.oxidizingAgent")}: ${prettyRedox(h.agent)} \u2192 ${prettyRedox(h.product)}</div>
   </div>`;
@@ -59855,6 +60576,14 @@ function executeReaction(rx) {
   }
   clearReactionSel();
   selectedId = null;
+  // The spiral a product is written on says where the molecule appeared, not what
+  // it looks like: carbon dioxide comes out with both oxygens on the same side of
+  // the carbon. The engine's placement step supplies the angles and the fitted
+  // bond lengths for the topology the template just declared.
+  for (const { key } of newCompKeys) {
+    const anchor = Number(key.split(",")[0]);
+    if (Number.isFinite(anchor)) reshapeBondedComponent(anchor);
+  }
   reanalyze();
   catalystFX.dispose();
   for (const { key, center, i } of newCompKeys) {
@@ -60513,7 +61242,7 @@ function buildPeriodicTable() {
     b.dataset.sym = el.sym;
     b.dataset.z = z;
     b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
-    b.innerHTML = unlocked ? `<span class="z">${z}</span><span class="s">${el.sym}</span>` : `<span class="lock">🔒</span><span class="s">${el.sym}</span>`;
+    b.innerHTML = unlocked ? `<span class="z">${z}</span><span class="s">${el.sym}</span><span class="el-qty"></span>` : `<span class="lock">🔒</span><span class="s">${el.sym}</span><span class="el-qty"></span>`;
     b.addEventListener("click", () => {
       if (!isElementUnlocked(z)) {
         status(`🔒 ${t("rank.elementLocked")}`, "err");
@@ -60569,6 +61298,7 @@ function buildPool() {
     const unlocked = el.z ? isElementUnlocked(el.z) : true;
     b.className = "el-chip" + (unlocked ? "" : " locked");
     b.dataset.sym = el.sym;
+    if (el.z) b.dataset.z = el.z;
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)}`.toLowerCase();
     b.title = unlocked ? `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}` : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
     const dot = document.createElement("i");
@@ -60579,7 +61309,10 @@ function buildPool() {
     const n = document.createElement("span");
     n.className = "n";
     n.textContent = elName(el);
-    b.append(dot, s, n);
+    const qty = document.createElement("span");
+    qty.className = "el-qty";
+    b.append(dot, s, n, qty);
+    updatePoolBadge(b, qty);
     if (!unlocked) {
       const lock = document.createElement("span");
       lock.className = "el-lock";
@@ -60698,8 +61431,21 @@ function updateInspector() {
     return;
   }
   const at = atoms.get(selectedId);
+  // The gun owns the only record of a mass number, so the inspector reads it
+  // back from there rather than keeping a second copy: a nucleus the player
+  // paid a star to enrich should not be legible only while the gun panel
+  // happens to be open.
+  let nucleusHtml = "";
+  if (window.__protonGun && typeof window.__protonGun.isotopeOf === "function") {
+    const iso = window.__protonGun.isotopeOf(selectedId);
+    if (iso && iso.a > 0 && iso.z > 0) {
+      const extra = typeof window.__protonGun.neutronExcessOf === "function" ? window.__protonGun.neutronExcessOf(selectedId) : 0;
+      nucleusHtml = `<br />
+    <span class="muted">${t("sel.nucleus", { label: iso.label, p: iso.z, n: iso.a - iso.z })}${extra > 0 ? t("sel.nucleusShot", { s: extra }) : ""}</span>`;
+    }
+  }
   sel.innerHTML = `<b>${at.el.sym}</b> — ${elName(at.el)}<br />
-    <span class="muted">${t("sel.stats", { cat: catLabel(at.el.cat), mass: at.el.mass, en: at.el.en ?? "?", max: at.el.maxBonds })}</span>`;
+    <span class="muted">${t("sel.stats", { cat: catLabel(at.el.cat), mass: at.el.mass, en: at.el.en ?? "?", max: at.el.maxBonds })}</span>${nucleusHtml}`;
   bohrBtn.hidden = false;
   bohrContainer.hidden = !bohrActive;
   if (bohrActive) {
@@ -60721,15 +61467,15 @@ function updateInspector() {
   if (groups.length > 0) {
     const groupSet = new Set(groups.map((g) => g.group));
     if (groupSet.has(GROUP_TYPES.ETHER) && !groupSet.has(GROUP_TYPES.ALCOHOL)) {
-      refinedType = { key: "ether", label: isVi() ? "Ete" : "Ether" };
+      refinedType = { key: "ether", label: "Ether" };
     } else if (groupSet.has(GROUP_TYPES.ALDEHYDE)) {
-      refinedType = { key: "aldehyde", label: isVi() ? "Anđehit" : "Aldehyde" };
+      refinedType = { key: "aldehyde", label: "Aldehyde" };
     } else if (groupSet.has(GROUP_TYPES.KETONE)) {
-      refinedType = { key: "ketone", label: isVi() ? "Xeton" : "Ketone" };
+      refinedType = { key: "ketone", label: "Ketone" };
     } else if (groupSet.has(GROUP_TYPES.CARBOXYL)) {
-      refinedType = { key: "carboxylicAcid", label: isVi() ? "Axit cacboxylic" : "Carboxylic acid" };
+      refinedType = { key: "carboxylicAcid", label: "Carboxylic acid" };
     } else if (groupSet.has(GROUP_TYPES.ESTER)) {
-      refinedType = { key: "ester", label: isVi() ? "Este" : "Ester" };
+      refinedType = { key: "ester", label: "Ester" };
     }
   }
   const groupLabels = {
@@ -60790,6 +61536,10 @@ const kineticRateEl = document.getElementById("kinetic-rate");
 const kineticHalflifeEl = document.getElementById("kinetic-halflife");
 const kineticDecompEl = document.getElementById("kinetic-decomp");
 const kineticsCanvas = document.getElementById("kinetics-canvas");
+const kineticDhEl = document.getElementById("kinetic-dh");
+const kineticDsEl = document.getElementById("kinetic-ds");
+const kineticDgEl = document.getElementById("kinetic-dg");
+const kineticKappaEl = document.getElementById("kinetic-kappa");
 function updateKineticsPanel(comp, an) {
   if (!comp || comp.bonds.length === 0 || !an) {
     kineticsBody.hidden = true;
@@ -60804,17 +61554,26 @@ function updateKineticsPanel(comp, an) {
   }
   kineticsBody.hidden = false;
   kineticsEmpty.style.display = "none";
-  const temp = simAnalysis.kinetics.temperature || 298.15;
-  const ea = simAnalysis.kinetics.activationEnergy || 200;
-  const rateConstant = simAnalysis.kinetics.rateConstant;
-  const halfLife = simAnalysis.kinetics.halfLife;
-  const decompProb = simAnalysis.kinetics.decompositionProbability;
+  const kin = simAnalysis.kinetics;
+  const temp = kin.temperature || 298.15;
+  const ea = kin.activationEnergy || 200;
+  const rateConstant = kin.rateConstant;
+  const halfLife = kin.halfLife;
+  const decompProb = kin.decompositionProbability;
   kineticTempEl.textContent = `${temp.toFixed(1)} K`;
   kineticEaEl.textContent = `${ea.toFixed(1)} kJ/mol`;
   kineticRateEl.textContent = rateConstant ? `${rateConstant.toExponential(2)} s¹` : "—";
   kineticHalflifeEl.textContent = halfLife ? formatTime(halfLife) : "—";
-  kineticDecompEl.textContent = `${(decompProb * 100).toFixed(1)}%`;
-  drawKineticsGraph(ea, temp);
+  const pct = decompProb * 100;
+  kineticDecompEl.textContent = pct > 0 && pct < 0.05 ? `${pct.toExponential(2)}%` : `${pct.toFixed(1)}%`;
+  const energy = (v) => typeof v === "number" && isFinite(v) ? `${v.toFixed(1)} kJ/mol` : "—";
+  kineticDhEl.textContent = energy(kin.deltaH);
+  kineticDgEl.textContent = energy(kin.deltaG);
+  kineticDsEl.textContent = typeof kin.deltaS === "number" && isFinite(kin.deltaS) ? `${kin.deltaS.toFixed(1)} J/mol·K` : "—";
+  const kappaShown = typeof kin.kappa === "number" && isFinite(kin.kappa) && kin.kappa > 1;
+  kineticKappaEl.textContent = kappaShown ? `${kin.kappa.toFixed(2)}${kin.tunnelingReliable ? "" : " *"}` : "—";
+  kineticKappaEl.title = kappaShown ? (kin.tunnelingReliable ? t("kinetics.kappaReliable") : t("kinetics.kappaLimit")) : "";
+  drawKineticsGraph(rateConstant);
 }
 function formatTime(seconds) {
   if (seconds < 1e-3) return `${(seconds * 1e6).toFixed(1)} μs`;
@@ -60826,7 +61585,7 @@ function formatTime(seconds) {
   const y = seconds / 3156e4;
   return y < 1e4 ? `${y.toFixed(1)} y` : `${y.toExponential(1)} y`;
 }
-function drawKineticsGraph(ea, temp) {
+function drawKineticsGraph(rateConstant) {
   if (!kineticsCanvas) return;
   const ctx = kineticsCanvas.getContext("2d");
   const width = kineticsCanvas.width;
@@ -60837,9 +61596,8 @@ function drawKineticsGraph(ea, temp) {
   const textColor = styles.getPropertyValue("--muted").trim() || "#5a7090";
   const bgColor = styles.getPropertyValue("--panel-2").trim() || "rgba(14, 22, 40, 0.92)";
   ctx.clearRect(0, 0, width, height);
-  const R = 8314e-6;
-  const A = 1e13;
-  const k = A * Math.exp(-ea / (R * temp));
+  if (!(rateConstant > 0) || !isFinite(rateConstant)) return;
+  const k = rateConstant;
   const pad = { left: 45, right: 15, top: 20, bottom: 35 };
   const graphW = width - pad.left - pad.right;
   const graphH = height - pad.top - pad.bottom;
@@ -60937,7 +61695,7 @@ function drawKineticsGraph(ea, temp) {
     ctx.fillStyle = accentColor;
     ctx.font = "bold 9px monospace";
     ctx.textAlign = "center";
-    ctx.fillText("t½", halfLifeX, pad.top - 5);
+      ctx.fillText(t("kinetics.halflifeMark"), halfLifeX, pad.top - 5);
   }
   ctx.fillStyle = textColor;
   ctx.font = "10px sans-serif";
@@ -61234,9 +61992,165 @@ function openIsomerPanel(compIdx) {
   input.value = "";
   result.innerHTML = "";
   result.className = "isomer-result";
+  // The validator answers a writing the player already holds. This list is the
+  // other direction: every structure these atoms can take, enumerated and named
+  // by the isomer engine. It is additive - building a row goes through the same
+  // swapToIsomer the Apply button uses, so Lewis checks, charges and crate
+  // accounting are unchanged.
+  renderIsomerPredict(an);
   panel.classList.add("open");
   panel.setAttribute("aria-hidden", "false");
   input.focus();
+}
+
+function isomerTplOf(item) {
+  const syms = [];
+  const idx = /* @__PURE__ */ new Map();
+  for (const nd of item.graph.nodes) {
+    idx.set(nd.id, syms.length);
+    syms.push(nd.el);
+  }
+  const list = [];
+  for (const nd of item.graph.nodes) {
+    const a = idx.get(nd.id);
+    for (let k = 0; k < (nd.h || 0); k++) {
+      syms.push("H");
+      list.push([a, syms.length - 1, 1]);
+    }
+  }
+  for (const e of item.graph.edges) {
+    const a = idx.get(e.a);
+    const b = idx.get(e.b);
+    if (a === void 0 || b === void 0) continue;
+    list.push([a, b, e.order || 1]);
+  }
+  return { atoms: syms, bonds: list, charge: 0 };
+}
+// The engine keeps hydrogens implicit and identifies a structure by a canonical
+// key over that implicit graph, so the scene has to be described the same way
+// before its arrangement can be found among the enumerated ones.
+function sceneGraphSpec(compIdx) {
+  const here = sceneArrangement(compIdx);
+  if (!here) return null;
+  const slot = /* @__PURE__ */ new Map();
+  const nodes = [];
+  here.atoms.forEach((sym, i) => {
+    if (sym === "H") return;
+    slot.set(i, nodes.length);
+    nodes.push({ id: "a" + nodes.length, el: sym, h: 0 });
+  });
+  if (!nodes.length) return null;
+  const edges = [];
+  const once = /* @__PURE__ */ new Set();
+  for (const [a, b, o] of here.bonds) {
+    const ia = slot.get(a);
+    const ib = slot.get(b);
+    if (ia !== void 0 && ib !== void 0) {
+      const pair = ia < ib ? ia + ":" + ib : ib + ":" + ia;
+      if (once.has(pair)) continue;
+      once.add(pair);
+      edges.push({ a: nodes[ia].id, b: nodes[ib].id, order: o || 1 });
+    } else if (ia !== void 0) nodes[ia].h += 1;
+    else if (ib !== void 0) nodes[ib].h += 1;
+  }
+  return { nodes, edges };
+}
+function renderIsomerPredict(an) {
+  const box = document.getElementById("isomer-predict");
+  if (!box || !an) return;
+  box.innerHTML = "";
+  const engine = window.__isomerEngine;
+  if (!engine || typeof engine.enumerate !== "function") {
+    box.innerHTML = `<div class="iso-predict-note">${t("iso.predictMissing")}</div>`;
+    return;
+  }
+  if (an.charge) {
+    box.innerHTML = `<div class="iso-predict-note">${t("iso.predictCharged")}</div>`;
+    return;
+  }
+  const head = document.createElement("div");
+  head.className = "iso-predict-head";
+  head.textContent = t("iso.predictTitle", { formula: an.displayFormula || an.formula });
+  box.appendChild(head);
+  // The drawer is opened by a click, so the search has to stay inside one frame of
+  // perceived latency. C7H8 enumerates 900 isomers and the default budget allows a
+  // full second - both are cut here, and the engine reports the cut through
+  // res.truncated/res.reason so the note below tells the player the list is partial.
+  const res = engine.enumerate(an.formula, { limit: 40, deadlineMs: 220, enrichMs: 180 });
+  const items = res && res.items ? res.items : [];
+  if (!items.length) {
+    const none = document.createElement("div");
+    none.className = "iso-predict-note";
+    none.textContent = res && res.reason
+      ? t("iso.predictPartial", { reason: res.reason })
+      : t("iso.predictNone");
+    box.appendChild(none);
+    return;
+  }
+  const list = document.createElement("div");
+  list.className = "iso-predict-list";
+  function predictRow(tpl, title, cond, classes, groups, isHere, item) {
+    const row = document.createElement("button");
+    row.className = "iso-predict-row" + (isHere ? " current" : "");
+    const nm = document.createElement("span");
+    nm.className = "iso-predict-name";
+    nm.textContent = title;
+    const cd = document.createElement("span");
+    cd.className = "iso-predict-cond";
+    cd.textContent = cond;
+    row.appendChild(nm);
+    row.appendChild(cd);
+    const rel = [];
+    for (const cls of classes) {
+      const key = "iso.rel." + cls;
+      const label = t(key);
+      if (label && label !== key) rel.push(label);
+    }
+    if (rel.length) {
+      const tg = document.createElement("span");
+      tg.className = "iso-predict-tags";
+      tg.textContent = rel.join(" · ");
+      row.appendChild(tg);
+    }
+    if (isHere) {
+      const cur = document.createElement("span");
+      cur.className = "iso-predict-current";
+      cur.textContent = t("iso.predictCurrent");
+      row.appendChild(cur);
+    }
+    if (groups) row.title = groups;
+    row.addEventListener("click", () => {
+      if (isHere || !item) return;
+      swapToIsomer(isomerPanelCompIdx, { tpl: isomerTplOf(item), displayFormula: item.formula, displayName: item.displayName });
+    });
+    list.appendChild(row);
+  }
+  const hereSpec = sceneGraphSpec(isomerPanelCompIdx);
+  const hereKey = hereSpec ? engine.canonicalKey(hereSpec) : null;
+  let rows = 0;
+  let hereInList = false;
+  // The arrangement already in the scene is the row the player came for, and the
+  // search below is capped: toluene is one of 598 C7H8 isomers, so a capped list
+  // can miss it. It is drawn from the scene itself, and the matching engine entry
+  // is folded into that row instead of repeated.
+  if (hereSpec) {
+
+    rows++;
+    predictRow(hereSpec, safeName(lastComps[isomerPanelCompIdx], an) || an.formula, prettyFormula(an.displayFormula || an.formula), [], "", true, null);
+  }
+  for (const item of items) {
+    if (hereKey && item.key === hereKey) { hereInList = true; continue; }
+    rows++;
+    predictRow(isomerTplOf(item), item.displayName || item.formula, item.condensed || item.formula, item.classes || [], (item.functionalGroups || []).join(", "), false, item);
+  }
+  box.appendChild(list);
+  if (res.truncated || res.complete === false) {
+    const note = document.createElement("div");
+    note.className = "iso-predict-note";
+    note.textContent = t("iso.predictPartial", { reason: res.reason || "" }) + " " + t("iso.predictCount", { n: rows });
+    if (hereKey && !hereInList) note.textContent += " " + t("iso.predictUnlisted");
+    box.appendChild(note);
+  }
 }
 function closeIsomerPanel() {
   const panel = document.getElementById("isomer-panel");
@@ -61844,7 +62758,9 @@ function buildMoleculeAt(tpl, cx, cy, cz) {
     if (!neighbors2 || neighbors2.length === 0) continue;
     const childCount = neighbors2.filter((n) => !visited.has(n.neighbor)).length;
     if (childCount === 0) continue;
-    const dirs = calculateDirections(childCount, parentDir);
+    const centre = newAtoms.find((a) => a.id === id);
+    const bondOrders = neighbors2.reduce((sum, n2) => sum + (n2.order || 1), 0);
+    const dirs = calculateDirections(childCount, parentDir, centre && centre.el, bondOrders);
     let dirIdx = 0;
     for (const { neighbor } of neighbors2) {
       if (visited.has(neighbor)) continue;
@@ -61872,7 +62788,11 @@ function buildMoleculeAt(tpl, cx, cy, cz) {
   // structure is taken from the engine instead: Builder places the atoms by
   // VSEPR on the same topology and FIRE relaxes the real force field, which is
   // the geometry the panel then reports no strain for. The tree placement stays
-  // as the fallback whenever the engine cannot build the molecule.
+  // as the fallback whenever the engine cannot build the molecule. The deadline
+  // is the same 30 ms whole-answer budget a drawn bond gets, shared between the
+  // placement and FIRE, and the charges are skipped because only the positions
+  // are read here; left out, the engine hands FIRE zero steps and every molecule
+  // is drawn with the unrelaxed ideal angle the placement wrote.
   if (window.Mol3DPhysics && window.Mol3DPhysics.Builder) {
     let rebuilt = null;
     try {
@@ -61880,7 +62800,7 @@ function buildMoleculeAt(tpl, cx, cy, cz) {
         atoms: tpl.atoms.map((sym) => ({ sym })),
         bonds: tpl.bonds.map((b) => [b[0], b[1], b[2] || 1]),
         charge: tpl.charge || 0
-      }, {});
+      }, { charges: false, deadlineMs: 30 });
       if (built && built.ok && built.mol && built.mol.atoms.length === tpl.atoms.length) rebuilt = built.mol;
     } catch (err) {
       rebuilt = null;
@@ -61946,6 +62866,7 @@ function swapToIsomer(compIdx, iso) {
     }
   }
   const { ids: newAtomIds } = buildMoleculeAt(iso.tpl, cx, cy, cz);
+  crateTransfer(comp.atoms, newAtomIds);
   const key = compKey({ atoms: newAtomIds, bonds: [] });
   const prevKey = compKey(comp);
   if (iso.tpl.charge) overrides.set(key, iso.tpl.charge);
@@ -61954,7 +62875,63 @@ function swapToIsomer(compIdx, iso) {
   closeIsomerPanel();
   reanalyze(new Set(newAtomIds));
 }
-function calculateDirections(count, parentDir) {
+// The shape of a centre comes from its electron domains, not from the atoms
+// attached to it: three substituents on a nitrogen are a pyramid because the
+// fourth domain is a lone pair, two on an oxygen are a bent rather than a line,
+// and a chain of tetrahedral carbons zig-zags at 109.5 degrees instead of
+// running straight through every methylene. The octet rule gives the lone pairs
+// from the element and the bond orders the graph already knows - a multiple bond
+// is one domain but spends two valences - and the directions are then the slots
+// of the ideal geometry with the lone-pair slots left out, written as a cone
+// about the bond the centre was reached from, or about the lone-pair axis when
+// the centre is a root. Wherever that rule has no answer - transition metals,
+// radicals, expanded octets, five or more domains, and any caller that does not
+// say what the centre is - it returns null and calculateDirections keeps its
+// historical shape-blind placement, so nothing that was already right changes.
+function vseprDirections(count, parentDir, centre, bondOrderSum) {
+  if (!centre || typeof centre.z !== "number" || count < 1 || count > 3) return null;
+  const group = groupOf(centre.z);
+  if (centre.z > 18 && (group < 13 || group > 18)) return null;
+  const valence = valenceOf(centre.z);
+  const domains = count + (parentDir ? 1 : 0);
+  const orders = bondOrderSum === void 0 ? domains : bondOrderSum;
+  if (valence < orders || (valence - orders) % 2 !== 0) return null;
+  const lonePairs = (valence - orders) / 2;
+  const steric = domains + lonePairs;
+  const cosPhi = steric === 4 ? -1 / 3 : steric === 3 ? -0.5 : steric === 2 ? -1 : null;
+  if (cosPhi === null || lonePairs > 3) return null;
+  if (!parentDir && (lonePairs === 0 || count === 1)) return null;
+  const sinT = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
+  // Slots of the same ideal geometry are all cosPhi apart from one another, so
+  // two substituents on a tetrahedral centre sit 120 degrees round in azimuth
+  // rather than opposite each other: solving cos(phi) = c^2 + s^2 cos(spread).
+  const spread = count > 1 ? Math.acos(Math.max(-1, Math.min(1, cosPhi / (1 + cosPhi)))) : 0;
+  const dirs = [];
+  if (parentDir) {
+    const u = normalize(parentDir);
+    const perp1 = findPerpendicular(u);
+    const perp2 = normalize(cross(u, perp1));
+    for (let i = 0; i < count; i++) {
+      const az = (i - (count - 1) / 2) * spread;
+      dirs.push(normalize({
+        x: cosPhi * u.x + sinT * (Math.cos(az) * perp1.x + Math.sin(az) * perp2.x),
+        y: cosPhi * u.y + sinT * (Math.cos(az) * perp1.y + Math.sin(az) * perp2.y),
+        z: cosPhi * u.z + sinT * (Math.cos(az) * perp1.z + Math.sin(az) * perp2.z)
+      }));
+    }
+  } else {
+    // the lone pairs take +z and the substituents fan out below them
+    for (let i = 0; i < count; i++) {
+      const az = (i - (count - 1) / 2) * spread;
+      dirs.push({ x: sinT * Math.cos(az), y: sinT * Math.sin(az), z: cosPhi });
+    }
+  }
+  return dirs;
+}
+
+function calculateDirections(count, parentDir, centre, bondOrderSum) {
+  const shaped = vseprDirections(count, parentDir, centre, bondOrderSum);
+  if (shaped) return shaped;
   const dirs = [];
   if (count === 1) {
     if (parentDir) {
@@ -62036,7 +63013,7 @@ function chDisplay(c) {
   return prettyFormula(c.formula) + formulaWithCharge("", c.charge ?? 0);
 }
 function chName(c) {
-  return isVi() && c.vi ? c.vi : c.name || chDisplay(c);
+  return c.name || chDisplay(c);
 }
 function updateChallengeList() {
   const list = document.getElementById("ch-list");
@@ -62370,6 +63347,8 @@ document.getElementById("btn-export").addEventListener("click", () => {
       overrides: [...overrides],
       isoSel: [...isoSel],
       rank: { version: RANK_SCHEMA, stars: rankManager.totalStars, currentRank: rankManager.getCurrentRank() },
+      // The ledger is deliberately not exported: it is sealed with this browser's
+      // salt, so a copy of it is worthless anywhere else and honest to leave out.
       shop: window.__mol3dShop && typeof window.__mol3dShop.exportState === "function" ? window.__mol3dShop.exportState() : null,
       quests: { stars: questManager.getStars(), completed: [...questManager.completedQuests] },
       player: {
@@ -62491,7 +63470,15 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
         if (data.rank.version !== RANK_SCHEMA) {
           console.warn("Import: rank block is pre-schema-2, stars left at", rankManager.totalStars);
         } else if (typeof stars === "number" && Number.isFinite(stars) && stars >= 0 && stars <= 1e6) {
-          rankManager.totalStars = Math.floor(stars);
+          // The ledger stays on the browser that wrote it. A file carries numbers,
+          // not proof: those numbers are held against the seal this machine holds,
+          // so a hand-written million-star backup buys nothing the browser never
+          // earned, and a copy from another machine buys nothing at all.
+          const cap = rankManager.payableStars();
+          const granted = Math.min(Math.floor(stars), cap);
+          if (granted !== Math.floor(stars))
+            console.warn(`Import: ${Math.floor(stars) - granted} star(s) beyond this browser's ledger dropped`);
+          rankManager.totalStars = granted;
           rankManager.saveProgress();
           rankManager.emit("starsChanged", { totalStars: rankManager.totalStars, rank: rankManager.getCurrentRank() });
           updateRankWidget();
@@ -63650,7 +64637,7 @@ function computeInitialPositions(atomList) {
 // into kinetic energy. So the engine is asked to relax the topology the scene
 // already has. When it refuses - a radical fragment, an element it does not
 // know, a set with no bonds to place against - the spiral geometry stays.
-function relaxSceneAtomsFromEngine(ids) {
+function relaxSceneAtomsFromEngine(ids, engineOpts) {
   if (!window.Mol3DPhysics || !window.Mol3DPhysics.Builder) return false;
   const list = ids.map((id) => atoms.get(id)).filter(Boolean);
   if (list.length < 2 || list.length !== ids.length) return false;
@@ -63664,7 +64651,7 @@ function relaxSceneAtomsFromEngine(ids) {
       atoms: list.map((a) => ({ sym: a.el.sym })),
       bonds: bondList,
       charge: 0
-    }, {});
+    }, engineOpts || {});
     if (r && r.ok && r.mol && r.mol.atoms.length === list.length) built = r.mol;
   } catch (err) {
     built = null;
@@ -63702,6 +64689,28 @@ function relaxSceneAtomsFromEngine(ids) {
     clampAtomToBounds(atom);
   }
   return true;
+}
+// A bond drawn in the scene is a change of topology, and the atoms are still
+// wherever the drop left them: two atoms pushed together give a 180-degree water
+// and a hand-built ammonia sits in the flat plane the player dropped it in. The
+// shape therefore has to come from the engine, the same way it does for a
+// discovered molecule. Builder.build is VSEPR placement followed by FIRE
+// relaxation, and measured on the shipped engine the placement of a real molecule
+// costs 0.1-40 ms from 2 to 122 atoms while FIRE costs 26 ms at 8 atoms, 1.4 s at
+// 38 and 22 s at 122. A click cannot pay for a full minimisation, but it can pay
+// for two frames' worth, and inside that budget FIRE is what turns the ideal VSEPR
+// angle the placement reports into the relaxed one the panels quote: measured with
+// a 30 ms budget ammonia comes out at 106.7 degrees and water at 104.5 instead of
+// the unrelaxed 109.5, while a 122-atom chain spends the budget in the placement
+// and keeps the geometry it was given. The engine treats the deadline as a budget
+// for the whole answer and says so in the result. Charges are skipped because only
+// positions are read here; the panels compute their own.
+function reshapeComponent(comp) {
+  if (!comp || comp.atoms.length < 2 || !comp.bonds.length) return false;
+  return relaxSceneAtomsFromEngine(comp.atoms, { charges: false, deadlineMs: 30 });
+}
+function reshapeBondedComponent(anchorId) {
+  return reshapeComponent(componentOf(atoms, bonds, anchorId));
 }
 function autoBondAtoms(atomIds) {
   const maxBondDist = 2.5;
@@ -63750,11 +64759,13 @@ function spawnFormulaMolecule(formula) {
     if (!ELEMENTS.find((e) => e.sym === sym)) return null;
   }
   const hill = orderingToFormula(atomList);
+  if (!crateBuy(atomList)) return null;
   const registered = (ISOMERS[hill] || [])[0];
   const tpl = registered ? registered.tpl : productTemplate(hill);
   const spot = findSpawnSpot();
   if (tpl && tpl.atoms && tpl.atoms.length === atomList.length && orderingToFormula(tpl.atoms) === hill) {
     const { ids } = buildMoleculeAt(tpl, spot.x, spot.y, spot.z);
+    crateMarkTaken(ids);
     if (registered && registered.displayFormula && arrangementMatchesScene(registered.displayFormula, { atoms: ids })) {
       isoSel.set(compKey({ atoms: ids }), registered.displayFormula);
     }
@@ -63771,6 +64782,7 @@ function spawnFormulaMolecule(formula) {
     atoms.set(id, { id, el, pos: { x: p.x + spot.x, y: p.y + spot.y, z: p.z + spot.z } });
     ids.push(id);
   }
+  crateMarkTaken(ids);
   autoBondAtoms(ids);
   relaxSceneAtomsFromEngine(ids);
   reanalyze();
@@ -63826,7 +64838,7 @@ window.__mol3d = {
   updateAtomLabel: (id, el) => {
     const label = labelSprites.get(id);
     if (label) {
-      label.material.map = labelTex(el.sym);
+      label.material.map = atomLabelTex(id, el);
       label.material.needsUpdate = true;
       const r = displayRadius(el);
       const s = 0.42 + r * 0.55;
@@ -63836,6 +64848,18 @@ window.__mol3d = {
   refreshInspector: updateInspector,
   closeMobileSheets,
   stabilize: (ids) => stabilizeStrays(Array.isArray(ids) ? ids : [ids], performance.now()),
+  // The crate, opened to the tools that build whole structures at once (BluePrint
+  // export, the dex summon). bill() pays for a bag of atoms, take() moves the atoms
+  // the builder actually handed back out of the crate and onto the table, which is
+  // what makes deleting them return them. Both are no-ops in free-play mode.
+  crate: {
+    free: () => crateFreePlays(),
+    price: (list) => crateBillPrice(list),
+    bill: (list) => crateBuy(list, true),
+    take: (ids) => crateMarkTaken(ids ? Array.from(ids) : []),
+    // One nucleus, one element up. Returns false when the crate will not cover it.
+    transmute: (id, newZ) => crateTransmute(id, newZ)
+  },
   triggerDeath: triggerPlayerDeath,
   triggerNuclearVFX: triggerNuclearExplosionVFX,
   screenPosOf: (id) => {
@@ -63847,6 +64871,9 @@ window.__mol3d = {
   },
   devBond: (a, b) => createBond(a, b),
   devUpgrade: (bid) => upgradeBond(bid),
+  devOrder: (bid, n) => setBondOrder(bid, n),
+  devUnbond: (bid) => removeBond(bid),
+  devRemove: (id) => removeAtom(id),
   reaction: {
     selectByFormula: (f) => {
       for (const c of lastComps) {
@@ -63939,7 +64966,22 @@ loadDiscStarLedger();
 // recordDiscoveries only fires from reanalyse, so a molecule left alone in a
 // quiet scene would otherwise sit in the queue and never be paid.
 setInterval(sweepDiscStars, 1e3);
+// The crate is settled on the same quiet clock: whatever stopped existing in the
+// world goes back into it, whichever code path removed it.
+setInterval(crateSweep, 1e3);
 load();
+// The rope script mounts itself once this file has published its API, so the
+// adoption has to wait for it rather than assume it is already there.
+(function adoptWhenShopIsUp(tries) {
+  if (window.__mol3dShop) {
+    crateAdoptScene();
+    if (typeof window.__mol3dShop.onStockChange === "function")
+      window.__mol3dShop.onStockChange(updatePoolStock);
+    updatePoolStock();
+    return;
+  }
+  if (tries > 0) setTimeout(() => adoptWhenShopIsUp(tries - 1), 250);
+})(40);
 loadDiscoveries();
 buildPool();
 buildLegend();

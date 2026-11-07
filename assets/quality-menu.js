@@ -113,14 +113,31 @@
     if (!a || !panel) return;
     var r = a.getBoundingClientRect();
     var w = panel.offsetWidth || 212;
-    panel.style.left = '';
-    panel.style.right = '';
-    var left = r.left - w - 8;
-    if (left < 8) left = Math.min(r.right + 8, window.innerWidth - w - 8);
     var h = panel.offsetHeight || 220;
-    var top = Math.min(r.top, window.innerHeight - h - 8);
-    panel.style.left = Math.round(Math.max(8, left)) + 'px';
-    panel.style.top = Math.round(Math.max(8, top)) + 'px';
+    var vw = window.innerWidth, vh = window.innerHeight;
+    function fits(x, y) {
+      return x >= 8 && y >= 8 && x + w <= vw - 8 && y + h <= vh - 8;
+    }
+    // A settings row can be wider than the space beside it, in which case a
+    // side placement would sit on top of the very control it was opened from.
+    var spots = [
+      [r.left - w - 8, r.top],
+      [r.right + 8, r.top],
+      [r.left, r.bottom + 8],
+      [r.left, r.top - h - 8],
+      [Math.min(r.right + 8, vw - w - 8), r.top]
+    ];
+    var chosen = null;
+    for (var i = 0; i < spots.length; i++) {
+      var x = Math.round(spots[i][0]), y = Math.round(spots[i][1]);
+      if (!fits(x, y)) continue;
+      if (x < r.right && x + w > r.left && y < r.bottom && y + h > r.top) continue;
+      chosen = [x, y];
+      break;
+    }
+    if (!chosen) chosen = [Math.round(Math.max(8, Math.min(spots[0][0], vw - w - 8))), Math.round(Math.max(8, Math.min(r.top, vh - h - 8)))];
+    panel.style.left = chosen[0] + 'px';
+    panel.style.top = chosen[1] + 'px';
   }
 
   function open(anchor) {

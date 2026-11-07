@@ -2,44 +2,72 @@
 (function() {
   'use strict';
 
-  // Above PCT_THRESHOLD stars, shop items stop costing a fixed price and instead
-  // cost PCT_RATE of the player's current star balance. Rate is deliberately
-  // headroom-heavy so late-game stars keep a use without becoming infinite money.
+  // Above PCT_THRESHOLD stars, one-off features stop costing a fixed price and
+  // instead cost PCT_RATE of the player's current star balance. Rate is
+  // deliberately headroom-heavy so late-game stars keep a use without becoming
+  // infinite money.
+  //
+  // Atoms and gun ammo are NOT percentage-priced, on purpose: they are
+  // denominations, not goods. A molecule's summon price is the sum of its atom
+  // prices, so once the unit price depends on the balance the same molecule costs
+  // a different amount at every click and nothing adds up any more. The dynamic
+  // banner says so instead of pretending it applies everywhere.
   var PCT_THRESHOLD = 2000;
   var PCT_RATE = 0.1;
 
-  // v2 belongs to the reset ledger; v1 predates it and is dropped on load so no
-  // ghost of the old purchases can survive next to a brand new save.
-  var SAVE_KEY = 'mol3d.shop.v2';
-  var LEGACY_SAVE_KEY = 'mol3d.shop.v1';
-  var FREE_MAX_Z = 20;
+  // v3 is the stock ledger: elements are no longer unlocked once for all, they are
+  // bought as atoms and spent as atoms. v2 (permanent unlocks) and v1 are folded in
+  // on load - the features carry over untouched and the atoms that unlock used to
+  // grant come back as the starter crate, so nobody loses what they paid for.
+  var SAVE_KEY = 'mol3d.shop.v3';
+  var LEGACY_SAVE_KEYS = ['mol3d.shop.v2', 'mol3d.shop.v1'];
 
-  // One ledger: the rank star total (mol3d.rank.v2) IS the shop balance.
-  // Prices are denominated in rank stars, so spending downranks the player.
-  var TIERS = [
-    { maxZ: 20, stars: 0, price: 0 },
-    { maxZ: 36, stars: 1, price: 25 },
-    { maxZ: 54, stars: 2, price: 55 },
-    { maxZ: 86, stars: 3, price: 110 },
-    { maxZ: 110, stars: 4, price: 180 },
-    { maxZ: 118, stars: 5, price: 280 }
+  // One unit price per period. The boundaries are the periods themselves
+  // (2, 8, 8, 18, 18, 32, 32 elements), so no element is priced by hand and the
+  // ladder keeps the rungs the old tier table had: 25 / 55 / 110 / 180 / 280 for
+  // periods 3-7, with H at 2 and C at 10 that a molecule price has to be built from.
+  var PERIOD_MAX_Z = [2, 10, 18, 36, 54, 86, 118];
+  var PERIOD_PRICE = [2, 10, 25, 55, 110, 180, 280];
+  // A new species pays a fraction of what its atoms cost on the shelf, and the
+  // fraction stays under one for every rung: discovering is income, buying is a
+  // cost, and the two must never cancel out into a farm.
+  var PERIOD_STARS = [1, 5, 12, 28, 55, 90, 140];
+
+  var AMMO_PRICE = 1;
+  var AMMO = [
+    { id: 'proton', icon: 'plus', stars: 1 },
+    { id: 'neutron', icon: 'minus', stars: 1 }
   ];
+
+  // A brand new player has nothing to place and nothing to discover with, so the
+  // first run opens a crate: the four elements the whole early game is built from.
+  var STARTER_KIT = [
+    { z: 1, n: 16 },
+    { z: 6, n: 10 },
+    { z: 7, n: 8 },
+    { z: 8, n: 10 }
+  ];
+  var STARTER_STARS = 40;
+  // A sane ceiling on one stored number: the save is player-editable JSON, and an
+  // atom count of 1e9 would render as a price the shop could never charge.
+  var MAX_STOCK_PER_ELEMENT = 9999;
 
   var FEATURES = [
     { id: 'xray', icon: 'scan-eye', stars: 2, price: 40 },
-    { id: 'proton', icon: 'crosshair', stars: 2, price: 65 },
+    { id: 'proton', icon: 'crosshair', stars: 3, price: 500 },
     { id: 'timeSpeed', icon: 'fast-forward', stars: 3, price: 70 },
     { id: 'timeStop', icon: 'clock', stars: 4, price: 120 },
     { id: 'mayhem', icon: 'flame', stars: 4, price: 150 }
   ];
 
-  var INCOME = { discovery: 1, daily: 5 };
+  var INCOME = { daily: 20 };
 
   var STR = {
     en: {
       title: 'Supply Shop',
       tabElements: 'Elements',
       tabFeatures: 'Features',
+      tabAmmo: 'Ammo',
       balance: 'Balance',
       owned: 'OWNED',
       buy: 'BUY',
@@ -47,19 +75,27 @@
       locked: 'Locked - pull the rope to shop',
       needStars: 'Need {n} more stars',
       bought: 'Purchased {name} for {price} stars',
+      boughtAtoms: 'Bought {n} × {name} for {price} stars',
       notEnough: 'Not enough stars for {name} ({price} needed)',
       earnDiscovery: '+{n} stars · new discovery',
       earnDaily: '+{n} stars · daily reward',
       hint: 'Drag the rope down to open the shop',
       close: 'Close',
       spendHint: 'Your stars are your rank progress — buying spends them and can downrank you',
-      dynMode: 'Dynamic pricing: each item costs {pct}% of your {stars} ★ balance',
+      dynMode: 'Dynamic pricing: each feature costs {pct}% of your {stars} ★ balance. Atoms and ammo keep fixed prices — a molecule is the sum of its atoms.',
       rankNow: '{rank} · {stars} ★ left',
+      qty: 'Buy amount',
+      unitPrice: '{n} ★ / atom',
+      stockOf: 'in crate',
+      crateTotal: '{n} atoms in the crate · worth {stars} ★',
+      allUnlocked: 'Every element is open for trade — you buy the atoms, not the unlock.',
+      ammoHint: 'Each shot of the neutron & proton gun spends one particle from here.',
+      ammoName: { proton: 'Proton', neutron: 'Neutron' },
       f: {
         xray: 'X-Ray Vision',
         xray_d: 'See electron clouds around every atom',
-        proton: 'Proton Gun',
-        proton_d: 'Transmute atoms by firing protons',
+        proton: 'Neutron & Proton Gun',
+        proton_d: 'Transmute atoms by firing protons or adding neutrons. Every shot costs 1 star of ammo.',
         timeSpeed: 'Time Acceleration',
         timeSpeed_d: 'Unlocks fast-forward beyond 1x',
         timeStop: 'Time Stop',
@@ -72,6 +108,7 @@
       title: 'Cửa hàng tiếp tế',
       tabElements: 'Nguyên tố',
       tabFeatures: 'Tính năng',
+      tabAmmo: 'Đạn',
       balance: 'Số dư',
       owned: 'ĐÃ SỞ HỮU',
       buy: 'MUA',
@@ -79,19 +116,27 @@
       locked: 'Đang khoá - kéo dây thừng để mở cửa hàng',
       needStars: 'Cần thêm {n} sao nữa',
       bought: 'Đã mua {name} với {price} sao',
+      boughtAtoms: 'Đã mua {n} × {name} với {price} sao',
       notEnough: 'Không đủ sao cho {name} (cần {price})',
       earnDiscovery: '+{n} sao · phát hiện mới',
       earnDaily: '+{n} sao · thưởng hằng ngày',
       hint: 'Kéo dây thừng xuống để mở cửa hàng',
       close: 'Đóng',
       spendHint: 'Sao cũng chính là tiến độ cấp bậc — mua sắm sẽ tiêu sao và có thể hạ cấp bạn',
-      dynMode: 'Giá động: mỗi món tốn {pct}% số dư {stars} ★ của bạn',
+      dynMode: 'Giá động: mỗi tính năng tốn {pct}% số dư {stars} ★ của bạn. Nguyên tử và đạn giữ giá cố định — một phân tử có giá bằng tổng các nguyên tử của nó.',
       rankNow: '{rank} · còn {stars} ★',
+      qty: 'Số lượng mua',
+      unitPrice: '{n} ★ / nguyên tử',
+      stockOf: 'trong kho',
+      crateTotal: '{n} nguyên tử trong kho · giá trị {stars} ★',
+      allUnlocked: 'Mọi nguyên tố đều được mở bán — bạn mua nguyên tử, không mua quyền mở khoá.',
+      ammoHint: 'Mỗi phát của súng neutron & proton tiêu một hạt trong kho này.',
+      ammoName: { proton: 'Proton', neutron: 'Neutron' },
       f: {
         xray: 'Tia X',
         xray_d: 'Nhìn thấy đám mây electron quanh mỗi nguyên tử',
-        proton: 'Súng proton',
-        proton_d: 'Biến đổi nguyên tố bằng cách bắn proton',
+        proton: 'Súng neutron & proton',
+        proton_d: 'Biến đổi nguyên tố bằng cách bắn proton hoặc thêm neutron. Mỗi phát tốn 1 sao đạn.',
         timeSpeed: 'Tăng tốc thời gian',
         timeSpeed_d: 'Mở khoá tua nhanh trên 1x',
         timeStop: 'Đóng băng thời gian',
@@ -102,9 +147,20 @@
     }
   };
 
-  var state = { elements: [], features: [], seenHint: false };
-  var ownedElements = new Set();
+  var state = { features: [], seenHint: false };
   var ownedFeatures = new Set();
+  // stock[z] = atoms bought and lying in the crate. inScene[z] = atoms bought this
+  // session and currently standing in the world. A delete may only put an atom
+  // back while it is owed, which is what stops a cheap atom from being transmuted
+  // into an expensive one and refunded as the expensive one.
+  var stock = {};
+  var inScene = {};
+  // Atoms already out of the crate when this page loaded cannot be re-registered by
+  // id, because the game process starts empty. claimOwed hands out one slot per
+  // owed atom so a reload can adopt the scene, and never more than the crate loaned.
+  var claimed = {};
+  var ammo = { proton: 0, neutron: 0 };
+  var buyQty = 1;
   var listeners = [];
   var rig = null, rope = null, panel = null, balanceEl = null;
   var tab = 'elements';
@@ -142,9 +198,61 @@
     if (el) { el.textContent = msg; el.className = kind || 'info'; }
   }
 
-  function tierOf(z) {
-    for (var i = 0; i < TIERS.length; i++) if (z <= TIERS[i].maxZ) return TIERS[i];
-    return TIERS[TIERS.length - 1];
+  // Period 1-7 straight off the shell boundaries; the same table prices the atom.
+  function periodOf(z) {
+    for (var i = 0; i < PERIOD_MAX_Z.length; i++) if (z <= PERIOD_MAX_Z[i]) return i + 1;
+    return PERIOD_MAX_Z.length;
+  }
+  function unitPrice(z) {
+    if (!(z > 0)) return 0;
+    return PERIOD_PRICE[periodOf(z) - 1];
+  }
+  function starsOf(z) {
+    if (!(z > 0)) return 0;
+    return PERIOD_STARS[periodOf(z) - 1];
+  }
+  // Accepts a z, a symbol, an element record or an atom from the scene.
+  function zOf(atom) {
+    if (typeof atom === 'number') return atom;
+    if (typeof atom === 'string') {
+      var bySym = elementBySym(atom);
+      return bySym ? bySym.z : 0;
+    }
+    if (atom && typeof atom === 'object') {
+      if (atom.el && typeof atom.el.z === 'number') return atom.el.z;
+      if (typeof atom.z === 'number') return atom.z;
+      if (atom.sym) {
+        var e = elementBySym(atom.sym);
+        return e ? e.z : 0;
+      }
+    }
+    return 0;
+  }
+  function elementBySym(sym) {
+    var list = (api && api.ELEMENTS) || [];
+    for (var i = 0; i < list.length; i++) if (list[i].sym === sym) return list[i];
+    try {
+      var more = (window.__mol3d && window.__mol3d.customElements) || [];
+      for (var j = 0; j < more.length; j++) if (more[j].sym === sym) return more[j];
+    } catch (e) {}
+    return null;
+  }
+  // The price of anything made of atoms: the sum of its parts, always the same
+  // number for the same molecule, in the shop, in the dex and on the tooltip.
+  function priceOfAtoms(list) {
+    var total = 0;
+    for (var i = 0; i < (list || []).length; i++) total += unitPrice(zOf(list[i]));
+    return total;
+  }
+  function crateTotal() {
+    var n = 0, stars = 0;
+    for (var k in stock) {
+      var z = Number(k);
+      if (!(stock[k] > 0)) continue;
+      n += stock[k];
+      stars += stock[k] * unitPrice(z);
+    }
+    return { atoms: n, stars: stars };
   }
   function featureById(id) {
     for (var i = 0; i < FEATURES.length; i++) if (FEATURES[i].id === id) return FEATURES[i];
@@ -185,33 +293,264 @@
   }
 
   function load() {
+    var legacy = null;
     try {
-      localStorage.removeItem(LEGACY_SAVE_KEY);
+      LEGACY_SAVE_KEYS.forEach(function(k) {
+        var raw = localStorage.getItem(k);
+        if (!raw || legacy) return;
+        try {
+          var d = JSON.parse(raw);
+          if (d && typeof d === 'object') legacy = d;
+        } catch (e0) {}
+      });
       var raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) { save(); return; }
+      if (!raw) {
+        // First run on the stock ledger: keep the feature purchases, open a crate,
+        // and top the balance up once so there is something to spend.
+        state.features = legacy && Array.isArray(legacy.features) ? legacy.features : [];
+        ownedFeatures = new Set(state.features);
+        stock = normalizeCountMap(legacy && legacy.stock);
+        ammo = normalizeAmmo(legacy && legacy.ammo);
+        foldLegacyElements(legacy);
+        save();
+        grantStarter();
+        return;
+      }
       var d = JSON.parse(raw);
       if (d && typeof d === 'object') {
-        state.elements = Array.isArray(d.elements) ? d.elements : [];
         state.features = Array.isArray(d.features) ? d.features : [];
         state.seenHint = !!d.seenHint;
+        state.starter = !!d.starter;
+        stock = normalizeCountMap(d.stock);
+        ammo = normalizeAmmo(d.ammo);
+        inScene = normalizeCountMap(d.out);
+        // v2 stored permanent unlocks; those atoms were paid for once and are
+        // handed back as crate stock rather than thrown away.
+        foldLegacyElements(legacy);
       }
     } catch (e) {}
-    ownedElements = new Set(state.elements);
     ownedFeatures = new Set(state.features);
+    save();
+    if (!state.starter) grantStarter();
+  }
+  function normalizeCountMap(d) {
+    var out = {};
+    if (d && typeof d === 'object') {
+      Object.keys(d).forEach(function(k) {
+        var z = Number(k), n = Math.floor(Number(d[k]));
+        if (z > 0 && z <= 118 && n > 0) out[z] = Math.min(n, MAX_STOCK_PER_ELEMENT);
+      });
+    }
+    return out;
+  }
+  // v2 sold an element once and let the player place it forever. That purchase is
+  // honoured as one crate unit per element rather than discarded, because taking
+  // away what a player already paid for is not a migration.
+  function foldLegacyElements(legacy) {
+    if (!legacy || !Array.isArray(legacy.elements)) return;
+    legacy.elements.forEach(function(z) {
+      var n = Number(z);
+      if (n > 0) addStock(n, 1);
+    });
+  }
+  function bumpStock(map, z, n) {
+    if (!(z > 0) || !(n > 0)) return;
+    map[z] = Math.min((map[z] || 0) + n, MAX_STOCK_PER_ELEMENT);
+  }
+  // Everything the crate holds is worth stars: atoms at their shelf price, gun
+  // particles at the price of a particle.
+  function inventoryValue(stockMap, ammoMap) {
+    var v = 0, k;
+    for (k in stockMap) v += (stockMap[k] || 0) * unitPrice(Number(k));
+    for (k in ammoMap) v += (ammoMap[k] || 0) * AMMO_PRICE;
+    return v;
+  }
+  // A feature is worth the price the shop would have charged for it at the
+  // cheapest rung, so an imported list of owned features has to be paid for just
+  // like the atoms beside it.
+  function featureValue(list) {
+    var v = 0;
+    for (var i = 0; i < list.length; i++) {
+      var f = featureById(list[i]);
+      if (f && f.price > 0) v += f.price;
+    }
+    return v;
+  }
+  function payableStarCap() {
+    var rm = rankMgr();
+    if (rm && typeof rm.payableStars === 'function') return rm.payableStars();
+    return Infinity;
+  }
+  function normalizeAmmo(d) {
+    var out = { proton: 0, neutron: 0 };
+    if (d && typeof d === 'object') {
+      Object.keys(out).forEach(function(k) {
+        var n = Math.floor(Number(d[k]));
+        if (n > 0) out[k] = Math.min(n, MAX_STOCK_PER_ELEMENT);
+      });
+    }
+    return out;
   }
   function save() {
-    state.elements = Array.from(ownedElements);
     state.features = Array.from(ownedFeatures);
-    delete state.stars;
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        stock: stock, ammo: ammo, features: state.features,
+        out: inScene,
+        seenHint: state.seenHint, starter: !!state.starter
+      }));
+      LEGACY_SAVE_KEYS.forEach(function(k) {
+        try { localStorage.removeItem(k); } catch (e) {}
+      });
     } catch (e) {}
+  }
+  function grantStarter() {
+    if (state.starter) return;
+    state.starter = true;
+    STARTER_KIT.forEach(function(k) { addStock(k.z, k.n); });
+    var rm = rankMgr();
+    if (rm && typeof rm.addStars === 'function') rm.addStars(STARTER_STARS);
+    save();
+    notify();
+  }
+
+  function stockOf(z) {
+    return stock[z] || 0;
+  }
+  function owedOf(z) {
+    return inScene[z] || 0;
+  }
+  function addStock(z, n) {
+    if (!(z > 0) || !(n > 0)) return 0;
+    var cur = stock[z] || 0;
+    var granted = Math.min(n, MAX_STOCK_PER_ELEMENT - cur);
+    if (granted <= 0) return 0;
+    stock[z] = cur + granted;
+    return granted;
+  }
+  // Every atom that leaves the scene comes back through here, and only while the
+  // crate says the world still owes it. Reactions, the atmosphere, decay fragments
+  // and other players' atoms were never bought, so deleting them returns nothing.
+  // What comes back is the crate unit that went out, never stars: paid in stars, a
+  // cheap atom could be transmuted and cashed in as an expensive one.
+  function refundAtom(z) {
+    if (!(z > 0)) return false;
+    var owed = inScene[z] || 0;
+    if (owed <= 0) return false;
+    inScene[z] = owed - 1;
+    if ((claimed[z] || 0) > inScene[z]) claimed[z] = inScene[z];
+    addStock(z, 1);
+    save();
+    notify();
+    return true;
+  }
+  function refundAtoms(zs) {
+    var n = 0;
+    for (var i = 0; i < (zs || []).length; i++) if (refundAtom(zOf(zs[i]))) n++;
+    return n;
+  }
+  // A reload empties the game side's id ledger while the crate still remembers how
+  // many atoms of each element it loaned out. Adopting hands out at most that many
+  // slots, so a saved scene reclaims what it was given and nothing more.
+  function claimOwed(z) {
+    if (!(z > 0)) return false;
+    var unadopted = (inScene[z] || 0) - (claimed[z] || 0);
+    if (unadopted <= 0) return false;
+    claimed[z] = (claimed[z] || 0) + 1;
+    return true;
+  }
+  function takeAtom(z) {
+    if (!(z > 0)) return true;
+    var have = stock[z] || 0;
+    if (have <= 0) return false;
+    stock[z] = have - 1;
+    inScene[z] = (inScene[z] || 0) + 1;
+    save();
+    notify();
+    return true;
+  }
+  // Buys a mixed bag in one charge: the dex summon and the assistant both price a
+  // molecule as the sum of its atoms and take the whole amount off in one go.
+  function buyAtoms(list) {
+    var cost = priceOfAtoms(list);
+    if (cost <= 0) return { ok: true, cost: 0 };
+    if (!spend(cost)) return { ok: false, cost: cost };
+    for (var i = 0; i < list.length; i++) addStock(zOf(list[i]), 1);
+    save();
+    notify();
+    return { ok: true, cost: cost };
+  }
+  function buyElement(z, n) {
+    var qty = Math.max(1, Math.floor(n || buyQty));
+    var price = unitPrice(z) * qty;
+    var el = elementByZ(z);
+    if (!el) return false;
+    if (!spend(price)) {
+      status('⚠ ' + fmt(S('notEnough'), { name: nameOf(el), price: price }), 'err');
+      shake();
+      return false;
+    }
+    var got = addStock(z, qty);
+    save();
+    render();
+    notify();
+    announce(price, got + ' × ' + nameOf(el));
+    pop(el);
+    return true;
+  }
+  function ammoOf(kind) {
+    return ammo[kind] || 0;
+  }
+  function buyAmmo(kind, n) {
+    if (!ammo.hasOwnProperty(kind)) return false;
+    var qty = Math.max(1, Math.floor(n || buyQty));
+    var price = AMMO_PRICE * qty;
+    var label = (S('ammoName') || {})[kind] || kind;
+    if (!spend(price)) {
+      status('⚠ ' + fmt(S('notEnough'), { name: label, price: price }), 'err');
+      shake();
+      return false;
+    }
+    ammo[kind] = Math.min(MAX_STOCK_PER_ELEMENT, (ammo[kind] || 0) + qty);
+    save();
+    render();
+    notify();
+    announce(price, qty + ' × ' + label);
+    return true;
+  }
+  // One particle out of the magazine per shot. The gun asks before it fires, so a
+  // shot is never both free and un-counted.
+  function takeAmmo(kind) {
+    if (!ammo.hasOwnProperty(kind)) return false;
+    if ((ammo[kind] || 0) <= 0) return false;
+    ammo[kind] -= 1;
+    save();
+    notify();
+    return true;
+  }
+  function refundAmmo(kind) {
+    if (!ammo.hasOwnProperty(kind)) return false;
+    ammo[kind] = Math.min(MAX_STOCK_PER_ELEMENT, (ammo[kind] || 0) + 1);
+    save();
+    notify();
+    return true;
+  }
+  function onStockChange(fn) {
+    if (typeof fn === 'function') listeners.push(fn);
+  }
+  function notify() {
+    var total = crateTotal();
+    for (var i = 0; i < listeners.length; i++) {
+      try {
+        listeners[i]({ stock: stock, ammo: ammo, atoms: total.atoms, value: total.stars });
+      } catch (e) {}
+    }
   }
 
   function ownsElement(z) {
-    if (!z || z <= FREE_MAX_Z) return true;
-    if (z > 118) return true;
-    return ownedElements.has(z);
+    // Trading is open for every element now; what gates a placement is the crate.
+    if (!z) return true;
+    return true;
   }
   function ownsFeature(id) {
     if (!featureById(id)) return true;
@@ -248,23 +587,6 @@
     return balance() > PCT_THRESHOLD;
   }
 
-  function buyElement(z) {
-    var el = elementByZ(z);
-    if (!el) return;
-    if (ownsElement(z)) return;
-    var price = priceOf(tierOf(z).price);
-    if (balance() < price || !spend(price)) {
-      status('⚠ ' + fmt(S('notEnough'), { name: nameOf(el), price: price }), 'err');
-      shake();
-      return;
-    }
-    ownedElements.add(z);
-    save();
-    render();
-    rebuildPool();
-    announce(price, nameOf(el));
-    pop(el);
-  }
   function buyFeature(id) {
     var f = featureById(id);
     if (!f || ownsFeature(id)) return;
@@ -301,7 +623,7 @@
   }
   function buyableElements() {
     var list = (api && api.ELEMENTS) || [];
-    return list.filter(function(el) { return el.z > FREE_MAX_Z; });
+    return list.filter(function(el) { return el.z > 0 && el.z <= 118; });
   }
   function rebuildPool() {
     try {
@@ -338,22 +660,27 @@
 
   var renderedTab = null;
   var renderedSig = '';
+  var filterText = '';
 
-  function ownershipSig() {
-    return tab + '|' + lang() + '|' + ownedElements.size + '|' + Array.from(ownedFeatures).sort().join(',');
+  function stockSig() {
+    var n = 0;
+    for (var k in stock) n += stock[k];
+    return tab + '|' + lang() + '|' + buyQty + '|' + filterText + '|' + n + '|' +
+      (ammo.proton + ammo.neutron) + '|' + Array.from(ownedFeatures).sort().join(',');
   }
 
-  // Star changes fire on every discovery; rebuilding 90+ cards for that is wasteful,
+  // Star changes fire on every discovery; rebuilding 118 cards for that is wasteful,
   // so the cheap path only refreshes the chips and the affordability styling.
   // The chips must be rewritten too: with dynamic pricing the number depends on balance.
   function refreshAffordability() {
     if (!panel) return;
     var b = balance();
-    panel.querySelectorAll('.shop-card[data-base], .shop-row[data-base]').forEach(function(node) {
-      var owned = node.classList.contains('is-owned');
-      var p = priceOf(Number(node.dataset.base), Number(node.dataset.min));
-      node.classList.toggle('is-poor', !owned && b < p);
-      if (owned) return;
+    panel.querySelectorAll('.shop-card[data-unit], .shop-row[data-base]').forEach(function(node) {
+      var unit = Number(node.dataset.unit);
+      var p = node.dataset.base
+        ? priceOf(Number(node.dataset.base), Number(node.dataset.min))
+        : unit * buyQty;
+      node.classList.toggle('is-poor', b < p);
       var chip = node.querySelector('.shop-card-price');
       if (chip) chip.textContent = p + ' ★';
     });
@@ -386,13 +713,14 @@
     }
     var body = panel.querySelector('.shop-body');
     if (!body) return;
-    var sig = ownershipSig();
+    var sig = stockSig();
     if (renderedTab === tab && renderedSig === sig) {
       refreshAffordability();
       return;
     }
     body.innerHTML = '';
     if (tab === 'elements') body.appendChild(elementGrid());
+    else if (tab === 'ammo') body.appendChild(ammoList());
     else body.appendChild(featureList());
     panel.querySelectorAll('.shop-tab').forEach(function(b) {
       b.classList.toggle('on', b.dataset.tab === tab);
@@ -401,31 +729,117 @@
     renderedSig = sig;
   }
 
+  // One number drives every buy in the panel, so the price shown on a card is the
+  // price that click pays.
+  function qtyBar() {
+    var bar = document.createElement('div');
+    bar.className = 'shop-qty';
+    var label = document.createElement('span');
+    label.className = 'shop-qty-label';
+    label.textContent = S('qty');
+    bar.appendChild(label);
+    [1, 5, 10, 25].forEach(function(n) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'shop-qty-btn' + (buyQty === n ? ' on' : '');
+      b.textContent = '×' + n;
+      b.addEventListener('click', function() {
+        buyQty = n;
+        render();
+      });
+      bar.appendChild(b);
+    });
+    var total = crateTotal();
+    var crate = document.createElement('span');
+    crate.className = 'shop-qty-crate';
+    crate.textContent = '🧰 ' + fmt(S('crateTotal'), { n: total.atoms, stars: total.stars });
+    bar.appendChild(crate);
+    return bar;
+  }
+
+  function matchText(el) {
+    return (el.sym + ' ' + el.name + ' ' + nameOf(el) + ' ' + el.z).toLowerCase();
+  }
+
   function elementGrid() {
+    var out = document.createElement('div');
+    out.appendChild(qtyBar());
+    var search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'shop-search';
+    search.placeholder = S('tabElements') + '…';
+    search.value = filterText;
+    search.addEventListener('input', function() {
+      filterText = search.value.trim().toLowerCase();
+      render();
+      var again = panel.querySelector('.shop-search');
+      if (again) again.focus();
+    });
+    out.appendChild(search);
+    var note = document.createElement('div');
+    note.className = 'shop-note';
+    note.textContent = S('allUnlocked');
+    out.appendChild(note);
     var wrap = document.createElement('div');
     wrap.className = 'shop-grid';
+    var q = filterText;
     buyableElements().forEach(function(el) {
-      var tier = tierOf(el.z);
-      var owned = ownsElement(el.z);
+      if (q && matchText(el).indexOf(q) < 0) return;
+      var have = stockOf(el.z);
+      var price = unitPrice(el.z) * buyQty;
       var card = document.createElement('button');
       card.type = 'button';
-      card.className = 'shop-card' + (owned ? ' is-owned' : '') + (balance() >= priceOf(tier.price) ? '' : ' is-poor');
+      card.className = 'shop-card' + (have > 0 ? ' is-stocked' : '') + (balance() >= price ? '' : ' is-poor');
       card.dataset.z = String(el.z);
-      card.dataset.base = String(tier.price);
+      card.dataset.unit = String(unitPrice(el.z));
       card.innerHTML =
         '<span class="shop-card-sym">' + esc(el.sym) + '</span>' +
         '<span class="shop-card-name">' + esc(nameOf(el)) + '</span>' +
-        '<span class="shop-card-stars">' + starRow(tier.stars, 5) + '</span>' +
-        '<span class="shop-card-price">' + priceChip(owned, priceOf(tier.price)) + '</span>';
-      card.addEventListener('click', function() { buyElement(el.z); });
+        '<span class="shop-card-stars">' + starRow(starsOf(el.z), 5) + '</span>' +
+        '<span class="shop-card-price">' + esc(String(price)) + ' ★</span>' +
+        '<span class="shop-card-stock">' + esc(String(have)) + ' ' + esc(S('stockOf')) + '</span>';
+      card.title = fmt(S('unitPrice'), { n: unitPrice(el.z) });
+      card.addEventListener('click', function() { buyElement(el.z, buyQty); });
       wrap.appendChild(card);
     });
+    out.appendChild(wrap);
+    out.appendChild(ledgerNote());
+    return out;
+  }
+
+  function ammoList() {
+    var out = document.createElement('div');
+    out.appendChild(qtyBar());
     var note = document.createElement('div');
     note.className = 'shop-note';
-    note.textContent = 'Z ≤ ' + FREE_MAX_Z + ' · ' + S('free');
-    wrap.appendChild(note);
-    wrap.appendChild(ledgerNote());
-    return wrap;
+    note.textContent = S('ammoHint');
+    out.appendChild(note);
+    var wrap = document.createElement('div');
+    wrap.className = 'shop-list';
+    AMMO.forEach(function(a) {
+      var have = ammoOf(a.id);
+      var price = AMMO_PRICE * buyQty;
+      var row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'shop-row' + (have > 0 ? ' is-stocked' : '') + (balance() >= price ? '' : ' is-poor');
+      row.dataset.ammo = a.id;
+      row.dataset.unit = String(AMMO_PRICE);
+      row.innerHTML =
+        '<span class="shop-row-icon"><i data-lucide="' + a.icon + '"></i></span>' +
+        '<span class="shop-row-main">' +
+          '<span class="shop-row-title">' + esc((S('ammoName') || {})[a.id] || a.id) + '</span>' +
+          '<span class="shop-row-desc">' + esc(String(have)) + ' ' + esc(S('stockOf')) + '</span>' +
+        '</span>' +
+        '<span class="shop-row-right">' +
+          '<span class="shop-card-stars">' + starRow(a.stars, 5) + '</span>' +
+          '<span class="shop-card-price">' + esc(String(price)) + ' ★</span>' +
+        '</span>';
+      row.addEventListener('click', function() { buyAmmo(a.id, buyQty); });
+      wrap.appendChild(row);
+    });
+    out.appendChild(wrap);
+    out.appendChild(ledgerNote());
+    return out;
   }
 
   function ledgerNote() {
@@ -482,6 +896,16 @@
     void panel.offsetWidth;
     panel.classList.add('nope');
     setTimeout(function() { panel.classList.remove('nope'); }, 420);
+  }
+
+  // A refused placement has exactly one fix, and it hangs from the ceiling: pull
+  // the rope so it is visibly the thing to click instead of describing it.
+  function flashRope() {
+    if (!rig) return;
+    rig.classList.remove('flash');
+    void rig.offsetWidth;
+    rig.classList.add('flash');
+    setTimeout(function() { rig.classList.remove('flash'); }, 1600);
   }
 
   function pop(el, featureId) {
@@ -641,6 +1065,22 @@
       '.shop-card.is-owned,.shop-row.is-owned{border-color:var(--ok);cursor:default;opacity:.72;}',
       '.shop-card.is-owned .shop-card-price,.shop-row.is-owned .shop-card-price{color:var(--ok);}',
       '.shop-card.is-poor,.shop-row.is-poor{opacity:.55;}',
+      '.shop-card-stock{position:absolute;top:6px;right:6px;font-size:9px;font-weight:800;line-height:1;',
+      '  padding:2px 5px;border-radius:7px;background:rgba(255,255,255,.09);color:var(--muted);}',
+      '.shop-card.is-stocked .shop-card-stock{background:var(--accent-soft);color:var(--accent);}',
+      '.shop-card.is-stocked{border-color:rgba(255,207,92,.45);}',
+      '.shop-qty{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;}',
+      '.shop-qty-label{font-size:10px;font-weight:700;color:var(--muted);}',
+      '.shop-qty-btn{padding:3px 9px;border-radius:9px;border:1px solid var(--border);background:transparent;',
+      '  color:var(--muted);font:inherit;font-size:11px;font-weight:700;cursor:pointer;}',
+      '.shop-qty-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}',
+      '.shop-qty-crate{margin-left:auto;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;}',
+      '.shop-search{width:100%;box-sizing:border-box;margin-bottom:8px;padding:6px 10px;font:inherit;font-size:11px;',
+      '  color:var(--text);background:var(--panel-2);border:1px solid var(--border);border-radius:10px;outline:none;}',
+      '.shop-search:focus{border-color:var(--accent);}',
+      '#shop-rig.flash #shop-rope{animation:ropeFlash 1.5s ease-out;}',
+      '@keyframes ropeFlash{0%,100%{filter:drop-shadow(0 6px 14px rgba(0,0,0,.45));}',
+      '25%,75%{filter:drop-shadow(0 0 18px rgba(255,207,92,.95));}}',
       '.shop-note{grid-column:1/-1;font-size:10px;color:var(--muted);padding-top:4px;}',
       '.shop-ledger-note{color:var(--accent);opacity:.85;line-height:1.4;}',
       '.shop-pop{position:fixed;z-index:10005;pointer-events:none;transform:translate(-50%,-50%);',
@@ -684,6 +1124,7 @@
     var tabs = document.createElement('div');
     tabs.className = 'shop-tabs';
     tabs.innerHTML = '<button type="button" class="shop-tab" data-tab="elements">' + esc(S('tabElements')) + '</button>' +
+      '<button type="button" class="shop-tab" data-tab="ammo">' + esc(S('tabAmmo')) + '</button>' +
       '<button type="button" class="shop-tab" data-tab="features">' + esc(S('tabFeatures')) + '</button>';
     var dyn = document.createElement('div');
     dyn.className = 'shop-dyn';
@@ -744,7 +1185,7 @@
     build();
     refreshFeatureLocks();
     window.__mol3dShop = {
-      version: 1,
+      version: 3,
       ownsElement: ownsElement,
       ownsFeature: ownsFeature,
       blocksFeature: blocksFeature,
@@ -761,25 +1202,84 @@
       priceOf: priceOf,
       isDynamic: isDynamic,
       dynamicPricing: { threshold: PCT_THRESHOLD, rate: PCT_RATE },
-      catalogue: { features: FEATURES, tiers: TIERS, freeMaxZ: FREE_MAX_Z },
+      catalogue: { features: FEATURES, ammo: AMMO, ammoPrice: AMMO_PRICE, periods: PERIOD_MAX_Z, unitPrices: PERIOD_PRICE },
+      // The crate: what the player owns, what the world currently owes them, and
+      // the two ways an atom moves between the crate and the table.
+      stockOf: stockOf,
+      owedOf: owedOf,
+      crateTotal: crateTotal,
+      takeAtom: takeAtom,
+      refundAtom: refundAtom,
+      refundAtoms: refundAtoms,
+      claimOwed: claimOwed,
+      starsOf: starsOf,
+      valueOfAtoms: priceOfAtoms,
+      buyAtoms: buyAtoms,
+      unitPrice: unitPrice,
+      periodOf: periodOf,
+      priceOfAtoms: priceOfAtoms,
+      zOf: zOf,
+      ammoOf: ammoOf,
+      buyAmmo: buyAmmo,
+      takeAmmo: takeAmmo,
+      refundAmmo: refundAmmo,
+      onStockChange: onStockChange,
+      // The rope is the only way into the shop and it hangs off-screen on a phone
+      // the moment a placement is refused; this gives the game a way to point at it.
+      flash: flashRope,
       exportState: function() {
-        return { version: 2, elements: Array.from(ownedElements), features: Array.from(ownedFeatures) };
+        return {
+          version: 3,
+          stock: JSON.parse(JSON.stringify(stock)),
+          ammo: JSON.parse(JSON.stringify(ammo)),
+          out: JSON.parse(JSON.stringify(inScene)),
+          features: Array.from(ownedFeatures)
+        };
       },
       importState: function(d) {
         if (!d || typeof d !== 'object') return false;
-        ownedElements = new Set(Array.isArray(d.elements) ? d.elements.map(Number).filter(Number.isFinite) : []);
-        ownedFeatures = new Set(Array.isArray(d.features) ? d.features : []);
-        state.elements = Array.from(ownedElements);
+        var nextStock = normalizeCountMap(d.stock);
+        if (Array.isArray(d.elements)) {
+          // A pre-stock save: every unlock it recorded comes back as one atom.
+          d.elements.forEach(function(z) {
+            var n = Number(z);
+            if (n > 0) bumpStock(nextStock, n, 1);
+          });
+        }
+        var nextAmmo = normalizeAmmo(d.ammo);
+        var nextFeatures = Array.isArray(d.features) ? d.features.filter(function(x) { return typeof x === 'string'; }) : [];
+        // Crate units, gun particles and features are all bought with stars, so a
+        // file can only bring in what this browser's ledger says it paid for.
+        // Anything the ledger cannot cover comes back empty rather than free.
+        var want = inventoryValue(nextStock, nextAmmo) + featureValue(nextFeatures);
+        var cap = payableStarCap();
+        if (want > cap) {
+          console.warn('[shop] import: stock, ammo and features worth ' + want + ' star exceed the ' + cap + ' star ledger; all three dropped');
+          nextStock = {};
+          nextAmmo = { proton: 0, neutron: 0 };
+          nextFeatures = [];
+        }
+        stock = nextStock;
+        ammo = nextAmmo;
+        ownedFeatures = new Set(nextFeatures);
         state.features = Array.from(ownedFeatures);
+        inScene = normalizeCountMap(d.out);
+        claimed = {};
         save();
         render();
         refreshFeatureLocks();
+        notify();
         return true;
       },
       reset: function() {
-        ownedElements.clear();
+        stock = {};
+        inScene = {};
+        claimed = {};
+        ammo = { proton: 0, neutron: 0 };
+        state.starter = false;
         ownedFeatures.clear();
         save();
+        grantStarter();
         rebuildPool();
         render();
         refreshFeatureLocks();
@@ -802,7 +1302,8 @@
       var close = panel.querySelector('.shop-close');
       if (close) close.setAttribute('aria-label', S('close'));
       panel.querySelectorAll('.shop-tab').forEach(function(b) {
-        b.textContent = b.dataset.tab === 'elements' ? S('tabElements') : S('tabFeatures');
+        b.textContent = b.dataset.tab === 'elements' ? S('tabElements')
+          : b.dataset.tab === 'ammo' ? S('tabAmmo') : S('tabFeatures');
       });
       render();
       icons();

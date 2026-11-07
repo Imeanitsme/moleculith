@@ -43426,7 +43426,24 @@ function thomsonDirs(k, weights, pinned = null, iters = 120) {
   return dirs;
 }
 V.neg = (a) => V.scale(a, -1);
+// 13 of the 27 neighbour-cell offsets - the ones that point forward. Pairing a
+// cell only with its forward neighbours (plus itself, upper triangle) visits
+// every cell pair exactly once, so no contact force is applied twice.
+const HALF_OFFSETS = [];
+for (let dx = -1; dx <= 1; dx++) {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dz = -1; dz <= 1; dz++) {
+      if (dx > 0 || dx === 0 && (dy > 0 || dy === 0 && dz > 0)) HALF_OFFSETS.push([dx, dy, dz]);
+    }
+  }
+}
+const IDEAL_CACHE = /* @__PURE__ */ new Map();
 function idealAngleMatrix(sigma, lp) {
+  // Depends on nothing but the domain counts, and a crowded build asks for the
+  // same counts hundreds of times over; each miss costs a 120-step Thomson solve.
+  const ck = sigma + "|" + lp;
+  const hit = IDEAL_CACHE.get(ck);
+  if (hit) return hit;
   const k = sigma + lp;
   const weights = [...Array(sigma).fill(1), ...Array(lp).fill(1.6)];
   const dirs = thomsonDirs(k, weights);
@@ -43435,16 +43452,28 @@ function idealAngleMatrix(sigma, lp) {
     M.push([]);
     for (let j = 0; j < k; j++) M[i].push(Math.acos(Math.max(-1, Math.min(1, V.dot(dirs[i], dirs[j])))));
   }
-  return { M, k, isLp: (i) => i >= sigma };
+  const res = { M, k, isLp: (i) => i >= sigma };
+  IDEAL_CACHE.set(ck, res);
+  return res;
 }
 function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PURE__ */ new Map()) {
   const ids = atomIds;
   if (ids.length === 0) return /* @__PURE__ */ new Map();
   const idSet = new Set(ids);
+  // One pass over the bond table replaces bondsOf(), which copies the whole
+  // table once per atom it is asked about. Every lookup below reads this instead.
+  const atBonds = /* @__PURE__ */ new Map();
+  for (const id of ids) atBonds.set(id, []);
+  for (const b of bonds2.values()) {
+    const la = atBonds.get(b.a);
+    const lb = atBonds.get(b.b);
+    if (la) la.push(b);
+    if (lb) lb.push(b);
+  }
   const neigh = /* @__PURE__ */ new Map();
   const lpCount = /* @__PURE__ */ new Map();
   for (const id of ids) {
-    neigh.set(id, bondsOf(atoms2, bonds2, id).map((b) => partnerId(b, id)).filter((p) => idSet.has(p)));
+    neigh.set(id, atBonds.get(id).map((b) => partnerId(b, id)).filter((p) => idSet.has(p)));
     lpCount.set(id, per.get(id)?.lp ?? 0);
   }
   let root = pinnedId && ids.includes(pinnedId) ? pinnedId : null;
@@ -43480,7 +43509,7 @@ function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PU
     kids.forEach((kid, i) => {
       const dir = dirs[i];
       const ka = atoms2.get(cur), kb = atoms2.get(kid);
-      const bl = bondLength(ka.el, kb.el, bondsOf(atoms2, bonds2, cur).find((b) => partnerId(b, cur) === kid)?.ionic);
+      const bl = bondLength(ka.el, kb.el, atBonds.get(cur).find((b) => partnerId(b, cur) === kid)?.ionic);
       target.set(kid, V.add(curPos, V.scale(dir, bl)));
       parent.set(kid, cur);
       parentDir.set(kid, V.scale(dir, -1));
@@ -43514,20 +43543,49 @@ function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PU
   for (const id of ids) displayR.set(id, displayRadius(atoms2.get(id).el));
   const bondList = [];
   for (const id of ids) {
-    for (const b of bondsOf(atoms2, bonds2, id)) {
+    for (const b of atBonds.get(id)) {
       if (idSet.has(b.a) && idSet.has(b.b) && b.a === id) {
         const a = atoms2.get(b.a), bb = atoms2.get(b.b);
         bondList.push({ a: b.a, b: b.b, len: bondLength(a.el, bb.el, b.ionic) });
       }
     }
   }
+  // Every atom id in the component is below idBase, so lo * idBase + hi names an
+  // unordered pair uniquely and exactly - no strings, no collisions.
+  let idBase = 1;
+  for (const id of ids) if (id + 1 > idBase) idBase = id + 1;
+  const bonded = new Set(bondList.map((bl) => {
+    const lo = bl.a < bl.b ? bl.a : bl.b;
+    const hi = bl.a < bl.b ? bl.b : bl.a;
+    return lo * idBase + hi;
+  }));
+  // Widest contact distance any pair in this component can ask for; the neighbour
+  // search below bins atoms on a grid of exactly this pitch, which is what makes
+  // "only pairs that could touch" an exhaustive test rather than an approximation.
+  let maxCut = 0;
+  for (const id of ids) {
+    const r = displayRadius(atoms2.get(id).el);
+    if (r * 2 * 1.25 > maxCut) maxCut = r * 2 * 1.25;
+  }
   const ITER = ids.length > 60 ? 120 : 320;
+  const F = /* @__PURE__ */ new Map();
+  const addF = (id, f) => {
+    F.set(id, V.add(F.get(id), f));
+  };
+  const repelPair = (a, b) => {
+    if (bonded.has((a < b ? a * idBase + b : b * idBase + a))) return;
+    const pa = target.get(a), pb = target.get(b);
+    const cut = (displayR.get(a) + displayR.get(b)) * 1.25;
+    const d = V.sub(pb, pa);
+    const dist = V.len(d) || 1e-3;
+    if (dist < cut) {
+      const f = V.scale(V.norm(d), 0.35 * (cut - dist) / cut);
+      addF(a, V.neg(f));
+      addF(b, f);
+    }
+  };
   for (let it = 0; it < ITER; it++) {
-    const F = /* @__PURE__ */ new Map();
     for (const id of ids) F.set(id, { x: 0, y: 0, z: 0 });
-    const addF = (id, f) => {
-      F.set(id, V.add(F.get(id), f));
-    };
     for (const bl of bondList) {
       const pa = target.get(bl.a), pb = target.get(bl.b);
       const d = V.sub(pb, pa);
@@ -43570,20 +43628,46 @@ function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PU
         }
       }
     }
-    const arr = [...ids];
-    for (let i = 0; i < arr.length; i++) {
-      for (let j = i + 1; j < arr.length; j++) {
-        const a = arr[i], b = arr[j];
-        if (bondList.some((bl) => bl.a === a && bl.b === b || bl.a === b && bl.b === a)) continue;
-        const pa = target.get(a), pb = target.get(b);
-        const cut = (displayR.get(a) + displayR.get(b)) * 1.25;
-        const d = V.sub(pb, pa);
-        const dist = V.len(d) || 1e-3;
-        if (dist < cut) {
-          const f = V.scale(V.norm(d), 0.35 * (cut - dist) / cut);
-          addF(a, V.neg(f));
-          addF(b, f);
-        }
+    const cell = Math.max(1e-3, maxCut);
+    let minX = Infinity, minY = Infinity, minZ = Infinity, spanX = 0, spanY = 0, spanZ = 0;
+    for (const id of ids) {
+      const p = target.get(id);
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.z < minZ) minZ = p.z;
+      if (p.x > spanX) spanX = p.x;
+      if (p.y > spanY) spanY = p.y;
+      if (p.z > spanZ) spanZ = p.z;
+    }
+    // Cells are numbered from the component's own corner, so the integer key
+    // below stays small and exactly representable however the scene is scaled.
+    const nx = Math.floor((spanX - minX) / cell) + 2;
+    const ny = Math.floor((spanY - minY) / cell) + 2;
+    const buckets = /* @__PURE__ */ new Map();
+    for (const id of ids) {
+      const p = target.get(id);
+      const gx = Math.floor((p.x - minX) / cell);
+      const gy = Math.floor((p.y - minY) / cell);
+      const gz = Math.floor((p.z - minZ) / cell);
+      const key = gx + gy * nx + gz * nx * ny;
+      const b = buckets.get(key);
+      if (b) b.ids.push(id);
+      else buckets.set(key, { gx, gy, gz, ids: [id] });
+    }
+    for (const b of buckets.values()) {
+      const listA = b.ids;
+      for (let i = 0; i < listA.length; i++) {
+        for (let j = i + 1; j < listA.length; j++) repelPair(listA[i], listA[j]);
+      }
+      for (const off of HALF_OFFSETS) {
+        const ngx = b.gx + off[0], ngy = b.gy + off[1], ngz = b.gz + off[2];
+        // Keys are only unique while gx and gy stay inside the slab; a negative
+        // or overflowed index would alias onto a different cell's bucket.
+        if (ngx < 0 || ngy < 0 || ngz < 0 || ngx >= nx || ngy >= ny) continue;
+        const nb = buckets.get(ngx + ngy * nx + ngz * nx * ny);
+        if (!nb) continue;
+        const listB = nb.ids;
+        for (const a of listA) for (const c of listB) repelPair(a, c);
       }
     }
     for (const id of ids) {
@@ -43788,6 +43872,7 @@ const UI = {
     "status.noSelection": "Select an atom in a molecule first.",
     "status.duplicated": "Molecule duplicated. Ctrl+Z to undo.",
     "status.placed": "{name} placed. Drag it onto another atom to bond; double-click molecules to react.",
+    "scene.full": "Scene limit reached: {max} atoms. This placement was refused so the build keeps rendering correctly — undo or clear some atoms.",
     "status.cleared": "Scene cleared. Ctrl+Z to restore.",
     "status.nothingUndo": "Nothing to undo.",
     "status.undone": "Undone.",
@@ -44293,6 +44378,7 @@ const UI = {
     "status.noSelection": "Hãy chọn một nguyên tử trong phân tử trước.",
     "status.duplicated": "Đã nhân đôi phân tử. Ctrl+Z để hoàn tác.",
     "status.placed": "Đã đặt {name}. Kéo vào nguyên tử khác để liên kết; nhấp đôi các phân tử để phản ứng.",
+    "scene.full": "Cảnh đã đạt giới hạn {max} nguyên tử. Lần đặt này bị từ chối để mô hình không bị vỡ hình — hoàn tác hoặc xoá bớt nguyên tử.",
     "status.cleared": "Đã xóa khung cảnh. Ctrl+Z để khôi phục.",
     "status.nothingUndo": "Không có gì để hoàn tác.",
     "status.undone": "Đã hoàn tác.",
@@ -47830,6 +47916,13 @@ function isomerTemplates(formula) {
 }
 const MAX_ARRANGEMENTS = 200;
 const ARRANGEMENT_BUDGET = 12e3;
+// A sequence is charged by the work it costs, not as one attempt: building and
+// fingerprinting one ordering of a 200-atom formula costs about forty times what
+// one of a 20-atom formula does, so counting attempts bought a 12-second analysis
+// for a scene the player had stuffed with a hundred different elements. The
+// square of (atoms / 30) is the measured ratio, and it keeps the charge at 1 for
+// every formula up to 30 atoms, so small molecules search exactly as before.
+const ARRANGEMENT_UNIT = 30;
 const FULL_ENUM_LIMIT = 5e3;
 function totalArrangements(counts) {
   let total = 1, sum = 0;
@@ -47839,6 +47932,21 @@ function totalArrangements(counts) {
   }
   return Math.round(total);
 }
+// Class numbers come from one table shared by the whole session, so the same
+// local environment always gets the same number and each round's descriptions
+// stay short. Numbering a molecule's classes from scratch would be just as fast
+// but would throw away what the numbers mean: a two-carbon graph would rename
+// its only class to 0 whatever the bond order is, and single, double and triple
+// would become indistinguishable.
+const WL_CLASS = /* @__PURE__ */ new Map();
+function wlClass(desc) {
+  let id = WL_CLASS.get(desc);
+  if (id === void 0) {
+    id = WL_CLASS.size;
+    WL_CLASS.set(desc, id);
+  }
+  return id;
+}
 function wlSignature(atoms2, bonds2) {
   const n = atoms2.length;
   const nbr = Array.from({ length: n }, () => []);
@@ -47846,13 +47954,23 @@ function wlSignature(atoms2, bonds2) {
     nbr[a].push([b, o]);
     nbr[b].push([a, o]);
   }
-  let labels = atoms2.map((s, i) => `${s}:${nbr[i].length}:${nbr[i].map((x) => x[1]).sort((a, b) => a - b).join(",")}`);
+  // Six rounds of colour refinement, but each label is one interned number
+  // rather than its whole neighbourhood history: a label that embeds the labels
+  // it embeds grows by the average degree every round, which made this the most
+  // expensive call in an analysis pass once a molecule reached a few dozen atoms.
+  let cls = atoms2.map((s, i) => wlClass(`${s}:${nbr[i].length}:${nbr[i].map((x) => x[1]).sort((a, b) => a - b).join(",")}`));
+  let kinds = -1;
   for (let round = 0; round < 6; round++) {
-    const next = labels.map((l, i) => l + "#" + nbr[i].map(([j, o]) => o + ":" + labels[j]).sort().join(";"));
-    if (next.join() === labels.join()) break;
-    labels = next;
+    const next = new Array(n);
+    for (let i = 0; i < n; i++) next[i] = wlClass(cls[i] + "#" + nbr[i].map(([j, o]) => o + ":" + cls[j]).sort().join(";"));
+    const now = new Set(next).size;
+    cls = next;
+    if (now === kinds) break;
+    kinds = now;
   }
-  return labels.slice().sort().join("|");
+  // The composition rides along because refined classes say nothing about which
+  // element carries them: CH4 and SiH4 refine identically.
+  return cls.slice().sort((a, b) => a - b).join(",") + "@" + atoms2.slice().sort().join("");
 }
 function generateIsomers(formula, skipTexts) {
   const atomCounts = parseFormula(formula);
@@ -47868,6 +47986,7 @@ function generateIsomers(formula, skipTexts) {
   const found = [];
   const seen = /* @__PURE__ */ new Set();
   let tried = 0;
+  const charge = Math.max(1, Math.round(n / ARRANGEMENT_UNIT * (n / ARRANGEMENT_UNIT)));
   let truncated = false;
   function tryOne(seqArr, bonds2) {
     const text = orderingToFormula(seqArr);
@@ -47884,11 +48003,11 @@ function generateIsomers(formula, skipTexts) {
     return true;
   }
   function trySequence(seqArr) {
-    if (tried >= ARRANGEMENT_BUDGET) {
+    if (tried + charge > ARRANGEMENT_BUDGET) {
       truncated = true;
       return false;
     }
-    tried++;
+    tried += charge;
     const chain = buildStructure(seqArr, "chain");
     let pushed = false;
     if (chain && isValidComplete(seqArr, chain)) {
@@ -48017,17 +48136,31 @@ function buildStructure(atoms2, mode = "chain") {
   const used = new Array(n).fill(0);
   const pair = /* @__PURE__ */ new Map();
   const bonds2 = [];
+  const bondOf = /* @__PURE__ */ new Map();
   const rem = (i) => capOf(i) - used[i];
   const pkey = (a, b) => a < b ? a * n + b : b * n + a;
   const isHeavy = (i) => atoms2[i] !== "H" && capOf(i) > 0;
+  let heavyRem = 0;
+  let freeHCount = 0;
+  for (let i = 0; i < n; i++) {
+    if (isHeavy(i)) heavyRem += capOf(i);
+    else if (atoms2[i] === "H" && rem(i) > 0) freeHCount++;
+  }
+  const take = (i, order) => {
+    if (isHeavy(i)) heavyRem -= order;
+    else if (atoms2[i] === "H" && rem(i) > 0 && rem(i) - order <= 0) freeHCount--;
+    used[i] += order;
+  };
   function add(a, b, order) {
     if (a === b || order <= 0 || rem(a) < order || rem(b) < order) return false;
     const k = pkey(a, b);
     if ((pair.get(k) || 0) + order > 3) return false;
     pair.set(k, (pair.get(k) || 0) + order);
-    bonds2.push([Math.min(a, b), Math.max(a, b), order]);
-    used[a] += order;
-    used[b] += order;
+    const entry = [Math.min(a, b), Math.max(a, b), order];
+    bonds2.push(entry);
+    if (!bondOf.has(k)) bondOf.set(k, entry);
+    take(a, order);
+    take(b, order);
     return true;
   }
   function bump(k) {
@@ -48035,22 +48168,13 @@ function buildStructure(atoms2, mode = "chain") {
     const cur = pair.get(k) || 0;
     if (cur === 0 || cur >= 3 || rem(a) <= 0 || rem(b) <= 0) return false;
     pair.set(k, cur + 1);
-    used[a]++;
-    used[b]++;
-    const bd = bonds2.find((x) => pkey(x[0], x[1]) === k);
+    take(a, 1);
+    take(b, 1);
+    const bd = bondOf.get(k);
     if (bd) bd[2]++;
     return true;
   }
-  const freeH = () => {
-    let c = 0;
-    for (let i = 0; i < n; i++) if (atoms2[i] === "H" && rem(i) > 0) c++;
-    return c;
-  };
-  const heavyDeficit = () => {
-    let sum = 0;
-    for (let i = 0; i < n; i++) if (isHeavy(i)) sum += rem(i);
-    return sum - freeH();
-  };
+  const heavyDeficit = () => heavyRem - freeHCount;
   if (mode === "chain") {
     for (let i = 0; i + 1 < n; i++) {
       if (isHeavy(i) && isHeavy(i + 1)) add(i, i + 1, 1);
@@ -48086,25 +48210,31 @@ function buildStructure(atoms2, mode = "chain") {
     const ra = find(Math.floor(k / n)), rb = find(k % n);
     if (ra !== rb) parent[ra] = rb;
   }
-  const compRoots = () => {
-    const m = /* @__PURE__ */ new Map();
-    for (let i = 0; i < n; i++) if (isHeavy(i)) m.set(find(i), true);
-    return m;
-  };
-  let comps = compRoots();
-  while (comps.size > 1) {
+  let compCount = 0;
+  {
+    const roots = /* @__PURE__ */ new Set();
+    for (let i = 0; i < n; i++) if (isHeavy(i)) roots.add(find(i));
+    compCount = roots.size;
+  }
+  let cd = 1;
+  let ci = 0;
+  while (compCount > 1) {
     let best = null;
-    for (let i = 0; i < n; i++) {
-      if (!isHeavy(i) || rem(i) <= 0) continue;
-      for (let j = i + 1; j < n; j++) {
-        if (!isHeavy(j) || rem(j) <= 0 || find(i) === find(j)) continue;
-        const dist = j - i;
-        if (!best || dist < best.dist) best = { i, j, dist };
+    scan:
+    for (let d = cd; d < n; d++) {
+      for (let i = d === cd ? ci : 0; n - i > d; i++) {
+        const j = i + d;
+        if (!isHeavy(i) || rem(i) <= 0 || !isHeavy(j) || rem(j) <= 0) continue;
+        if (find(i) === find(j)) continue;
+        best = { i, j };
+        cd = d;
+        ci = i + 1;
+        break scan;
       }
     }
     if (!best || !add(best.i, best.j, 1)) break;
     parent[find(best.i)] = find(best.j);
-    comps = compRoots();
+    compCount--;
   }
   let guard = 0;
   while (heavyDeficit() > 0 && guard++ < 4 * n) {
@@ -57858,11 +57988,9 @@ network.onMessage = (peerId, msgType, payload) => {
       needsRender = true;
     }
   } else if (msgType === 16) {
-    if (data && data.id) {
-      if (!atoms.has(data.id)) {
-        atoms.set(data.id, { id: data.id, el: data.el, pos: { x: data.x, y: data.y, z: data.z } });
-        needsRender = true;
-      }
+    if (data && data.id && !atoms.has(data.id) && sceneHasRoom(1, true)) {
+      atoms.set(data.id, { id: data.id, el: data.el, pos: { x: data.x, y: data.y, z: data.z } });
+      needsRender = true;
     }
   } else if (msgType === 17) {
     if (data && data.id) {
@@ -57951,8 +58079,19 @@ const playerAvatar = createPlayerAvatar();
 scene.add(playerAvatar);
 let sphereGeo = new SphereGeometry(1, 16, 12);
 let cylGeo = new CylinderGeometry(1, 1, 1, 10, 1, true);
-const MAX_ATOMS = 640;
-const MAX_CYLS = 1280;
+// MAX_* is the ceiling a scene may reach; atomCap/cylCap are the instance
+// buffers actually allocated, and they grow towards the ceiling on demand.
+// Measured, not guessed. Every placement re-analyses the scene, and the cost of
+// that pass is dominated by the geometry solver, which is linear per atom in the
+// worst case (one connected blob of mixed elements): 200 atoms 265ms, 300 430ms,
+// 400 779ms, 600 1.24s, 1000 2.35s, 2000 6.7s. 400 atoms is where a placement
+// still lands inside about a second, which is the point past which the page
+// reads as frozen rather than busy — the freeze a player gets by dragging a
+// dozen different elements into one spot.
+const MAX_ATOMS = 400;
+const MAX_CYLS = 8192;
+let atomCap = 640;
+let cylCap = 1280;
 const Q_ID = new Quaternion();
 const C_WHITE = new Color(16777215);
 const C_COV = new Color(10135475);
@@ -57966,20 +58105,50 @@ const atomMatM = new MeshPhongMaterial({ color: 16777215, shininess: 70, specula
 const atomMatN = new MeshPhongMaterial({ color: 16777215, shininess: 20, specular: 1579032 });
 const bondMatC = new MeshLambertMaterial({ color: 16777215 });
 const bondMatI = new MeshLambertMaterial({ color: 16777215, transparent: true, opacity: 0.9 });
-const atomMeshM = new InstancedMesh(sphereGeo, atomMatM, MAX_ATOMS);
-const atomMeshN = new InstancedMesh(sphereGeo, atomMatN, MAX_ATOMS);
+const atomMeshM = new InstancedMesh(sphereGeo, atomMatM, atomCap);
+const atomMeshN = new InstancedMesh(sphereGeo, atomMatN, atomCap);
 const atomGridMat = new MeshBasicMaterial({ color: 8947848, wireframe: true, transparent: true, opacity: 0.35 });
-const atomMeshGrid = new InstancedMesh(sphereGeo, atomGridMat, MAX_ATOMS);
+const atomMeshGrid = new InstancedMesh(sphereGeo, atomGridMat, atomCap);
 atomMeshGrid.frustumCulled = false;
 atomMeshGrid.instanceMatrix.setUsage(DynamicDrawUsage);
 atomMeshGrid.visible = false;
 scene.add(atomMeshGrid);
-const bondMeshC = new InstancedMesh(cylGeo, bondMatC, MAX_CYLS);
-const bondMeshI = new InstancedMesh(cylGeo, bondMatI, MAX_CYLS);
+const bondMeshC = new InstancedMesh(cylGeo, bondMatC, cylCap);
+const bondMeshI = new InstancedMesh(cylGeo, bondMatI, cylCap);
 for (const m of [atomMeshM, atomMeshN, bondMeshC, bondMeshI]) {
   m.frustumCulled = false;
   m.instanceMatrix.setUsage(DynamicDrawUsage);
   scene.add(m);
+}
+// An InstancedMesh draws `count` instances from a buffer sized at construction,
+// so a scene that outgrows the buffer makes WebGL read transforms that were
+// never written - the streaking geometry a crowded build used to turn into.
+// Reallocating the attribute keeps the mesh object itself (and every reference
+// to it, picking included) intact.
+function growInstances(mesh, cap) {
+  const prevMatrix = mesh.instanceMatrix;
+  const nextMatrix = new InstancedBufferAttribute(new Float32Array(cap * 16), 16);
+  nextMatrix.setUsage(DynamicDrawUsage);
+  nextMatrix.array.set(prevMatrix.array.subarray(0, Math.min(cap, prevMatrix.count) * 16));
+  mesh.instanceMatrix = nextMatrix;
+  if (mesh.instanceColor) {
+    const prevColor = mesh.instanceColor;
+    const nextColor = new InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3);
+    nextColor.setUsage(DynamicDrawUsage);
+    nextColor.array.set(prevColor.array.subarray(0, Math.min(cap, prevColor.count) * 3));
+    mesh.instanceColor = nextColor;
+  }
+  mesh.count = Math.min(mesh.count, cap);
+}
+function ensureInstanceCapacity(needAtoms, needCyls) {
+  if (needAtoms > atomCap) {
+    atomCap = Math.min(MAX_ATOMS, Math.max(needAtoms, atomCap * 2));
+    for (const m of [atomMeshM, atomMeshN, atomMeshGrid]) growInstances(m, atomCap);
+  }
+  if (needCyls > cylCap) {
+    cylCap = Math.min(MAX_CYLS, Math.max(needCyls, cylCap * 2));
+    for (const m of [bondMeshC, bondMeshI]) growInstances(m, cylCap);
+  }
 }
 const atomIdM = [], atomIdN = [], bondIdC = [], bondIdI = [];
 atomMeshM.userData.ids = atomIdM;
@@ -58166,12 +58335,16 @@ function atomColor(id, col) {
 }
 function syncInstances() {
   const now = performance.now();
+  let metalTotal = 0;
+  for (const [, at] of atoms) if (isMetalCat(at.el.cat)) metalTotal++;
+  let cylTotal = 0;
+  for (const b of bonds.values()) cylTotal += Math.min(b.order || 1, 4);
+  ensureInstanceCapacity(Math.max(metalTotal, atoms.size - metalTotal), cylTotal);
   let mi = 0, ni = 0;
   for (const [id, at] of atoms) {
     const metal = isMetalCat(at.el.cat);
     const mesh = metal ? atomMeshM : atomMeshN;
     const idx = metal ? mi++ : ni++;
-    if (idx >= MAX_ATOMS) continue;
     const r = displayRadius(at.el) * spawnScale(id, now);
     let sx = at.pos.x, sy = at.pos.y, sz = at.pos.z;
     if (at._decayShake && at._decayTime) {
@@ -58209,7 +58382,6 @@ function syncInstances() {
   if (gridOn) {
     let gi = 0;
     for (const [id, at] of atoms) {
-      if (gi >= MAX_ATOMS) break;
       const r = displayRadius(at.el) * spawnScale(id, now) * 1.08;
       _p.set(at.pos.x, at.pos.y, at.pos.z);
       _s.setScalar(r);
@@ -58234,19 +58406,20 @@ function syncInstances() {
     _perp.crossVectors(_dir, _ref).normalize();
     const offs = b.order === 1 ? OFF1 : b.order === 2 ? OFF2 : b.order === 3 ? OFF3 : OFF4;
     const radius = b.ionic ? 0.06 : 0.075;
+    // A bond order past the offset table would index offs[k] as undefined and
+    // compose a NaN matrix, which draws as a line streaking across the scene.
+    const strands = Math.min(b.order, offs.length);
     _q.setFromUnitVectors(_up, _dir);
-    for (let k = 0; k < b.order; k++) {
+    for (let k = 0; k < strands; k++) {
       _p.copy(_pa).addScaledVector(_dir, len / 2).addScaledVector(_perp, offs[k]);
       _s.set(radius, len, radius);
       _m.compose(_p, _q, _s);
       if (b.ionic) {
-        if (ii >= MAX_CYLS) break;
         bondMeshI.setMatrixAt(ii, _m);
         bondMeshI.setColorAt(ii, C_ION);
         bondIdI[ii] = b.id;
         ii++;
       } else {
-        if (ci >= MAX_CYLS) break;
         bondMeshC.setMatrixAt(ci, _m);
         bondMeshC.setColorAt(ci, C_COV);
         bondIdC[ci] = b.id;
@@ -58265,11 +58438,49 @@ function syncInstances() {
   if (ci > 0) bondMeshC.computeBoundingSphere();
   if (ii > 0) bondMeshI.computeBoundingSphere();
 }
+// Every atom carries a label sprite and a formal-charge badge, so a build of a few
+// hundred atoms used to bury the structure under a wall of symbols. Past a crowd size
+// each overlay keeps a budget of the nearest sprites plus the ones the player is
+// working on; the label and badge toggles remain the master switches.
+const LABEL_CROWD = 40;
+const LABEL_REACH = 12;
+const LABEL_BUDGET = 40;
+const BADGE_BUDGET = 40;
+function pickNearestSprites(ids, budget) {
+  const cp = camera.position, reach2 = LABEL_REACH * LABEL_REACH;
+  const near = [];
+  const lit = /* @__PURE__ */ new Set();
+  for (const id of ids) {
+    if (id === selectedId || id === hoverId || reactionSelIds.has(id)) {
+      lit.add(id);
+      continue;
+    }
+    const at = atoms.get(id);
+    if (!at) continue;
+    const dx = at.pos.x - cp.x, dy = at.pos.y - cp.y, dz = at.pos.z - cp.z;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 <= reach2) near.push({ id, d2 });
+  }
+  near.sort((a, b) => a.d2 - b.d2);
+  for (const c of near) {
+    if (lit.size >= budget) break;
+    lit.add(c.id);
+  }
+  return lit;
+}
 function updateSprites() {
   camera.getWorldDirection(_v);
+  const crowd = labelSprites.size > LABEL_CROWD;
+  const lit = crowd && atomLabelsVisible ? pickNearestSprites(labelSprites.keys(), LABEL_BUDGET) : null;
+  let litBadges = null;
+  if (crowd && fcVisible) {
+    const charged = [];
+    for (const [id] of badgeSprites) if (atomFC.get(id) !== void 0) charged.push(id);
+    litBadges = pickNearestSprites(charged, BADGE_BUDGET);
+  }
   for (const [id, sp] of labelSprites) {
-    sp.visible = atomLabelsVisible;
-    if (!atomLabelsVisible) continue;
+    sp.visible = atomLabelsVisible && (!crowd || lit.has(id));
+    if (!sp.visible) continue;
     const at = atoms.get(id);
     if (!at) continue;
     const r = displayRadius(at.el);
@@ -58279,7 +58490,7 @@ function updateSprites() {
     const at = atoms.get(id);
     if (!at) continue;
     const fc = atomFC.get(id);
-    const show = fcVisible && fc !== void 0;
+    const show = fcVisible && fc !== void 0 && (!crowd || litBadges.has(id));
     sp.visible = show;
     if (!show) continue;
     if (sp.userData.fc !== fc) {
@@ -58957,10 +59168,24 @@ function spawnAtomFromScreen(elOrSym, clientX, clientY) {
   clampAtomToBounds(probe);
   return spawnAtom(el, probe.pos);
 }
+// The instance buffers grow, so a big build still draws correctly - what stops
+// being honest past the ceiling is the frame cost, and a player who locks their
+// own machine out cannot undo it. Refusing the placement says so instead.
+let lastCrowdWarn = 0;
+function sceneHasRoom(n, quiet) {
+  if (atoms.size + n <= MAX_ATOMS) return true;
+  const now = performance.now();
+  if (!quiet && now - lastCrowdWarn > 4e3) {
+    lastCrowdWarn = now;
+    status(t("scene.full", { max: MAX_ATOMS }), "err");
+  }
+  return false;
+}
 function spawnAtom(elOrSym, atPos, opts) {
   const silent = !!(opts && opts.silent);
   const el = typeof elOrSym === "string" ? elementBySym(elOrSym) : elOrSym;
   if (!el) return;
+  if (!sceneHasRoom(1, silent)) return null;
   let pos = null;
   if (atPos && Number.isFinite(atPos.x) && Number.isFinite(atPos.y) && Number.isFinite(atPos.z)) {
     pos = { x: atPos.x, y: atPos.y, z: atPos.z };
@@ -60977,8 +61202,13 @@ function updateMoleculeList() {
     f.textContent = prettyFormula(an.displayFormula || an.formula) + formulaWithCharge("", an.charge);
     row.append(nm, f);
     row.addEventListener("click", () => selectAtom(comp.atoms[0]));
-    const isos = isomerTemplates(an.formula);
-    if (isos.length > 0) {
+    // Whether to offer the validator is all the list needs, and a component that
+    // already holds a bond is proof its atoms have at least one arrangement. The
+    // search itself belongs to the drawer, which runs it when the player opens
+    // it: enumerating here put the cost of every isomer search of every molecule
+    // into every analysis pass, so a crowded scene cost 17 seconds per placement.
+    const known = (ISOMERS[an.formula] || []).length > 0;
+    if (known || comp.bonds.length > 0) {
       const btn = document.createElement("button");
       btn.className = "isomer-btn";
       btn.textContent = isVi() ? "Đồng phân" : "Isomers";
@@ -61578,6 +61808,7 @@ document.getElementById("isomer-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") checkIsomer();
 });
 function buildMoleculeAt(tpl, cx, cy, cz) {
+  if (!sceneHasRoom(tpl.atoms.length)) return { ids: [] };
   const idMap = /* @__PURE__ */ new Map();
   const newAtoms = [];
   const newAtomIds = [];
@@ -61961,7 +62192,24 @@ function load() {
     if (!a || !Number.isInteger(a.id) || !a.pos) continue;
     const el = ELEMENTS.find((e) => e.z === a.z);
     if (!el) continue;
-    atoms.set(a.id, { id: a.id, el, pos: { x: +a.pos.x || 0, y: +a.pos.y || 0, z: +a.pos.z || 0 } });
+    // The scene is saved, so an oversized build would come back on every reload
+    // and the player could never undo their way out of it. Restore what renders.
+    if (atoms.size >= MAX_ATOMS) {
+      console.warn("[LOAD] Saved scene holds", data.atoms.length, "atoms; restored the first", MAX_ATOMS);
+      break;
+    }
+    atoms.set(a.id, {
+      id: a.id,
+      el,
+      // A diverged coordinate renders as a bond cylinder streaking across the
+      // world and comes back on every reload; `+x || 0` catches NaN but lets
+      // Infinity through, so each component is checked finitely here.
+      pos: {
+        x: Number.isFinite(+a.pos.x) ? +a.pos.x : 0,
+        y: Number.isFinite(+a.pos.y) ? +a.pos.y : 0,
+        z: Number.isFinite(+a.pos.z) ? +a.pos.z : 0
+      }
+    });
   }
   for (const b of Array.isArray(data.bonds) ? data.bonds : []) {
     if (b && Number.isInteger(b.id) && atoms.has(b.a) && atoms.has(b.b)) {
@@ -61984,6 +62232,10 @@ function load() {
   }
   for (const k of Array.isArray(data.fc) ? data.fc : []) if (typeof k === "string") completed.add(k);
   nextId = Number.isInteger(data.nextId) && data.nextId > 0 ? data.nextId : Math.max(0, ...atoms.keys(), ...bonds.keys()) + 1;
+  if (data.atoms.length > atoms.size) {
+    // Saying nothing here leaves the player with a scene that quietly lost atoms.
+    setTimeout(() => status(t("scene.full", { max: MAX_ATOMS }), "err"), 0);
+  }
 }
 document.getElementById("btn-undo").addEventListener("click", undo);
 document.getElementById("btn-delete").addEventListener("click", () => {
@@ -62191,7 +62443,18 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
         if (!a || !Number.isInteger(a.id) || !a.pos) continue;
         const el = ELEMENTS.find((e2) => e2.z === a.z);
         if (!el) continue;
-        atoms.set(a.id, { id: a.id, el, pos: { x: +a.pos.x || 0, y: +a.pos.y || 0, z: +a.pos.z || 0 } });
+        atoms.set(a.id, {
+          id: a.id,
+          el,
+          // A diverged coordinate renders as a bond cylinder streaking across the
+          // world and comes back on every reload; `+x || 0` catches NaN but lets
+          // Infinity through, so each component is checked finitely here.
+          pos: {
+            x: Number.isFinite(+a.pos.x) ? +a.pos.x : 0,
+            y: Number.isFinite(+a.pos.y) ? +a.pos.y : 0,
+            z: Number.isFinite(+a.pos.z) ? +a.pos.z : 0
+          }
+        });
       }
       for (const b of Array.isArray(data.scene.bonds) ? data.scene.bonds : []) {
         if (b && Number.isInteger(b.id) && atoms.has(b.a) && atoms.has(b.b)) {
@@ -63413,14 +63676,29 @@ function relaxSceneAtomsFromEngine(ids) {
   for (let i = 0; i < n; i++) {
     const q = built.atoms[i], p = list[i].pos;
     if (!q || !p) return false;
+    // One non-finite engine coordinate would poison the centroid and then hand NaN
+    // to every atom in the component at once, which draws as bond cylinders
+    // streaking across the world. Refuse the placement and keep the spiral geometry.
+    if (!Number.isFinite(q.x) || !Number.isFinite(q.y) || !Number.isFinite(q.z)) return false;
     gx += q.x; gy += q.y; gz += q.z;
     sx += p.x; sy += p.y; sz += p.z;
   }
+  const placed = [];
   for (let i = 0; i < n; i++) {
-    const q = built.atoms[i], atom = list[i];
-    atom.pos.x = toW(q.x - gx / n) + sx / n;
-    atom.pos.y = toW(q.y - gy / n) + sy / n;
-    atom.pos.z = toW(q.z - gz / n) + sz / n;
+    const q = built.atoms[i];
+    const x = toW(q.x - gx / n) + sx / n, y = toW(q.y - gy / n) + sy / n, z = toW(q.z - gz / n) + sz / n;
+    // Clamping here would hide the failure and park an atom on the wall of the grid,
+    // stretched from its bonded partner. Outside the rendered world means the
+    // placement is refused outright and the spiral geometry stays.
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return false;
+    if (Math.abs(x) > GRID_HALF || Math.abs(y) > GRID_HALF || Math.abs(z) > GRID_HALF) return false;
+    placed.push({ x, y, z });
+  }
+  for (let i = 0; i < n; i++) {
+    const atom = list[i], p = placed[i];
+    atom.pos.x = p.x;
+    atom.pos.y = p.y;
+    atom.pos.z = p.z;
     clampAtomToBounds(atom);
   }
   return true;
@@ -63506,6 +63784,7 @@ window.__mol3d = {
   camera,
   controls,
   THREE,
+  worldHalf: GRID_HALF,
   scene,
   SafeMode: true,
   _godMode: false,

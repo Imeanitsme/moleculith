@@ -4375,19 +4375,34 @@
   SceneBridge.sync = function(mol) {
     var app = SceneBridge.app();
     if (!app || !mol || !mol.sceneIds) return { ok: false, reason: 'nothing to write back' };
-    var moved = 0, missing = 0;
+    var moved = 0, missing = 0, rejected = 0, outside = 0;
+    var half = app.worldHalf;
     for (var i = 0; i < mol.sceneIds.length && i < mol.atoms.length; i++) {
       var rec = typeof app.atoms.get === 'function' ? app.atoms.get(mol.sceneIds[i]) : null;
       if (!rec) { missing++; continue; }
       var a = mol.atoms[i];
-      rec.pos.x = SceneBridge.toWorld(a.x);
-      rec.pos.y = SceneBridge.toWorld(a.y);
-      rec.pos.z = SceneBridge.toWorld(a.z);
+      var wx = SceneBridge.toWorld(a.x), wy = SceneBridge.toWorld(a.y), wz = SceneBridge.toWorld(a.z);
+      // A diverged coordinate written into the scene is permanent: it renders as a
+      // bond cylinder stretching across the world, survives save/reload, and every
+      // later calculation inherits it. The step failed, so it does not get written.
+      if (!isFinite(wx) || !isFinite(wy) || !isFinite(wz)) { rejected++; continue; }
+      // A finite-but-absurd coordinate does the same damage, so the write is held to
+      // the volume the scene actually renders - the app's own grid, not a new number.
+      if (isFinite(half) && (Math.abs(wx) > half || Math.abs(wy) > half || Math.abs(wz) > half)) { outside++; continue; }
+      rec.pos.x = wx;
+      rec.pos.y = wy;
+      rec.pos.z = wz;
       moved++;
     }
     try { if (typeof app.reanalyze === 'function') app.reanalyze(); } catch (e) { /* the scene will reanalyse on its next edit */ }
     try { if (typeof app.invalidate === 'function') app.invalidate(); } catch (e) { /* on-demand redraw is a nicety */ }
-    return { ok: missing === 0, moved: moved, missing: missing };
+    return {
+      ok: missing === 0 && rejected === 0 && outside === 0,
+      moved: moved, missing: missing, rejected: rejected, outside: outside,
+      reason: rejected ? rejected + ' atom positions were not finite'
+        : outside ? outside + ' atom positions fell outside the rendered world'
+        : missing ? missing + ' atoms left the scene' : ''
+    };
   };
 
   // ============================== PHASE 11.2 ==============================
@@ -4869,6 +4884,8 @@
       'Làm dịu chỉ thay đổi bản sao trong engine. Bấm Đồng bộ để di chuyển nguyên tử trong cảnh.'),
     sync: LS('Sync geometry to scene', 'Đồng bộ hình học ra cảnh'),
     synced: LS('Scene positions updated', 'Đã cập nhật vị trí cảnh'),
+    syncSkipped: LS('positions refused (not finite)', 'vị trí bị từ chối (không hữu hạn)'),
+    syncOutside: LS('positions refused (outside the world)', 'vị trí bị từ chối (ngoài thế giới)'),
     chargesTitle: LS('Charge model', 'Mô hình điện tích'),
     chargeModelName: LS('Method', 'Phương pháp'),
     hardness: LS('Hardness convention', 'Quy ước độ cứng'),
@@ -5056,9 +5073,19 @@
     return String(s === null || s === undefined ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+  // A calculated number that is smaller than the last printed digit is still a
+  // result. Printing "0.0" (or "-0.0") would say "no force here", so widen the
+  // precision until the value shows, and only then fall back to exponential.
   function num(x, d) {
     if (x === null || x === undefined || !isFinite(x)) return '—';
-    return x.toFixed(d === undefined ? 3 : d);
+    var dp = d === undefined ? 3 : d;
+    var s = x.toFixed(dp);
+    if (parseFloat(s) !== 0) return s;
+    if (x === 0) return s;
+    var wide = dp;
+    while (wide < dp + 4 && parseFloat(x.toFixed(wide)) === 0) wide++;
+    if (wide === dp + 4 && parseFloat(x.toFixed(wide)) === 0) return x.toExponential(2);
+    return x.toFixed(wide);
   }
   function sci(x, d) {
     if (x === null || x === undefined || !isFinite(x)) return '—';
@@ -5323,7 +5350,10 @@
           [TXT(STR.relaxNote), TXT(STR.sync)]
         ]) + '<div class="mpe-row"><button data-act="sync">⇄ ' + esc(TXT(STR.sync)) + '</button></div>' +
           (Engine.state.lastSync ? '<div class="' + (Engine.state.lastSync.ok ? 'mpe-ok' : 'mpe-err') + '">' +
-            esc(TXT(STR.synced)) + ' (' + Engine.state.lastSync.moved + ' ' + esc(TXT(STR.atomsShort)) + ')</div>' : ''), 'good');
+            esc(TXT(STR.synced)) + ' (' + Engine.state.lastSync.moved + ' ' + esc(TXT(STR.atomsShort)) + ')' +
+            (Engine.state.lastSync.rejected ? ' · ' + Engine.state.lastSync.rejected + ' ' + esc(TXT(STR.syncSkipped)) : '') +
+            (Engine.state.lastSync.outside ? ' · ' + Engine.state.lastSync.outside + ' ' + esc(TXT(STR.syncOutside)) : '') +
+            '</div>' : ''), 'good');
       }
       return html;
     }

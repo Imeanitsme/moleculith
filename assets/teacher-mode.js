@@ -160,8 +160,8 @@
     }
   };
 
-  let currentLang = localStorage.getItem('tm-lang') || 'en';
-  if (currentLang !== 'vi') currentLang = 'en';
+  let currentLang = localStorage.getItem('tm-lang') || 'vi';
+  if (currentLang !== 'en') currentLang = 'vi';
 
   function t(key) {
     const L = I18N[currentLang];

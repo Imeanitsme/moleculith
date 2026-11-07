@@ -43626,7 +43626,6 @@ const UI = {
     "btn.fc": "Formal charges",
     "btn.mayhem": "Mayhem",
     "btn.tutorial": "Tutorial",
-    "btn.console": "Console",
     "btn.returnLobby": "Return to Lobby",
     "btn.credits": "Credits",
     "btn.claim": "Claim",
@@ -43704,7 +43703,7 @@ const UI = {
     "pool.hint": "Drag an element into the scene to place it. Metals bond ionically (electron transfer). Noble gases are inert — Kr, Xe and Rn react only with F or O.",
     "ptable.ph": "La–Lu · Ac–Lr below",
     // scene hint (HTML)
-    "hint.html": "Drag an element from the pool into the scene to place it.<br />Drag atoms together to bond them — green ghost means a legal bond, red means forbidden.<br />Click a bond to cycle its order (1→2→3→2→1→delete).<br />Double-click two or more molecules to set up a reaction, then pick a condition.<br />Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.",
+    "hint.html": "Drag an element from the pool into the scene to place it.<br />Drag atoms together to bond them — green ghost means a legal bond, red means forbidden.<br />Click a bond to lower its order (3→2→1→delete); Shift+click or right-click raises it again.<br />Double-click two or more molecules to set up a reaction, then pick a condition.<br />Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.",
     // reaction panel
     "rxn.title": "Reaction",
     "rxn.count": "{n} molecule{s} selected",
@@ -43770,7 +43769,7 @@ const UI = {
     "tab.pool": "Pool",
     "tab.info": "Info",
     "tab.dex": "Dex",
-    "keys.hint": "WASD/arrows = move camera · drag = move / bond · click bond = cycle order · double-click molecule = select for reaction · Del = remove · Ctrl+Z = undo · Ctrl+D = duplicate",
+    "keys.hint": "WASD/arrows = move camera · drag = move / bond · click bond = lower order · Shift/right-click bond = raise order · double-click molecule = select for reaction · Del = remove · Ctrl+Z = undo · Ctrl+D = duplicate",
     // quality
     "quality.auto": "Auto (adapts to fps)",
     "quality.autoShort": "Auto",
@@ -43795,6 +43794,7 @@ const UI = {
     "status.ionicBond": "Ionic bond {a}–{b}: electron transferred.",
     "status.covBond": "Covalent bond {a}–{b} formed.",
     "status.orderIonic": "Electron transfer set to {n}.",
+    "status.bondLowered": "Bond order lowered to {n}. Shift+click or right-click the bond to raise it again.",
     "status.decomposed": "{formula} decomposed — half-life elapsed.",
     "status.stabilized": "Stray atom stabilized as {formula} — valence complete.",
     "status.exported": "Progress exported — {count} discoveries saved.",
@@ -43824,7 +43824,7 @@ const UI = {
     "status.sceneChanged": "Scene changed — the selection no longer matches a reaction.",
     "status.reactionDone": "Reaction ({cond}): {eq}",
     "status.reactionFailed": "Reaction failed: missing template for {product}.",
-    "status.reactionRepaired": "⚠️ {n} reaction product(s) needed repair — the details are in the console.",
+    "status.reactionRepaired": "⚠️ {n} reaction product(s) needed repair — the details are in the browser devtools.",
     "status.mayhemEffect": "{effect} {eq}",
     "status.mayhemOn": "Mayhem mode ON — exotic elements unlocked!",
     "status.mayhemOff": "Mayhem mode OFF",
@@ -43841,7 +43841,6 @@ const UI = {
     "rank.shopHint": "Buy it in the Rope Shop (drag the cord at the top right)",
     "rank.elementLocked": "This element is locked. Buy it in the Rope Shop — drag the cord at the top right.",
     "rank.featureLocked": "This feature is locked. Buy it in the Rope Shop for {price} ★ — drag the cord at the top right!",
-    "rank.consoleLocked": "The Console is not a rank reward — buy it in the Rope Shop for {price} stars.",
     "rank.discStarCap": "Cascade guard: too many species settled at once — the extras stay in your dex but earn no star.",
     "rank.dailyReward": "Daily Reward",
     "rank.dailyClaimed": "Daily reward claimed! +{stars} stars",
@@ -43881,7 +43880,7 @@ const UI = {
     "chem.octet": "{sym} would exceed its octet (8 electrons)",
     "chem.noLewisSharing": "{sym} cannot accept an electron while sharing {n} bond{s} — no valid Lewis structure",
     "chem.selfBond": "An atom cannot bond to itself",
-    "chem.alreadyBonded": "Already bonded — click the bond to increase its order",
+    "chem.alreadyBonded": "Already bonded — Shift+click or right-click the bond to raise its order",
     "chem.ionicMax3": "At most 3 electrons can transfer per bond",
     "chem.ionicMax4": "At most 4 electrons can transfer per bond",
     "chem.quadrupleMax": "Quadruple bond is the maximum",
@@ -43896,7 +43895,7 @@ const UI = {
     "chem.lewis.charge": "No valid Lewis structure for that charge.",
     "chem.lewis.radical": "Odd electron count — a radical. Adjust the ion charge.",
     "chem.lewis.electrons": "Not enough electrons for that charge.",
-    "chem.partialIonic": "Incomplete ionic transfer: {sym} still holds an unpaired electron. Click the ionic bond to raise its order and complete the electron transfer.",
+    "chem.partialIonic": "Incomplete ionic transfer: {sym} still holds an unpaired electron. Shift+click or right-click the ionic bond to raise its order and complete the electron transfer.",
     // language selection
     "lang.select.title": "Choose your language",
     "lang.select.subtitle": "Select your preferred language to continue",
@@ -43915,7 +43914,7 @@ const UI = {
     "tut.bond.title": "Building Molecules",
     "tut.bond.body": "Drag one atom onto another to form a bond. A green ghost means the bond is allowed, red means it's forbidden. Metals bond ionically (electron transfer), nonmetals bond covalently (sharing electrons).",
     "tut.bondOrder.title": "Bond Orders",
-    "tut.bondOrder.body": "Click a bond to cycle its order: single → double → triple → quadruple → triple → double → single → delete. Shift+click to go backwards.",
+    "tut.bondOrder.body": "Click a bond to lower its order: triple → double → single → broken. Shift+click or right-click the same bond to raise it back, one step at a time; the valence of the two atoms decides how far it can go.",
     "tut.info.title": "Info Panel",
     "tut.info.body": "Click any atom to inspect it. This panel shows element properties, molecule analysis (name, formula, mass), and a list of all molecules in the scene.",
     "tut.reaction.title": "Reactions",
@@ -43932,10 +43931,6 @@ const UI = {
     "quest.close": "Close",
     "quest.placeholder": "Ask the AI chemist...",
     "quest.send": "Send",
-    // console
-    "console.clear": "Clear",
-    "console.close": "Close",
-    "console.placeholder": "Type command...",
     // multiplayer
     "menu.singleplayer": "Singleplayer",
     "menu.multiplayer": "Multiplayer",
@@ -44046,6 +44041,14 @@ const UI = {
     "custom.deleted": "Deleted custom element: {name} ({sym})",
     "iso.needArrangement": "Please enter an arrangement",
     "iso.invalidArrangement": "Invalid arrangement. Valid isomers: {list}",
+    "iso.arrangeInvalid": "No valid Lewis structure for this arrangement: {detail}",
+    "iso.noLewis": "the atoms written this way cannot all reach a full shell without leaving an atom with an impossible charge",
+    "iso.noLewisIon": "no structure of these atoms carries a total charge of {q} while keeping every shell full",
+    "iso.unreadable": "this is not a structure someone can read as a chain of bonds",
+    "iso.validList": "Valid arrangements: {list}",
+    "iso.newlyValid": "A correct structure that was not on the list — it has been added as an isomer of this formula.",
+    "iso.formalCharges": "Formal charges: {charges}",
+    "iso.formulaOnly": "A molecular formula gives composition, not arrangement. Shown here is one structure the formula can have; valid arrangements: {list}",
     "iso.apply": "Apply",
     "settings.languageLabel": "Language: {name}",
     "rank.upToast": "Rank Up! {name}",
@@ -44092,8 +44095,6 @@ const UI = {
     "pg.restored": "Ground state restored after {name} fission",
     "pg.on": "Proton gun activated — Click atoms!",
     "pg.off": "Proton gun deactivated",
-    "pg.containment": "CONTAINMENT BREACH",
-    "pg.reinitializing": "Reinitializing ground state...",
     "pg.toFission": "TO FISSION",
     "ui.undo": "Undo (Ctrl+Z)",
     "ui.delete": "Delete",
@@ -44111,7 +44112,6 @@ const UI = {
     "joy.jump": "Jump",
     "iso.panelTitle": "Isomer Validator",
     "iso.check": "Check",
-    "console.run": "Run",
     "chat.title": "Chat",
     "pg.needOwn": "You don't own {name} ({sym}) yet — buy it in the shop before transmuting into it",
     "pg.needOwnPrice": "You don't own {name} ({sym}) yet — buy it in the shop for {price} ★",
@@ -44140,7 +44140,6 @@ const UI = {
     "btn.fc": "Điện tích hình thức",
     "btn.mayhem": "Hỗn loạn",
     "btn.tutorial": "Hướng dẫn",
-    "btn.console": "Bảng điều khiển",
     "btn.returnLobby": "Về sảnh",
     "btn.credits": "Credit",
     "btn.claim": "Nhận",
@@ -44216,7 +44215,7 @@ const UI = {
     "el.title": "{name} · {cat} · tối đa {max} liên kết",
     "pool.hint": "Kéo một nguyên tố vào cảnh để đặt nguyên tử. Kim loại liên kết ion (chuyển electron). Khí hiếm trơ — Kr, Xe và Rn chỉ phản ứng với F hoặc O.",
     "ptable.ph": "La–Lu · Ac–Lr ở dưới",
-    "hint.html": "Kéo một nguyên tố từ kho vào cảnh để đặt nó.<br />Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />Nhấp vào liên kết để xoay bậc (1→2→3→2→1→xóa).<br />Nhấp đôi hai phân tử trở lên để tạo phản ứng, sau đó chọn điều kiện.<br />Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.",
+    "hint.html": "Kéo một nguyên tố từ kho vào cảnh để đặt nó.<br />Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />Nhấp vào liên kết để giảm bậc (3→2→1→xóa); Shift+click hoặc click phải để tăng lại.<br />Nhấp đôi hai phân tử trở lên để tạo phản ứng, sau đó chọn điều kiện.<br />Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.",
     "rxn.title": "Phản ứng",
     "rxn.count": "{n} phân tử đã chọn",
     "rxn.cancel": "Hủy",
@@ -44278,7 +44277,7 @@ const UI = {
     "tab.pool": "Nguyên tố",
     "tab.info": "Thông tin",
     "tab.dex": "Sổ tay",
-    "keys.hint": "WASD/phím mũi tên = di chuyển camera · kéo = di chuyển / liên kết · bấm liên kết = xoay bậc · nhấp đôi phân tử = chọn để phản ứng · Del = xóa · Ctrl+Z = hoàn tác · Ctrl+D = nhân đôi",
+    "keys.hint": "WASD/phím mũi tên = di chuyển camera · kéo = di chuyển / liên kết · bấm liên kết = giảm bậc · Shift/click phải liên kết = tăng bậc · nhấp đôi phân tử = chọn để phản ứng · Del = xóa · Ctrl+Z = hoàn tác · Ctrl+D = nhân đôi",
     "quality.auto": "Tự động (điều chỉnh theo fps)",
     "quality.autoShort": "Tự động",
     "quality.low": "Thấp",
@@ -44300,6 +44299,7 @@ const UI = {
     "status.ionicBond": "Liên kết ion {a}–{b}: đã chuyển electron.",
     "status.covBond": "Đã tạo liên kết cộng hóa trị {a}–{b}.",
     "status.orderIonic": "Đã đặt mức chuyển electron thành {n}.",
+    "status.bondLowered": "Đã giảm bậc liên kết xuống {n}. Shift+click hoặc click phải vào liên kết để tăng lại.",
     "status.decomposed": "{formula} đã phân hủy — hết chu kỳ bán rã.",
     "status.stabilized": "Nguyên tử lạc đã ổn định thành {formula} — đủ hóa trị.",
     "status.exported": "Đã xuất tiến độ — {count} khám phá được lưu.",
@@ -44329,7 +44329,7 @@ const UI = {
     "status.sceneChanged": "Khung cảnh đã thay đổi — lựa chọn không còn khớp phản ứng nào.",
     "status.reactionDone": "Phản ứng ({cond}): {eq}",
     "status.reactionFailed": "Phản ứng thất bại: thiếu mẫu cho {product}.",
-    "status.reactionRepaired": "⚠️ {n} sản phẩm phản ứng cần được sửa — chi tiết nằm trong console.",
+    "status.reactionRepaired": "⚠️ {n} sản phẩm phản ứng cần được sửa — chi tiết nằm trong devtools của trình duyệt.",
     "status.mayhemEffect": "{effect} {eq}",
     "status.mayhemOn": "Chế độ Hỗn Loạn BẬT — mở khóa các nguyên tố ngoại lai!",
     "status.mayhemOff": "Chế độ Hỗn Loạn TẮT",
@@ -44346,7 +44346,6 @@ const UI = {
     "rank.shopHint": "Mua trong Cửa hàng Dây thừng (kéo sợi dây ở góc trên bên phải)",
     "rank.elementLocked": "Nguyên tố này đang khóa. Hãy mua ở Cửa hàng Dây thừng — kéo sợi dây ở góc trên bên phải.",
     "rank.featureLocked": "Tính năng này đang khóa. Hãy mua tại Cửa hàng Dây thừng với giá {price} ★ — kéo sợi dây ở góc trên bên phải!",
-    "rank.consoleLocked": "Bảng điều khiển không mở theo hạng — hãy mua trong Cửa hàng Dây thừng với giá {price} sao.",
     "rank.discStarCap": "Chốt chặn dây chuyền: quá nhiều loài cùng ổn định — các loài thừa vẫn nằm trong sổ nhưng không nhận sao.",
     "rank.dailyReward": "Phần thưởng hàng ngày",
     "rank.dailyClaimed": "Đã nhận phần thưởng hàng ngày! +{stars} sao",
@@ -44384,7 +44383,7 @@ const UI = {
     "chem.octet": "{sym} sẽ vượt bát tử (8 electron)",
     "chem.noLewisSharing": "{sym} không thể nhận thêm electron khi đang dùng chung {n} liên kết — không có cấu trúc Lewis hợp lệ",
     "chem.selfBond": "Nguyên tử không thể tự liên kết với chính nó",
-    "chem.alreadyBonded": "Đã liên kết — bấm vào liên kết để tăng bậc",
+    "chem.alreadyBonded": "Đã liên kết — Shift+click hoặc click phải vào liên kết để tăng bậc",
     "chem.ionicMax3": "Mỗi liên kết chuyển tối đa 3 electron",
     "chem.ionicMax4": "Mỗi liên kết chuyển tối đa 4 electron",
     "chem.quadrupleMax": "Liên kết bốn là bậc tối đa",
@@ -44399,7 +44398,7 @@ const UI = {
     "chem.lewis.charge": "Không có cấu trúc Lewis hợp lệ cho điện tích đó.",
     "chem.lewis.radical": "Số electron lẻ — gốc tự do. Hãy điều chỉnh điện tích ion.",
     "chem.lewis.electrons": "Không đủ electron cho điện tích đó.",
-    "chem.partialIonic": "Chuyển electron ion chưa hoàn tất: {sym} còn một electron chưa ghép đôi. Nhấp vào liên kết ion để tăng bậc và hoàn tất chuyển electron.",
+    "chem.partialIonic": "Chuyển electron ion chưa hoàn tất: {sym} còn một electron chưa ghép đôi. Shift+click hoặc click phải vào liên kết ion để tăng bậc và hoàn tất chuyển electron.",
     // language selection
     "lang.select.title": "Chọn ngôn ngữ",
     "lang.select.subtitle": "Chọn ngôn ngữ ưa thích để tiếp tục",
@@ -44418,7 +44417,7 @@ const UI = {
     "tut.bond.title": "Tạo phân tử",
     "tut.bond.body": "Kéo nguyên tử này vào nguyên tử khác để tạo liên kết. Bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm. Kim loại liên kết ion (chuyển electron), phi kim liên kết cộng hóa trị (dùng chung electron).",
     "tut.bondOrder.title": "Bậc liên kết",
-    "tut.bondOrder.body": "Bấm vào liên kết để xoay bậc: đơn → đôi → ba → bốn → ba → đôi → đơn → xóa. Shift+bấm để đi ngược lại.",
+    "tut.bondOrder.body": "Bấm vào liên kết để giảm bậc: ba → đôi → đơn → đứt. Shift+click hoặc click phải vào cùng liên kết để tăng lại, mỗi lần một bậc; hoá trị của hai nguyên tử quyết định bậc tối đa.",
     "tut.info.title": "Bảng thông tin",
     "tut.info.body": "Bấm vào bất kỳ nguyên tử nào để xem chi tiết. Bảng này hiển thị tính chất nguyên tố, phân tích phân tử (tên, công thức, khối lượng), và danh sách tất cả phân tử trong khung cảnh.",
     "tut.reaction.title": "Phản ứng",
@@ -44434,9 +44433,6 @@ const UI = {
     "quest.close": "Đóng",
     "quest.placeholder": "Hỏi nhà hóa học AI...",
     "quest.send": "Gửi",
-    "console.clear": "Xóa",
-    "console.close": "Đóng",
-    "console.placeholder": "Nhập lệnh...",
     // multiplayer
     "menu.singleplayer": "Chơi đơn",
     "menu.multiplayer": "Chơi mạng",
@@ -44547,6 +44543,14 @@ const UI = {
     "custom.deleted": "Đã xóa nguyên tố tùy chỉnh: {name} ({sym})",
     "iso.needArrangement": "Vui lòng nhập một cách sắp xếp",
     "iso.invalidArrangement": "Cách sắp xếp không hợp lệ. Các đồng phân hợp lệ: {list}",
+    "iso.arrangeInvalid": "Không có công thức Lewis hợp lệ cho cách sắp xếp này: {detail}",
+    "iso.noLewis": "các nguyên tử viết như vậy không thể cùng đạt lớp bền đầy đủ mà không để nguyên tử nào mang điện tích bất thường",
+    "iso.noLewisIon": "không cấu trúc nào của các nguyên tử này mang tổng điện tích {q} mà vẫn giữ lớp bền đầy đủ",
+    "iso.unreadable": "đây không phải một cấu trúc có thể đọc thành chuỗi liên kết",
+    "iso.validList": "Các cách sắp xếp hợp lệ: {list}",
+    "iso.newlyValid": "Một cấu trúc đúng nhưng chưa có trong danh sách — đã được thêm làm đồng phân của công thức này.",
+    "iso.formalCharges": "Điện tích hình thức: {charges}",
+    "iso.formulaOnly": "Công thức phân tử chỉ cho thành phần, không cho cách sắp xếp. Đây là một cấu trúc mà công thức có thể có; các cách sắp xếp hợp lệ: {list}",
     "iso.apply": "Áp dụng",
     "settings.languageLabel": "Ngôn ngữ: {name}",
     "rank.upToast": "LÊN HẠNG! {name}",
@@ -44593,8 +44597,6 @@ const UI = {
     "pg.restored": "Đã khôi phục trạng thái cơ bản sau vụ phân hạch {name}",
     "pg.on": "Súng proton đã kích hoạt — Hãy bấm vào các nguyên tử!",
     "pg.off": "Súng proton đã tắt",
-    "pg.containment": "VỎ BỌC BỊ VỠ",
-    "pg.reinitializing": "Đang khởi tạo lại trạng thái cơ bản...",
     "pg.toFission": "TRƯỚC KHI PHÂN HẠCH",
     "ui.undo": "Hoàn tác (Ctrl+Z)",
     "ui.delete": "Xóa",
@@ -44612,7 +44614,6 @@ const UI = {
     "joy.jump": "Nhảy",
     "iso.panelTitle": "Bộ Kiểm Tra Đồng Phân",
     "iso.check": "Kiểm Tra",
-    "console.run": "Chạy",
     "chat.title": "Trò Chuyện",
     "pg.needOwn": "Bạn chưa sở hữu {name} ({sym}) — hãy mua trong cửa hàng trước khi biến đổi thành nguyên tố này",
     "pg.needOwnPrice": "Bạn chưa sở hữu {name} ({sym}) — hãy mua trong cửa hàng với giá {price} ★",
@@ -44778,7 +44779,7 @@ const CAT_EN = {
   actinide: "Actinide",
   exotic: "Exotic"
 };
-let lang = "en";
+let lang = "vi";
 function initLang() {
   try {
     const s = localStorage.getItem(LANG_KEY);
@@ -45128,11 +45129,44 @@ function acidVi(ion) {
 function lowerElVi(sym) {
   return LOWER_EL_VI[sym] || sym.toLowerCase();
 }
+function isonitrileStem(rest, vi) {
+  if (!rest.length) return null;
+  if (rest.length === 1 && rest[0].el.sym === "H") return "hydrogen";
+  if (!rest.every((a) => a.el.sym === "C" || a.el.sym === "H")) return null;
+  const n = rest.filter((a) => a.el.sym === "C").length;
+  const base = (vi ? BASE_VI : BASE_EN)[n - 1];
+  return base ? base + "yl" : null;
+}
 function nameCovalent(atoms2, charge, bonds2) {
   const vi = isVi();
   const common2 = vi ? COMMON_VI : COMMON;
   const poly = vi ? POLYATOMIC_VI : POLYATOMIC;
   const formula = hillOf(atoms2);
+  // An isonitrile is not the nitrile the common-name table knows: its carbon is
+  // terminal and the nitrogen carries the rest of the molecule, so R-N#C names
+  // a different compound from R-C#N even though both have the same formula.
+  if (charge === 0 && bonds2) {
+    for (const b of bonds2) {
+      if (b.order !== 3) continue;
+      const x = atoms2.find((a) => a.id === b.a);
+      const y = atoms2.find((a) => a.id === b.b);
+      if (!x || !y) continue;
+      let carbon = null;
+      let nitrogen = null;
+      if (x.el.sym === "C" && y.el.sym === "N") {
+        carbon = x;
+        nitrogen = y;
+      } else if (y.el.sym === "C" && x.el.sym === "N") {
+        carbon = y;
+        nitrogen = x;
+      }
+      if (!carbon) continue;
+      const deg = (id) => bonds2.filter((o) => o.a === id || o.b === id).length;
+      if (deg(carbon.id) !== 1 || deg(nitrogen.id) < 2) continue;
+      const stem = isonitrileStem(atoms2.filter((a) => a.id !== carbon.id && a.id !== nitrogen.id), vi);
+      if (stem) return cap(vi ? `${stem} isoxianua` : `${stem} isocyanide`);
+    }
+  }
   if (charge === 0 && common2[formula]) return common2[formula];
   const ionKey = `${formula}${charge > 0 ? "+" + charge : charge}`;
   if (poly[ionKey]) return poly[ionKey];
@@ -56598,18 +56632,6 @@ window.addEventListener("mousemove", onDragMove);
 window.addEventListener("touchmove", onDragMove, { passive: false });
 window.addEventListener("mouseup", onDragEnd);
 window.addEventListener("touchend", onDragEnd);
-simulation.on("decompose", ({ molecule, probability }) => {
-  addConsoleEntry("warn", [`⚠ Molecule decomposed (prob: ${(probability * 100).toFixed(1)}%)`]);
-});
-simulation.on("start", ({ time }) => {
-  addConsoleEntry("info", [`▶ Simulation started at t=${time.toFixed(1)}s`]);
-});
-simulation.on("stop", ({ time }) => {
-  addConsoleEntry("info", [`⏸ Simulation stopped at t=${time.toFixed(1)}s`]);
-});
-simulation.on("reset", () => {
-  addConsoleEntry("info", ["↺ Simulation reset"]);
-});
 setElementLookup(elementBySym);
 const CHALLENGE_LIST = CHALLENGES.filter((c) => {
   if (c && typeof c.formula === "string" && c.formula.trim()) return true;
@@ -58860,37 +58882,6 @@ function setBondOrder(bid, n) {
   reanalyze();
   status(b.ionic ? t("status.orderIonic", { n }) : t("status.orderCov", { n }), "ok");
 }
-const bondDirection = /* @__PURE__ */ new Map();
-function cycleBondOrder(bid) {
-  const b = bonds.get(bid);
-  if (!b) return;
-  let dir = bondDirection.get(bid) || 1;
-  let newOrder = b.order + dir;
-  let attempts = 0;
-  const maxAttempts = 8;
-  while (attempts < maxAttempts) {
-    if (newOrder > 4) {
-      dir = -1;
-      newOrder = 3;
-      continue;
-    }
-    if (newOrder < 1) {
-      removeBond(bid);
-      bondDirection.delete(bid);
-      return;
-    }
-    const testBond = { ...b, order: newOrder };
-    const chk = upgradeCheck(atoms, bonds, testBond);
-    if (chk.ok || window.__mol3d?._godMode) {
-      bondDirection.set(bid, dir);
-      setBondOrder(bid, newOrder);
-      return;
-    }
-    newOrder += dir;
-    attempts++;
-  }
-  status(trReason({ key: "chem.noValidBondOrder" }), "err");
-}
 function upgradeBond(bid) {
   const b = bonds.get(bid);
   if (!b) return;
@@ -60057,6 +60048,13 @@ function pickBond() {
 }
 function onPointerDown(e) {
   lastPointerType = e.pointerType || "mouse";
+  if (e.button === 2) {
+    setNDC(e);
+    // Recorded so pointerup can tell a right-click on a bond from a pan drag;
+    // the movement threshold in onPointerUp keeps the two apart.
+    downInfo = { x: e.clientX, y: e.clientY, atomId: null, raise: true };
+    return;
+  }
   if (e.button !== 0) return;
   setNDC(e);
   const hitId = pickAtom();
@@ -60187,7 +60185,19 @@ function onPointerUp(e) {
     setNDC(e);
     const bid = pickBond();
     if (bid !== null) {
-      cycleBondOrder(bid);
+      // A plain click takes the bond down one step (a single bond is broken by
+      // the next click); Shift, or the right button, puts a step back, so the
+      // order a molecule was built with is never one accidental click away from
+      // disappearing.
+      const raise = e.shiftKey || downInfo.raise;
+      if (raise) {
+        upgradeBond(bid);
+      } else {
+        const was = bonds.get(bid);
+        const orderBefore = was ? was.order : 0;
+        downgradeBond(bid);
+        if (bonds.has(bid)) status(t("status.bondLowered", { n: orderBefore - 1 }), "ok");
+      }
     }
   }
 }
@@ -61000,33 +61010,442 @@ function openIsomerPanel(compIdx) {
 }
 function closeIsomerPanel() {
   const panel = document.getElementById("isomer-panel");
+  const input = document.getElementById("isomer-input");
+  if (input && document.activeElement === input) input.blur();
   panel.classList.remove("open");
   panel.setAttribute("aria-hidden", "true");
   isomerPanelCompIdx = null;
 }
-function parseCondensedToOrdering(formula) {
-  const counts = parseFormula(formula);
-  if (counts.size === 0) return null;
-  const heavyAtoms = [];
+// ---- what a written arrangement actually means -----------------------------
+// The symbols in a structural formula are its connectivity. The heavy atoms run
+// along the skeleton in the order they are written — a repeated symbol chains
+// when it starts the skeleton and branches off its end otherwise — and every
+// hydrogen belongs to the heavy atom it is written after, or to the first heavy
+// atom when written before any. The writing never states the bond orders, so
+// they are solved for: every single/double/triple assignment is handed to the
+// same Lewis solver that judges the molecules in the scene, and the surviving
+// structures are ranked by full shells first, then by formal charge. Only when
+// a writing has no such structure at all does the validator fall back to
+// comparing its heavy skeleton, which is all a grouped formula such as CH3COOH
+// really specifies. Comparing two writings instead by the index order of an atom
+// array — and accepting the first candidate whenever that comparison failed —
+// recognised a valid arrangement only when the enumerator happened to store the
+// atoms in the same sequence, and said "yes" to meaningless ones.
+function tokenizeWriting(text) {
+  const s = String(text || "").replace(/\s+/g, "");
+  if (!s) return null;
   const re = /([A-Z][a-z]?)(\d*)/g;
-  let m;
-  while ((m = re.exec(formula)) !== null) {
-    const sym = m[1];
-    const count = m[2] ? parseInt(m[2]) : 1;
-    if (sym !== "H") {
-      for (let i = 0; i < count; i++) heavyAtoms.push(sym);
+  const tokens = [];
+  let m, at = 0;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index !== at) return null;
+    at = m.index + m[0].length;
+    const n = m[2] === "" ? 1 : parseInt(m[2], 10);
+    if (!elementBySym$1(m[1]) || n < 1 || n > 99) return null;
+    tokens.push({ sym: m[1], n });
+  }
+  return at === s.length && tokens.length ? tokens : null;
+}
+function splitIonCharge(text) {
+  const m = /^(.*?)([+-])(\d*)$/.exec(text);
+  if (!m) return { body: text, charge: 0, signed: false };
+  const magnitude = m[3] === "" ? 1 : parseInt(m[3], 10);
+  if (magnitude < 1 || magnitude > 9) return { body: "", charge: 0, signed: true };
+  return { body: m[1], charge: (m[2] === "+" ? 1 : -1) * magnitude, signed: true };
+}
+function sigmaCap(atoms, idx) {
+  const el = elementBySym$1(atoms[idx]);
+  if (!el) return 0;
+  if (el.z === 1) return 1;
+  return el.z <= 10 ? 4 : el.maxBonds || 6;
+}
+function readWriting(text) {
+  const ion = splitIonCharge(String(text || "").replace(/\s+/g, ""));
+  if (!ion.body) return null;
+  const tokens = tokenizeWriting(ion.body) || tokenizeWriting(ion.body.toUpperCase());
+  if (!tokens) return null;
+  const seq = [];
+  const heavy = [];
+  const edges = [];
+  const hGroups = [];
+  let pathEnd = -1;
+  let firstHeavy = -1;
+  let lastGroup = null;
+  for (const tok of tokens) {
+    if (tok.sym === "H") {
+      const hIdx = [];
+      for (let k = 0; k < tok.n; k++) {
+        seq.push("H");
+        hIdx.push(seq.length - 1);
+      }
+      hGroups.push({ hIdx, hosts: lastGroup });
+      continue;
+    }
+    const mine = [];
+    for (let k = 0; k < tok.n; k++) {
+      seq.push(tok.sym);
+      const idx = seq.length - 1;
+      heavy.push(idx);
+      mine.push(idx);
+      if (firstHeavy === -1) firstHeavy = idx;
+    }
+    if (pathEnd === -1) {
+      for (let k = 0; k + 1 < mine.length; k++) edges.push([mine[k], mine[k + 1]]);
+    } else if (tok.n === 1) {
+      edges.push([pathEnd, mine[0]]);
+    } else {
+      for (const idx of mine) edges.push([pathEnd, idx]);
+    }
+    pathEnd = mine[mine.length - 1];
+    lastGroup = mine;
+  }
+  if (!heavy.length) return null;
+  for (const g of hGroups) if (!g.hosts) g.hosts = [firstHeavy];
+  return { atoms: seq, heavy, edges, hGroups, charge: ion.signed ? ion.charge : null };
+}
+function heavySubgraph(atoms, edges) {
+  const keep = [];
+  for (let i = 0; i < atoms.length; i++) if (atoms[i] !== "H") keep.push(i);
+  const reindex = /* @__PURE__ */ new Map();
+  keep.forEach((oldIdx, newIdx) => reindex.set(oldIdx, newIdx));
+  const bonds = [];
+  for (const [a, b] of edges) {
+    if (reindex.has(a) && reindex.has(b)) bonds.push([reindex.get(a), reindex.get(b), 1]);
+  }
+  return { atoms: keep.map((i) => atoms[i]), bonds };
+}
+function shellShortfall(el, covSum, lp) {
+  if (el.z === 1) return Math.max(0, 1 - covSum - lp);
+  if (el.z > 10 || isMetal$1(el)) return 0;
+  const need = el.z === 5 ? 3 : 4;
+  return Math.max(0, need - covSum - lp);
+}
+function lewisFormOf(atoms, bonds, netCharge) {
+  const n = atoms.length;
+  const aMap = /* @__PURE__ */ new Map();
+  const bMap = /* @__PURE__ */ new Map();
+  const sum = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    const el = elementBySym$1(atoms[i]);
+    if (!el) return null;
+    aMap.set(i, { el, pos: { x: 0, y: 0, z: 0 } });
+  }
+  for (let k = 0; k < bonds.length; k++) {
+    const b = bonds[k];
+    if (b[2] < 1 || b[2] > 3) return null;
+    sum[b[0]] += b[2];
+    sum[b[1]] += b[2];
+    bMap.set(k, { a: b[0], b: b[1], order: b[2], ionic: false });
+  }
+  for (let i = 0; i < n; i++) {
+    const el = elementBySym$1(atoms[i]);
+    if (el.z === 1) {
+      if (sum[i] !== 1) return null;
+    } else if (n > 1 && sum[i] === 0) {
+      return null;
+    }
+    if (sum[i] > sigmaCap(atoms, i)) return null;
+  }
+  if (!isConnected(n, bonds)) return null;
+  const res = lewisAssign(aMap, bMap, atoms.map((_, i) => i), netCharge);
+  if (!res.feasible) return null;
+  let absq = 0, charged = 0, short = 0;
+  for (const [id, p] of res.per) {
+    const fc = p.fc || 0;
+    if (Math.abs(fc) > 1) return null;
+    if (fc !== 0) {
+      charged++;
+      absq += Math.abs(fc);
+    }
+    short += shellShortfall(elementBySym$1(atoms[id]), p.covSum, p.lp);
+  }
+  const total = [...res.per.values()].reduce((s, p) => s + (p.fc || 0), 0);
+  if (total !== netCharge) return null;
+  return { absq, charged, short, per: res.per, charge: netCharge };
+}
+function betterArr(a, b) {
+  if (!a) return false;
+  if (!b) return true;
+  // What the writing says comes before what is comfortable: CNH places its
+  // hydrogen on nitrogen, and the charge-separated H-N#C that follows is the
+  // isomer being asked for, not a mistake to be corrected back to HCN. Within
+  // one fidelity, chemistry decides, and only last does the reading that moved
+  // a bond away where it was written lose to one that did not.
+  if (a.hDisp !== b.hDisp) return a.hDisp < b.hDisp;
+  if (a.form.short !== b.form.short) return a.form.short < b.form.short;
+  if (a.form.absq !== b.form.absq) return a.form.absq < b.form.absq;
+  if (a.form.charged !== b.form.charged) return a.form.charged < b.form.charged;
+  return a.dev < b.dev;
+}
+function sameTier(a, b) {
+  return !betterArr(a, b) && !betterArr(b, a);
+}
+function hydrogenPlacements(read, budget, loose) {
+  const { atoms, heavy, edges, hGroups } = read;
+  const heavyDeg = new Array(atoms.length).fill(0);
+  for (const [a, b] of edges) {
+    heavyDeg[a]++;
+    heavyDeg[b]++;
+  }
+  const room = new Array(atoms.length).fill(0);
+  for (const i of heavy) room[i] = Math.max(0, sigmaCap(atoms, i) - heavyDeg[i]);
+  const groups = hGroups.map((g) => {
+    let cap = 0;
+    for (const h of g.hosts) cap += room[h];
+    // Hydrogens sit on the atom they are written after. The written hosts are
+    // offered first so the faithful readings are generated before the loose
+    // ones, but any heavy atom may host one: C2H5OH puts five hydrogens on two
+    // carbons, and a bare molecular formula such as C2H4O2 says nothing at all
+    // about which atom carries the acidic one.
+    const hosts = loose || cap < g.hIdx.length ? g.hosts.concat(heavy.filter((i) => !g.hosts.includes(i))) : g.hosts.slice();
+    return { hIdx: g.hIdx, hosts, written: g.hosts };
+  });
+  const left = room.slice();
+  const out = [];
+  const chosen = [];
+  let disp = 0;
+  (function assignGroup(gi) {
+    if (budget.left-- <= 0 || out.length >= 512) return;
+    if (gi === groups.length) {
+      out.push({ pairs: chosen.map((p) => [p[0], p[1]]), disp });
+      return;
+    }
+    const g = groups[gi];
+    const cands = g.hosts.filter((h) => left[h] > 0);
+    const counts = new Array(cands.length).fill(0);
+    const emit = () => {
+      const mark = chosen.length;
+      const wasDisp = disp;
+      let k = 0;
+      for (let c = 0; c < cands.length; c++) {
+        for (let j = 0; j < counts[c]; j++) chosen.push([g.hIdx[k++], cands[c]]);
+        if (!g.written.includes(cands[c])) disp += counts[c];
+        left[cands[c]] -= counts[c];
+      }
+      assignGroup(gi + 1);
+      for (let c = 0; c < cands.length; c++) left[cands[c]] += counts[c];
+      chosen.length = mark;
+      disp = wasDisp;
+    };
+    (function fill(ci, rem) {
+      if (ci === cands.length) {
+        if (rem === 0) emit();
+        return;
+      }
+      const up = Math.min(rem, left[cands[ci]]);
+      for (let c = up; c >= 0; c--) {
+        counts[ci] = c;
+        fill(ci + 1, rem - c);
+      }
+      counts[ci] = 0;
+    })(0, g.hIdx.length);
+  })(0);
+  return out;
+}
+function enumeratePlacements(read, budget, found, loose) {
+  const placements = hydrogenPlacements(read, budget, loose);
+  // Explore the faithful readings first: a placement that leaves every hydrogen
+  // on the atom it was written after is what the writing claims, so once enough
+  // closed-shell structures of that kind are in hand the rest of the readings
+  // can only score worse and are not worth the trial budget.
+  placements.sort((a, b) => a.disp - b.disp);
+  const nSkel = read.edges.length;
+  const orders = new Array(nSkel).fill(1);
+  let settled = 0;
+  let done = false;
+  for (const place of placements) {
+    if (done || budget.left <= 0) break;
+    const pl = place.pairs;
+    const running = new Array(read.atoms.length).fill(0);
+    const cap = read.atoms.map((_, i) => sigmaCap(read.atoms, i));
+    for (const p of pl) cap[p[1]]--;
+    (function dfs(ei) {
+      if (done || budget.left-- <= 0) return;
+      if (ei === nSkel) {
+        const bonds = read.edges.map(([a, b], i) => [a, b, orders[i]]);
+        for (const p of pl) bonds.push([p[0], p[1], 1]);
+        const form = lewisFormOf(read.atoms, bonds, read.charge);
+        if (!form) return;
+        const signature = wlSignature(read.atoms, bonds);
+        const arr = { atoms: read.atoms.slice(), bonds, form, signature, hDisp: place.disp, dev: read.dev || 0 };
+        const prev = found.get(signature);
+        if (!prev || betterArr(arr, prev)) found.set(signature, arr);
+        if (form.short === 0 && form.absq === 0 && place.disp === 0 && ++settled >= CLOSED_SHELL_LIMIT) done = true;
+        return;
+      }
+      const [a, b] = read.edges[ei];
+      for (let o = 1; o <= 3; o++) {
+        if (running[a] + o > cap[a] || running[b] + o > cap[b]) break;
+        orders[ei] = o;
+        running[a] += o;
+        running[b] += o;
+        dfs(ei + 1);
+        running[a] -= o;
+        running[b] -= o;
+      }
+    })(0);
+  }
+}
+function collectForms(read, budget, loose) {
+  const found = /* @__PURE__ */ new Map();
+  enumeratePlacements(read, budget, found, loose);
+  return found;
+}
+const READ_TRIAL_BUDGET = 12e4;
+const CLOSED_SHELL_LIMIT = 24;
+function isNeutral(arr) {
+  return arr.form.short === 0 && arr.form.absq === 0;
+}
+function isClosedShell(arr) {
+  return isNeutral(arr) && arr.hDisp === 0;
+}
+function sortedForms(map) {
+  return [...map.values()].sort((a, b) => (betterArr(a, b) ? -1 : betterArr(b, a) ? 1 : 0));
+}
+function mergeForms(target, source) {
+  for (const [sig, arr] of source) {
+    const prev = target.get(sig);
+    if (!prev || betterArr(arr, prev)) target.set(sig, arr);
+  }
+  return target;
+}
+function isSameEdge(edges, a, b) {
+  return edges.some((e) => e[0] === a && e[1] === b) || edges.some((e) => e[0] === b && e[1] === a);
+}
+function readingsOf(base) {
+  const readings = [base];
+  // A chain of heavy atoms whose hydrogens are not spelled out can also be a
+  // ring: C6H6 is read as benzene because no open chain of six carbons carrying
+  // six hydrogens has a closed-shell structure.
+  if (base.heavy.length >= 3) {
+    const deg = new Array(base.atoms.length).fill(0);
+    for (const [a, b] of base.edges) {
+      deg[a]++;
+      deg[b]++;
+    }
+    const ends = base.heavy.filter((i) => deg[i] <= 1);
+    if (ends.length === 2 && !isSameEdge(base.edges, ends[0], ends[1])) {
+      readings.push({ ...base, edges: base.edges.concat([[ends[0], ends[1]]]), dev: 1 });
     }
   }
-  const hCount = counts.get("H") || 0;
-  for (let i = 0; i < hCount; i++) heavyAtoms.push("H");
-  return heavyAtoms;
+  return readings;
 }
-function orderingsMatch(a, b) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
+function reParentings(base) {
+  const h = base.heavy;
+  if (h.length < 3) return [];
+  const out = [];
+  const parent = new Array(h.length).fill(0);
+  (function walk(i) {
+    if (out.length >= 240) return;
+    if (i === h.length) {
+      const edges = [];
+      let dev = 0;
+      for (let j = 1; j < h.length; j++) {
+        edges.push([h[parent[j]], h[j]]);
+        if (!isSameEdge(base.edges, h[parent[j]], h[j])) dev++;
+      }
+      out.push({ ...base, edges, dev });
+      return;
+    }
+    for (let p = 0; p < i; p++) {
+      parent[i] = p;
+      walk(i + 1);
+    }
+  })(1);
+  return out;
+}
+function arrangementsFromWriting(text, netCharge) {
+  const base = readWriting(text);
+  if (!base) return null;
+  if (base.charge === null) base.charge = netCharge || 0;
+  const budget = { left: READ_TRIAL_BUDGET };
+  const all = /* @__PURE__ */ new Map();
+  const readings = readingsOf(base);
+  const hasPerfect = () => [...all.values()].some(isClosedShell);
+  const hasAny = () => [...all.values()].some(isNeutral);
+  for (const read of readings) mergeForms(all, collectForms(read, budget, false));
+  // Condensed writings put a group next to the atom it belongs to only when the
+  // group is written after it, so CH3COOH reads literally as C-C-O-O. When that
+  // literal skeleton cannot close every shell with the hydrogens left on the
+  // atoms they were written on, the writing was grouping, not chaining: every
+  // heavy atom may then hang off any heavy atom written before it. Regrouping is
+  // searched before the hydrogens are set free because it keeps what the writing
+  // says about them; CH3COOH is acetic acid, and only a reading that moves a
+  // written hydrogen off its atom would ever score worse than it should.
+  const reparented = hasPerfect() ? [] : reParentings(base);
+  reparented.sort((a, b) => a.dev - b.dev);
+  for (const read of reparented) {
+    mergeForms(all, collectForms(read, budget, false));
+    // The most literal grouping that closes every shell is the reading nothing
+    // else can beat, so stop as soon as one is found.
+    if (hasPerfect()) break;
   }
-  return true;
+  // A writing such as C2H4O2 names no host for the hydrogen that an -OH group
+  // needs, so if no reading so far could carry every hydrogen where it was
+  // written and still close every shell, repeat the search with the hydrogens
+  // free to move.
+  if (!hasPerfect()) {
+    for (const read of readings) mergeForms(all, collectForms(read, budget, true));
+    if (!hasAny()) {
+      for (const read of reparented) {
+        mergeForms(all, collectForms(read, budget, true));
+        if (hasPerfect() || hasAny()) break;
+      }
+    }
+  }
+  if (!all.size) return null;
+  return sortedForms(all);
+}
+function heavyOrderOf(atoms) {
+  return atoms.filter((s) => s !== "H");
+}
+function sceneArrangement(compIdx) {
+  const comp = lastComps[compIdx];
+  if (!comp) return null;
+  const ids = comp.atoms.filter((id) => atoms.has(id));
+  if (ids.length < 2) return null;
+  const idx = new Map(ids.map((id, i) => [id, i]));
+  const syms = ids.map((id) => atoms.get(id).el.sym);
+  const list = [];
+  for (const b of bonds.values()) {
+    if (idx.has(b.a) && idx.has(b.b)) list.push([idx.get(b.a), idx.get(b.b), b.order || 1]);
+  }
+  return { atoms: syms, bonds: list, signature: wlSignature(syms, list) };
+}
+function formalChargeNote(per, atoms) {
+  const parts = [];
+  for (const [id, p] of per) {
+    if (!p.fc) continue;
+    parts.push(atoms[id] + (p.fc > 0 ? "+" : "-") + (Math.abs(p.fc) > 1 ? Math.abs(p.fc) : ""));
+  }
+  return parts.join(", ");
+}
+function registerWrittenIsomer(hill, solved, netCharge) {
+  const label = orderingToCondensedFormula(solved.atoms, solved.bonds) || hill;
+  const signature = wlSignature(solved.atoms, solved.bonds);
+  let slug = label.toLowerCase().replace(/[^a-z0-9]/g, "") || "arr";
+  let key = hill + "_" + slug;
+  for (let n = 2; ISOMERS[hill] && ISOMERS[hill].some((i) => i.key === key); n++) {
+    key = hill + "_" + slug + n;
+  }
+  const tpl = { atoms: solved.atoms.slice(), bonds: solved.bonds.map((b) => [b[0], b[1], b[2]]) };
+  if (netCharge) tpl.charge = netCharge;
+  let displayName = "";
+  try {
+    displayName = generateIsomerName(tpl.atoms, tpl.bonds, hill);
+  } catch (e) {
+  }
+  if (!displayName || displayName === hill) displayName = label;
+  registerIsomer(hill, key, tpl, displayName);
+  const iso = ISOMERS[hill][ISOMERS[hill].length - 1];
+  iso.signature = signature;
+  isoCache.delete(hill);
+  return iso;
+}
+function describeWrittenFailure(text, netCharge) {
+  if (!readWriting(text)) return t("iso.unreadable");
+  if (netCharge) return t("iso.noLewisIon", { q: netCharge > 0 ? "+" + netCharge : String(netCharge) });
+  return t("iso.noLewis");
 }
 function checkIsomer() {
   if (isomerPanelCompIdx === null) return;
@@ -61039,32 +61458,100 @@ function checkIsomer() {
     return;
   }
   const isos = isomerTemplates(an.formula);
+  const validList = [...new Set(isos.map((i) => i.displayFormula || an.formula))].join(", ");
   const queryUpper = query.toUpperCase();
-  let match = isos.find((iso) => {
-    const df = (iso.displayFormula || an.formula).toUpperCase();
-    const key = (iso.key || "").toUpperCase();
-    return df === queryUpper || key === queryUpper;
-  });
-  if (!match) {
-    try {
-      const queryCounts = parseFormula(query);
-      const moleculeCounts = parseFormula(an.formula);
-      const sameFormula = queryCounts.size === moleculeCounts.size && [...queryCounts.entries()].every(([sym, count]) => moleculeCounts.get(sym) === count);
-      if (sameFormula) {
-        const queryOrdering = parseCondensedToOrdering(query);
-        if (queryOrdering) {
-          match = isos.find((iso) => {
-            if (!iso.tpl || !iso.tpl.atoms) return false;
-            return orderingsMatch(iso.tpl.atoms, queryOrdering);
-          });
-        }
-        if (!match) match = isos[0];
+  let match = null;
+  let charges = "";
+  let isNew = false;
+  const queryCounts = parseFormula(query);
+  const moleculeCounts = parseFormula(an.formula);
+  const sameAtoms = queryCounts.size > 0 && queryCounts.size === moleculeCounts.size && [...queryCounts.entries()].every(([sym, n]) => moleculeCounts.get(sym) === n);
+  if (!sameAtoms) {
+    result.innerHTML = `<div class="isomer-error">${t("iso.invalidArrangement", { list: validList })}</div>`;
+    return;
+  }
+  const sigOf = (iso) => iso.signature || wlSignature(iso.tpl.atoms, iso.tpl.bonds);
+  let formulaNote = "";
+  // A bare molecular formula states composition and nothing else: C2H4O2 does
+  // not claim which atom carries the acidic hydrogen, so it cannot be resolved
+  // as an arrangement. Answer with the one the scene already holds, or with any
+  // closed-shell structure the formula can have.
+  if (queryUpper.replace(/[^A-Z0-9]/g, "") === an.formula) {
+    // The structure the scene already holds is the arrangement a bare formula
+    // leaves open, so answer with it rather than with some other structure the
+    // same atoms could take — even when the listed candidates never thought of
+    // it, as the chain-only generator never thinks of a ring of six CH.
+    const here = sceneArrangement(isomerPanelCompIdx);
+    if (here) {
+      match = isos.find((iso) => sigOf(iso) === here.signature);
+      if (!match && lewisFormOf(here.atoms, here.bonds, an.charge || 0)) {
+        match = registerWrittenIsomer(an.formula, here, an.charge || 0);
+        isNew = true;
       }
-    } catch (e) {
+    }
+    if (!match) match = isos.find((iso) => (iso.displayFormula || "") === (an.displayFormula || ""));
+    if (!match) {
+      match = isos.find((iso) => {
+        const f = lewisFormOf(iso.tpl.atoms, iso.tpl.bonds, iso.tpl.charge || 0);
+        return !!f && f.short === 0 && f.absq === 0;
+      });
+    }
+    // Only worth saying when the formula really leaves a choice open.
+    if (match && new Set(isos.map(sigOf)).size > 1) formulaNote = t("iso.formulaOnly", { list: validList });
+  }
+  const forms = match ? null : arrangementsFromWriting(query, an.charge || 0);
+  if (forms) {
+    // The listed isomers are only checked against the structures the writing
+    // actually describes as well as it describes any. Matching a worse reading
+    // would accept HCOOCH3 as the acetic acid the writing rules out.
+    const best = forms[0];
+    for (const arr of forms) {
+      if (!sameTier(arr, best)) break;
+      const hit = isos.find((iso) => sigOf(iso) === arr.signature);
+      if (hit) {
+        match = hit;
+        break;
+      }
+    }
+    if (!match) {
+      match = registerWrittenIsomer(an.formula, best, best.form.charge);
+      charges = formalChargeNote(best.form.per, best.atoms);
+      isNew = true;
     }
   }
   if (!match) {
-    result.innerHTML = `<div class="isomer-error">${t("iso.invalidArrangement", { list: isos.map((i) => i.displayFormula || an.formula).join(", ") })}</div>`;
+    // A grouped writing such as CH3COOH names the neighbours but not the
+    // skeleton the hydrogens bridge, so its literal reading has no structure.
+    // What such a writing does state is the heavy skeleton — match that.
+    const read = readWriting(query);
+    if (read) {
+      if (read.charge === null) read.charge = an.charge || 0;
+      const graph = heavySubgraph(read.atoms, read.edges);
+      if (lewisFormOf(graph.atoms, graph.bonds, read.charge)) {
+        const wantSig = wlSignature(graph.atoms, graph.bonds);
+        match = isos.find((iso) => sigOf(iso) === wantSig);
+      } else if (read.edges.length === read.heavy.length - 1) {
+        const order = heavyOrderOf(read.atoms);
+        match = isos.find((iso) => {
+          const tplOrder = heavyOrderOf(iso.tpl.atoms);
+          if (tplOrder.length !== order.length) return false;
+          const same = (x, y) => x.every((s, i) => s === y[i]);
+          return same(order, tplOrder) || same(order, tplOrder.slice().reverse());
+        });
+      }
+    }
+  }
+  if (!match && !readWriting(query)) {
+    // Last resort, and only for a writing that states no structure at all: the
+    // text may be a label or a key copied out of the list itself.
+    match = isos.find((iso) => {
+      const df = (iso.displayFormula || "").toUpperCase();
+      const key = (iso.key || "").toUpperCase();
+      return df === queryUpper || key === queryUpper;
+    });
+  }
+  if (!match) {
+    result.innerHTML = `<div class="isomer-error">${t("iso.arrangeInvalid", { detail: describeWrittenFailure(query, an.charge || 0) })}<br>${t("iso.validList", { list: validList })}</div>`;
     return;
   }
   const cls = classifyMolecule(an.formula, match.tpl.charge || 0, null);
@@ -61073,6 +61560,9 @@ function checkIsomer() {
       <div class="isomer-valid-name">${match.displayName || match.key}</div>
       <div class="isomer-valid-formula">${match.displayFormula || an.formula}</div>
       <span class="isomer-badge ${cls.key || ""}">${cls.label}</span>
+      ${formulaNote ? `<div class="isomer-note">${formulaNote}</div>` : ""}
+      ${isNew ? `<div class="isomer-note">${t("iso.newlyValid")}</div>` : ""}
+      ${charges ? `<div class="isomer-note">${t("iso.formalCharges", { charges })}</div>` : ""}
       <button class="isomer-apply-btn">${t("iso.apply")}</button>
     </div>
   `;
@@ -61139,6 +61629,53 @@ function buildMoleculeAt(tpl, cx, cy, cz) {
       });
       visited.add(neighbor);
       queue.push({ id: neighbor, parentDir: { x: -dir.x, y: -dir.y, z: -dir.z } });
+    }
+  }
+  // The walk above places a spanning tree with hand-picked directions, and that
+  // is not the molecule: water comes out with H-O-H at 180 degrees, and a
+  // template's bond list can hold a cycle, so benzene's C5-C0 is drawn between
+  // two atoms the walk already carried around the ring - 3.8 A apart where the
+  // field is fitted to 1.4. Both are invented strain, worth hundreds of kJ/mol,
+  // and a run started on that geometry spends its first femtoseconds turning it
+  // into kinetic energy (benzene reached 17000 K in four steps). So the
+  // structure is taken from the engine instead: Builder places the atoms by
+  // VSEPR on the same topology and FIRE relaxes the real force field, which is
+  // the geometry the panel then reports no strain for. The tree placement stays
+  // as the fallback whenever the engine cannot build the molecule.
+  if (window.Mol3DPhysics && window.Mol3DPhysics.Builder) {
+    let rebuilt = null;
+    try {
+      const built = window.Mol3DPhysics.Builder.build({
+        atoms: tpl.atoms.map((sym) => ({ sym })),
+        bonds: tpl.bonds.map((b) => [b[0], b[1], b[2] || 1]),
+        charge: tpl.charge || 0
+      }, {});
+      if (built && built.ok && built.mol && built.mol.atoms.length === tpl.atoms.length) rebuilt = built.mol;
+    } catch (err) {
+      rebuilt = null;
+    }
+    if (rebuilt) {
+      const toW = window.Mol3DPhysics.SceneBridge.toWorld;
+      let gx = 0, gy = 0, gz = 0, sx = 0, sy = 0, sz = 0, n = 0;
+      for (const a of newAtoms) {
+        const q = rebuilt.atoms[a.idx];
+        const p = positions.get(a.id);
+        if (!q || !p) continue;
+        gx += q.x; gy += q.y; gz += q.z;
+        sx += p.x; sy += p.y; sz += p.z;
+        n++;
+      }
+      if (n === newAtoms.length) {
+        gx /= n; gy /= n; gz /= n; sx /= n; sy /= n; sz /= n;
+        for (const a of newAtoms) {
+          const q = rebuilt.atoms[a.idx];
+          const p = positions.get(a.id);
+          if (!p) continue;
+          p.x = toW(q.x - gx) + sx;
+          p.y = toW(q.y - gy) + sy;
+          p.z = toW(q.z - gz) + sz;
+        }
+      }
     }
   }
   for (const a of newAtoms) {
@@ -61560,143 +62097,6 @@ document.addEventListener("click", (e) => {
     if (e.key === "Escape" && !modal.hidden) closeCredits();
   });
 }
-const mobileConsole = document.getElementById("mobile-console");
-const consoleOutput = document.getElementById("console-output");
-const consoleInput = document.getElementById("console-input");
-const consoleHistory = [];
-let consoleHistoryIndex = -1;
-let consoleSuggestions = [];
-let suggestionIndex = -1;
-const suggestionsDiv = document.createElement("div");
-suggestionsDiv.className = "console-suggestions";
-suggestionsDiv.hidden = true;
-consoleInput.parentElement.style.position = "relative";
-consoleInput.parentElement.insertBefore(suggestionsDiv, consoleInput);
-const availableCommands = [
-  "__mol3d.hacks.safeMode(true)",
-  "__mol3d.hacks.safeMode(false)",
-  "__mol3d.hacks.godMode()",
-  "__mol3d.hacks.mortalMode()",
-  "__mol3d.hacks.chaos(",
-  "__mol3d.hacks.party()",
-  "__mol3d.hacks.matrix()",
-  "__mol3d.hacks.rainbow()",
-  "__mol3d.hacks.disco()",
-  "__mol3d.hacks.giant()",
-  "__mol3d.hacks.tiny()",
-  "__mol3d.hacks.explosion(",
-  "__mol3d.hacks.implode()",
-  "__mol3d.hacks.clone(",
-  "__mol3d.hacks.dna(",
-  "__mol3d.hacks.firework(",
-  "__mol3d.hacks.blackHole()",
-  "__mol3d.hacks.antiGravity()",
-  "__mol3d.hacks.quantum()",
-  "__mol3d.hacks.unlockAll()",
-  "__mol3d.hacks.spawnMolecule(",
-  "__mol3d.hacks.mirror()",
-  "__mol3d.hacks.slowmo()",
-  "__mol3d.hacks.fastforward()",
-  "__mol3d.hacks.normalSpeed()",
-  "__mol3d.hacks.adminExport()",
-  "__mol3d.hacks.triggerDeath()",
-  "__mol3d.spawnAtom(",
-  "__mol3d.clearAll()",
-  "__mol3d.undo()",
-  "__mol3d.discoveries()"
-];
-function updateSuggestions(input) {
-  if (!input.trim()) {
-    suggestionsDiv.hidden = true;
-    return;
-  }
-  const matches2 = availableCommands.filter((cmd) => cmd.toLowerCase().includes(input.toLowerCase()));
-  if (matches2.length === 0) {
-    suggestionsDiv.hidden = true;
-    return;
-  }
-  suggestionsDiv.innerHTML = "";
-  matches2.slice(0, 5).forEach((match, idx) => {
-    const item = document.createElement("div");
-    item.className = "suggestion-item" + (idx === suggestionIndex ? " active" : "");
-    item.textContent = match;
-    item.addEventListener("click", () => {
-      consoleInput.value = match;
-      suggestionsDiv.hidden = true;
-      consoleInput.focus();
-    });
-    suggestionsDiv.appendChild(item);
-  });
-  suggestionsDiv.hidden = false;
-}
-const originalConsole = {
-  log: console.log.bind(console),
-  error: console.error.bind(console),
-  warn: console.warn.bind(console),
-  info: console.info.bind(console)
-};
-function addConsoleEntry(type, args) {
-  const entry = document.createElement("div");
-  entry.className = `log-entry ${type}`;
-  const text = Array.from(args).map((arg) => {
-    if (typeof arg === "object") {
-      try {
-        return JSON.stringify(arg, null, 2);
-      } catch {
-        return String(arg);
-      }
-    }
-    return String(arg);
-  }).join(" ");
-  entry.textContent = text;
-  consoleOutput.appendChild(entry);
-  consoleOutput.scrollTop = consoleOutput.scrollHeight;
-}
-console.log = function(...args) {
-  originalConsole.log(...args);
-  addConsoleEntry("log", args);
-};
-console.error = function(...args) {
-  originalConsole.error(...args);
-  addConsoleEntry("error", args);
-};
-console.warn = function(...args) {
-  originalConsole.warn(...args);
-  addConsoleEntry("warn", args);
-};
-console.info = function(...args) {
-  originalConsole.info(...args);
-  addConsoleEntry("info", args);
-};
-function executeConsoleCommand(cmd) {
-  if (!cmd.trim()) return;
-  consoleHistory.push(cmd);
-  consoleHistoryIndex = consoleHistory.length;
-  addConsoleEntry("info", [`> ${cmd}`]);
-  try {
-    const fn = new Function("return " + cmd);
-    const result = fn();
-    if (result !== void 0) {
-      addConsoleEntry("result", [result]);
-    }
-  } catch (e) {
-    addConsoleEntry("error", [e.message]);
-  }
-}
-document.getElementById("btn-console").addEventListener("click", () => {
-  if (!shopGate("console")) return;
-  if (!isFeatureUnlocked("console")) {
-    const price = shopPriceOf("console");
-    status(t("rank.consoleLocked", { price: price === null ? "?" : price }), "err");
-    return;
-  }
-  mobileConsole.hidden = !mobileConsole.hidden;
-  if (!mobileConsole.hidden) {
-    consoleInput.focus();
-    btnMenu.setAttribute("aria-expanded", "false");
-    menuDropdown.hidden = true;
-  }
-});
 const btnReturnLobby = document.getElementById("btn-return-lobby");
 if (btnReturnLobby) {
   btnReturnLobby.addEventListener("click", () => {
@@ -61925,57 +62325,6 @@ const joyJumpInit = document.getElementById("joy-jump");
 if (joyJumpInit) joyJumpInit.classList.add("visible");
 const joyVertInit = document.getElementById("joy-vert");
 if (joyVertInit) joyVertInit.style.display = "none";
-document.getElementById("console-close").addEventListener("click", () => {
-  mobileConsole.hidden = true;
-});
-document.getElementById("console-clear").addEventListener("click", () => {
-  consoleOutput.innerHTML = "";
-});
-document.getElementById("console-run").addEventListener("click", () => {
-  executeConsoleCommand(consoleInput.value);
-  consoleInput.value = "";
-});
-consoleInput.addEventListener("input", () => {
-  suggestionIndex = -1;
-  updateSuggestions(consoleInput.value);
-});
-consoleInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    executeConsoleCommand(consoleInput.value);
-    consoleInput.value = "";
-    suggestionsDiv.hidden = true;
-  } else if (e.key === "ArrowUp") {
-    e.preventDefault();
-    if (!suggestionsDiv.hidden && suggestionsDiv.children.length > 0) {
-      suggestionIndex = Math.max(0, suggestionIndex - 1);
-      updateSuggestions(consoleInput.value);
-    } else if (consoleHistoryIndex > 0) {
-      consoleHistoryIndex--;
-      consoleInput.value = consoleHistory[consoleHistoryIndex];
-    }
-  } else if (e.key === "ArrowDown") {
-    e.preventDefault();
-    if (!suggestionsDiv.hidden && suggestionsDiv.children.length > 0) {
-      suggestionIndex = Math.min(suggestionsDiv.children.length - 1, suggestionIndex + 1);
-      updateSuggestions(consoleInput.value);
-    } else if (consoleHistoryIndex < consoleHistory.length - 1) {
-      consoleHistoryIndex++;
-      consoleInput.value = consoleHistory[consoleHistoryIndex];
-    } else {
-      consoleHistoryIndex = consoleHistory.length;
-      consoleInput.value = "";
-    }
-  } else if (e.key === "Tab") {
-    e.preventDefault();
-    if (!suggestionsDiv.hidden && suggestionsDiv.children.length > 0) {
-      const idx = suggestionIndex >= 0 ? suggestionIndex : 0;
-      consoleInput.value = suggestionsDiv.children[idx].textContent;
-      suggestionsDiv.hidden = true;
-    }
-  } else if (e.key === "Escape") {
-    suggestionsDiv.hidden = true;
-  }
-});
 document.getElementById("btn-mayhem").addEventListener("click", () => {
   if (!shopGate("mayhem")) return;
   if (!isFeatureUnlocked("mayhem")) {
@@ -63030,6 +63379,52 @@ function computeInitialPositions(atomList) {
   }
   return positions;
 }
+// The same defect the template walk used to have, in the other branch: atoms
+// land on a golden spiral and whatever falls inside 2.5 scene units is bonded,
+// so HCN came out with both contacts at 0.93 A where the same topology relaxes
+// to 1.09 and 1.47. That gap is invented strain - the panel reports it honestly
+// as hundreds of kJ/mol and a run spends its first femtoseconds converting it
+// into kinetic energy. So the engine is asked to relax the topology the scene
+// already has. When it refuses - a radical fragment, an element it does not
+// know, a set with no bonds to place against - the spiral geometry stays.
+function relaxSceneAtomsFromEngine(ids) {
+  if (!window.Mol3DPhysics || !window.Mol3DPhysics.Builder) return false;
+  const list = ids.map((id) => atoms.get(id)).filter(Boolean);
+  if (list.length < 2 || list.length !== ids.length) return false;
+  const index = /* @__PURE__ */ new Map();
+  list.forEach((a, i) => index.set(a.id, i));
+  const bondList = [...bonds.values()].filter((b) => index.has(b.a) && index.has(b.b)).map((b) => [index.get(b.a), index.get(b.b), b.order || 1]);
+  if (!bondList.length) return false;
+  let built = null;
+  try {
+    const r = window.Mol3DPhysics.Builder.build({
+      atoms: list.map((a) => ({ sym: a.el.sym })),
+      bonds: bondList,
+      charge: 0
+    }, {});
+    if (r && r.ok && r.mol && r.mol.atoms.length === list.length) built = r.mol;
+  } catch (err) {
+    built = null;
+  }
+  if (!built) return false;
+  const toW = window.Mol3DPhysics.SceneBridge.toWorld;
+  const n = list.length;
+  let gx = 0, gy = 0, gz = 0, sx = 0, sy = 0, sz = 0;
+  for (let i = 0; i < n; i++) {
+    const q = built.atoms[i], p = list[i].pos;
+    if (!q || !p) return false;
+    gx += q.x; gy += q.y; gz += q.z;
+    sx += p.x; sy += p.y; sz += p.z;
+  }
+  for (let i = 0; i < n; i++) {
+    const q = built.atoms[i], atom = list[i];
+    atom.pos.x = toW(q.x - gx / n) + sx / n;
+    atom.pos.y = toW(q.y - gy / n) + sy / n;
+    atom.pos.z = toW(q.z - gz / n) + sz / n;
+    clampAtomToBounds(atom);
+  }
+  return true;
+}
 function autoBondAtoms(atomIds) {
   const maxBondDist = 2.5;
   let bonded = true;
@@ -63057,6 +63452,51 @@ function autoBondAtoms(atomIds) {
       }
     }
   }
+}
+// The assistant can build a molecule when the player asks for one, and it gets
+// the same treatment as the rest of the game: a registered isomer or a
+// generated template supplies the topology, and the engine relaxes anything the
+// app has to place by itself. Nothing already in the scene is deleted, because
+// "build me some water" is not an instruction to clear the table.
+function spawnFormulaMolecule(formula) {
+  const atomList = [];
+  const re = /([A-Z][a-z]?)(\d*)/g;
+  let m;
+  while ((m = re.exec(String(formula || ""))) !== null) {
+    if (!m[1]) continue;
+    const count = m[2] ? parseInt(m[2], 10) : 1;
+    for (let i = 0; i < count; i++) atomList.push(m[1]);
+  }
+  if (!atomList.length) return null;
+  for (const sym of atomList) {
+    if (!ELEMENTS.find((e) => e.sym === sym)) return null;
+  }
+  const hill = orderingToFormula(atomList);
+  const registered = (ISOMERS[hill] || [])[0];
+  const tpl = registered ? registered.tpl : productTemplate(hill);
+  const spot = findSpawnSpot();
+  if (tpl && tpl.atoms && tpl.atoms.length === atomList.length && orderingToFormula(tpl.atoms) === hill) {
+    const { ids } = buildMoleculeAt(tpl, spot.x, spot.y, spot.z);
+    if (registered && registered.displayFormula && arrangementMatchesScene(registered.displayFormula, { atoms: ids })) {
+      isoSel.set(compKey({ atoms: ids }), registered.displayFormula);
+    }
+    reanalyze();
+    return ids;
+  }
+  const ids = [];
+  const positions = computeInitialPositions(atomList);
+  for (let i = 0; i < atomList.length; i++) {
+    const el = ELEMENTS.find((e) => e.sym === atomList[i]);
+    if (!el) continue;
+    const id = nextId++;
+    const p = positions[i] || { x: 0, y: 0, z: 0 };
+    atoms.set(id, { id, el, pos: { x: p.x + spot.x, y: p.y + spot.y, z: p.z + spot.z } });
+    ids.push(id);
+  }
+  autoBondAtoms(ids);
+  relaxSceneAtomsFromEngine(ids);
+  reanalyze();
+  return ids;
 }
 window.__mol3d = {
   atoms,
@@ -63119,37 +63559,6 @@ window.__mol3d = {
   stabilize: (ids) => stabilizeStrays(Array.isArray(ids) ? ids : [ids], performance.now()),
   triggerDeath: triggerPlayerDeath,
   triggerNuclearVFX: triggerNuclearExplosionVFX,
-  help: () => {
-    console.log("%c🧪 MOLECULITH Console API", "color: #4CAF50; font-weight: bold; font-size: 14px;");
-    console.log("%cCore:", "color: #2196F3; font-weight: bold;");
-    console.log('  __mol3d.spawnAtom(el) — Spawn an atom (e.g., "C", "O", "H")');
-    console.log("  __mol3d.clearAll() — Clear all atoms");
-    console.log("  __mol3d.undo() — Undo last action");
-    console.log("  __mol3d.selectAtom(id) — Select atom by ID");
-    console.log("  __mol3d.reanalyze() — Re-analyze molecules");
-    console.log("  __mol3d.discoveries() — List discoveries");
-    console.log("  __mol3d.analyses() — Get current analyses");
-    console.log("%cHacks:", "color: #ff9800; font-weight: bold;");
-    console.log("  __mol3d.hacks.chaos(count) — Spawn random atoms");
-    console.log('  __mol3d.hacks.spawnMolecule(formula) — Spawn by formula (e.g., "C2H6O")');
-    console.log("  __mol3d.hacks.dna(length) — Create DNA helix");
-    console.log("  __mol3d.hacks.firework(count) — Explosion pattern");
-    console.log("  __mol3d.hacks.party() — Dancing atoms");
-    console.log("  __mol3d.hacks.godMode() / mortalMode() — Toggle validation");
-    console.log("  __mol3d.hacks.explosion(force) / implode() — Position effects");
-    console.log("  __mol3d.hacks.giant() / tiny() — Scale atoms");
-    console.log("  __mol3d.hacks.matrix() / rainbow() / disco() — Visual effects");
-    console.log("  __mol3d.hacks.blackHole() / antiGravity() / quantum() — Physics");
-    console.log("  __mol3d.hacks.clone(times) — Clone selected atom");
-    console.log("  __mol3d.hacks.mirror() — Mirror all atoms");
-    console.log("  __mol3d.hacks.unlockAll() — Unlock all discoveries");
-    console.log("  __mol3d.hacks.slowmo() / fastforward() / normalSpeed() — Time control");
-    console.log("%cAdmin Debug:", "color: #ff0000; font-weight: bold;");
-    console.log("  __mol3d.hacks.adminExport() — Download debug JSON");
-    console.log("  __mol3d.hacks.triggerDeath() — Test death animation");
-    console.log("  Stars and rank have no console command — they are the shop balance.");
-    return "API listed above";
-  },
   screenPosOf: (id) => {
     const at = atoms.get(id);
     if (!at) return null;
@@ -63211,415 +63620,6 @@ window.__mol3d = {
     renderer.render(scene, camera);
     return { drift: a, lerp: l };
   },
-  hacks: {
-    triggerDeath: () => {
-      triggerPlayerDeath();
-      return "Death triggered";
-    },
-    unlimitedBonds: () => {
-      window.__mol3d._godMode = true;
-      console.log(`%c🔓 UNLIMITED BONDS ENABLED! Chemistry rules no longer apply.`, "color: #ff9800; font-weight: bold; font-size: 14px;");
-      console.log(`Warning: Molecules may become impossible. Use at your own risk!`);
-      return "God mode activated";
-    },
-    godMode: () => {
-      window.__mol3d._godMode = true;
-      console.log(`%c⚡ GOD MODE ACTIVATED!`, "color: #ff0000; font-weight: bold; font-size: 16px; text-shadow: 2px 2px #000;");
-      console.log(`All validation disabled. Spawn impossible molecules!`);
-      return "God mode on";
-    },
-    mortalMode: () => {
-      window.__mol3d._godMode = false;
-      console.log(`%c✓ Back to normal chemistry rules`, "color: #4CAF50; font-weight: bold;");
-      return "God mode off";
-    },
-    clearScene: () => {
-      clearAll();
-      console.log(`%c Scene cleared`, "color: #2196F3; font-weight: bold;");
-      return "Scene cleared";
-    },
-    safeMode: (on) => {
-      window.__mol3d.SafeMode = on !== false;
-      const state = window.__mol3d.SafeMode ? "ON" : "OFF";
-      const color = window.__mol3d.SafeMode ? "#ffcc00" : "#4CAF50";
-      console.log(`%c⚠ SAFE MODE: ${state}`, `color: ${color}; font-weight: bold; font-size: 14px;`);
-      if (!window.__mol3d.SafeMode) {
-        console.log("%c  Unstable molecule warnings disabled", "color: #888;");
-      } else {
-        console.log("%c  Unstable molecule warnings enabled", "color: #888;");
-        checkUnstableMolecules();
-      }
-      return `Safe mode ${state}`;
-    },
-    chaos: (count = 20) => {
-      console.log(`%c🌪 CHAOS MODE! Spawning ${count} random atoms...`, "color: #9c27b0; font-weight: bold; font-size: 14px;");
-      for (let i = 0; i < count; i++) {
-        const el = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
-        spawnAtom(el);
-      }
-      return `Spawned ${count} random atoms`;
-    },
-    party: () => {
-      console.log(`%c🎉 PARTY MODE! Let's dance!`, "color: #e91e63; font-weight: bold; font-size: 16px;");
-      let angle = 0;
-      const interval = setInterval(() => {
-        for (const [id, at] of atoms) {
-          at.pos.x += Math.sin(angle + id) * 0.1;
-          at.pos.y += Math.cos(angle + id) * 0.1;
-        }
-        angle += 0.2;
-        reanalyze();
-      }, 50);
-      setTimeout(() => clearInterval(interval), 5e3);
-      return "Party for 5 seconds!";
-    },
-    matrix: () => {
-      console.log(`%c💚 MATRIX MODE - Welcome to the Matrix, Neo...`, "color: #00ff00; font-weight: bold; font-size: 14px; font-family: monospace;");
-      document.body.style.filter = "hue-rotate(90deg) saturate(3) brightness(0.8)";
-      setTimeout(() => document.body.style.filter = "", 1e4);
-      return "Matrix mode for 10 seconds";
-    },
-    rainbow: () => {
-      console.log(`%c🌈 RAINBOW MODE!`, "color: #ff0000; font-weight: bold; font-size: 16px; text-shadow: 1px 1px #ff0, -1px -1px #0f0, 1px -1px #00f;");
-      let hue = 0;
-      const interval = setInterval(() => {
-        document.body.style.filter = `hue-rotate(${hue}deg)`;
-        hue = (hue + 10) % 360;
-      }, 100);
-      setTimeout(() => {
-        clearInterval(interval);
-        document.body.style.filter = "";
-      }, 1e4);
-      return "Rainbow for 10 seconds";
-    },
-    giant: () => {
-      console.log(`%c🦣 GIANT MODE!`, "color: #795548; font-weight: bold; font-size: 16px;");
-      for (const [id, at] of atoms) {
-        at.pos.x *= 3;
-        at.pos.y *= 3;
-        at.pos.z *= 3;
-      }
-      reanalyze();
-      return "Atoms scaled 3x";
-    },
-    tiny: () => {
-      console.log(`%c🔬 TINY MODE!`, "color: #2196f3; font-weight: bold; font-size: 16px;");
-      for (const [id, at] of atoms) {
-        at.pos.x /= 3;
-        at.pos.y /= 3;
-        at.pos.z /= 3;
-      }
-      reanalyze();
-      return "Atoms scaled 1/3x";
-    },
-    explosion: (force = 5) => {
-      console.log(`%c💥 EXPLOSION! Force: ${force}`, "color: #ff5722; font-weight: bold; font-size: 16px;");
-      for (const [id, at] of atoms) {
-        const dx = at.pos.x || 0.1;
-        const dy = at.pos.y || 0.1;
-        const dz = at.pos.z || 0.1;
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-        at.pos.x += dx / dist * force;
-        at.pos.y += dy / dist * force;
-        at.pos.z += dz / dist * force;
-      }
-      reanalyze();
-      return "BOOM!";
-    },
-    implode: () => {
-      console.log(`%c🕳️ IMPLODE! All atoms to center!`, "color: #000000; font-weight: bold; font-size: 16px; background: #fff;");
-      for (const [id, at] of atoms) {
-        at.pos.x *= 0.1;
-        at.pos.y *= 0.1;
-        at.pos.z *= 0.1;
-      }
-      reanalyze();
-      return "Collapsed to center";
-    },
-    clone: (times = 5) => {
-      if (selectedId === null) {
-        console.error("No atom selected! Select an atom first.");
-        return "Error: no selection";
-      }
-      console.log(`%c👯 CLONING atom ${selectedId} x${times}!`, "color: #00bcd4; font-weight: bold; font-size: 14px;");
-      const orig = atoms.get(selectedId);
-      for (let i = 0; i < times; i++) {
-        const newAtom = spawnAtom(orig.el);
-        const nat = atoms.get(newAtom);
-        nat.pos.x = orig.pos.x + (Math.random() - 0.5) * 2;
-        nat.pos.y = orig.pos.y + (Math.random() - 0.5) * 2;
-        nat.pos.z = orig.pos.z + (Math.random() - 0.5) * 2;
-      }
-      reanalyze();
-      return `Cloned ${times} times`;
-    },
-    dna: (length = 20) => {
-      console.log(`%c🧬 DNA MODE! Creating helix with ${length} atoms...`, "color: #3f51b5; font-weight: bold; font-size: 14px;");
-      clearAll();
-      const atomIds = [];
-      for (let i = 0; i < length; i++) {
-        const angle = i / length * Math.PI * 4;
-        const el = i % 2 === 0 ? ELEMENTS.find((e) => e.sym === "C") : ELEMENTS.find((e) => e.sym === "O");
-        const id = nextId++;
-        const pos = {
-          x: Math.cos(angle) * 2,
-          y: i * 0.5,
-          z: Math.sin(angle) * 2
-        };
-        atoms.set(id, { id, el, pos });
-        atomIds.push(id);
-      }
-      for (let i = 0; i < atomIds.length - 1; i++) {
-        const aId = atomIds[i];
-        const bId = atomIds[i + 1];
-        const chk = bondCheck(atoms, bonds, aId, bId);
-        if (chk.ok || window.__mol3d?._godMode) {
-          const id = nextId++;
-          bonds.set(id, { id, a: aId, b: bId, order: 1, ionic: chk.type === "ionic" });
-        }
-      }
-      reanalyze();
-      return `DNA helix created with ${atomIds.length} atoms and bonds`;
-    },
-    firework: (count = 30) => {
-      console.log(`%c🎆 FIREWORK! Spawning ${count} atoms in explosion pattern...`, "color: #ff9800; font-weight: bold; font-size: 14px;");
-      const center = { x: 0, y: 0, z: 0 };
-      for (let i = 0; i < count; i++) {
-        const el = ELEMENTS[Math.floor(Math.random() * 5)];
-        const id = spawnAtom(el);
-        const at = atoms.get(id);
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.random() * Math.PI;
-        const r = 2 + Math.random() * 3;
-        at.pos.x = center.x + r * Math.sin(phi) * Math.cos(theta);
-        at.pos.y = center.y + r * Math.sin(phi) * Math.sin(theta);
-        at.pos.z = center.z + r * Math.cos(phi);
-      }
-      reanalyze();
-      return "Firework!";
-    },
-    blackHole: () => {
-      console.log(`%c🕳️ BLACK HOLE! All atoms attracted to center...`, "color: #000; font-weight: bold; font-size: 16px; background: linear-gradient(45deg, #000, #333); padding: 5px;");
-      let step = 0;
-      const interval = setInterval(() => {
-        for (const [id, at] of atoms) {
-          at.pos.x *= 0.95;
-          at.pos.y *= 0.95;
-          at.pos.z *= 0.95;
-        }
-        reanalyze();
-        step++;
-        if (step > 50) clearInterval(interval);
-      }, 100);
-      return "Black hole active for 5 seconds";
-    },
-    antiGravity: () => {
-      console.log(`%c🚀 ANTI-GRAVITY! Atoms float upward!`, "color: #00bcd4; font-weight: bold; font-size: 14px;");
-      let step = 0;
-      const interval = setInterval(() => {
-        for (const [id, at] of atoms) {
-          at.pos.y += 0.2;
-        }
-        reanalyze();
-        step++;
-        if (step > 50) clearInterval(interval);
-      }, 100);
-      return "Anti-gravity for 5 seconds";
-    },
-    quantum: () => {
-      console.log(`%c⚛️ QUANTUM MODE! Atoms teleport randomly!`, "color: #9c27b0; font-weight: bold; font-size: 14px;");
-      let step = 0;
-      const interval = setInterval(() => {
-        for (const [id, at] of atoms) {
-          if (Math.random() < 0.3) {
-            at.pos.x += (Math.random() - 0.5) * 2;
-            at.pos.y += (Math.random() - 0.5) * 2;
-            at.pos.z += (Math.random() - 0.5) * 2;
-          }
-        }
-        reanalyze();
-        step++;
-        if (step > 30) clearInterval(interval);
-      }, 200);
-      return "Quantum teleportation for 6 seconds";
-    },
-    unlockAll: () => {
-      console.log(`%c🔓 UNLOCKING ALL DISCOVERIES!`, "color: #ffd700; font-weight: bold; font-size: 16px;");
-      for (const challenge of CHALLENGES) {
-        if (!completed.has(challenge.formula)) {
-          completed.add(challenge.formula);
-          discoveries.push({ formula: challenge.formula, charge: 0, saved: true });
-        }
-      }
-      updateDiscList();
-      saveDiscoveries();
-      return `Unlocked ${CHALLENGES.length} discoveries!`;
-    },
-    spawnMolecule: (formula) => {
-      console.log(`%c🧪 Spawning molecule: ${formula}`, "color: #4CAF50; font-weight: bold; font-size: 14px;");
-      clearAll();
-      const atomList = [];
-      const regex = /([A-Z][a-z]?)(\d*)/g;
-      let match;
-      while ((match = regex.exec(formula)) !== null) {
-        if (!match[1]) continue;
-        const sym = match[1];
-        const count = match[2] ? parseInt(match[2]) : 1;
-        for (let i = 0; i < count; i++) atomList.push(sym);
-      }
-      if (atomList.length === 0) {
-        console.error(`Could not parse formula: ${formula}`);
-        return "Parse error";
-      }
-      // A formula names a composition, and the template library already holds a
-      // bonded structure for most of them. Building from that structure keeps every
-      // atom in the molecule: the proximity auto-bonder below bonds pairs in scan
-      // order and can strand an H2 out of the molecule, which then shows up as a
-      // formula with fewer hydrogens than the one that was asked for.
-      const hill = orderingToFormula(atomList);
-      const registered = (ISOMERS[hill] || [])[0];
-      const tpl = registered ? registered.tpl : productTemplate(hill);
-      if (tpl && tpl.atoms && tpl.atoms.length === atomList.length && orderingToFormula(tpl.atoms) === hill) {
-        const spot = findSpawnSpot();
-        const { ids } = buildMoleculeAt(tpl, spot.x, spot.y, spot.z);
-        if (registered && registered.displayFormula && arrangementMatchesScene(registered.displayFormula, { atoms: ids })) {
-          isoSel.set(compKey({ atoms: ids }), registered.displayFormula);
-        }
-        reanalyze();
-        const tplBonds = [...bonds.values()].filter((b) => ids.includes(b.a) && ids.includes(b.b)).length;
-        return `Spawned ${formula} with ${ids.length} atoms and ${tplBonds} bonds`;
-      }
-      const atomIds = [];
-      const positions = computeInitialPositions(atomList);
-      for (let i = 0; i < atomList.length; i++) {
-        const sym = atomList[i];
-        const el = ELEMENTS.find((e) => e.sym === sym);
-        if (!el) {
-          console.warn(`Element ${sym} not found, skipping`);
-          continue;
-        }
-        const id = nextId++;
-        const pos = positions[i] || { x: i % 5 * 1.5 - 3, y: 0, z: Math.floor(i / 5) * 1.5 };
-        atoms.set(id, { id, el, pos });
-        atomIds.push(id);
-      }
-      autoBondAtoms(atomIds);
-      reanalyze();
-      const bondCount = [...bonds.values()].filter((b) => atomIds.includes(b.a) && atomIds.includes(b.b)).length;
-      return `Spawned ${formula} with ${atomIds.length} atoms and ${bondCount} bonds`;
-    },
-    mirror: () => {
-      if (atoms.size === 0) {
-        console.error("No atoms to mirror!");
-        return "Error: empty";
-      }
-      console.log(`%c🪞 MIRROR MODE! Creating mirror copy...`, "color: #607d8b; font-weight: bold; font-size: 14px;");
-      const originalAtoms = [...atoms.values()];
-      for (const orig of originalAtoms) {
-        const id = spawnAtom(orig.el);
-        const at = atoms.get(id);
-        at.pos.x = -orig.pos.x;
-        at.pos.y = orig.pos.y;
-        at.pos.z = orig.pos.z;
-      }
-      reanalyze();
-      return "Mirror created (X-axis flip)";
-    },
-    disco: () => {
-      console.log(`%c🕺 DISCO MODE! Flashing colors!`, "color: #ff00ff; font-weight: bold; font-size: 16px;");
-      const colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff"];
-      let i = 0;
-      const interval = setInterval(() => {
-        document.body.style.backgroundColor = colors[i % colors.length];
-        i++;
-      }, 200);
-      setTimeout(() => {
-        clearInterval(interval);
-        document.body.style.backgroundColor = "";
-      }, 5e3);
-      return "Disco for 5 seconds!";
-    },
-    slowmo: () => {
-      console.log(`%c🐌 SLOW-MO MODE!`, "color: #2196f3; font-weight: bold; font-size: 14px;");
-      window.__mol3d._timeScale = 0.2;
-      return "Time scale: 0.2x";
-    },
-    fastforward: () => {
-      console.log(`%c⚡ FAST-FORWARD MODE!`, "color: #ff9800; font-weight: bold; font-size: 14px;");
-      window.__mol3d._timeScale = 3;
-      return "Time scale: 3x";
-    },
-    normalSpeed: () => {
-      window.__mol3d._timeScale = 1;
-      console.log(`%c✓ Normal speed restored`, "color: #4CAF50; font-weight: bold;");
-      return "Time scale: 1x";
-    },
-    // Admin debug commands - added 2026-11-01
-    // The rank ledger used to be editable from here (setStars / addStars /
-    // removeStars / debugRank). Stars are now the shop balance and the whole
-    // rank, so a console shortcut for them was a progression switch, not a debug
-    // aid; rank inspection lives in __mol3d.progression instead.
-    adminExport: () => {
-      const rank = rankManager.getCurrentRank();
-      const exportData = {
-        _debug: {
-          exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          userAgent: navigator.userAgent,
-          url: window.location.href
-        },
-        version: "2.0",
-        scene: {
-          atoms: [...atoms.values()].map((a2) => ({ id: a2.id, z: a2.el.z, sym: a2.el.sym, pos: a2.pos })),
-          bonds: [...bonds.values()].map((b) => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic })),
-          nextId
-        },
-        discoveries: discoveries.map((d) => ({ ...d })),
-        completed: [...completed],
-        overrides: [...overrides],
-        isoSel: [...isoSel],
-        rank: {
-          version: RANK_SCHEMA,
-          stars: rankManager.totalStars,
-          currentRank: rank,
-          raw: { ...rankManager }
-        },
-        quests: {
-          stars: questManager.getStars(),
-          completed: [...questManager.completedQuests],
-          raw: { ...questManager }
-        },
-        player: {
-          health: playerHealth,
-          isDead: isPlayerDead,
-          cameraPosition: camera.position.toArray(),
-          cameraTarget: controls.target.toArray()
-        },
-        settings: {
-          theme: document.documentElement.dataset.theme || "dark",
-          lang: getLang(),
-          quality: qualityMode,
-          gameMode
-        },
-        localStorage: {
-          rank: localStorage.getItem(RANK_KEY),
-          quests: localStorage.getItem("mol3d.quests"),
-          theme: localStorage.getItem("mol3d.theme"),
-          volume: localStorage.getItem("mol3d.volume")
-        }
-      };
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `admin_debug_${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      console.log("%c📁 Admin debug export downloaded", "color: #2196F3; font-weight: bold; font-size: 14px;");
-      return "Admin export downloaded";
-    }
-  },
   scene,
   renderer,
   ELEMENTS,
@@ -63649,7 +63649,7 @@ window.__mol3d = {
     return invalidate;
   }
 };
-console.log(`%c🧪 MOLECULITH loaded! Type %c__mol3d.help()%c for console API`, "color: #4CAF50; font-weight: bold;", "color: #2196F3; font-weight: bold;", "color: #4CAF50;");
+console.log("%c🧪 MOLECULITH loaded", "color: #4CAF50; font-weight: bold;");
 applyStatic();
 syncTopBarLabels();
 updateAtmosphereButton();
@@ -63854,28 +63854,15 @@ function initBackgroundMusic() {
             return `✓ Spawned ${args.element} atom`;
           }
           break;
-        case "spawnMolecule":
-          if (window.__mol3d?.hacks?.spawnMolecule) {
-            window.__mol3d.hacks.spawnMolecule(args.formula);
-            return `✓ Built ${args.formula} molecule`;
-          }
+        case "spawnMolecule": {
+          const ids = spawnFormulaMolecule(args.formula);
+          if (ids) return `✓ Built ${args.formula} molecule`;
           break;
+        }
         case "clearScene":
-          if (window.__mol3d?.hacks?.clearScene) {
-            window.__mol3d.hacks.clearScene();
+          if (typeof window.__mol3d?.clearAll === "function") {
+            window.__mol3d.clearAll();
             return "✓ Cleared the scene";
-          }
-          break;
-        case "godMode":
-          if (window.__mol3d?.hacks?.godMode) {
-            window.__mol3d.hacks.godMode();
-            return "⚡ God mode activated - no validation limits";
-          }
-          break;
-        case "mortalMode":
-          if (window.__mol3d?.hacks?.mortalMode) {
-            window.__mol3d.hacks.mortalMode();
-            return "✓ Back to normal chemistry rules";
           }
           break;
       }
@@ -63923,15 +63910,13 @@ HÀNH ĐỘNG CÓ SẴN (khi người dùng yêu cầu xây dựng/tạo):
 - [ACTION:spawnMolecule:formula=H2O] - Xây dựng phân tử hoàn chỉnh
 - [ACTION:spawnAtom:element=O] - Thêm một nguyên tử đơn
 - [ACTION:clearScene] - Xóa tất cả nguyên tử
-- [ACTION:godMode] - Tắt xác thực (cho phân tử không thể)
-- [ACTION:mortalMode] - Bật lại xác thực
 
 QUY TẮC:
 1. Khi được yêu cầu xây dựng/tạo phân tử, sử dụng [ACTION:spawnMolecule:formula=...]
 2. Giải thích những gì bạn đang xây dựng và tại sao
 3. Giữ phản hồi dưới 3 câu
 4. Sử dụng hành động khi thích hợp, nhưng cũng giải thích hóa học
-5. Nếu phân tử vi phạm quy tắc hóa học, cảnh báo người dùng và đề xuất godMode
+5. Nếu phân tử vi phạm quy tắc hóa học, hãy cảnh báo người dùng thay vì xây nó
 
 Ví dụ:
 Người dùng: "Tạo nước"
@@ -63951,15 +63936,13 @@ AVAILABLE ACTIONS (use when user asks you to build/create something):
 - [ACTION:spawnMolecule:formula=H2O] - Build a complete molecule
 - [ACTION:spawnAtom:element=O] - Add a single atom
 - [ACTION:clearScene] - Clear all atoms
-- [ACTION:godMode] - Disable validation (for impossible molecules)
-- [ACTION:mortalMode] - Re-enable validation
 
 RULES:
 1. When asked to build/create a molecule, use [ACTION:spawnMolecule:formula=...]
 2. Explain what you're building and why
 3. Keep responses under 3 sentences
 4. Use actions when appropriate, but also explain the chemistry
-5. If a molecule violates chemistry rules, warn the user and offer godMode
+5. If a molecule violates chemistry rules, warn the user instead of building it
 
 Examples:
 User: "Build water"
@@ -64011,9 +63994,7 @@ function updateRankWidget() {
     gradeEl.style.color = rankInfo.rank.textColor;
   }
   const mayhemBtn = document.getElementById("btn-mayhem");
-  const consoleBtn = document.getElementById("btn-console");
   if (mayhemBtn) mayhemBtn.classList.toggle("feature-locked", !isFeatureUnlocked("mayhem"));
-  if (consoleBtn) consoleBtn.classList.toggle("feature-locked", !isFeatureUnlocked("console"));
 }
 function triggerRankUpAnimation(rankInfo) {
   const overlay = document.getElementById("rankup-overlay");

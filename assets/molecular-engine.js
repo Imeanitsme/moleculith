@@ -501,10 +501,78 @@
 
   // Bending constant: measured values are absent from the bond table, so the
   // classical relation k_angle = 0.1 k_bond r_bond^2 is used and reported.
+  //
+  // The centre atom's own VSEPR geometry, read from the current bond graph:
+  // steric number = neighbours + lone pairs, lone pairs = (V - formal charge -
+  // bond order sum) / 2. Nothing here is tabulated per element triple, so linear
+  // CO2 and acetylene get 180 degrees instead of the 109.47 degree fallback -
+  // the difference is roughly 1000 kJ/mol of invented strain, enough on its own
+  // to trip the energy-drift guard a few steps into a run.
+  Molecule.prototype.vseprCentre = function(j) {
+    var at = this.atoms[j];
+    if (!at) return null;
+    var v = vseprValence(at.el);
+    if (!v.ok) return null;
+    var sum = 0, nb = 0;
+    for (var i = 0; i < this.bonds.length; i++) {
+      var b = this.bonds[i];
+      if (b.i === j || b.j === j) { sum += b.order; nb++; }
+    }
+    var lone = (v.V - Math.round((at.q0 || 0) / CONST.e) - sum) / 2;
+    if (lone < -1e-9 || Math.abs(lone - Math.round(lone)) > 1e-9) return null;
+    lone = Math.round(lone);
+    var steric = nb + lone;
+    var cls = VSEPR.classify(steric, lone);
+    if (cls.angle === null) return null;
+    // Steric numbers 5 and 6 put their ligands on more than one ideal angle
+    // (90/120/180 in a trigonal bipyramid, 90/180 in an octahedron), so a single
+    // number cannot describe the centre. The site is not guessed: addAngle
+    // measures the pair it is parameterising and takes the ideal angle of the
+    // site the atom actually occupies. Up to 4 there is only one site.
+    var sites = steric === 6 ? [90, 180] : steric === 5 ? [90, 120, 180] : [cls.angle];
+    return { angle: cls.angle, sites: sites, shape: cls.shape, steric: steric, lonePairs: lone };
+  };
+
+  // How far a tabulated angle may sit from the ideal geometry of the centre it
+  // is applied to before it is judged to describe a different molecule.
+  // Substitution moves a real angle by a few degrees (H2O 104.5 against the
+  // 109.47 of a tetrahedron, sp2 C-C-H 121.5 against 120); it does not turn a
+  // linear 180 centre into a 124 one.
+  var ANGLE_TABLE_BAND_DEG = 10;
+
   Molecule.prototype.addAngle = function(i, j, k) {
     var A = this.atoms[i], C = this.atoms[j], D = this.atoms[k];
     if (!A || !C || !D) return null;
     var hit = angleParams(A.sym, C.sym, D.sym);
+    var vs = this.vseprCentre(j);
+    var vsAngle = null;
+    if (vs) {
+      // Which ideal angle applies is decided by where the ligand pair sits, and
+      // the geometry already knows: pick the site whose ideal angle the current
+      // arrangement is closest to. For one site this is just that site's angle.
+      var now = angleValue(A, C, D) * 180 / Math.PI;
+      vsAngle = vs.sites[0];
+      for (var s = 1; s < vs.sites.length; s++) {
+        if (Math.abs(now - vs.sites[s]) < Math.abs(now - vsAngle)) vsAngle = vs.sites[s];
+      }
+    }
+    var theta0, source;
+    if (hit && vsAngle !== null && Math.abs(hit.theta0 - vsAngle) > ANGLE_TABLE_BAND_DEG) {
+      // The table has a number for this element triple, but it belongs to a
+      // centre of another shape, and bending toward it would store roughly a
+      // thousand kJ/mol in a molecule that is really straight.
+      theta0 = vsAngle;
+      source = 'VSEPR ' + vs.shape + ' (table ' + hit.theta0 + '° refused)';
+      this.warnings.push('angle ' + A.sym + '-' + C.sym + '-' + D.sym + ': tabulated ' +
+        hit.theta0 + ' deg refused for a ' + vs.steric + '-coordinate centre (' + vs.shape +
+        '), using ' + vsAngle + ' deg');
+    } else if (hit) {
+      theta0 = hit.theta0; source = 'measured';
+    } else if (vsAngle !== null) {
+      theta0 = vsAngle; source = 'VSEPR ' + vs.shape;
+    } else {
+      theta0 = 109.47; source = 'tetrahedral default';
+    }
     var b1 = this.findBond(j, i), b2 = this.findBond(j, k);
     var kAng = 0;
     if (b1) kAng += 0.1 * b1.k * b1.re * b1.re;
@@ -512,9 +580,9 @@
     if (!kAng) kAng = 6e-19;
     var a = {
       i: i, j: j, k: k,
-      theta0: (hit ? hit.theta0 : 109.47) * Math.PI / 180,
+      theta0: theta0 * Math.PI / 180,
       kTheta: kAng,
-      thetaSource: hit ? 'measured' : 'tetrahedral default',
+      thetaSource: source,
       label: A.sym + '-' + C.sym + '-' + D.sym
     };
     this.angles.push(a);
@@ -735,8 +803,17 @@
       if (!(r1 > 0) || !(r2 > 0)) continue;
       var e1 = vunit(delta(pb, pa)), e2 = vunit(delta(pb, pc));
       var ct = Math.cos(theta);
-      var ga = vscale(vsub(vscale(e1, ct), e2), 1 / r1);
-      var gc = vscale(vsub(vscale(e2, ct), e1), 1 / r2);
+      // d(theta)/dr positions carries a 1/sin(theta) factor: the bracket below
+      // is only sin(theta) times the true derivative, so dividing by it is what
+      // makes this force the gradient of the bending energy. Left out, a centre
+      // near 180 deg has almost no restoring force (CO2 and HC#CH happily bend
+      // to 90 deg) and an NVE run quietly loses energy through the angle term.
+      // The divisor is floored because at exactly 0 or 180 deg the numerator
+      // vanishes with it; there the true force is zero anyway.
+      var st = Math.sin(theta);
+      var binv = 1 / (st > 1e-6 ? st : 1e-6);
+      var ga = vscale(vsub(vscale(e1, ct), e2), binv / r1);
+      var gc = vscale(vsub(vscale(e2, ct), e1), binv / r2);
       var gb = { x: -(ga.x + gc.x), y: -(ga.y + gc.y), z: -(ga.z + gc.z) };
       pa.fx -= dth * ga.x; pa.fy -= dth * ga.y; pa.fz -= dth * ga.z;
       pc.fx -= dth * gc.x; pc.fy -= dth * gc.y; pc.fz -= dth * gc.z;
@@ -792,16 +869,16 @@
           aj.fx -= cf * dx; aj.fy -= cf * dy; aj.fz -= cf * dz;
         }
 
-        // Reactive runs only (options.pairBondCurve). Two atoms that each carry
-        // an unpartnered valence electron and have no bond path between them are
-        // not a closed-shell pair: the Born-Oppenheimer surface they live on is
-        // the bond curve of the molecule they would form, which is tabulated
-        // with measured De, re and k. Those pairs are given that curve and no
-        // Lennard-Jones term at all, because a 12-6 core fitted to bonded,
-        // saturated matter repels every approach at ~1.6 A and no bond could
-        // then ever be reached. The same Morse function is what the graph bond
-        // evaluates once it exists, so recording or dropping the bond in the
-        // topology changes the energy by exactly nothing.
+        // Reactive runs only (options.pairBondCurve). Two atoms of the bond graph
+        // that each still have bonding capacity under their coordination cap and
+        // have no bond path between them are not a closed-shell pair: the
+        // Born-Oppenheimer surface they live on is the bond curve of the molecule
+        // they would form, which is tabulated with measured De, re and k. Those
+        // pairs are given that curve and no Lennard-Jones term at all, because a
+        // 12-6 core fitted to bonded, saturated matter repels every approach at
+        // ~1.6 A and no bond could then ever be reached. The same Morse function
+        // is what the graph bond evaluates once it exists, so recording or
+        // dropping the bond in the topology changes the energy by exactly nothing.
         var curve = o.pairBondCurve && path === 0 && this.bondCurve
           ? this.bondCurve[pairKey(i, j)] : null;
         if (curve) {
@@ -839,11 +916,12 @@
   function pairKey(i, j) { return i < j ? i + ':' + j : j + ':' + i; }
 
   // Pairs that may carry a bond curve before the graph bond exists: two atoms in
-  // different components of the bond graph, each with an odd number of
-  // unpartnered valence electrons - a classical radical centre - for which the
-  // bond table has measured single-bond constants. d- and f-block atoms are
-  // refused, because the VSEPR valence count that decides "unpaired" does not
-  // describe them, and an invented rule there would be fake physics.
+  // different components of the bond graph, each with bonding capacity left over
+  // against the coordination cap the formation rule itself applies, for which the
+  // bond table has constants for the highest order that capacity allows. d- and
+  // f-block atoms are refused, because the VSEPR octet limit that measures that
+  // capacity does not describe them, and an invented rule there would be fake
+  // physics.
   Molecule.prototype.buildBondCurveTable = function() {
     this.bondCurve = {};
     this.bondCurveRefused = [];
@@ -857,25 +935,36 @@
       sums[this.bonds[i].i] += this.bonds[i].order;
       sums[this.bonds[i].j] += this.bonds[i].order;
     }
-    var odd = [];
+    var free = [];
     for (i = 0; i < A.length; i++) {
-      var v = vseprValence(A[i].el);
-      if (!v.ok) {
-        odd.push(false);
+      var cap = Builder.maxBondOrderSum(A[i].el);
+      if (cap === null) {
+        free.push(0);
         if (this.bondCurveRefused.indexOf(A[i].sym) < 0) this.bondCurveRefused.push(A[i].sym);
         continue;
       }
-      var rem = v.V - Math.round((A[i].q0 || 0) / CONST.e) - sums[i];
-      odd.push(rem >= 1 && Math.abs(rem % 2) > 1e-9);
+      // An electron-parity test would call a bare carbon or oxygen atom closed
+      // shell and leave it on the 12-6 wall, which repels every approach before
+      // the bond curve can be reached; capacity left under the octet cap is the
+      // quantity that actually says another bond can be written.
+      free.push(cap - sums[i]);
     }
     for (i = 0; i < A.length; i++) {
-      if (!odd[i]) continue;
+      if (free[i] < 1) continue;
       for (j = i + 1; j < A.length; j++) {
-        if (!odd[j] || this.componentId[i] === this.componentId[j]) continue;
-        var p = bondParams(A[i].sym, A[j].sym, 1);
+        if (free[j] < 1 || this.componentId[i] === this.componentId[j]) continue;
+        // The curve a bare pair feels is the curve of the bond it can actually
+        // form, not an assumed single bond. Two nitrogen atoms at 1.10 A sit in a
+        // 1072 kJ/mol triple well, and booking them on the 158 kJ/mol N-N curve
+        // would make the pair look unbound at the length where it is most bound.
+        // The ceiling is the smaller leftover capacity of the two centres, the
+        // same quantity the formation step later reduces to an integer order.
+        var bo = Math.max(1, Math.min(3, Math.floor(Math.min(free[i], free[j]))));
+        var p = bondParams(A[i].sym, A[j].sym, bo);
         if (!p || !p.re) continue;
         this.bondCurve[pairKey(i, j)] = {
           re: p.re * ANGSTROM, De: kJPerMolToJ(p.De), k: p.k, measured: !!p.measured,
+          order: p.order, freeOrder: bo,
           sym: A[i].sym + '-' + A[j].sym
         };
         this.bondCurvePairCount++;
@@ -913,6 +1002,10 @@
     this.tauT = opts.tauT || 1e-13;               // thermostat coupling time, s
     this.e0 = null;
     this.eRef = null;
+    // Energy the thermostat has moved across the system boundary. Under NVT the
+    // total energy is not conserved on purpose, so the drift guard has to know
+    // how much of the change was the bath and how much was the integrator.
+    this.bathWork = 0;
     this.drift = { max: 0, current: 0, history: [] };
     this.status = 'idle';                         // idle | running | paused | unstable
     this.unstable = null;
@@ -972,6 +1065,7 @@
     this.e0 = this.totalEnergy();
     this.eRef = this.e0;
     this.drift.current = 0; this.drift.max = 0; this.drift.history = [];
+    this.bathWork = 0;
     if (this.status === 'unstable') { this.unstable = null; }
     this.status = 'ready';
     return { eRefJ: this.eRef, eRefKJmol: this.eRef * CONST.N_A / 1000 };
@@ -1035,10 +1129,15 @@
     var lambda = Math.sqrt(1 + (dtScale(this.dt, this.tauT)) * (this.targetT / T - 1));
     if (!isFinite(lambda) || lambda <= 0) { this.reportNumerical('thermostat scale factor became ' + lambda); return; }
     var A = this.mol.atoms;
+    // Uniform scaling multiplies every velocity by the same number, so the
+    // kinetic energy, and with it the energy crossing the boundary, is known
+    // exactly rather than estimated.
+    var kBefore = this.kinetic();
     for (var i = 0; i < A.length; i++) {
       if (A[i].fixed) continue;
       A[i].vx *= lambda; A[i].vy *= lambda; A[i].vz *= lambda;
     }
+    this.bathWork += (lambda * lambda - 1) * kBefore;
   };
 
   function dtScale(dt, tau) { return tau > 0 ? dt / tau : 0; }
@@ -1046,17 +1145,25 @@
   // 4.3 energy drift plus explicit numerical-error detection. Nothing is clamped.
   Dynamics.prototype.monitor = function() {
     var E = this.kinetic() + (this.mol.lastEnergy ? this.mol.lastEnergy.total : 0);
-    if (this.eRef === null || !isFinite(this.eRef)) this.eRef = E || 1;
+    // The reference is the energy the run actually started from, including when
+    // that is exactly zero: a lone atom has no potential and, in NVE, keeps its
+    // kinetic energy, so its drift is zero. Substituting a placeholder of 1 J
+    // here would make an idle atom read as a 100% energy failure.
+    if (this.eRef === null || !isFinite(this.eRef)) { this.eRef = E; this.bathWork = 0; }
     // A relative drift is only meaningful against an energy scale that does not
     // vanish. A dissociated pair sits near the zero of the potential and its
     // kinetic energy can be tiny, so dividing by that number would report a
     // large "drift" for a perfectly well-behaved trajectory. The largest of
     // |E_ref|, |E| and the thermal energy of the same atoms is used instead.
     var T = Thermo.temperature(this.mol, this.kinetic());
-    var scale = Math.max(Math.abs(this.eRef), Math.abs(E),
+    var scale = Math.max(Math.abs(this.eRef), Math.abs(E), Math.abs(this.bathWork),
       (isFinite(T) && T > 0 ? T : 0) * CONST.k_B * this.mol.atoms.length, 1e-300);
     if (!isFinite(scale) || scale <= 0) { this.reportNumerical('the drift reference became ' + scale); return; }
-    var rel = Math.abs(E - this.eRef) / scale;
+    // What the bath pushed into the system is not drift: an NVT run is supposed
+    // to exchange heat, and calling that exchange a numerical failure would
+    // stop a healthy trajectory as "unstable". Only the residue after the booked
+    // heat is subtracted is the integrator's own error.
+    var rel = Math.abs(E - this.eRef - this.bathWork) / scale;
     if (!isFinite(rel)) { this.reportNumerical('the total energy became ' + E + ' at step ' + this.steps); return; }
     this.drift.current = rel;
     if (rel > this.drift.max) this.drift.max = rel;
@@ -1834,13 +1941,20 @@
     return out;
   }
 
-  // Pi-system detection, driven by the measured geometry rather than a hard-coded
-  // atom list:
-  //   3 sigma-neighbours  -> pi centre when the angle sum is near 360 deg (sp2)
-  //   2 sigma-neighbours  -> pi centre when bent (sp2 like C=O or pyridine N);
-  //                          a linear centre is sp and is left out, which is the
-  //                          documented limit of a single pi-electron Huckel model
-  //   1 sigma-neighbour   -> joins as a lone-pair donor if attached to a centre
+  // Pi-system detection. The bonding pattern decides first and the measured
+  // geometry only breaks ties, because the sandbox jitters every position each
+  // frame: a benzene ring can momentarily read as puckered (angle sums of 315
+  // deg have been measured in real scenes) while its alternating double bonds
+  // are unambiguous.
+  //   a bond of order >= 2 to a heavy neighbour -> owns a p orbital, is a centre
+  //   3 sigma-neighbours with an angle sum near 360 deg -> a centre anyway, which
+  //       is how a planar carbanion or radical joins without a pi bond written
+  //   an sp centre (triple bond, cumulated double bonds, or a measured straight
+  //       angle) stays out, together with the atoms multiply bonded to it,
+  //       because such a bond carries two perpendicular pi systems and this is a
+  //       single-network Huckel model - the documented limit
+  //   anything else (a lone-pair donor like furan O or an amide N) joins through
+  //       the grow loop below
   var PLANAR_ANGLE_SUM_TOL = 18;    // deg, off the ideal 360 of a trigonal centre
   var LINEAR_ANGLE_TOL = 175;       // deg, above this a two-coordinate centre is sp
 
@@ -1851,23 +1965,86 @@
       for (var y = x + 1; y < nb.length; y++)
         angles.push(angleValue(A[nb[x]], A[idx], A[nb[y]]) * 180 / Math.PI);
     var sum = 0; for (var i = 0; i < angles.length; i++) sum += angles[i];
-    return { count: nb.length, sum: sum, max: angles.length ? Math.max.apply(null, angles) : 0 };
+    return { count: nb.length, sum: sum };
+  }
+
+  // Heavy-neighbour bonds as {index, order}; hydrogen carries no pi orbital.
+  function heavyBonds(mol, idx) {
+    var A = mol.atoms, nb = mol.neighborsOf(idx), out = [];
+    for (var q = 0; q < nb.length; q++) {
+      if (A[nb[q]].sym === 'H') continue;
+      var b = mol.findBond(idx, nb[q]);
+      out.push({ j: nb[q], order: b && b.order ? b.order : 1 });
+    }
+    return out;
+  }
+
+  // The X-C-Y angle across the two heavy neighbours, in degrees.
+  function heavyHeavyAngle(mol, idx) {
+    var hb = heavyBonds(mol, idx);
+    if (hb.length !== 2) return 0;
+    var A = mol.atoms;
+    return angleValue(A[hb[0].j], A[idx], A[hb[1].j]) * 180 / Math.PI;
+  }
+
+  function isSpCentre(mol, idx) {
+    var hb = heavyBonds(mol, idx), sum = 0, maxOrder = 0;
+    for (var i = 0; i < hb.length; i++) {
+      sum += hb[i].order;
+      if (hb[i].order > maxOrder) maxOrder = hb[i].order;
+    }
+    if (maxOrder >= 3) return true;
+    if (hb.length === 2 && sum >= 4) return true;
+    // A centre with more than two sigma-neighbours cannot be linear: a three-
+    // coordinate carbon with a 180 deg reading is a badly placed hydrogen, not
+    // an sp atom, so the angle test is limited to two-coordinate centres.
+    if (mol.neighborsOf(idx).length !== 2) return false;
+    return heavyHeavyAngle(mol, idx) >= LINEAR_ANGLE_TOL;
   }
 
   function isPiCentre(mol, idx) {
-    var a = mol.atoms[idx];
-    if (a.sym === 'H') return false;
+    if (mol.atoms[idx].sym === 'H') return false;
     var p = planarityReport(mol, idx);
-    if (p.count === 0) return false;
-    if (p.count >= 4) return false;
-    if (p.count === 3) return p.sum > 360 - PLANAR_ANGLE_SUM_TOL;
-    if (p.count === 2) return p.max < LINEAR_ANGLE_TOL;
-    // a terminal atom is never a primary pi centre; it can only join as a
-    // lone-pair donor next to an existing centre (handled by the grow loop)
-    return false;
+    if (p.count === 0 || p.count >= 4) return false;
+    if (isSpCentre(mol, idx)) return false;
+    var hb = heavyBonds(mol, idx);
+    for (var i = 0; i < hb.length; i++) {
+      if (hb[i].order >= 2 && !isSpCentre(mol, hb[i].j)) return true;
+    }
+    return p.count === 3 && p.sum > 360 - PLANAR_ANGLE_SUM_TOL;
   }
 
-  function identifyPiSystem(mol) {
+  // Every connected pi network in the structure, largest first. Two centres are
+  // connected when the bonding pattern has a bond between them; a ring and a
+  // carbonyl separated by an sp3 carbon are two different pi systems and must not
+  // be solved as one.
+  function piComponents(mol, centers) {
+    var rank = {}, i;
+    for (i = 0; i < centers.length; i++) rank[centers[i]] = i;
+    var seen = centers.map(function() { return false; }), groups = [];
+    for (i = 0; i < centers.length; i++) {
+      if (seen[i]) continue;
+      seen[i] = true;
+      var stack = [i], group = [];
+      while (stack.length) {
+        var c = stack.pop();
+        group.push(centers[c]);
+        var hb = heavyBonds(mol, centers[c]);
+        for (var q = 0; q < hb.length; q++) {
+          var k = rank[hb[q].j];
+          if (k === undefined || seen[k]) continue;
+          seen[k] = true;
+          stack.push(k);
+        }
+      }
+      group.sort(function(a, b) { return a - b; });
+      groups.push(group);
+    }
+    groups.sort(function(a, b) { return b.length - a.length || a[0] - b[0]; });
+    return groups;
+  }
+
+  function piNetworks(mol) {
     var A = mol.atoms, i;
     var set = {};
     for (i = 0; i < A.length; i++) if (isPiCentre(mol, i)) set[i] = 1;
@@ -1883,13 +2060,15 @@
         var inNetwork = 0;
         for (var q = 0; q < nbs.length; q++) if (set[nbs[q]]) inNetwork++;
         if (inNetwork === 0) continue;
-        if (donors[A[i].sym]) { set[i] = 1; changed = true; continue; }
+        // four sigma bonds leaves no lone pair to donate (an ammonium or
+        // oxonium centre), and an sp atom has its electrons in the wrong orbitals
+        if (donors[A[i].sym] && nbs.length < 4 && !isSpCentre(mol, i)) { set[i] = 1; changed = true; continue; }
         // a carbon joins only if the geometry itself says sp2
         if (isPiCentre(mol, i)) { set[i] = 1; changed = true; }
       }
     }
     var idx = Object.keys(set).map(Number).sort(function(a, b) { return a - b; });
-    return idx;
+    return piComponents(mol, idx);
   }
 
   var Quantum = {};
@@ -1905,12 +2084,32 @@
     };
   };
 
+  // Every pi network in the structure, largest first, as arrays of atom indices.
+  Quantum.piNetworks = function(mol) { return piNetworks(mol); };
+
   // Huckel (or externally solved) MO calculation on the detected pi system.
   Quantum.huckel = function(mol, opts) {
     opts = opts || {};
     var A = mol.atoms;
-    var centers = opts.centers || identifyPiSystem(mol);
-    if (centers.length < 2) return { ok: false, reason: 'no conjugated pi system detected from the geometry' };
+    var groups, centers;
+    if (opts.centers) { centers = opts.centers; groups = piComponents(mol, centers); }
+    else { groups = piNetworks(mol); centers = groups.length ? groups[0] : []; }
+    if (centers.length < 2) {
+      // A structure with a triple or cumulated bond really does have pi
+      // electrons, but they sit in two perpendicular sets and a single
+      // Huckel network cannot describe them - say so instead of claiming
+      // there is no pi system at all.
+      var multiple = false;
+      for (var mb = 0; mb < mol.bonds.length; mb++) {
+        if (mol.bonds[mb].order >= 2) { multiple = true; break; }
+      }
+      return {
+        ok: false,
+        reason: multiple
+          ? 'the multiple bonds here carry two perpendicular pi systems (a triple or cumulated bond); this single-network Huckel model does not solve them'
+          : 'no conjugated pi system detected from the geometry'
+      };
+    }
     var alpha = opts.alpha === undefined ? HUCKEL_ALPHA_EV : opts.alpha;
     var beta = opts.beta === undefined ? HUCKEL_BETA_EV : opts.beta;
     // Simple Huckel uses the zero-differential-overlap approximation, S = I.
@@ -2017,12 +2216,21 @@
       return { pair: pr, p: t };
     });
 
+    var warns = [];
+    if (groups.length > 1) {
+      warns.push('this structure has ' + groups.length + ' separate pi networks (sizes ' +
+        groups.map(function(g) { return g.length; }).join(', ') +
+        '); the numbers above come from the largest one, the rest are not conjugated with it');
+    }
+    if (nEl % 2 === 1) warns.push('an odd number of pi electrons: simple Huckel pairs them two by two, so the last orbital is singly occupied');
+
     return {
       ok: true,
       method: orthogonalised ? 'Huckel MO with Lowdin overlap orthogonalisation' : 'simple Huckel MO (zero differential overlap)',
       modelClass: 'semi-empirical quantum (pi-electron only, no electron correlation)',
       units: 'orbital energies in eV relative to alpha',
       centres: centers.map(function(c, k) { return { index: c, sym: A[c].sym, kind: kinds[k].kind, h: kinds[k].h, k: kinds[k].k, source: kinds[k].source }; }),
+      networks: groups.map(function(g) { return g.length; }),
       alpha: alpha, beta: beta,
       orbitalEnergies: eig.map(function(e) { return e.value; }),
       occupations: occ,
@@ -2036,7 +2244,7 @@
       piBondOrders: bondOrders,
       coefficients: eig.map(function(e) { return e.vector.slice(); }),
       bonds: bonds,
-      warnings: []
+      warnings: warns
     };
   };
 
@@ -3506,6 +3714,17 @@
 
   // Sigma-bonded neighbours beyond two define the angle terms; three define
   // torsions. Built from the graph, not from a template.
+  // A four-point dihedral is the angle between the i-j-k and j-k-l planes. If
+  // either of those planes does not exist - the outer bond running along the
+  // j-k axis, which is what a 180 deg angle at j or k means - the torsion has no
+  // value, and a small nudge of the geometry makes it jump by pi.
+  var TORSION_MAX_ANGLE_DEG = 155;
+  function dihedralDegenerate(mol, I, J, K, L) {
+    var lim = TORSION_MAX_ANGLE_DEG * Math.PI / 180;
+    return angleValue(mol.atoms[I], mol.atoms[J], mol.atoms[K]) > lim ||
+      angleValue(mol.atoms[J], mol.atoms[K], mol.atoms[L]) > lim;
+  }
+
   Builder.connectValences = function(mol) {
     var i, j, k;
     for (i = 0; i < mol.atoms.length; i++) {
@@ -3526,6 +3745,15 @@
         if (nbi[j] === b.j) continue;
         for (k = 0; k < nbj.length; k++) {
           if (nbj[k] === b.i) continue;
+          // A dihedral is the angle between two planes, so it needs both outer
+          // atoms off the axis. When the angle at either end reaches 180 deg the
+          // outer atom lies ON the j-k axis, the torsion has no value, and its
+          // derivative is a division by zero: HC#CH's H-C-C-H is that case and
+          // stepping it made the whole field non-conservative (an NVE run lost
+          // 57% of one atom's force to it). Standard force fields drop these
+          // torsions, and so does this one - the resistance to bending that
+          // centre has is already carried by its angle term.
+          if (dihedralDegenerate(mol, nbi[j], b.i, b.j, nbj[k])) continue;
           var have = mol.torsions.some(function(t) {
             return (t.j === b.i && t.k === b.j && ((t.i === nbi[j] && t.l === nbj[k]) || (t.i === nbj[k] && t.l === nbi[j])));
           });
@@ -3600,7 +3828,7 @@
   //   d(n) = d(1) - 0.71 log10(n)   =>   n(d) = 10^((d1 - d)/0.71)
   // and the bond term uses the Morse potential, which already goes to zero as the
   // pair separates, so dissociation does not need a discontinuous switch.
-  // A pair that each still carries an unpartnered valence electron, with no bond
+  // A pair in which each atom still has bonding capacity left, with no bond
   // path between its two atoms, is evaluated on the measured Morse curve of the
   // molecule it would form instead of on a Lennard-Jones core (see
   // Molecule.computeForces, options.pairBondCurve) - otherwise the 12-6 wall and
@@ -3640,7 +3868,6 @@
       formOrder: 0.40,        // Pauling bond order at which a bound pair is recorded
       formDwell: 3,           // consecutive steps a candidate must hold
       breakDwell: 6,          // slower to forget a bond than to make one
-      maxSearchRadius: 2.6e-10,
       conserveEnergy: true
     };
   };
@@ -3652,7 +3879,7 @@
     this.counters = {};
     this.events = [];
     this.ledger = { topologyWork: 0, formed: 0, broken: 0, rejected: 0, lastRejection: null,
-      conserved: true, unpaidHeat: 0, momentumResidual: 0 };
+      conserved: true, unpaidHeat: 0, momentumResidual: 0, bathHeat: 0 };
     this.enabled = true;
     this.history = [];
   }
@@ -3676,16 +3903,37 @@
   // Energy and momentum-preserving heat disposal: the bookkeeping difference
   // created by switching a bond term on or off is returned to the pair as
   // relative motion, with the total linear momentum unchanged.
+  //
+  // The change is made in the centre-of-mass frame, where the pair's kinetic
+  // energy is exactly 1/2 mu |v_rel|^2: the relative velocity keeps its
+  // direction and only its magnitude moves, so the energy handed over is the
+  // amount asked for and nothing else. Setting the relative velocity to a fresh
+  // vector along the line of centres instead would add or remove the projection
+  // of the motion the pair already had, which is not the bookkeeping term.
   function addHeatToPair(mol, i, j, dU) {
     var a = mol.atoms[i], b = mol.atoms[j];
     if (!(dU > 0)) return 0;
     var mu = a.m * b.m / (a.m + b.m);
-    var vRel = Math.sqrt(2 * dU / mu);
-    var u = vunit(delta(a, b));
-    // equal and opposite momenta: p = mu * vRel, split as +p on b, -p on a
-    var px = mu * vRel * u.x, py = mu * vRel * u.y, pz = mu * vRel * u.z;
-    a.vx -= px / a.m; a.vy -= py / a.m; a.vz -= pz / a.m;
-    b.vx += px / b.m; b.vy += py / b.m; b.vz += pz / b.m;
+    var vrx = a.vx - b.vx, vry = a.vy - b.vy, vrz = a.vz - b.vz;
+    var v2 = vrx * vrx + vry * vry + vrz * vrz;
+    var scale;
+    if (v2 > 0) {
+      scale = Math.sqrt((2 * dU / mu + v2) / v2);
+    } else {
+      // No direction of approach to keep, so use the line of centres; with the
+      // pair momentarily at rest relative to each other that is still exact.
+      var u = vunit(delta(a, b));
+      var vRel = Math.sqrt(2 * dU / mu);
+      vrx = u.x * vRel; vry = u.y * vRel; vrz = u.z * vRel;
+      v2 = vRel * vRel;
+      scale = 1;
+    }
+    var nvx = vrx * scale, nvy = vry * scale, nvz = vrz * scale;
+    var cmx = (a.m * a.vx + b.m * b.vx) / (a.m + b.m);
+    var cmy = (a.m * a.vy + b.m * b.vy) / (a.m + b.m);
+    var cmz = (a.m * a.vz + b.m * b.vz) / (a.m + b.m);
+    a.vx = cmx + (b.m / (a.m + b.m)) * nvx; a.vy = cmy + (b.m / (a.m + b.m)) * nvy; a.vz = cmz + (b.m / (a.m + b.m)) * nvz;
+    b.vx = cmx - (a.m / (a.m + b.m)) * nvx; b.vy = cmy - (a.m / (a.m + b.m)) * nvy; b.vz = cmz - (a.m / (a.m + b.m)) * nvz;
     return dU;
   }
 
@@ -3745,9 +3993,13 @@
         var c2 = mol.bondCurve ? mol.bondCurve[pairKey(i, j)] : null;
         if (!c2) continue;
         var r2 = bondLength(A[i], A[j]);
-        if (r2 > cfg.maxSearchRadius) { this.counters['f' + i + '-' + j] = 0; continue; }
-        // The candidate order is the nearest integer to the Pauling value, then
-        // reduced until both atoms' coordination caps accept it.
+        // A candidate needs two things: Pauling's length relation must give the
+        // contact a real order, and the pair must be inside its well once the
+        // kinetic energy of the approach is counted. There is no separate
+        // distance cutoff: n(d) >= formOrder is equivalent to
+        // d <= d1 + 0.71 log10(1 / formOrder), so the length a pair may be
+        // recorded at comes out of the same relation that measures its bond
+        // order and moves with the tabulated single-bond length of that pair.
         var nForm = Reactive.bondOrder(A[i].el, A[j].el, r2);
         var k2 = 'f' + i + '-' + j;
         var ready = nForm !== null && nForm >= cfg.formOrder &&
@@ -3757,7 +4009,15 @@
         if (nForm === null) { this.counters[k2] = 0; continue; }
         var limI = Builder.maxBondOrderSum(A[i].el), limJ = Builder.maxBondOrderSum(A[j].el);
         var sums = bondOrderSums(mol, i, j);
-        var hi = Math.max(1, Math.min(3, Math.round(nForm)));
+        // The pair is bound in the well of curve c2, so the graph bond must be
+        // booked with that same order. Taking the order from Pauling's length
+        // relation instead can disagree with the well the pair actually fell
+        // into - N atoms colliding at 1.30 A sit 945 kJ/mol deep on the triple
+        // curve while n(d) there is only 1.5 - and the switch from curve to bond
+        // would then have to hand back the difference as heat, which promptly
+        // throws the pair apart again. Pauling's n stays in the event as the
+        // measured order of the contact, and it still gates formation above.
+        var hi = c2.order ? c2.order : Math.max(1, Math.min(3, Math.round(nForm)));
         var best = 0;
         for (var ord = hi; ord >= 1; ord--) {
           if (!bondParams(A[i].sym, A[j].sym, ord)) continue;
@@ -3771,7 +4031,8 @@
           // booked rather than quietly dropped with the counter.
           this.ledger.rejected++;
           this.ledger.lastRejection = A[i].sym + '#' + i + '–' + A[j].sym + '#' + j +
-            ': bond order ' + nForm.toFixed(2) + ' needs no free valence, but ' +
+            ': its bonding curve is order ' + hi + ' (Pauling n = ' + nForm.toFixed(2) +
+            ') and even a single bond does not fit, because ' +
             (limI !== null && sums.i + 1 > limI + 1e-9 ? A[i].sym : A[j].sym) + ' is already saturated';
           this.counters[k2] = 0;
           continue;
@@ -3811,6 +4072,14 @@
           if (share < 0) addHeatToPair(mol, ev.i, ev.j, -share);
           else if (!removeHeatFromPair(mol, ev.i, ev.j, share)) unpaid += share;
         }
+        // A pair that cannot service the difference on its own hands the debt to
+        // every other degree of freedom in the system, which is what a collision
+        // partner does when it carries away the energy of a forming bond.
+        if (unpaid > 0) {
+          var owed = unpaid;
+          unpaid = payFromInternal(mol, owed);
+          this.ledger.bathHeat += owed - unpaid;
+        }
         this.ledger.topologyWork += dU;
         this.ledger.unpaidHeat += unpaid;
         if (unpaid) this.ledger.conserved = false;
@@ -3842,6 +4111,39 @@
     a.vx = cmx + (b.m / (a.m + b.m)) * nvx; a.vy = cmy + (b.m / (a.m + b.m)) * nvy; a.vz = cmz + (b.m / (a.m + b.m)) * nvz;
     b.vx = cmx - (a.m / (a.m + b.m)) * nvx; b.vy = cmy - (a.m / (a.m + b.m)) * nvy; b.vz = cmz - (a.m / (a.m + b.m)) * nvz;
     return true;
+  }
+
+  // What the reacting pair could not pay, the rest of the system absorbs: the
+  // velocities are rescaled about the centre of mass, so the internal (thermal)
+  // kinetic energy changes by exactly the amount asked for while total linear
+  // momentum is untouched. That is the third body which stabilises a nascent
+  // bond in a condensate. Returns whatever is left after the system has given up
+  // all the internal motion it has - nothing here is silently clamped.
+  function payFromInternal(mol, dU) {
+    var A = mol.atoms, n = A.length;
+    if (!(dU > 0) || n === 0) return dU > 0 ? dU : 0;
+    var mtot = 0, i;
+    var cm = { x: 0, y: 0, z: 0 };
+    for (i = 0; i < n; i++) {
+      mtot += A[i].m;
+      cm.x += A[i].m * A[i].vx; cm.y += A[i].m * A[i].vy; cm.z += A[i].m * A[i].vz;
+    }
+    cm.x /= mtot; cm.y /= mtot; cm.z /= mtot;
+    var dvx = new Array(n), dvy = new Array(n), dvz = new Array(n), kInt = 0;
+    for (i = 0; i < n; i++) {
+      var ax = A[i].vx - cm.x, ay = A[i].vy - cm.y, az = A[i].vz - cm.z;
+      dvx[i] = ax; dvy[i] = ay; dvz[i] = az;
+      kInt += 0.5 * A[i].m * (ax * ax + ay * ay + az * az);
+    }
+    if (kInt <= dU) {
+      for (i = 0; i < n; i++) { A[i].vx = cm.x; A[i].vy = cm.y; A[i].vz = cm.z; }
+      return dU - kInt;
+    }
+    var s = Math.sqrt((kInt - dU) / kInt);
+    for (i = 0; i < n; i++) {
+      A[i].vx = cm.x + s * dvx[i]; A[i].vy = cm.y + s * dvy[i]; A[i].vz = cm.z + s * dvz[i];
+    }
+    return 0;
   }
 
   function totalMomentum(mol) {
@@ -4259,11 +4561,21 @@
     var mol = built.mol, A = mol.atoms, i;
     var bonds = mol.bonds.map(function(b) {
       var r = bondLength(A[b.i], A[b.j]);
+      // Report the same term the integrator is stepping, including its depth
+      // below the separated-atom asymptote. A bond's well is the number the
+      // reader is looking for when they ask what energy holds two atoms
+      // together, and the harmonic form only measures the cost of stretching
+      // away from equilibrium - it can never go negative.
+      var term = (mol.options.useMorse && b.De > 0)
+        ? Potentials.morse(r, b.re, b.De, b.k)
+        : Potentials.bondHarmonic(r, b.re, b.k);
       return {
         key: b.key, order: b.order, i: b.i, j: b.j,
         rAngstrom: r / ANGSTROM, eqAngstrom: b.re / ANGSTROM,
         deltaAngstrom: (r - b.re) / ANGSTROM,
         kNm: b.k, DeKJmol: b.De * CONST.N_A / 1000,
+        uBondKJmol: term.energy * CONST.N_A / 1000,
+        onMorse: !!(mol.options.useMorse && b.De > 0),
         measured: b.measured, ionic: !!b.ionic,
         ionicCharacter: b.ionicCharacter === undefined ? null : b.ionicCharacter
       };
@@ -4282,6 +4594,14 @@
         terms: t.terms.map(function(x) { return { n: x.n, VkJmol: x.V * CONST.N_A / 1000, delta: x.delta }; })
       };
     });
+    // The contact list must report the pair potential the integrator actually
+    // evaluates (Molecule.computeForces). Charging the electrostatic term alone
+    // made every homonuclear contact read 0.0 kJ/mol, because identical atoms
+    // share charges equally and Coulomb is then exactly zero - the dispersion and
+    // bond-curve terms holding that pair together live in the same function one
+    // loop away and were simply never shown.
+    var fp = mol.options, per = CONST.N_A / 1000;
+    var rc = fp.cutoff, rsw = rc - fp.switchWidth;
     var nonbonded = [];
     for (i = 0; i < A.length; i++) {
       for (var j = i + 1; j < A.length; j++) {
@@ -4290,16 +4610,50 @@
         // only contacts worth listing are the ones the non-bonded potential sees.
         if (lvl === 1 || lvl === 2) continue;
         var r2 = bondLength(A[i], A[j]);
-        if (r2 > 4 * ANGSTROM) continue;
-        // rcov is null for the elements the database carries no radius for, so
-        // the overlap column reads "no radius data" rather than NaN.
-        var cov = A[i].el.rcov === null || A[j].el.rcov === null
-          ? null : (A[i].el.rcov + A[j].el.rcov) - r2 / ANGSTROM;
+        var ck = pairKey(i, j);
+        var qScale = lvl === 3 ? fp.scale14Coulomb : 1;
+        var vScale = lvl === 3 ? fp.scale14Vdw : 1;
+        var uCoul = (fp.useCoulomb && r2 <= fp.coulombCutoff)
+          ? Potentials.coulomb(A[i].q, A[j].q, r2).energy * qScale : 0;
+        // A pair the running field carries on its bonding surface drops the 12-6
+        // core entirely, exactly as computeForces does. A pair the field does not
+        // bind keeps its dispersion number and leaves the curve column blank, so
+        // nothing in this table is a term the integrator is not actually stepping.
+        var live = fp.pairBondCurve && lvl === 0 && mol.bondCurve ? mol.bondCurve[ck] : null;
+        if (r2 > 4 * ANGSTROM && !live) continue;
+        var curve = live;
+        if (!curve) {
+          // No bonding surface is stepped here, so this is the single-bond entry
+          // from the table, shown only to give D0 a meaning. It is deliberately
+          // not summed into U pair and the curve column stays blank for it.
+          var ref = bondParams(A[i].el.sym, A[j].el.sym, 1);
+          if (ref) curve = { re: ref.re * ANGSTROM, De: kJPerMolToJ(ref.De), k: ref.k, measured: !!ref.measured };
+        }
+        var uCurve = curve ? Potentials.morse(r2, curve.re, curve.De, curve.k).energy : 0;
+        var uVdw = 0;
+        if (!live && fp.useVdW && vScale > 0 && r2 < rc) {
+          var vp = mol.vdwCache ? mol.vdwCache[ck] : null;
+          if (vp) uVdw = Potentials.lj(r2, vp, rc, rsw).energy * vScale;
+        }
         nonbonded.push({
           pair: A[i].sym + '#' + i + '–' + A[j].sym + '#' + j,
           rAngstrom: r2 / ANGSTROM,
-          overlap: cov,
-          electrostaticKJmol: Potentials.coulomb(A[i].q, A[j].q, r2).energy * CONST.N_A / 1000
+          bondOrder: paulingBondOrder(A[i].el.sym, A[j].el.sym, r2),
+          electrostaticKJmol: uCoul * per,
+          dispersionKJmol: uVdw * per,
+          // Only a live curve is stepped. A reference curve that the pair could
+          // use but does not (both atoms already inside the same molecule, say)
+          // is a counterfactual, and printing its depth next to the real number
+          // invites the reader to add terms the field never applied. It is still
+          // reported, but as D0 below, which is a property of the element pair.
+          curveKJmol: live ? uCurve * per : null,
+          // Say which bond the stepped curve is: the ceiling is the pair's free
+          // capacity, so N–N on its own reads the triple well, not the single one.
+          curveKey: live && live.order ? A[i].sym + (SEPARATOR[live.order] || '-') + A[j].sym : null,
+          curveEstimated: live ? !live.measured : null,
+          pairKJmol: (uCoul + (live ? uCurve : uVdw)) * per,
+          dissociationKJmol: curve ? curve.De * per : null,
+          onBondCurve: !!live
         });
       }
     }
@@ -4335,12 +4689,26 @@
       var v = readLangKey(keys[i]);
       if (v === 'vi' || v === 'en') return v;
     }
-    return 'en';
+    return 'vi';
   }
   function TXT(pair) {
     if (!pair) return '';
     var l = curLang();
     return pair[l] !== undefined ? pair[l] : pair.en;
+  }
+
+  // The rule that actually writes and erases a bond, quoted next to the contact
+  // table so a negative "rcov sum - d" is not mistaken for a bond criterion: the
+  // reactive layer decides on energy and Pauling order, with dwell counters that
+  // make the record stick through a vibrational cycle.
+  function bondRuleText(cfg) {
+    return curLang() === 'vi'
+      ? 'Liên kết được ghi khi thế của cặp trên đường cong liên kết nhỏ hơn 0 và bậc Pauling n đạt ' + cfg.formOrder +
+        ', rồi phải giữ nguyên như vậy ' + cfg.formDwell + ' bước liên tiếp; để phá một liên kết thì cần ' + cfg.breakDwell +
+        ' bước, và chỉ khi cặp đôi mang đủ năng lượng để đi ra vô cùng. Một liên kết dao động co giãn vài phần trăm do đó vẫn giữ nguyên. Cặp mà hai nguyên tử không còn electron hóa trị tự do không có bề mặt liên kết nên chỉ tương tác phân tán.'
+      : 'A bond is written when the pair potential on its bonding curve is negative and its Pauling order n reaches ' + cfg.formOrder +
+        ', and that has to hold for ' + cfg.formDwell + ' consecutive steps; dropping a bond takes ' + cfg.breakDwell +
+        ' steps, and only once the pair really carries the energy to reach infinity. A bond vibrating by a few percent therefore keeps its bond. A pair whose atoms have no unpartnered valence electron has no bonding surface and stays a dispersion contact.';
   }
 
   var STR = {
@@ -4378,6 +4746,9 @@
     equilibrium: LS('Fitted r₀', 'r₀ khớp'),
     shift: LS('Δr', 'Δr'),
     stiffness: LS('k (N/m)', 'k (N/m)'),
+    uBond: LS('U bond (kJ/mol)', 'U liên kết (kJ/mol)'),
+    uBondNote: LS('U bond is the potential energy of the pair at its present length, measured against the same two atoms infinitely far apart and at rest, from the exact term the integrator steps: the Morse well when the bond has a dissociation energy, the harmonic spring otherwise. So an equilibrium C-C bond reads -348 kJ/mol and an equilibrium C-H bond -413 kJ/mol, and the number only climbs when the bond is stretched or compressed. A positive value means the pair has been pushed inside the repulsive wall of the well, or that this bond is one of the estimated spring-only cases that has no dissociation energy to set its depth.',
+      'U liên kết là thế năng của cặp ở chiều dài hiện tại, đo so với chính hai nguyên tử đó tách ra vô cùng và đứng yên, lấy đúng từ số hạng mà integrator đang tích phân: hố Morse khi liên kết có năng lượng phân li, còn không thì dùng lò xo điều hòa. Vì vậy một liên kết C-C ở cân bằng đọc -348 kJ/mol và liên kết C-H ở cân bằng đọc -413 kJ/mol, con số này chỉ dâng lên khi liên kết bị kéo giãn hoặc nén lại. Một giá trị dương nghĩa là cặp đã bị đẩy vào phần thế đẩy của hố, hoặc liên kết này thuộc trường hợp lò xo ước lượng không có năng lượng phân li để định độ sâu.'),
     dissociation: LS('D₀ (kJ/mol)', 'D₀ (kJ/mol)'),
     measured: LS('measured', 'đo thực nghiệm'),
     estimated: LS('estimated', 'ước lượng'),
@@ -4392,10 +4763,17 @@
     coordination: LS('Neighbours', 'Láng giềng'),
     meanAngle: LS('mean ∠', '∠ trung bình'),
     shape: LS('Shape', 'Hình dạng'),
-    nonbondedTable: LS('Close non-bonded contacts (1-2 and 1-3 pairs are inside the bonded terms)',
-      'Tiếp xúc gần không liên kết (cặp 1-2 và 1-3 đã nằm trong số hạng liên kết)'),
+    nonbondedTable: LS('Contacts the pair potential sees (1-2 and 1-3 pairs are inside the bonded terms)',
+      'Các tiếp xúc mà thế cặp nhìn thấy (cặp 1-2 và 1-3 đã nằm trong số hạng liên kết)'),
     contact: LS('Contact', 'Tiếp xúc'),
-    overlap: LS('rcov sum − d', 'tổng rcov − d'),
+    uElec: LS('U electrostatic', 'U tĩnh điện'),
+    uVdw: LS('U dispersion', 'U phân tán'),
+    uCurve: LS('U bond curve', 'U đường cong liên kết'),
+    uPair: LS('U pair', 'U cặp'),
+    nOrder: LS('n Pauling', 'n Pauling'),
+    superseded: LS('no 12-6 on this surface', 'bề mặt này không dùng 12-6'),
+    pairZero: LS('U pair is the energy of the two atoms against the same pair separated and at rest: negative means the contact is bound, positive means the field pushes them apart. All three columns come from the same potentials the integrator steps. A dash in the bond-curve column means no bonding surface is written for that contact because the two atoms already belong to the same molecule, so only dispersion and electrostatics act between them; D0 stays listed because it is a property of the element pair, and it is exactly the depth of the well a new bond would have if the pair were two separate species. Pairs farther apart than 4 Å are left out of the list to keep it readable, though the field still counts their very small dispersion.',
+      'U cặp là năng lượng của hai nguyên tử so với chính cặp đó tách xa và đứng yên: âm nghĩa là tiếp xúc có liên kết, dương nghĩa là trường lực đẩy chúng ra. Cả ba cột đều lấy từ các thế mà integrator đang tích phân. Dấu gạch trong cột đường cong liên kết nghĩa là không có bề mặt liên kết nào được ghi cho tiếp xúc này vì hai nguyên tử đã thuộc cùng một phân tử, nên chỉ phân tán và tĩnh điện tác động giữa chúng; D₀ vẫn được liệt kê vì đó là tính chất của cặp nguyên tố, và chính là độ sâu của hố thế mà một liên kết mới sẽ có nếu hai nguyên tử là hai loài tách biệt. Những cặp cách xa quá 4 Å được xếp ra ngoài danh sách cho dễ đọc, dù trường lực vẫn tính thành phần phân tán rất nhỏ của chúng.'),
     logTitle: LS('Engine log', 'Nhật ký engine'),
     logNote: LS('Raw messages from the calculations (English only). Anything the engine could not model is listed here instead of being hidden.',
       'Thông báo gốc từ các phép tính (chỉ tiếng Anh). Mọi thứ engine không mô hình hoá được đều ghi ở đây thay vì bị ẩn.'),
@@ -4465,6 +4843,8 @@
     events: LS('Topology events', 'Sự kiện topology'),
     topologyWork: LS('Topology work', 'Công topology'),
     unpaidHeat: LS('Unpaid heat', 'Nhiệt chưa hạch toán'),
+    bathHeat: LS('Heat paid by the rest of the system', 'Nhiệt do phần còn lại của hệ trả'),
+    bathWork: LS('Heat exchanged with the thermostat', 'Nhiệt trao đổi với môi nhiệt'),
     momentumResidual: LS('Momentum residual', 'Phần dư động lượng'),
     pairCurves: LS('Radical pairs held on a bond curve', 'Cặp gốc tự do được giữ trên đường cong liên kết'),
     refusedAtoms: LS('Atoms with no measured bond curve', 'Nguyên tử không có đường cong liên kết đo được'),
@@ -4475,10 +4855,10 @@
     rejected: LS('Formations refused', 'Ca tạo liên kết bị từ chối'),
     lastRejection: LS('Last refusal', 'Lần từ chối gần nhất'),
     heatLedger: LS('Energy bookkeeping', 'Hạch toán năng lượng'),
-    heatClosed: LS('closed - every topology change was paid for by the pair motion',
-      'cân bằng - mọi thay đổi topology đều được trả bằng chuyển động của cặp'),
-    heatOpen: LS('open - the pair could not pay for this much heat',
-      'chưa cân bằng - cặp không đủ chuyển động để trả phần nhiệt này'),
+    heatClosed: LS('closed - every topology change was paid for by the pair, and by the other atoms when the pair fell short',
+      'cân bằng - mọi thay đổi topology đều được trả bằng chuyển động của cặp, và của các nguyên tử còn lại khi cặp không đủ'),
+    heatOpen: LS('open - neither the pair nor the rest of the system had this much motion to give',
+      'chưa cân bằng - cả cặp lẫn phần còn lại của hệ không đủ chuyển động để trả phần nhiệt này'),
     coreRule: LS('A pair whose two atoms each still carry an unpartnered valence electron, with no bond path between them, is held on the measured Morse bond curve of the molecule it would form (tabulated De, re, k) and feels no Lennard-Jones wall. That curve becomes the graph bond the moment it is written, so forming or breaking changes the total energy by exactly nothing. Without it the 12-6 core - fitted to bonded, saturated matter - turns every approach around near 1.6 A and bonding distance is never reached.',
       'Cặp mà mỗi nguyên tử vẫn còn một electron hóa trị chưa bắt đôi, và không có đường liên kết giữa chúng, được mô tả bằng đường cong Morse đo được của phân tử mà chúng sẽ tạo (De, re, k trong bảng) và không chịu tường Lennard-Jones. Đường cong ấy chính là liên kết trong đồ thị ngay khi được ghi nhận, nên việc tạo hay phá liên kết không làm thay đổi tổng năng lượng chút nào. Nếu không, lõi 12-6 - vốn khớp cho vật chất đã liên kết và bão hòa - sẽ đẩy mọi lần tiếp cận ở khoảng 1,6 A và không bao giờ tới được khoảng cách liên kết.'),
     ledgerTitle: LS('Reactive ledger (Pauling bond order, not ReaxFF)',
@@ -4535,8 +4915,6 @@
     unavailableRow: LS('Not available in the browser', 'Không chạy được trên trình duyệt'),
     backendIsExternal: LS('An external quantum backend is registered, so the numbers below come from it rather than from the built-in Hückel solver.',
       'Có backend lượng tử ngoài đã đăng ký, nên các số dưới đây lấy từ backend đó chứ không phải bộ giải Hückel tích hợp.'),
-    noBackend: LS('No external quantum-chemistry backend is registered. The numbers below are Hückel π theory, a semi-empirical model - not an ab-initio calculation. Register a real solver with Mol3DPhysics.Quantum.setBackend(name, fn) and this panel switches to it.',
-      'Chưa đăng ký backend hóa học lượng tử ngoài. Các số dưới đây là thuyết π Hückel, mô hình bán kinh nghiệm — không phải tính toán ab-initio. Đăng ký bộ giải thật bằng Mol3DPhysics.Quantum.setBackend(name, fn) và bảng này sẽ chuyển sang.'),
     piCentres: LS('π centres', 'Tâm π'),
     kind: LS('Contribution', 'Đóng góp'),
     electronOne: LS('1 electron (in-network π bond)', '1 electron (liên kết π trong mạng)'),
@@ -4553,7 +4931,12 @@
       'Vùng cấm Hückel: hiệu năng lượng orbital của mô hình π này. Đây không phải năng lượng kích thích đo từ trạng thái cơ bản — mô hình không có tương quan electron hay giãn orbital.'),
     piEnergy: LS('Total π energy', 'Tổng năng lượng π'),
     piBondOrders: LS('π bond orders', 'Bậc liên kết π'),
-    noPi: LS('No conjugated π system found in this geometry', 'Không tìm thấy hệ π liên hợp trong hình học này'),
+    noPi: LS('No conjugated π system in this structure', 'Cấu trúc này không có hệ π liên hợp'),
+    noPiWhy: LS('A π network needs p orbitals on neighbouring atoms all pointing the same way. This solver takes one conjugated network at a time: an isolated double bond, a ring, or a lone pair next to a π bond all qualify (ethene, butadiene, benzene, pyridine, furan). A triple or cumulated bond carries two perpendicular sets and is reported above instead of being solved as one.',
+      'Mạng π cần các orbital p trên nguyên tử kề nhau cùng hướng về một phía. Bộ giải này xử lý từng mạng liên hợp một: liên kết đôi riêng lẻ, vòng, hay cặp electron tự do cạnh liên kết π đều được (ethene, butadiene, benzene, pyridine, furan). Liên kết ba hoặc liên kết bội tích tụ mang hai hệ π vuông góc và được báo ở trên thay vì giải gộp.'),
+    quantumNotes: LS('Solver notes', 'Ghi chú của bộ giải'),
+    backendShort: LS('Solved here by the built-in Hückel π-electron MO solver (a real diagonalisation of the π Fock matrix, not a table of look-up values).',
+      'Được giải tại chỗ bằng bộ giải MO π Hückel tích hợp (chéo hoá thật ma trận Fock π, không phải tra bảng giá trị).'),
     testsIntro: LS('The panel only shows numbers this engine produced. This tab checks the engine itself against reference results, so a broken build is visible before any molecule is trusted.',
       'Bảng này chỉ hiện số do engine tạo ra. Tab này kiểm tra chính engine với các kết quả tham chiếu, để bản build lỗi hiện ra trước khi tin vào phân tử nào.'),
     testsRun: LS('Run validation battery', 'Chạy chuỗi kiểm chứng'),
@@ -4581,6 +4964,11 @@
     [/^no dispersion parameters for (.*);(.*)$/, function(m) { return 'Không có tham số phân tán cho ' + m[1] + m[2] + '.'; }],
     [/^no published Huckel parameters(.*)$/, function() { return 'Chưa nạp tham số Hückel đã công bố cho nguyên tử này.'; }],
     [/^no conjugated pi system detected(.*)$/, function() { return 'Không phát hiện hệ π liên hợp từ hình học.'; }],
+    [/^the multiple bonds here carry two perpendicular pi systems(.*)$/, function() { return 'Các liên kết bội ở đây mang hai hệ π vuông góc (liên kết ba hoặc tích tụ); mô hình Hückel một mạng không giải chúng.'; }],
+    [/^this structure has (\d+) separate pi networks \(sizes (.*?)\);(.*)$/, function(m) { return 'Cấu trúc này có ' + m[1] + ' mạng π riêng biệt (kích thước ' + m[2] + '); các số ở trên lấy từ mạng lớn nhất, những mạng còn lại không liên hợp với nó.'; }],
+    [/^an odd number of pi electrons: (.*)$/, function(m) { return 'Số electron π lẻ: Hückel đơn giản bắt đôi từng hai electron, nên orbital cuối cùng chỉ có một electron độc thân.'; }],
+    [/^external backend "(.*)" failed: (.*)$/, function(m) { return 'Backend ngoài "' + m[1] + '" thất bại: ' + m[2]; }],
+    [/^external backend "(.*)" returned no result$/, function(m) { return 'Backend ngoài "' + m[1] + '" không trả về kết quả.'; }],
     [/^n-membered ring laid out(.*)$/, function(m) { return 'Vòng ' + m[0]; }],
     [/^timestep (.*) exceeds(.*)$/, function(m) { return 'Bước thời gian ' + m[1] + ' vượt giới hạn ' + m[2] + '.'; }],
     [/^(.*) has run away to (.*)$/, function(m) { return m[1] + ' đã bắn ra tới ' + m[2] + ' — tích phân đã dừng, lực không bị kẹp.'; }],
@@ -4615,6 +5003,9 @@
     [/^atom (.*) has run away to (.*)$/, function(m) { return 'nguyên tử ' + m[1] + ' đã văng ra xa ' + m[2]; }],
     [/^force on (.*) reached (.*), outside the model range$/, function(m) { return 'lực tác dụng lên ' + m[1] + ' đạt ' + m[2] + ', ngoài phạm vi mô hình'; }],
     [/^simple Huckel MO \(zero differential overlap\)$/, function() { return 'MO Hückel đơn giản, bỏ qua chồng chất vi phân.'; }],
+    [/^Huckel MO with Lowdin overlap orthogonalisation$/, function() { return 'MO Hückel với trực giao hoá chồng chất Löwdin.'; }],
+    [/^semi-empirical quantum \(pi-electron only, no electron correlation\)$/, function() { return 'lượng tử bán kinh nghiệm (chỉ π electron, không có tương quan electron).'; }],
+    [/^orbital energies in eV relative to alpha$/, function() { return 'năng lượng orbital tính bằng eV so với α.'; }],
     [/^(.*) bond\(s\) broken, topology work (.*)$/, function(m) { return m[1] + ' liên kết bị phá, công topology ' + m[2] + '.'; }],
     [/^E (.*), relative drift (.*) - the pair already sat on the Morse curve, so writing the bond into the topology cost nothing$/,
       function(m) { return 'E ' + m[1] + ', độ trôi tương đối ' + m[2] + ' — cặp đã nằm sẵn trên đường cong Morse nên ghi liên kết vào đồ thị không tốn năng lượng.'; }],
@@ -4875,16 +5266,18 @@
       ]);
       html += box(TXT(STR.modelClassical), '', '');
       html += box(TXT(STR.bondTable), table(
-        [TXT(STR.bond), TXT(STR.order), TXT(STR.length), TXT(STR.equilibrium), TXT(STR.shift), TXT(STR.stiffness), TXT(STR.dissociation), TXT(STR.source)],
+        [TXT(STR.bond), TXT(STR.order), TXT(STR.length), TXT(STR.equilibrium), TXT(STR.shift), TXT(STR.stiffness), TXT(STR.uBond), TXT(STR.dissociation), TXT(STR.source)],
         g.bonds.map(function(b) {
           return [
             esc(b.key), b.order + (b.ionic ? ' <span class="mpe-pill">' + num(b.ionicCharacter * 100, 0) + '% ' + esc(TXT(STR.ionicChar)) + '</span>' : ''),
             num(b.rAngstrom, 4) + ' Å', num(b.eqAngstrom, 4) + ' Å',
             '<span class="' + (Math.abs(b.deltaAngstrom) > 0.08 ? 'mpe-err' : 'mpe-ok') + '">' + (b.deltaAngstrom >= 0 ? '+' : '') + num(b.deltaAngstrom, 4) + '</span>',
-            num(b.kNm, 0), num(b.DeKJmol, 1),
+            num(b.kNm, 0),
+            '<span class="' + (b.uBondKJmol < 0 ? 'mpe-ok' : 'mpe-err') + '">' + num(b.uBondKJmol, 1) + '</span>',
+            num(b.DeKJmol, 1),
             b.measured ? '<span class="mpe-ok">' + esc(TXT(STR.measured)) + '</span>' : '<span class="mpe-pill">' + esc(TXT(STR.estimated)) + '</span>'
           ];
-        })));
+        })) + '<div class="mpe-note">' + esc(TXT(STR.uBondNote)) + '</div>');
       if (g.angles.length) {
         html += box(TXT(STR.angleTable), table(
           [TXT(STR.angle), TXT(STR.source), 'θ', TXT(STR.ideal), 'Δθ'],
@@ -4900,12 +5293,23 @@
         })));
       if (g.nonbonded.length) {
         html += box(TXT(STR.nonbondedTable), table(
-          [TXT(STR.contact), 'd', TXT(STR.overlap), 'U_elec'],
+          [TXT(STR.contact), 'd', TXT(STR.uElec), TXT(STR.uVdw), TXT(STR.uCurve),
+            TXT(STR.uPair), TXT(STR.nOrder), TXT(STR.dissociation)],
           g.nonbonded.map(function(p) {
             return [esc(p.pair), num(p.rAngstrom, 3) + ' Å',
-              '<span class="' + (p.overlap < 0 ? 'mpe-err' : 'mpe-ok') + '">' + num(p.overlap, 3) + ' Å</span>',
-              num(p.electrostaticKJmol, 1) + ' kJ/mol'];
-          })));
+              num(p.electrostaticKJmol, 1),
+              // On the bonding surface the 12-6 core is switched off by the field,
+              // so the dispersion column says why instead of printing a fake zero.
+              p.onBondCurve ? '<span class="mpe-pill">' + esc(TXT(STR.superseded)) + '</span>' : num(p.dispersionKJmol, 1),
+              num(p.curveKJmol, 1) + (p.curveKey
+                  ? ' <span class="mpe-pill">' + esc(p.curveKey) +
+                    (p.curveEstimated ? ' · ' + esc(TXT(STR.estimated)) : '') + '</span>' : ''),
+              '<span class="' + (p.pairKJmol < 0 ? 'mpe-ok' : p.pairKJmol > 0 ? 'mpe-err' : '') + '">' +
+                num(p.pairKJmol, 1) + '</span>',
+              num(p.bondOrder, 2),
+              num(p.dissociationKJmol, 0)];
+          })) + '<div class="mpe-note">' + esc(TXT(STR.pairZero)) + '</div>' +
+          '<div class="mpe-note">' + esc(bondRuleText(Reactive.defaults())) + '</div>');
       }
       var log = g.notes.concat(g.warnings);
       html += box(TXT(STR.logTitle) + ' — ' + TXT(STR.logNote), listBlock(log));
@@ -4989,7 +5393,11 @@
         [TXT(STR.steps), dyn.steps], [TXT(STR.simTime), fs(dyn.t)],
         [TXT(STR.status), esc(statusName(dyn.status))],
         [TXT(STR.drift), esc(TXT(STR.driftNow)) + ' ' + sci(dyn.drift.current, 2) + ' · ' +
-          esc(TXT(STR.driftMax)) + ' ' + sci(dyn.drift.max, 2)]
+          esc(TXT(STR.driftMax)) + ' ' + sci(dyn.drift.max, 2)],
+        // An NVT run is allowed to move heat across the boundary; saying so here
+        // keeps the drift figure honest, because drift is measured against
+        // eRef + bathWork rather than against eRef alone.
+        [TXT(STR.bathWork), dyn.bathWork ? sci(dyn.bathWork, 2) + ' J' : '0']
       ]) + sparkline(run));
 
       if (dyn.unstable) {
@@ -5028,6 +5436,7 @@
           [TXT(STR.rejected), run.reactive ? run.reactive.ledger.rejected : 0],
           [TXT(STR.topologyWork), run.reactive ? sci(run.reactive.ledger.topologyWork, 2) + ' J' : '0'],
           [TXT(STR.unpaidHeat), run.reactive ? sci(run.reactive.ledger.unpaidHeat, 2) + ' J' : '0'],
+          [TXT(STR.bathHeat), run.reactive ? sci(run.reactive.ledger.bathHeat, 2) + ' J' : '0'],
           [TXT(STR.momentumResidual), run.reactive ? sci(run.reactive.ledger.momentumResidual, 2) + ' kg m/s' : '0'],
           [TXT(STR.pairCurves), (mol.bondCurvePairCount || 0) + ' / ' +
             esc(TXT(t.options.pairBondCurve ? STR.onState : STR.offState))],
@@ -5178,15 +5587,17 @@
       var q = Engine.quantum(built, {});
       var backends = Quantum.availableBackends();
       var builtIn = !q.backend || q.backend === 'built-in';
-      var html = box(TXT(STR.backend), kv([
-        [TXT(STR.backend), builtIn ? esc(TXT(STR.backendBuiltIn)) : esc(q.backend)],
-        [TXT(STR.calculation), esc(q.method || q.modelClass || '—')],
-        [TXT(STR.unitsRow), esc(q.units || '—')],
-        [TXT(STR.externalRow), backends.external ? esc(backends.external) : '—'],
-        [TXT(STR.unavailableRow), esc((backends.notAvailableInBrowser || []).join(', '))]
-      ]) + '<div class="mpe-note">' + esc(builtIn ? TXT(STR.noBackend) : TXT(STR.backendIsExternal)) + '</div>');
+      var rows = [[TXT(STR.backend), builtIn ? esc(TXT(STR.backendBuiltIn)) : esc(q.backend)]];
+      if (q.ok) {
+        rows.push([TXT(STR.calculation), esc(gloss(q.method || q.modelClass || '—'))]);
+        rows.push([TXT(STR.unitsRow), esc(gloss(q.units || '—'))]);
+      }
+      var html = box(TXT(STR.backend), kv(rows) +
+        '<div class="mpe-note">' + esc(gloss(builtIn ? TXT(STR.backendShort) : TXT(STR.backendIsExternal))) + '</div>');
       if (!q.ok) {
-        return html + box('⚠ ' + TXT(STR.noPi), '<div class="mpe-err">' + esc(gloss(q.reason)) + '</div>', 'warn');
+        return html + box(TXT(STR.noPi),
+          '<div class="mpe-note">' + esc(gloss(q.reason || '')) + '</div>' +
+          '<div class="mpe-note">' + esc(TXT(STR.noPiWhy)) + '</div>', 'warn');
       }
       html += box(TXT(STR.piCentres) + ' (' + q.centres.length + ')', table(
         [TXT(STR.centre), TXT(STR.kind), 'h', 'k'],
@@ -5194,6 +5605,9 @@
           return [esc(c.sym + '#' + c.index), esc(TXT(c.kind === 'two' ? STR.electronTwo : STR.electronOne)),
             num(c.h, 2), num(c.k, 2)];
         })));
+      if (q.warnings && q.warnings.length) {
+        html += box(TXT(STR.quantumNotes), listBlock(q.warnings.map(gloss)), 'warn');
+      }
       html += box(TXT(STR.orbitals), table(
         ['#', TXT(STR.energyEV), TXT(STR.occ)],
         q.orbitalEnergies.map(function(e, i) {
@@ -5215,7 +5629,10 @@
           var ii = ci ? ci.index : b.pair[0], jj = cj ? cj.index : b.pair[1];
           return [esc(built.mol.atoms[ii].sym + '#' + ii + '–' + built.mol.atoms[jj].sym + '#' + jj), num(b.p, 3)];
         })));
-      html += box(TXT(STR.modelQuantum), '', '');
+      html += box(TXT(STR.modelQuantum), '<div class="mpe-note">' +
+        TXT(STR.externalRow) + ': ' + (backends.external ? esc(backends.external) : '—') +
+        ' · ' + TXT(STR.unavailableRow) + ': ' + esc((backends.notAvailableInBrowser || []).join(', ')) +
+        '</div>', '');
       return html;
     }
 

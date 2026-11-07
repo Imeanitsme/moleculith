@@ -69,8 +69,8 @@
 
   function lang() {
     var a = window.__mol3d;
-    var l = a && a.i18n ? a.i18n.getLang() : 'en';
-    return l === 'vi' ? 'vi' : 'en';
+    var l = a && a.i18n ? a.i18n.getLang() : 'vi';
+    return l === 'en' ? 'en' : 'vi';
   }
   function T() { return STR[lang()]; }
 

@@ -116,7 +116,7 @@
           "action": "next"
         },
         {
-          "text": "Click a bond (the line between atoms) to cycle its order: single → double → triple → back.",
+          "text": "Click a bond (the line between atoms) to lower its order: triple → double → single → broken. Shift+click or right-click raises it back.",
           "action": "next"
         },
         {
@@ -427,11 +427,6 @@
           "action": "highlight"
         },
         {
-          "target": "#btn-console",
-          "text": "The Console costs 2000 stars in the Rope Shop and runs JavaScript on your live scene.",
-          "action": "highlight"
-        },
-        {
           "target": "#btn-quest",
           "text": "Quest mode connects you to an AI assistant that gives challenges and answers chemistry questions.",
           "action": "highlight"
@@ -537,7 +532,7 @@
     "Select an atom and open the Info tab to find the Bohr Model button — it shows a clean 2D orbital diagram.": "Chọn một nguyên tử và mở tab Thông tin để tìm nút Mô hình Bohr — nó hiển thị sơ đồ quỹ đạo 2D sạch.",
     "Drag a second atom near the first one. They'll bond automatically when close enough!": "Kéo nguyên tử thứ hai đến gần nguyên tử đầu tiên. Chúng sẽ tự động liên kết khi đủ gần!",
     "Atoms bond based on their valence electrons. Hydrogen wants 1 bond, Oxygen wants 2, Carbon wants 4.": "Nguyên tử liên kết dựa trên electron hóa trị. H muốn 1 liên kết, O muốn 2, C muốn 4.",
-    "Click a bond (the line between atoms) to cycle its order: single → double → triple → back.": "Nhấn vào liên kết (đường nối giữa các nguyên tử) để đổi bậc: đơn → đôi → ba → lại.",
+    "Click a bond (the line between atoms) to lower its order: triple → double → single → broken. Shift+click or right-click raises it back.": "Nhấn vào liên kết (đường nối giữa các nguyên tử) để giảm bậc: ba → đôi → đơn → đứt. Shift+nhấn hoặc chuột phải để tăng lại.",
     "Drag atoms apart to break bonds. Unbonded atoms will drift and seek new partners.": "Kéo các nguyên tử ra xa để phá liên kết. Các nguyên tử không liên kết sẽ trôi và tìm bạn mới.",
     "Double-click a molecule to trigger reactions. The game detects acids, bases, redox, combustion, and more!": "Nhấn đôi vào phân tử để kích hoạt phản ứng. Game nhận diện axit, bazơ, oxi hóa khử, cháy và hơn thế!",
     "Every reaction is stoichiometrically balanced. Try combining H and O to make water!": "Mọi phản ứng đều được cân bằng. Hãy thử kết hợp H và O để tạo nước!",
@@ -595,7 +590,6 @@
     "Undo (Ctrl+Z) reverses your last action. Duplicate (Ctrl+D) copies selected atoms.": "Hoàn tác (Ctrl+Z) đảo ngược hành động cuối. Nhân đôi (Ctrl+D) sao chép nguyên tử được chọn.",
     "Delete removes selected atoms. Clear wipes the entire scene.": "Xóa loại bỏ nguyên tử được chọn. Dọn sạch toàn bộ cảnh.",
     "Mayhem mode enables chaotic reactions — explosions, lightning, and wild chemistry!": "Chế độ Hỗn loạn bật các phản ứng hỗn loạn — vỡ nổ, sét và hóa học dồi!",
-    "The Console costs 2000 stars in the Rope Shop and runs JavaScript on your live scene.": "Bảng điều khiển có giá 2000 sao trong Cửa hàng Dây thừng và chạy JavaScript trên cảnh đang mở của bạn.",
     "Quest mode connects you to an AI assistant that gives challenges and answers chemistry questions.": "Chế độ Nhiệm vụ kết nối trợ lý AI đưa thách thức và trả lời câu hỏi hóa học.",
     "Multiplayer lets you host or join rooms via PeerJS. Build molecules together in real-time!": "Chơi nhiều người cho phép tạo hoặc tham gia phòng qua PeerJS. Xây phân tử cùng nhau thời gian thực!",
     "In multiplayer, you get voice chat, text chat, and shared world state synchronization.": "Trong chơi nhiều người, bạn có trò chuyện thoại, trò chuyện văn bản và đồng bộ trạng thái thế giới.",
@@ -624,7 +618,7 @@
   function langVi() {
     var i18n = window.__mol3d && window.__mol3d.i18n;
     if (i18n && typeof i18n.getLang === 'function') return i18n.getLang() === 'vi';
-    try { return localStorage.getItem('mol3d.lang') === 'vi'; } catch (e) { return false; }
+    try { return localStorage.getItem('mol3d.lang') !== 'en'; } catch (e) { return true; }
   }
 
   function L(text) {

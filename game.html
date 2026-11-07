@@ -1,36 +1,36 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0e1a" />
-  <title>MOLECULITH — From atoms to everything</title>
+  <title>PHÂN TỬ SỐ — Từ nguyên tử đến thế giới vật chất</title>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <!-- PeerJS (Peer-to-Peer WebRTC) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=13"></script>
+  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=28"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-d41d8cd9.js">
-  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css?v=6">
+  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css?v=9">
 </head>
 <body>
   <div id="app">
     <!-- Left sidebar with tabs: POOL / INFO / DEX -->
     <aside id="left-sidebar" class="left-sidebar">
-      <div class="drag-handle" title="Drag to move" data-i18n-title="ui.dragHandle"></div>
+      <div class="drag-handle" title="Kéo để di chuyển" data-i18n-title="ui.dragHandle"></div>
       <div class="sidebar-tabs">
-        <button class="sidebar-tab active" data-panel="pool" data-i18n="tab.pool">POOL</button>
-        <button class="sidebar-tab" data-panel="info" data-i18n="tab.info">INFO</button>
-        <button class="sidebar-tab" data-panel="dex" data-i18n="tab.dex">DEX</button>
+        <button class="sidebar-tab active" data-panel="pool" data-i18n="tab.pool">Nguyên tố</button>
+        <button class="sidebar-tab" data-panel="info" data-i18n="tab.info">Thông tin</button>
+        <button class="sidebar-tab" data-panel="dex" data-i18n="tab.dex">Sổ tay</button>
       </div>
       <div class="sidebar-body">
         <!-- Side panels -->
         <div id="side-pool" class="side-tab-panel active">
           <div id="pool-tools">
-            <input id="pool-search" type="search" data-i18n-ph="pool.searchPh" placeholder="Search 118 elements..." autocomplete="off" spellcheck="false" />
-            <button id="pool-view" data-i18n="pool.viewTable" data-i18n-title="pool.view.title">Table</button>
+            <input id="pool-search" type="search" data-i18n-ph="pool.searchPh" placeholder="Tìm kiếm 118 nguyên tố..." autocomplete="off" spellcheck="false" />
+            <button id="pool-view" data-i18n="pool.viewTable" data-i18n-title="pool.view.title" title="Chuyển giữa danh sách và bảng tuần hoàn">Bảng</button>
           </div>
-          <p class="panel-hint" data-i18n="pool.hint">Drag an element into the scene to place it. Metals bond ionically (electron transfer). Noble gases are inert &mdash; Kr, Xe and Rn react only with F or O.</p>
+          <p class="panel-hint" data-i18n="pool.hint">Kéo một nguyên tố vào cảnh để đặt nguyên tử. Kim loại liên kết ion (chuyển electron). Khí hiếm trơ — Kr, Xe và Rn chỉ phản ứng với F hoặc O.</p>
           <div id="pool-list"></div>
           <div id="ptable" hidden></div>
           <div id="legend"></div>
@@ -38,9 +38,9 @@
 
         <div id="side-info" class="side-tab-panel">
           <section class="panel">
-            <h2 data-i18n="sel.title">Selection</h2>
-            <div id="sel-info" class="muted" data-i18n="sel.empty">Click an atom to inspect it.</div>
-            <button id="bohr-toggle" class="bohr-toggle" hidden data-i18n="bohr.toggle">Bohr Model</button>
+            <h2 data-i18n="sel.title">Lựa chọn</h2>
+            <div id="sel-info" class="muted" data-i18n="sel.empty">Bấm vào một nguyên tử để xem chi tiết.</div>
+            <button id="bohr-toggle" class="bohr-toggle" hidden data-i18n="bohr.toggle">Mô hình Bohr</button>
             <div id="bohr-container" class="bohr-container" hidden>
               <canvas id="bohr-canvas" width="280" height="280"></canvas>
               <div id="bohr-stats" class="bohr-stats"></div>
@@ -48,64 +48,64 @@
           </section>
 
           <section class="panel">
-            <h2 data-i18n="mol.title">Molecule</h2>
-            <div id="mol-info" class="muted" data-i18n="mol.empty">Build a molecule to analyze it.</div>
+            <h2 data-i18n="mol.title">Phân tử</h2>
+            <div id="mol-info" class="muted" data-i18n="mol.empty">Hãy tạo phân tử để phân tích.</div>
             <div id="mol-warn"></div>
             <div id="charge-row">
-              <span class="lbl" data-i18n="mol.chargeLbl">Ion charge</span>
+              <span class="lbl" data-i18n="mol.chargeLbl">Điện tích ion</span>
               <div class="charge-btns">
-                <button id="chg-minus" data-i18n-title="chg.minus.title" title="Set ion charge one unit lower">&minus;1</button>
-                <button id="chg-auto" data-i18n="chg.auto" data-i18n-title="chg.auto.title" title="Automatic: minimize total formal charge">auto</button>
-                <button id="chg-plus" data-i18n-title="chg.plus.title" title="Set ion charge one unit higher">+1</button>
+                <button id="chg-minus" data-i18n-title="chg.minus.title" title="Giảm điện tích ion một đơn vị">&minus;1</button>
+                <button id="chg-auto" data-i18n="chg.auto" data-i18n-title="chg.auto.title" title="Tự động: cực tiểu hóa tổng điện tích hình thức">tự động</button>
+                <button id="chg-plus" data-i18n-title="chg.plus.title" title="Tăng điện tích ion một đơn vị">+1</button>
               </div>
             </div>
           </section>
 
           <section class="panel">
-            <h2 data-i18n="stoich.title">Stoichiometry</h2>
-            <div id="stoich-empty" class="muted" data-i18n="stoich.empty">Select an atom or molecule to compute molar mass.</div>
+            <h2 data-i18n="stoich.title">Tính toán mol</h2>
+            <div id="stoich-empty" class="muted" data-i18n="stoich.empty">Chọn một nguyên tử hoặc phân tử để tính khối lượng mol.</div>
             <div id="stoich-body" hidden>
               <div id="stoich-formula" class="mol-formula"></div>
               <div id="stoich-molar"></div>
               <table class="stoich-table"><thead><tr>
-                <th data-i18n="stoich.el">Element</th>
-                <th data-i18n="stoich.atoms">Atoms</th>
+                <th data-i18n="stoich.el">Nguyên tố</th>
+                <th data-i18n="stoich.atoms">Số nguyên tử</th>
                 <th data-i18n="stoich.atomic">g/mol</th>
-                <th data-i18n="stoich.subtotal">Subtotal</th>
-                <th data-i18n="stoich.pct">Mass %</th>
+                <th data-i18n="stoich.subtotal">Tổng</th>
+                <th data-i18n="stoich.pct">% khối lượng</th>
               </tr></thead><tbody id="stoich-comp"></tbody></table>
               <div class="stoich-convert">
-                <label><span data-i18n="stoich.massLbl">Mass (g)</span><input id="stoich-g" type="number" min="0" step="any" /></label>
-                <label><span data-i18n="stoich.molLbl">Moles</span><input id="stoich-mol" type="number" min="0" step="any" /></label>
-                <label><span data-i18n="stoich.partLbl">Particles</span><input id="stoich-n" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" /></label>
+                <label><span data-i18n="stoich.massLbl">Khối lượng (g)</span><input id="stoich-g" type="number" min="0" step="any" /></label>
+                <label><span data-i18n="stoich.molLbl">Số mol</span><input id="stoich-mol" type="number" min="0" step="any" /></label>
+                <label><span data-i18n="stoich.partLbl">Số hạt</span><input id="stoich-n" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" /></label>
               </div>
               <div id="stoich-note" class="muted"></div>
             </div>
           </section>
 
           <section class="panel">
-            <h2 data-i18n="kinetics.title">Kinetics</h2>
-            <div id="kinetics-empty" class="muted" data-i18n="kinetics.empty">Select a molecule to view kinetics.</div>
+            <h2 data-i18n="kinetics.title">Động học</h2>
+            <div id="kinetics-empty" class="muted" data-i18n="kinetics.empty">Chọn phân tử để xem động học.</div>
             <div id="kinetics-body" hidden>
               <div class="kinetics-grid">
                 <div class="kinetic-stat">
-                  <span class="kinetic-label" data-i18n="kinetics.temp">Temperature</span>
+                  <span class="kinetic-label" data-i18n="kinetics.temp">Nhiệt độ</span>
                   <span id="kinetic-temp" class="kinetic-value">298 K</span>
                 </div>
                 <div class="kinetic-stat">
-                  <span class="kinetic-label" data-i18n="kinetics.ea">Activation Energy</span>
+                  <span class="kinetic-label" data-i18n="kinetics.ea">Năng lượng hoạt hóa</span>
                   <span id="kinetic-ea" class="kinetic-value">200 kJ/mol</span>
                 </div>
                 <div class="kinetic-stat">
-                  <span class="kinetic-label" data-i18n="kinetics.rate">Rate Constant</span>
+                  <span class="kinetic-label" data-i18n="kinetics.rate">Hằng số tốc độ</span>
                   <span id="kinetic-rate" class="kinetic-value">—</span>
                 </div>
                 <div class="kinetic-stat">
-                  <span class="kinetic-label" data-i18n="kinetics.halflife">Half-life</span>
+                  <span class="kinetic-label" data-i18n="kinetics.halflife">Chu kỳ bán rã</span>
                   <span id="kinetic-halflife" class="kinetic-value">—</span>
                 </div>
                 <div class="kinetic-stat">
-                  <span class="kinetic-label" data-i18n="kinetics.decomp">Decomposition</span>
+                  <span class="kinetic-label" data-i18n="kinetics.decomp">Phân hủy</span>
                   <span id="kinetic-decomp" class="kinetic-value">—</span>
                 </div>
               </div>
@@ -114,8 +114,8 @@
           </section>
 
           <section class="panel">
-            <h2 data-i18n="list.title">Molecules in scene</h2>
-            <div id="mol-list" class="muted" data-i18n="list.empty">No molecules yet.</div>
+            <h2 data-i18n="list.title">Phân tử trong khung cảnh</h2>
+            <div id="mol-list" class="muted" data-i18n="list.empty">Chưa có phân tử nào.</div>
           </section>
 
           <!-- Science features (guide + molecular engine) mount their buttons here -->
@@ -142,15 +142,15 @@
           </div>
 
           <section class="panel">
-            <h2><span data-i18n="dex.disc">Discoveries</span> <span id="disc-count" class="muted"></span></h2>
-            <div id="disc-list" class="muted" data-i18n="dex.discEmpty">Nothing discovered yet.</div>
-            <button id="btn-save-disc" class="linklike" disabled data-i18n="btn.saveDisc">Save discoveries</button>
+            <h2><span data-i18n="dex.disc">Khám phá</span> <span id="disc-count" class="muted"></span></h2>
+            <div id="disc-list" class="muted" data-i18n="dex.discEmpty">Chưa có gì được khám phá. Hãy phản ứng hoặc tạo phân tử để lấp đầy sổ này.</div>
+            <button id="btn-save-disc" class="linklike" disabled data-i18n="btn.saveDisc">Lưu khám phá</button>
           </section>
 
           <section class="panel">
-            <h2><span data-i18n="dex.chal">Challenges</span> <span id="ch-progress" class="muted"></span></h2>
+            <h2><span data-i18n="dex.chal">Thử thách</span> <span id="ch-progress" class="muted"></span></h2>
             <div id="ch-list"></div>
-            <button id="ch-reset" class="linklike" data-i18n="btn.reset">Reset progress</button>
+            <button id="ch-reset" class="linklike" data-i18n="btn.reset">Đặt lại tiến trình</button>
           </section>
         </div>
       </div>
@@ -165,9 +165,9 @@
         </div>
         <div id="top-bar-mp" class="top-bar-right" hidden>
           <span id="top-room-name" class="top-room-name">Room: —</span>
-          <button id="top-btn-roster" class="top-btn" title="Channel Roster" data-i18n-title="top.channelRoster"><i data-lucide="users"></i> <span id="top-roster-count">0</span></button>
-          <button id="top-btn-share" class="top-btn" title="Share Room" data-i18n-title="top.shareRoom"><i data-lucide="share-2"></i></button>
-          <button id="top-btn-exit" class="top-btn top-btn-exit" title="Exit Room" data-i18n-title="top.exitRoom"><i data-lucide="log-out"></i></button>
+          <button id="top-btn-roster" class="top-btn" title="Danh sách kênh" data-i18n-title="top.channelRoster"><i data-lucide="users"></i> <span id="top-roster-count">0</span></button>
+          <button id="top-btn-share" class="top-btn" title="Chia sẻ phòng" data-i18n-title="top.shareRoom"><i data-lucide="share-2"></i></button>
+          <button id="top-btn-exit" class="top-btn top-btn-exit" title="Thoát phòng" data-i18n-title="top.exitRoom"><i data-lucide="log-out"></i></button>
         </div>
       </div>
       <!-- Health bar (top-left) -->
@@ -180,39 +180,39 @@
       <!-- Death screen (overlay) -->
       <div id="death-screen" class="death-screen" style="display: none;">
         <div class="death-content">
-          <h1 class="death-title" data-i18n="death.title">You Died</h1>
-          <p class="death-message" data-i18n="death.message">The radiation was too strong...</p>
-          <button id="btn-respawn" class="death-btn" data-i18n="death.respawn">Respawn</button>
+          <h1 class="death-title" data-i18n="death.title">Bạn Đã Chết</h1>
+          <p class="death-message" data-i18n="death.message">Bức xạ quá mạnh...</p>
+          <button id="btn-respawn" class="death-btn" data-i18n="death.respawn">Hồi Sinh</button>
         </div>
       </div>
       <!-- App name tag (bottom-right of scene) -->
       <div class="app-name-box">
-        <span class="app-name" data-i18n="app.name">MOLECULITH</span>
+        <span class="app-name" data-i18n="app.name">PHÂN TỬ SỐ</span>
         <span id="mode-indicator">3D</span>
       </div>
       <div id="hint" data-i18n-html="hint.html">
-        Drag an element from the pool into the scene to place it.<br />
-        Drag atoms together to bond them &mdash; green ghost means a legal bond, red means forbidden.<br />
-        Click a bond to cycle its order (1&rlm;&rarr;2&rlm;&rarr;3&rlm;&rarr;2&rlm;&rarr;1&rlm;&rarr;delete).<br />
-        Double-click two or more molecules to set up a reaction, then pick a condition.<br />
-        Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.
+        Kéo một nguyên tố từ kho vào cảnh để đặt nó.<br />
+        Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />
+        Nhấp vào liên kết để xoay bậc (1→2→3→2→1→xóa).<br />
+        Nhấp đôi hai phân tử trở lên để tạo phản ứng, sau đó chọn điều kiện.<br />
+        Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.
       </div>
       <div id="fps-chip"></div>
       <div id="rxn-panel" style="display:none">
-        <div id="rxn-title"><span data-i18n="rxn.title">Reaction</span> &middot; <span id="rxn-count"></span></div>
+        <div id="rxn-title"><span data-i18n="rxn.title">Phản ứng</span> &middot; <span id="rxn-count"></span></div>
         <div id="rxn-conds"></div>
         <div id="rxn-stoich"></div>
-        <button id="rxn-cancel" class="linklike" data-i18n="rxn.cancel">Cancel</button>
+        <button id="rxn-cancel" class="linklike" data-i18n="rxn.cancel">Hủy</button>
       </div>
       <div id="toast"></div>
 
       <!-- Meltdown Warning Overlay (inside scene for proper positioning) -->
       <div id="meltdown-overlay">
         <div class="meltdown-tape top">
-          <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
+          <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ TAN CHẢY — PHÂN TỬ KHÔNG ỔN ĐỊNH </span>
         </div>
         <div class="meltdown-tape bottom">
-          <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ MELTDOWN — UNSTABLE MOLECULES ⚠</span>
+          <span class="meltdown-tape-text" data-i18n="meltdown.text">⚠ TAN CHẢY — PHÂN TỬ KHÔNG ỔN ĐỊNH </span>
         </div>
       </div>
 
@@ -229,7 +229,7 @@
           <div id="rankup-shield" class="rankup-shield">
             <span id="rankup-grade" class="rankup-grade">V</span>
           </div>
-          <div id="rankup-label" class="rankup-label" data-i18n="rank.gradeUpLabel">Grade Up!</div>
+          <div id="rankup-label" class="rankup-label" data-i18n="rank.gradeUpLabel">LÊN BẬC!</div>
           <div id="rankup-confetti" class="rankup-confetti"></div>
         </div>
       </div>
@@ -239,28 +239,28 @@
     <div id="joy" aria-hidden="true">
       <div id="joy-stick"><div id="joy-knob"></div></div>
       <div id="joy-vert">
-        <button id="joy-up" aria-label="Move camera up" data-i18n-aria="joy.up"><i data-lucide="chevron-up"></i></button>
-        <button id="joy-down" aria-label="Move camera down" data-i18n-aria="joy.down"><i data-lucide="chevron-down"></i></button>
+        <button id="joy-up" aria-label="Di chuyển camera lên" data-i18n-aria="joy.up"><i data-lucide="chevron-up"></i></button>
+        <button id="joy-down" aria-label="Di chuyển camera xuống" data-i18n-aria="joy.down"><i data-lucide="chevron-down"></i></button>
       </div>
-      <button id="joy-jump" aria-label="Jump" data-i18n="joy.jump" data-i18n-aria="joy.jump">Jump</button>
+      <button id="joy-jump" aria-label="Nhảy" data-i18n="joy.jump" data-i18n-aria="joy.jump">Nhảy</button>
     </div>
 
     <!-- Right sidebar (action buttons) -->
     <aside id="right-sidebar" class="right-sidebar">
-      <div class="drag-handle" title="Drag to move" data-i18n-title="ui.dragHandle"></div>
-      <button id="btn-quest" class="action-btn" title="AI Quest Mode" data-i18n-title="btn.quest.title"><i data-lucide="bot"></i></button>
-      <button id="btn-undo" class="action-btn" title="Undo (Ctrl+Z)" data-i18n-title="ui.undo"><i data-lucide="undo-2"></i></button>
-      <button id="btn-delete" class="action-btn" title="Delete" data-i18n-title="ui.delete" disabled><i data-lucide="trash-2"></i></button>
-      <button id="btn-duplicate" class="action-btn" title="Duplicate (Ctrl+D)" data-i18n-title="ui.duplicate"><i data-lucide="copy"></i></button>
-      <button id="btn-clear" class="action-btn" title="Clear All" data-i18n-title="btn.clear"><i data-lucide="x"></i></button>
-      <button id="btn-fc" class="action-btn toggle" title="Format" data-i18n-title="btn.format.title"><i data-lucide="superscript"></i></button>
-      <button id="btn-xray" class="action-btn toggle" title="X-Ray Mode (X)" data-i18n-title="btn.xray.title"><i data-lucide="scan-eye"></i></button>
-      <button id="btn-proton" class="action-btn toggle" title="Proton Gun" data-i18n-title="btn.proton.title"><i data-lucide="crosshair"></i></button>
+      <div class="drag-handle" title="Kéo để di chuyển" data-i18n-title="ui.dragHandle"></div>
+      <button id="btn-quest" class="action-btn" title="Chế độ Hướng Dẫn AI" data-i18n-title="btn.quest.title"><i data-lucide="bot"></i></button>
+      <button id="btn-undo" class="action-btn" title="Hoàn tác (Ctrl+Z)" data-i18n-title="ui.undo"><i data-lucide="undo-2"></i></button>
+      <button id="btn-delete" class="action-btn" title="Xóa" data-i18n-title="ui.delete" disabled><i data-lucide="trash-2"></i></button>
+      <button id="btn-duplicate" class="action-btn" title="Nhân bản (Ctrl+D)" data-i18n-title="ui.duplicate"><i data-lucide="copy"></i></button>
+      <button id="btn-clear" class="action-btn" title="Xóa hết" data-i18n-title="btn.clear"><i data-lucide="x"></i></button>
+      <button id="btn-fc" class="action-btn toggle" title="Định dạng — tùy chọn tia X và điện tích hình thức" data-i18n-title="btn.format.title"><i data-lucide="superscript"></i></button>
+      <button id="btn-xray" class="action-btn toggle" title="Chế độ Tia X (X)" data-i18n-title="btn.xray.title"><i data-lucide="scan-eye"></i></button>
+      <button id="btn-proton" class="action-btn toggle" title="Súng proton" data-i18n-title="btn.proton.title"><i data-lucide="crosshair"></i></button>
     </aside>
 
     <!-- Bottom bar: TIME BOARD + MENU -->
     <div class="bottom-bar">
-      <div class="drag-handle" title="Drag to move" data-i18n-title="ui.dragHandle"></div>
+      <div class="drag-handle" title="Kéo để di chuyển" data-i18n-title="ui.dragHandle"></div>
       <div class="bottom-left">
         <span id="status-text" class="info"></span>
       </div>
@@ -269,53 +269,52 @@
           <span id="time-display">0s</span>
           <span class="time-speed" id="time-speed-label">1×</span>
         </div>
-        <button id="btn-time-menu" class="time-btn" title="Time Control" data-i18n-title="time.title"><i data-lucide="more-vertical"></i></button>
+        <button id="btn-time-menu" class="time-btn" title="Điều khiển thời gian" data-i18n-title="time.title"><i data-lucide="more-vertical"></i></button>
       </div>
       <div class="time-controls env-controls">
         <div class="time-display-box env-display-box">
           <span id="env-temp-display">298K</span>
           <span class="time-speed" id="env-pressure-display">1atm</span>
         </div>
-        <button id="btn-env-menu" class="time-btn" title="Environment Control" data-i18n-title="env.title"><i data-lucide="thermometer"></i></button>
+        <button id="btn-env-menu" class="time-btn" title="Điều Khiển Môi Trường" data-i18n-title="env.title"><i data-lucide="thermometer"></i></button>
       </div>
       <div class="bottom-right">
-        <span id="keys-hint" data-i18n="keys.hint">WASD/arrows = move · drag = move/bond · click bond = raise order</span>
-        <button id="btn-menu" class="menu-tab-btn" aria-expanded="false" aria-controls="menu-dropdown" title="Menu" data-i18n-title="ui.menu"><i data-lucide="menu"></i></button>
+        <span id="keys-hint" data-i18n="keys.hint">WASD/phím mũi tên = di chuyển camera · kéo = di chuyển / liên kết · bấm liên kết = xoay bậc · nhấp đôi phân tử = chọn để phản ứng · Del = xóa · Ctrl+Z = hoàn tác · Ctrl+D = nhân đôi</span>
+        <button id="btn-menu" class="menu-tab-btn" aria-expanded="false" aria-controls="menu-dropdown" title="Thực đơn" data-i18n-title="ui.menu"><i data-lucide="menu"></i></button>
       </div>
     </div>
 
     <!-- Menu dropdown: feature groups on tabs, one group at a time -->
     <div id="menu-dropdown" class="menu-dropdown" hidden>
-      <div class="menu-tabs" role="tablist" data-i18n-aria="menu.tabs">
-        <button type="button" class="menu-tab active" id="menu-tab-game" role="tab" data-menu-tab="game" aria-controls="menu-panel-game" aria-selected="true" data-i18n="menu.tab.game">Game</button>
-        <button type="button" class="menu-tab" id="menu-tab-settings" role="tab" data-menu-tab="settings" aria-controls="menu-panel-settings" aria-selected="false" data-i18n="menu.tab.settings">Settings</button>
-        <button type="button" class="menu-tab" id="menu-tab-progress" role="tab" data-menu-tab="progress" aria-controls="menu-panel-progress" aria-selected="false" data-i18n="menu.tab.progress">Progress</button>
-        <button type="button" class="menu-tab" id="menu-tab-more" role="tab" data-menu-tab="more" aria-controls="menu-panel-more" aria-selected="false" data-i18n="menu.tab.more">More</button>
+      <div class="menu-tabs" role="tablist" data-i18n-aria="menu.tabs" aria-label="Các mục trình đơn">
+        <button type="button" class="menu-tab active" id="menu-tab-game" role="tab" data-menu-tab="game" aria-controls="menu-panel-game" aria-selected="true" data-i18n="menu.tab.game">Trò chơi</button>
+        <button type="button" class="menu-tab" id="menu-tab-settings" role="tab" data-menu-tab="settings" aria-controls="menu-panel-settings" aria-selected="false" data-i18n="menu.tab.settings">Cài đặt</button>
+        <button type="button" class="menu-tab" id="menu-tab-progress" role="tab" data-menu-tab="progress" aria-controls="menu-panel-progress" aria-selected="false" data-i18n="menu.tab.progress">Tiến độ</button>
+        <button type="button" class="menu-tab" id="menu-tab-more" role="tab" data-menu-tab="more" aria-controls="menu-panel-more" aria-selected="false" data-i18n="menu.tab.more">Khác</button>
       </div>
       <div class="menu-panel" id="menu-panel-game" data-menu-tab="game" role="tabpanel" aria-labelledby="menu-tab-game">
-        <button id="btn-tutorial" data-i18n="btn.tutorial">Tutorial</button>
-        <button id="btn-mayhem" class="toggle" data-i18n="btn.mayhem" data-i18n-title="btn.mayhem.title">Mayhem</button>
-        <button id="btn-import" data-i18n="btn.import" data-i18n-title="btn.import.title" hidden>Custom Elements</button>
-        <button id="btn-atmosphere" data-i18n-title="btn.atmosphere.title">Atmosphere: OFF</button>
-        <button id="btn-game-mode" data-i18n="btn.gameMode" data-i18n-title="btn.gameMode.title">Mode: Survival</button>
-        <button id="btn-return-lobby" data-i18n="btn.returnLobby" hidden>Return to Lobby</button>
+        <button id="btn-tutorial" data-i18n="btn.tutorial">Hướng dẫn</button>
+        <button id="btn-mayhem" class="toggle" data-i18n="btn.mayhem" data-i18n-title="btn.mayhem.title" title="Chế độ hỗn loạn — nguyên tố kỳ lạ và phản ứng hỗn loạn">Hỗn loạn</button>
+        <button id="btn-import" data-i18n="btn.import" data-i18n-title="btn.import.title" hidden title="Tạo nguyên tố tùy chỉnh (chỉ chế độ Hỗn loạn)">Nhập</button>
+        <button id="btn-atmosphere" data-i18n-title="btn.atmosphere.title" title="Bật/tắt khí quyển (O2, N2, Ar, CO2)">Atmosphere: OFF</button>
+        <button id="btn-game-mode" data-i18n="btn.gameMode" data-i18n-title="btn.gameMode.title" title="Chuyển giữa chế độ Sinh tồn và Sáng tạo">Chế độ: Sinh tồn</button>
+        <button id="btn-return-lobby" data-i18n="btn.returnLobby" hidden>Về sảnh</button>
       </div>
       <div class="menu-panel" id="menu-panel-settings" data-menu-tab="settings" role="tabpanel" aria-labelledby="menu-tab-settings" hidden>
-        <button id="btn-quality" data-i18n-title="btn.quality.title">Quality: Auto</button>
-        <button id="btn-theme" data-i18n-title="btn.theme.title">Theme: Dark</button>
-        <button id="btn-lang" data-i18n-title="btn.lang.title">EN</button>
+        <button id="btn-quality" data-i18n-title="btn.quality.title" title="Chất lượng đồ họa — tự điều chỉnh khi fps giảm">Quality: Auto</button>
+        <button id="btn-theme" data-i18n-title="btn.theme.title" title="Chuyển giữa giao diện tối và sáng">Theme: Dark</button>
+        <button id="btn-lang" data-i18n-title="btn.lang.title" title="Chuyển ngôn ngữ">EN</button>
         <div class="volume-row">
-          <span class="volume-label" data-i18n="menu.volume">Volume</span>
+          <span class="volume-label" data-i18n="menu.volume">Âm lượng</span>
           <input type="range" id="volume-slider" min="0" max="100" value="50" />
         </div>
       </div>
       <div class="menu-panel" id="menu-panel-progress" data-menu-tab="progress" role="tabpanel" aria-labelledby="menu-tab-progress" hidden>
-        <button id="btn-export" data-i18n="btn.export" data-i18n-title="btn.export.title">Export Progress</button>
-        <button id="btn-import-progress" data-i18n="btn.importProgress" data-i18n-title="btn.importProgress.title">Import Progress</button>
+        <button id="btn-export" data-i18n="btn.export" data-i18n-title="btn.export.title" title="Tải tiến độ của bạn xuống thành tệp">Xuất tiến độ</button>
+        <button id="btn-import-progress" data-i18n="btn.importProgress" data-i18n-title="btn.importProgress.title" title="Nạp tiến độ từ tệp đã lưu">Nhập tiến độ</button>
       </div>
       <div class="menu-panel" id="menu-panel-more" data-menu-tab="more" role="tabpanel" aria-labelledby="menu-tab-more" hidden>
-        <button id="btn-console" data-i18n="btn.console">Console</button>
-        <button id="btn-credits" data-i18n="btn.credits">Credits</button>
+        <button id="btn-credits" data-i18n="btn.credits">Credit</button>
       </div>
       <input type="file" id="import-file-input" accept=".json" hidden />
     </div>
@@ -324,41 +323,41 @@
     <div id="credits-modal" class="credits-modal" hidden>
       <div class="credits-backdrop"></div>
       <div class="credits-container">
-        <button id="credits-close" class="credits-close-btn" title="Close" data-i18n-title="ui.close">&times;</button>
+        <button id="credits-close" class="credits-close-btn" title="Đóng" data-i18n-title="ui.close">&times;</button>
         <div class="credits-scroll">
           <div class="credits-content">
             <div class="credits-title-block">
-              <div class="credits-app-name" data-i18n="app.name">MOLECULITH</div>
-              <div class="credits-subtitle" data-i18n="app.slogan">From atoms to everything</div>
+              <div class="credits-app-name" data-i18n="app.name">PHÂN TỬ SỐ</div>
+              <div class="credits-subtitle" data-i18n="app.slogan">Từ nguyên tử đến thế giới vật chất</div>
             </div>
             <div class="credits-section">
-              <div class="credits-role" data-i18n="credits.createdBy">Created &amp; Directed by</div>
+              <div class="credits-role" data-i18n="credits.createdBy">Sáng lập &amp; Đạo diễn</div>
               <div class="credits-name">Nguyễn Thiên Quân</div>
             </div>
             <div class="credits-section">
-              <div class="credits-role" data-i18n="credits.owner">Owner &amp; Lead Developer</div>
+              <div class="credits-role" data-i18n="credits.owner">Chủ sở hữu &amp; Lập trình viên chính</div>
               <div class="credits-name">Nguyễn Thiên Quân</div>
             </div>
             <div class="credits-divider"></div>
             <div class="credits-section">
-              <div class="credits-heading" data-i18n="credits.originTitle">Origin Story</div>
-              <div class="credits-text" data-i18n="credits.originText">The application originated as a random thought when first introduced to the game BEAKER. Exploring its interactive mechanics sparked an idea that gradually evolved from a simple concept into a full-fledged software application.</div>
+              <div class="credits-heading" data-i18n="credits.originTitle">Câu Chuyện Nguồn Gốc</div>
+              <div class="credits-text" data-i18n="credits.originText">Ứng dụng bắt nguồn từ một ý nghĩ ngẫu nhiên khi lần đầu tiếp xúc với trò chơi BEAKER. Khám phá cơ chế tương tác của nó đã khơi gợi một ý tưởng dần phát triển từ khái niệm đơn giản thành một phần mềm hoàn chỉnh.</div>
             </div>
             <div class="credits-divider"></div>
             <div class="credits-section">
-              <div class="credits-heading" data-i18n="credits.qaTitle">Quality Assurance &amp; Debugging</div>
-              <div class="credits-role" data-i18n="credits.testers">Testers &amp; Debuggers</div>
+              <div class="credits-heading" data-i18n="credits.qaTitle">Đảm Bảo Chất Lượng &amp; Gỡ Lỗi</div>
+              <div class="credits-role" data-i18n="credits.testers">Người Kiểm Thử &amp; Gỡ Lỗi</div>
               <div class="credits-name">Vũ Nguyễn Nhật Anh</div>
               <div class="credits-name">Đoàn Thế Hiển</div>
               <div class="credits-name">Mai Ngọc An Hòa</div>
             </div>
             <div class="credits-divider"></div>
             <div class="credits-section">
-              <div class="credits-heading" data-i18n="credits.thanksTitle">Special Thanks</div>
-              <div class="credits-name">BEAKER <span class="credits-note" data-i18n="credits.inspiration">(Interactive Game — Inspiration)</span></div>
+              <div class="credits-heading" data-i18n="credits.thanksTitle">Đặc Biệt Cảm Ơn</div>
+              <div class="credits-name">BEAKER <span class="credits-note" data-i18n="credits.inspiration">(Trò Chơi Tương Tác — Nguồn Cảm Hứng)</span></div>
             </div>
             <div class="credits-footer">
-              <div class="credits-copy">&copy; Nguyễn Thiên Quân. <span data-i18n="credits.rights">All Rights Reserved.</span></div>
+              <div class="credits-copy">&copy; Nguyễn Thiên Quân. <span data-i18n="credits.rights">Bảo Lưu Mọi Quyền.</span></div>
             </div>
           </div>
         </div>
@@ -366,10 +365,10 @@
     </div>
 
     <!-- Mobile tab bar -->
-    <nav id="mtabs" aria-label="Panels" data-i18n-aria="ui.panels">
-      <button data-tab="side-pool" data-i18n="tab.pool">Pool</button>
-      <button data-tab="side-info" data-i18n="tab.info">Info</button>
-      <button data-tab="side-dex" data-i18n="tab.dex">Dex</button>
+    <nav id="mtabs" aria-label="Bảng điều khiển" data-i18n-aria="ui.panels">
+      <button data-tab="side-pool" data-i18n="tab.pool">Nguyên tố</button>
+      <button data-tab="side-info" data-i18n="tab.info">Thông tin</button>
+      <button data-tab="side-dex" data-i18n="tab.dex">Sổ tay</button>
     </nav>
     </div>
   </div>
@@ -382,12 +381,12 @@
 
   <div id="isomer-panel" class="isomer-panel" aria-hidden="true">
     <div class="isomer-panel-header">
-      <h3 id="isomer-panel-title" data-i18n="iso.panelTitle">Isomer Validator</h3>
+      <h3 id="isomer-panel-title" data-i18n="iso.panelTitle">Bộ Kiểm Tra Đồng Phân</h3>
       <button id="isomer-panel-close" class="isomer-close">&times;</button>
     </div>
     <div class="isomer-input-row">
-      <input id="isomer-input" class="isomer-input" type="text" placeholder="Type arrangement (e.g., HCN, CNH)…" data-i18n-ph="iso.inputPh" autocomplete="off" spellcheck="false" />
-      <button id="isomer-check-btn" class="isomer-check-btn" data-i18n="iso.check">Check</button>
+      <input id="isomer-input" class="isomer-input" type="text" placeholder="Nhập cách sắp xếp (vd. HCN, CNH)…" data-i18n-ph="iso.inputPh" autocomplete="off" spellcheck="false" />
+      <button id="isomer-check-btn" class="isomer-check-btn" data-i18n="iso.check">Kiểm Tra</button>
     </div>
     <div id="isomer-result" class="isomer-result"></div>
   </div>
@@ -395,52 +394,52 @@
   <div id="custom-element-modal" class="modal" hidden>
     <div class="modal-content">
       <div class="modal-header">
-        <h2 data-i18n="custom.title">Create Custom Element</h2>
+        <h2 data-i18n="custom.title">Tạo Nguyên Tố Tùy Chỉnh</h2>
         <button id="custom-close" class="modal-close">&times;</button>
       </div>
       <form id="custom-element-form">
         <div class="form-row">
-          <label data-i18n="custom.name">Name</label>
-          <input type="text" id="custom-name" required placeholder="e.g., Vibranium" data-i18n-ph="pool.customNamePh" />
+          <label data-i18n="custom.name">Tên</label>
+          <input type="text" id="custom-name" required placeholder="vd: Vibranium" data-i18n-ph="pool.customNamePh" />
         </div>
         <div class="form-row">
-          <label data-i18n="custom.sym">Symbol</label>
-          <input type="text" id="custom-sym" required maxlength="3" placeholder="e.g., Vb" pattern="[A-Z][a-z]{0,2}" data-i18n-ph="pool.customSymPh" />
+          <label data-i18n="custom.sym">Ký hiệu</label>
+          <input type="text" id="custom-sym" required maxlength="3" placeholder="vd: Vb" pattern="[A-Z][a-z]{0,2}" data-i18n-ph="pool.customSymPh" />
         </div>
         <div class="form-row">
-          <label data-i18n="custom.type">Type</label>
+          <label data-i18n="custom.type">Loại</label>
           <select id="custom-cat">
-            <option value="exotic" data-i18n="cat.exotic">Exotic</option>
-            <option value="metal" data-i18n="cat.metal">Metal</option>
-            <option value="nonmetal" data-i18n="cat.nonmetal">Nonmetal</option>
-            <option value="metalloid" data-i18n="cat.metalloid">Metalloid</option>
+            <option value="exotic" data-i18n="cat.exotic">Kỳ lạ</option>
+            <option value="metal" data-i18n="cat.metal">Kim loại</option>
+            <option value="nonmetal" data-i18n="cat.nonmetal">Phi kim</option>
+            <option value="metalloid" data-i18n="cat.metalloid">Á kim</option>
             <option value="halogen" data-i18n="cat.halogen">Halogen</option>
-            <option value="noble" data-i18n="cat.noble">Noble gas</option>
+            <option value="noble" data-i18n="cat.noble">Khí hiếm</option>
           </select>
         </div>
         <div class="form-row">
-          <label data-i18n="custom.maxBonds">Max bonds</label>
+          <label data-i18n="custom.maxBonds">Liên kết tối đa</label>
           <input type="number" id="custom-maxbonds" min="0" max="20" value="4" />
         </div>
         <div class="form-row">
-          <label data-i18n="custom.mass">Mass</label>
+          <label data-i18n="custom.mass">Khối lượng</label>
           <input type="number" id="custom-mass" min="0" step="0.01" value="100" />
         </div>
         <div class="form-row">
-          <label data-i18n="custom.color">Color</label>
+          <label data-i18n="custom.color">Màu sắc</label>
           <input type="color" id="custom-color" value="#ff00ff" />
         </div>
         <div class="form-row checkbox-row">
-          <label data-i18n="custom.anion">Can make anion?</label>
+          <label data-i18n="custom.anion">Có thể tạo anion?</label>
           <input type="checkbox" id="custom-anion" />
         </div>
         <div class="form-row" id="anion-charge-row" hidden>
-          <label data-i18n="custom.anionCharge">Anion charge</label>
+          <label data-i18n="custom.anionCharge">Điện tích anion</label>
           <input type="number" id="custom-anion-charge" min="1" max="10" value="1" />
         </div>
         <div class="form-actions">
-          <button type="button" id="custom-cancel" class="btn-secondary" data-i18n="btn.cancel">Cancel</button>
-          <button type="submit" class="btn-primary" data-i18n="btn.create">Create</button>
+          <button type="button" id="custom-cancel" class="btn-secondary" data-i18n="btn.cancel">Hủy</button>
+          <button type="submit" class="btn-primary" data-i18n="btn.create">Tạo</button>
         </div>
       </form>
     </div>
@@ -452,49 +451,32 @@
     <div class="daily-reward-content">
       <button id="daily-reward-close" class="daily-reward-close">&times;</button>
       <div class="daily-reward-icon">🎁</div>
-      <h2 class="daily-reward-title" data-i18n="rank.dailyReward">Daily Reward</h2>
+      <h2 class="daily-reward-title" data-i18n="rank.dailyReward">Phần thưởng hàng ngày</h2>
       <div class="daily-reward-streak">
-        <span data-i18n="rank.dayLabel">Day</span>
+        <span data-i18n="rank.dayLabel">Ngày</span>
         <span id="daily-reward-day" class="daily-reward-day">1</span>
       </div>
       <div class="daily-reward-stars">
         <span id="daily-reward-stars" class="star-count">1</span>
         <span class="star-icon">★</span>
       </div>
-      <button id="daily-reward-claim" class="daily-reward-claim-btn" data-i18n="btn.claim">Claim</button>
-    </div>
-  </div>
-
-  <!-- Mobile Console Overlay -->
-  <div id="mobile-console" class="mobile-console" hidden>
-    <div class="console-header">
-      <span class="console-title" data-i18n="btn.console">Console</span>
-      <div class="console-actions">
-        <button id="console-clear" class="console-btn" data-i18n="console.clear" data-i18n-title="console.clear" title="Clear">Clear</button>
-        <button id="console-close" class="console-btn" data-i18n-title="console.close" title="Close">×</button>
-      </div>
-    </div>
-    <div id="console-output" class="console-output"></div>
-    <div class="console-input-row">
-      <span class="console-prompt">></span>
-      <input type="text" id="console-input" class="console-input" data-i18n-ph="console.placeholder" placeholder="Type command..." autocomplete="off" />
-      <button id="console-run" class="console-btn-run" data-i18n="console.run">Run</button>
+      <button id="daily-reward-claim" class="daily-reward-claim-btn" data-i18n="btn.claim">Nhận</button>
     </div>
   </div>
 
   <!-- Quest Mode AI Panel -->
   <div id="quest-panel" class="quest-panel" hidden>
     <div class="quest-header">
-      <span class="quest-title" data-i18n="quest.title">🧪 AI Quest Guide</span>
+      <span class="quest-title" data-i18n="quest.title">Hướng Dẫn AI</span>
       <div class="quest-actions">
-        <button id="quest-clear" class="quest-btn" data-i18n="quest.clear" data-i18n-title="quest.clear" title="Clear chat">Clear</button>
-        <button id="quest-close" class="quest-btn" data-i18n-title="quest.close" title="Close">×</button>
+        <button id="quest-clear" class="quest-btn" data-i18n="quest.clear" data-i18n-title="quest.clear" title="Xóa trò chuyện">Xóa trò chuyện</button>
+        <button id="quest-close" class="quest-btn" data-i18n-title="quest.close" title="Đóng">×</button>
       </div>
     </div>
     <div id="quest-messages" class="quest-messages"></div>
     <div class="quest-input-row">
-      <input type="text" id="quest-input" class="quest-input" data-i18n-ph="quest.placeholder" placeholder="Ask the AI chemist..." autocomplete="off" />
-      <button id="quest-send" class="quest-btn-send" data-i18n="quest.send">Send</button>
+      <input type="text" id="quest-input" class="quest-input" data-i18n-ph="quest.placeholder" placeholder="Hỏi nhà hóa học AI..." autocomplete="off" />
+      <button id="quest-send" class="quest-btn-send" data-i18n="quest.send">Gửi</button>
     </div>
   </div>
 
@@ -503,20 +485,20 @@
   <!-- Main Menu Overlay -->
   <div id="main-menu" class="main-menu-overlay" hidden>
     <div class="main-menu-content">
-      <h1 class="game-title" data-i18n="app.name">MOLECULITH</h1>
-      <p class="game-slogan" data-i18n="app.slogan">From atoms to everything</p>
+      <h1 class="game-title" data-i18n="app.name">PHÂN TỬ SỐ</h1>
+      <p class="game-slogan" data-i18n="app.slogan">Từ nguyên tử đến thế giới vật chất</p>
       <div class="menu-buttons">
         <button id="btn-singleplayer" class="menu-btn primary">
           <i data-lucide="user"></i>
-          <span data-i18n="menu.singleplayer">Singleplayer</span>
+          <span data-i18n="menu.singleplayer">Chơi đơn</span>
         </button>
         <button id="btn-multiplayer" class="menu-btn">
           <i data-lucide="users"></i>
-          <span data-i18n="menu.multiplayer">Multiplayer</span>
+          <span data-i18n="menu.multiplayer">Chơi mạng</span>
         </button>
         <button id="btn-settings" class="menu-btn">
           <i data-lucide="settings"></i>
-          <span data-i18n="menu.settings">Settings</span>
+          <span data-i18n="menu.settings">Cài đặt</span>
         </button>
       </div>
     </div>
@@ -526,30 +508,30 @@
   <div id="settings-modal" class="modal-overlay" hidden>
     <div class="modal-content">
       <button class="modal-close" data-close="settings-modal">&times;</button>
-      <h3 data-i18n="settings.title">Settings</h3>
+      <h3 data-i18n="settings.title">Cài đặt</h3>
       <div class="settings-group">
         <button id="settings-theme" class="settings-btn">
           <i data-lucide="palette"></i>
-          <span data-i18n="settings.theme">Theme: Dark</span>
+          <span data-i18n="settings.theme">Giao diện: Tối</span>
         </button>
         <button id="settings-lang" class="settings-btn">
           <i data-lucide="globe"></i>
-          <span data-i18n="settings.language">Language: EN</span>
+          <span data-i18n="settings.language">Ngôn ngữ: VI</span>
         </button>
         <button id="settings-quality" class="settings-btn">
           <i data-lucide="monitor"></i>
-          <span data-i18n="settings.quality">Quality: Auto</span>
+          <span data-i18n="settings.quality">Chất lượng: Tự động</span>
         </button>
         <button id="settings-tutorial" class="settings-btn">
           <i data-lucide="graduation-cap"></i>
-          <span data-i18n="settings.tutorial">Replay tutorial</span>
+          <span data-i18n="settings.tutorial">Xem lại hướng dẫn</span>
         </button>
         <div class="settings-volume">
-          <label data-i18n="settings.volume">Volume</label>
+          <label data-i18n="settings.volume">Âm lượng</label>
           <input type="range" id="settings-volume-slider" min="0" max="100" value="50" />
         </div>
       </div>
-      <button id="settings-back" class="modal-btn primary" data-i18n="settings.back">Back</button>
+      <button id="settings-back" class="modal-btn primary" data-i18n="settings.back">Quay lại</button>
     </div>
   </div>
 
@@ -558,21 +540,21 @@
     <div class="lobby-content">
       <button id="lobby-back" class="lobby-back-btn">
         <i data-lucide="arrow-left"></i>
-        <span data-i18n="lobby.back">Back</span>
+        <span data-i18n="lobby.back">Quay lại</span>
       </button>
-      <h2 data-i18n="lobby.title">Multiplayer Lobby</h2>
+      <h2 data-i18n="lobby.title">Sảnh chơi mạng</h2>
       <div class="lobby-buttons">
         <button id="btn-host-room" class="lobby-btn">
           <i data-lucide="server"></i>
-          <span data-i18n="lobby.hostRoom">Host Room</span>
+          <span data-i18n="lobby.hostRoom">Tạo phòng</span>
         </button>
         <button id="btn-join-room" class="lobby-btn">
           <i data-lucide="log-in"></i>
-          <span data-i18n="lobby.joinRoom">Join via Code</span>
+          <span data-i18n="lobby.joinRoom">Tham gia qua mã</span>
         </button>
         <button id="lobby-settings" class="lobby-btn">
           <i data-lucide="settings"></i>
-          <span data-i18n="menu.settings">Settings</span>
+          <span data-i18n="menu.settings">Cài đặt</span>
         </button>
       </div>
     </div>
@@ -582,28 +564,28 @@
   <div id="host-room-modal" class="modal-overlay" hidden>
     <div class="modal-content">
       <button class="modal-close" data-close="host-room-modal">&times;</button>
-      <h3 data-i18n="host.title">Host a Room</h3>
+      <h3 data-i18n="host.title">Tạo phòng</h3>
       <div class="form-group">
-        <label data-i18n="host.username">Username</label>
-        <input type="text" id="host-username" placeholder="Enter your name" data-i18n-ph="ph.enterName" maxlength="20" />
+        <label data-i18n="host.username">Tên người dùng</label>
+        <input type="text" id="host-username" placeholder="Nhập tên của bạn" data-i18n-ph="ph.enterName" maxlength="20" />
       </div>
       <div class="form-group">
-        <label data-i18n="host.roomCode">Room Code (optional)</label>
-        <input type="text" id="host-room-code" placeholder="Auto-generated if empty" data-i18n-ph="ph.autoCode" maxlength="6" />
+        <label data-i18n="host.roomCode">Mã phòng (tùy chọn)</label>
+        <input type="text" id="host-room-code" placeholder="Tự động sinh nếu để trống" data-i18n-ph="ph.autoCode" maxlength="6" />
       </div>
       <div class="form-group">
         <label>
           <input type="checkbox" id="host-password-enabled" />
-          <span data-i18n="host.enablePassword">Require Password</span>
+          <span data-i18n="host.enablePassword">Yêu cầu mật khẩu</span>
         </label>
       </div>
       <div class="form-group" id="host-password-group" hidden>
-        <label data-i18n="host.password">Password</label>
-        <input type="password" id="host-password" placeholder="Enter room password" data-i18n-ph="ph.enterPassword" maxlength="20" />
+        <label data-i18n="host.password">Mật khẩu</label>
+        <input type="password" id="host-password" placeholder="Nhập mật khẩu phòng" data-i18n-ph="ph.enterPassword" maxlength="20" />
       </div>
       <button id="btn-start-hosting" class="modal-btn primary">
         <i data-lucide="play"></i>
-        <span data-i18n="host.start">Start Hosting</span>
+        <span data-i18n="host.start">Bắt đầu tạo phòng</span>
       </button>
     </div>
   </div>
@@ -612,22 +594,22 @@
   <div id="join-room-modal" class="modal-overlay" hidden>
     <div class="modal-content">
       <button class="modal-close" data-close="join-room-modal">&times;</button>
-      <h3 data-i18n="join.title">Join a Room</h3>
+      <h3 data-i18n="join.title">Tham gia phòng</h3>
       <div class="form-group">
-        <label data-i18n="join.username">Username</label>
-        <input type="text" id="join-username" placeholder="Enter your name" data-i18n-ph="ph.enterName" maxlength="20" />
+        <label data-i18n="join.username">Tên người dùng</label>
+        <input type="text" id="join-username" placeholder="Nhập tên của bạn" data-i18n-ph="ph.enterName" maxlength="20" />
       </div>
       <div class="form-group">
-        <label data-i18n="join.roomCode">Room Code</label>
-        <input type="text" id="join-room-code" placeholder="Enter 6-character code" data-i18n-ph="ph.enterCode" maxlength="6" />
+        <label data-i18n="join.roomCode">Mã phòng</label>
+        <input type="text" id="join-room-code" placeholder="Nhập mã 6 ký tự" data-i18n-ph="ph.enterCode" maxlength="6" />
       </div>
       <div class="form-group">
-        <label data-i18n="join.password">Password (if required)</label>
-        <input type="password" id="join-password" placeholder="Leave empty if none" data-i18n-ph="ph.emptyNone" maxlength="20" />
+        <label data-i18n="join.password">Mật khẩu (nếu có)</label>
+        <input type="password" id="join-password" placeholder="Để trống nếu không có" data-i18n-ph="ph.emptyNone" maxlength="20" />
       </div>
       <button id="btn-start-join" class="modal-btn primary">
         <i data-lucide="log-in"></i>
-        <span data-i18n="join.connect">Connect</span>
+        <span data-i18n="join.connect">Kết nối</span>
       </button>
     </div>
   </div>
@@ -635,19 +617,19 @@
   <!-- Direct Join Modal (from invite link) -->
   <div id="direct-join-modal" class="modal-overlay" hidden>
     <div class="modal-content">
-      <h3 data-i18n="directJoin.title">Joining Room</h3>
+      <h3 data-i18n="directJoin.title">Đang tham gia phòng</h3>
       <p class="room-info" id="direct-join-room"></p>
       <div class="form-group">
-        <label data-i18n="directJoin.username">Username</label>
-        <input type="text" id="direct-join-username" placeholder="Enter your name" data-i18n-ph="ph.enterName" maxlength="20" />
+        <label data-i18n="directJoin.username">Tên người dùng</label>
+        <input type="text" id="direct-join-username" placeholder="Nhập tên của bạn" data-i18n-ph="ph.enterName" maxlength="20" />
       </div>
       <div class="form-group" id="direct-join-password-group" hidden>
-        <label data-i18n="directJoin.password">Password</label>
-        <input type="password" id="direct-join-password" placeholder="Enter room password" data-i18n-ph="ph.enterPassword" maxlength="20" />
+        <label data-i18n="directJoin.password">Mật khẩu</label>
+        <input type="password" id="direct-join-password" placeholder="Nhập mật khẩu phòng" data-i18n-ph="ph.enterPassword" maxlength="20" />
       </div>
       <button id="btn-direct-join" class="modal-btn primary">
         <i data-lucide="log-in"></i>
-        <span data-i18n="directJoin.join">Join Room</span>
+        <span data-i18n="directJoin.join">Tham gia phòng</span>
       </button>
     </div>
   </div>
@@ -656,11 +638,11 @@
   <div id="revive-modal" class="modal-overlay" hidden>
     <div class="modal-content modal-sm">
       <button class="modal-close" data-close="revive-modal">&times;</button>
-      <h3 data-i18n="revive.title">Revive Player</h3>
+      <h3 data-i18n="revive.title">Hồi Sinh Người Chơi</h3>
       <p class="room-info" id="revive-player-name"></p>
       <button id="btn-revive" class="modal-btn primary">
         <i data-lucide="heart"></i>
-        <span data-i18n="revive.action">Revive</span>
+        <span data-i18n="revive.action">Hồi sinh</span>
       </button>
     </div>
   </div>
@@ -668,19 +650,19 @@
   <!-- Chat Box -->
   <div id="chat-box" class="chat-box" hidden>
     <div class="chat-header" id="chat-header">
-      <span class="chat-title" data-i18n="chat.title">Chat</span>
+      <span class="chat-title" data-i18n="chat.title">Trò Chuyện</span>
       <div class="chat-controls">
-        <button class="chat-btn" id="chat-minimize" title="Minimize" data-i18n-title="ui.minimize">
+        <button class="chat-btn" id="chat-minimize" title="Thu nhỏ" data-i18n-title="ui.minimize">
           <i data-lucide="minus"></i>
         </button>
-        <button class="chat-btn" id="chat-close" title="Close" data-i18n-title="ui.close">
+        <button class="chat-btn" id="chat-close" title="Đóng" data-i18n-title="ui.close">
           <i data-lucide="x"></i>
         </button>
       </div>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
     <div class="chat-input-row">
-      <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." maxlength="200" data-i18n-ph="chat.placeholder" />
+      <input type="text" id="chat-input" class="chat-input" placeholder="Nhập tin nhắn..." maxlength="200" data-i18n-ph="chat.placeholder" />
       <button id="chat-send" class="chat-send-btn">
         <i data-lucide="send"></i>
       </button>
@@ -689,7 +671,7 @@
   </div>
 
   <!-- Chat Toggle Button -->
-  <button id="btn-chat-toggle" class="chat-toggle-btn" hidden title="Toggle Chat" data-i18n-title="btn.chatToggle.title">
+  <button id="btn-chat-toggle" class="chat-toggle-btn" hidden title="Bật/tắt trò chuyện" data-i18n-title="btn.chatToggle.title">
     <i data-lucide="message-square"></i>
   </button>
 
@@ -703,7 +685,7 @@
   <div id="time-modal" class="time-modal" hidden>
     <div class="time-modal-content">
       <button id="time-modal-close" class="time-modal-close">&times;</button>
-      <h3 data-i18n="time.title">Time Control</h3>
+      <h3 data-i18n="time.title">Điều khiển thời gian</h3>
       <div class="analog-clock">
         <div class="clock-face">
           <div class="clock-hand hour-hand"></div>
@@ -713,12 +695,12 @@
         </div>
       </div>
       <div class="time-modal-controls">
-        <button id="btn-modal-freeze" class="modal-time-btn"><i data-lucide="snowflake"></i> <span data-i18n="time.freeze">Freeze</span></button>
-        <button id="btn-modal-rewind" class="modal-time-btn"><i data-lucide="rewind"></i> <span data-i18n="time.rewind">Rewind</span></button>
-        <button id="btn-modal-forward" class="modal-time-btn"><i data-lucide="fast-forward"></i> <span data-i18n="time.forward">Forward</span></button>
+        <button id="btn-modal-freeze" class="modal-time-btn"><i data-lucide="snowflake"></i> <span data-i18n="time.freeze">Đóng băng</span></button>
+        <button id="btn-modal-rewind" class="modal-time-btn"><i data-lucide="rewind"></i> <span data-i18n="time.rewind">Tua lại</span></button>
+        <button id="btn-modal-forward" class="modal-time-btn"><i data-lucide="fast-forward"></i> <span data-i18n="time.forward">Tua nhanh</span></button>
       </div>
       <div class="time-speed-slider">
-        <label data-i18n="time.speed">Speed:</label>
+        <label data-i18n="time.speed">Tốc độ:</label>
         <input type="range" id="time-speed-range" min="0" max="12" value="0" />
         <span id="time-speed-value">1×</span>
       </div>
@@ -729,35 +711,35 @@
   <div id="env-modal" class="time-modal env-modal" hidden>
     <div class="time-modal-content env-modal-content">
       <button id="env-modal-close" class="time-modal-close">&times;</button>
-      <h3 data-i18n="env.title">Environment Control</h3>
+      <h3 data-i18n="env.title">Điều Khiển Môi Trường</h3>
 
       <div class="env-row">
-        <label class="env-label" data-i18n="env.temperature">Temperature</label>
+        <label class="env-label" data-i18n="env.temperature">Nhiệt độ</label>
         <input type="range" id="env-temp-range" class="env-range" min="0" max="100" step="0.1" value="50" />
         <input type="number" id="env-temp-num" class="env-num" min="0.1" max="6000" step="1" value="298" />
         <span class="env-unit">K</span>
       </div>
 
       <div class="env-row">
-        <label class="env-label" data-i18n="env.pressure">Pressure</label>
+        <label class="env-label" data-i18n="env.pressure">Áp suất</label>
         <input type="range" id="env-pressure-range" class="env-range" min="0" max="100" step="0.1" value="50" />
         <input type="number" id="env-pressure-num" class="env-num" min="0" max="2000" step="0.01" value="1" />
         <span class="env-unit">atm</span>
       </div>
 
       <div class="env-section-head">
-        <span data-i18n="env.content">Environment Content</span>
-        <button id="env-gas-add" class="env-add-btn" data-i18n="env.addGas">+ Gas</button>
+        <span data-i18n="env.content">Thành phần môi trường</span>
+        <button id="env-gas-add" class="env-add-btn" data-i18n="env.addGas">+ Khí</button>
       </div>
       <div id="env-gas-list" class="env-gas-list"></div>
       <div class="env-total" id="env-total"></div>
 
       <div class="env-presets">
-        <button class="env-preset" data-preset="air" data-i18n="env.preset.air">Air</button>
-        <button class="env-preset" data-preset="vacuo" data-i18n="env.preset.vacuo">Vacuum</button>
-        <button class="env-preset" data-preset="oxygen" data-i18n="env.preset.oxygen">Pure O2</button>
-        <button class="env-preset" data-preset="hydrogen" data-i18n="env.preset.hydrogen">Reducing (H2)</button>
-        <button class="env-preset" data-preset="argon" data-i18n="env.preset.argon">Inert (Ar)</button>
+        <button class="env-preset" data-preset="air" data-i18n="env.preset.air">Không khí</button>
+        <button class="env-preset" data-preset="vacuo" data-i18n="env.preset.vacuo">Chân không</button>
+        <button class="env-preset" data-preset="oxygen" data-i18n="env.preset.oxygen">O2 tinh khiết</button>
+        <button class="env-preset" data-preset="hydrogen" data-i18n="env.preset.hydrogen">Khử (H2)</button>
+        <button class="env-preset" data-preset="argon" data-i18n="env.preset.argon">Trơ (Ar)</button>
         <button class="env-preset" data-preset="co2" data-i18n="env.preset.co2">CO2</button>
       </div>
     </div>
@@ -765,15 +747,15 @@
 
   <script src="https://js.puter.com/v2/"></script>
   <script src="./assets/xray.js?v=6"></script>
-  <script src="./assets/proton-gun.js?v=7"></script>
+  <script src="./assets/proton-gun.js?v=8"></script>
   <script src="./assets/format-menu.js?v=2"></script>
   <script src="./assets/quality-menu.js?v=1"></script>
-  <script src="./assets/tutorial-revamped.js?v=11"></script>
+  <script src="./assets/tutorial-revamped.js?v=14"></script>
   <script src="./assets/pool-drag.js?v=5"></script>
-  <script src="./assets/shop-rope.js?v=9"></script>
-  <script src="./assets/how-to-play.js?v=4"></script>
-  <script src="./assets/ui-bars.js?v=12"></script>
-  <script src="./assets/science-guide.js?v=8"></script>
-  <script src="./assets/molecular-engine.js?v=11"></script>
+  <script src="./assets/shop-rope.js?v=11"></script>
+  <script src="./assets/how-to-play.js?v=6"></script>
+  <script src="./assets/ui-bars.js?v=13"></script>
+  <script src="./assets/science-guide.js?v=9"></script>
+  <script src="./assets/molecular-engine.js?v=15"></script>
 </body>
 </html>

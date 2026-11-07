@@ -25,15 +25,12 @@
     { maxZ: 118, stars: 5, price: 280 }
   ];
 
-  // The console has a rank gate of its own and no rank path any more: 2000 stars
-  // is the only way in, and `min` stops dynamic pricing from discounting it.
   var FEATURES = [
     { id: 'xray', icon: 'scan-eye', stars: 2, price: 40 },
     { id: 'proton', icon: 'crosshair', stars: 2, price: 65 },
     { id: 'timeSpeed', icon: 'fast-forward', stars: 3, price: 70 },
     { id: 'timeStop', icon: 'clock', stars: 4, price: 120 },
-    { id: 'mayhem', icon: 'flame', stars: 4, price: 150 },
-    { id: 'console', icon: 'terminal', stars: 5, price: 2000, min: 2000 }
+    { id: 'mayhem', icon: 'flame', stars: 4, price: 150 }
   ];
 
   var INCOME = { discovery: 1, daily: 5 };
@@ -68,9 +65,7 @@
         timeStop: 'Time Stop',
         timeStop_d: 'Freeze the world mid-reaction',
         mayhem: 'Mayhem Reactions',
-        mayhem_d: 'Explosive, cinematic reaction set',
-        console: 'Developer Console',
-        console_d: 'Script the scene from the console'
+        mayhem_d: 'Explosive, cinematic reaction set'
       }
     },
     vi: {
@@ -102,9 +97,7 @@
         timeStop: 'Đóng băng thời gian',
         timeStop_d: 'Dừng thế giới giữa phản ứng',
         mayhem: 'Phản ứng hỗn loạn',
-        mayhem_d: 'Bộ phản ứng bùng nổ, đậm chất điện ảnh',
-        console: 'Console lập trình viên',
-        console_d: 'Điều khiển cảnh bằng lệnh console'
+        mayhem_d: 'Bộ phản ứng bùng nổ, đậm chất điện ảnh'
       }
     }
   };
@@ -121,9 +114,9 @@
     try {
       if (api && api.i18n && typeof api.i18n.getLang === 'function') return api.i18n.getLang();
     } catch (e) {}
-    var s = 'en';
+    var s = 'vi';
     try { s = localStorage.getItem('mol3d.lang'); } catch (e2) {}
-    return s === 'vi' ? 'vi' : 'en';
+    return s === 'en' ? 'en' : 'vi';
   }
   function S(key) {
     var d = STR[lang()] || STR.en;
@@ -324,8 +317,6 @@
     } catch (e) {}
     var mayhem = document.getElementById('btn-mayhem');
     if (mayhem) mayhem.classList.toggle('feature-locked', blocksFeature('mayhem'));
-    var consoleBtn = document.getElementById('btn-console');
-    if (consoleBtn) consoleBtn.classList.toggle('feature-locked', blocksFeature('console'));
     var xray = document.getElementById('btn-xray');
     if (xray) xray.classList.toggle('feature-locked', blocksFeature('xray'));
     var proton = document.getElementById('btn-proton');

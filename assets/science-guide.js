@@ -7,9 +7,9 @@
   function L(en, vi) { return { en: en, vi: vi }; }
 
   function lang() {
-    let v = 'en';
-    try { v = localStorage.getItem(LANG_KEY) || 'en'; } catch (e) { v = 'en'; }
-    return v === 'vi' ? 'vi' : 'en';
+    let v = 'vi';
+    try { v = localStorage.getItem(LANG_KEY) || 'vi'; } catch (e) { v = 'vi'; }
+    return v === 'en' ? 'en' : 'vi';
   }
 
   function tx(pair) {

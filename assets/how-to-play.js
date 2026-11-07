@@ -56,7 +56,7 @@
         build: [
           'Drag an element chip from the pool onto the scene: the atom lands exactly where you drop it.',
           'Drag one atom onto another to bond them. The ghost line is green when the bond is legal and red when chemistry forbids it.',
-          'Click an existing bond to cycle its order: single, double, triple, then back down to single, and one more click deletes it.',
+          'Click an existing bond to lower its order: triple, double, single, and one more click breaks it. Shift+click or right-click the bond to raise it back, one step at a time.',
           'Click an atom to inspect it, right-click (or long-press) to remove it.',
           'Locked elements show a padlock. Dragging one tells you where to buy it instead of placing it.',
           'Double-click two or more molecules to mark them for a reaction; the reaction panel then offers the conditions that actually work.'
@@ -77,9 +77,8 @@
         shop: [
           'Pull the cord (or press the ? button next to it) to open the shop; the panel slides down from the rope.',
           'Elements are sold in packs by atomic number. Anything up to Z = 20 is free forever, and each pack opens the range above it.',
-          'Features are sold individually: X-ray vision, the proton gun, time control, time stop, Mayhem reactions and the Developer Console.',
-          'Above 2000 stars, prices stop being fixed and become a share of your balance, so stars keep a use late in the game.',
-          'The Console costs 2000 stars and never goes below that, however rich you are.'
+          'Features are sold individually: X-ray vision, the proton gun, time control, time stop and Mayhem reactions.',
+          'Above 2000 stars, prices stop being fixed and become a share of your balance, so stars keep a use late in the game.'
         ],
         modes: [
           'Creative: free flying camera, no health, no death, orbit controls always available.',
@@ -156,7 +155,7 @@
         build: [
           'Kéo một ô nguyên tố từ khay thả vào khung cảnh: nguyên tử nằm đúng chỗ bạn thả.',
           'Kéo nguyên tử này vào nguyên tử khác để tạo liên kết. Đường ghost màu xanh lục khi liên kết hợp lệ, màu đỏ khi hóa học cấm.',
-          'Bấm vào liên kết có sẵn để đổi bậc liên kết: đơn, đôi, ba, rồi ngược lại về đơn, thêm một lần bấm nữa sẽ xóa nó.',
+          'Bấm vào liên kết có sẵn để giảm bậc liên kết: ba, đôi, đơn, thêm một lần bấm nữa sẽ phá nó. Shift+click hoặc chuột phải vào liên kết để tăng lại, mỗi lần một bậc.',
           'Bấm vào nguyên tử để xem chi tiết; chuột phải (hoặc nhấn giữ) để xóa.',
           'Nguyên tố bị khóa hiển thị ổ khóa. Kéo thử sẽ cho biết nơi mua thay vì thả nguyên tử vào.',
           'Nháy đúp hai hay nhiều phân tử để đánh dấu phản ứng; bảng phản ứng sau đó chỉ liệt kê những điều kiện thật sự dùng được.'
@@ -177,9 +176,8 @@
         shop: [
           'Kéo sợi dây (hoặc bấm nút ? cạnh dây) để mở cửa hàng; bảng sẽ trượt xuống theo dây.',
           'Nguyên tố bán theo gói tính theo số hiệu nguyên tử. Mọi thứ tới Z = 20 miễn phí vĩnh viễn, mỗi gói mở thêm dải phía trên.',
-          'Tính năng bán lẻ: Tia X, Súng proton, Tăng tốc thời gian, Đóng băng thời gian, Phản ứng hỗn loạn và Console lập trình viên.',
-          'Trên 2000 sao, giá không còn cố định mà trở thành một phần số dư của bạn, để sao vẫn có đất dùng về cuối game.',
-          'Console lập trình viên luôn giá 2000 sao và không bao giờ rẻ hơn, dù bạn giàu tới đâu.'
+          'Tính năng bán lẻ: Tia X, Súng proton, Tăng tốc thời gian, Đóng băng thời gian và Phản ứng hỗn loạn.',
+          'Trên 2000 sao, giá không còn cố định mà trở thành một phần số dư của bạn, để sao vẫn có đất dùng về cuối game.'
         ],
         modes: [
           'Sáng tạo: camera bay tự do, không máu, không chết, luôn có orbit.',
@@ -216,8 +214,8 @@
 
   function lang() {
     var a = api();
-    var l = a && a.i18n ? a.i18n.getLang() : 'en';
-    return l === 'vi' ? 'vi' : 'en';
+    var l = a && a.i18n ? a.i18n.getLang() : 'vi';
+    return l === 'en' ? 'en' : 'vi';
   }
 
   function S() { return STR[lang()]; }
@@ -294,11 +292,11 @@
   var FEAT_NAMES = {
     en: {
       xray: 'X-Ray Vision', proton: 'Proton Gun', timeSpeed: 'Time Acceleration',
-      timeStop: 'Time Stop', mayhem: 'Mayhem Reactions', console: 'Developer Console'
+      timeStop: 'Time Stop', mayhem: 'Mayhem Reactions'
     },
     vi: {
       xray: 'Tia X', proton: 'Súng proton', timeSpeed: 'Tăng tốc thời gian',
-      timeStop: 'Đóng băng thời gian', mayhem: 'Phản ứng hỗn loạn', console: 'Console lập trình viên'
+      timeStop: 'Đóng băng thời gian', mayhem: 'Phản ứng hỗn loạn'
     }
   };
 

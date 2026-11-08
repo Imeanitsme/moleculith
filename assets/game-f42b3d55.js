@@ -43552,34 +43552,163 @@ const V = {
     return this.scale(a, 1 / l);
   }
 };
-function thomsonDirs(k, weights, pinned = null, iters = 120) {
-  const dirs = [];
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < k; i++) {
-    const y = 1 - 2 * i / Math.max(1, k - 1);
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const th = golden * i;
-    dirs.push({ x: Math.cos(th) * r, y, z: Math.sin(th) * r });
+// The lerp pulls every atom toward the target produced by the solver below
+// once per frame, and updateDrift carries the pair around the world together,
+// so this is the app's authority on shape: a molecule is exactly as
+// three-dimensional as the domain directions computed here. It is also why the
+// chemistry engine's answer, handed to the scene by a bond click, only survives
+// if it agrees with this - the two used to disagree by a whole dimension, and
+// the engine's pyramid was pulled flat within a second of being written.
+//
+// The tables are the classical VSEPR answer: the ideal arrangement of the
+// electron domains of a centre for each steric number, and the slots a lone
+// pair takes in it - equatorial before axial in a trigonal bipyramid, trans
+// pairs in an octahedron, which is what makes chlorine trifluoride T-shaped
+// rather than trigonal planar and xenon difluoride linear rather than bent.
+// They mirror molecular-engine.js Builder.IDEAL and VSEPR.loneOrder: a copy
+// here keeps the solver working in the Node harness and in a page where the
+// engine script has not loaded, and it is what makes the two come out of the
+// same geometry instead of fighting over the scene.
+const IDEAL_DOMAINS = {
+  1: [{ x: 0, y: 0, z: 1 }],
+  2: [{ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }],
+  3: [{ x: 1, y: 0, z: 0 }, { x: -0.5, y: 0.8660254, z: 0 }, { x: -0.5, y: -0.8660254, z: 0 }],
+  4: [{ x: 0.5773503, y: 0.5773503, z: 0.5773503 }, { x: 0.5773503, y: -0.5773503, z: -0.5773503 },
+    { x: -0.5773503, y: 0.5773503, z: -0.5773503 }, { x: -0.5773503, y: -0.5773503, z: 0.5773503 }],
+  5: [{ x: 1, y: 0, z: 0 }, { x: -0.5, y: 0.8660254, z: 0 }, { x: -0.5, y: -0.8660254, z: 0 },
+    { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }],
+  6: [{ x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 0, y: -1, z: 0 },
+    { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }],
+  7: [{ x: 1, y: 0, z: 0 }, { x: -1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 0, y: -1, z: 0 },
+    { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -1 }, { x: 0, y: 0.7071, z: 0.7071 }]
+};
+const LONE_SLOTS = { 3: [1], 4: [3, 0], 5: [0, 1, 2], 6: [1, 0] };
+// A lone pair is a fatter cloud than a bonding pair and a multiple bond is
+// fatter than a single one, so repulsion scales with that. The compression it
+// produces is the whole point: it is why ammonia sits at 106 degrees and water
+// at 104 rather than the ideal 109.5, and why a carbonyl carbon opens to 122
+// where its two hydrogens close to 116.
+const LONE_PAIR_WEIGHT = 1.4;
+function domainWeight(order) {
+  return 1 + 0.25 * (Math.max(1, order || 1) - 1);
+}
+// Rodrigues' rotation carrying the unit vector `from` onto `to`.
+function rotationFromTo(from, to) {
+  const ax = V.cross(from, to);
+  const s = V.len(ax);
+  const c = V.dot(from, to);
+  if (s < 1e-12) {
+    if (c > 0) return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    const perp = Math.abs(from.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+    const u = V.norm(V.cross(from, perp));
+    return rotAbout(u.x, u.y, u.z, -1, 0);
   }
-  if (pinned) dirs[0] = V.norm(pinned);
-  for (let it = 0; it < iters; it++) {
+  return rotAbout(ax.x / s, ax.y / s, ax.z / s, c, s);
+}
+function rotAbout(kx, ky, kz, c, s) {
+  const t = 1 - c;
+  return [
+    [c + kx * kx * t, kx * ky * t - kz * s, kx * kz * t + ky * s],
+    [ky * kx * t + kz * s, c + ky * ky * t, ky * kz * t - kx * s],
+    [kz * kx * t - ky * s, kz * ky * t + kx * s, c + kz * kz * t]
+  ];
+}
+function applyRot(R, v) {
+  return {
+    x: R[0][0] * v.x + R[0][1] * v.y + R[0][2] * v.z,
+    y: R[1][0] * v.x + R[1][1] * v.y + R[1][2] * v.z,
+    z: R[2][0] * v.x + R[2][1] * v.y + R[2][2] * v.z
+  };
+}
+// The domain directions of one centre: `orders` holds the bond order of each
+// bonded domain and `lp` counts the lone pairs, and the result is ordered bonds
+// first then lone pairs, which is the order the caller indexes its neighbours
+// in. Seeded from the ideal frame with the lone pairs in their VSEPR slots, then
+// relaxed against the weighted repulsion of the domains on a sphere - the
+// gradient of w_i*w_j/r, applied tangentially, cooling over 200 steps. Measured
+// against the tables: 106.3 ammonia, 104.2 water, 118.4 sulfur dioxide,
+// 121.8/121.8/116.4 at a carbonyl carbon against the experimental
+// 121.6/121.6/116.1, and the six hypervalent classes land in their correct
+// seesaw / T-shaped / linear / square-pyramidal / square-planar slots.
+const FRAME_CACHE = /* @__PURE__ */ new Map();
+function domainFrame(orders, lp) {
+  const sigma = orders.length;
+  const k = sigma + lp;
+  const weights = [...orders.map((o) => domainWeight(o)), ...Array(lp).fill(LONE_PAIR_WEIGHT)];
+  const ideal = IDEAL_DOMAINS[k];
+  const dirs = [];
+  if (ideal) {
+    const lone = (LONE_SLOTS[k] || []).slice(0, lp);
+    const taken = new Set(lone);
+    // A lone-pair count the table cannot seat - HCl's three pairs on a
+    // tetrahedral centre - takes the free slots from the far end back, so the
+    // arrangement stays ideal and the relaxation only has to sort the angles.
+    for (let s = k - 1; lone.length < lp && s >= 0; s--) {
+      if (taken.has(s)) continue;
+      lone.push(s);
+      taken.add(s);
+    }
+    const bonded = [];
+    for (let s = 0; s < k; s++) if (!taken.has(s)) bonded.push(s);
+    for (let i = 0; i < sigma; i++) dirs.push({ ...ideal[bonded[i]] });
+    for (let i = 0; i < lp; i++) dirs.push({ ...ideal[lone[i]] });
+  }
+  if (dirs.length !== k) {
+    // No table for this steric number: start from an even spread over the
+    // sphere and let the relaxation place it.
+    dirs.length = 0;
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < k; i++) {
+      const y = 1 - 2 * i / Math.max(1, k - 1);
+      const r = Math.sqrt(Math.max(0, 1 - y * y));
+      const th = golden * i;
+      dirs.push({ x: Math.cos(th) * r, y, z: Math.sin(th) * r });
+    }
+  }
+  const IT = 200;
+  for (let it = 0; it < IT; it++) {
+    const cool = 0.3 * (1 - it / IT) + 0.01;
     const forces = dirs.map(() => ({ x: 0, y: 0, z: 0 }));
     for (let i = 0; i < k; i++) {
       for (let j = i + 1; j < k; j++) {
-        const w = (weights[i] + weights[j]) / 2;
-        const d = V.dot(dirs[i], dirs[j]);
-        const perp = V.norm(V.sub(dirs[j], V.scale(dirs[i], d)));
-        const f = w * Math.max(0.02, 1 - d * d);
-        if (!pinned || pinned !== i) forces[i] = V.add(forces[i], V.scale(perp, f));
-        if (!pinned || pinned !== j) forces[j] = V.add(forces[j], V.scale(V.neg(perp), f));
+        const d = V.sub(dirs[i], dirs[j]);
+        const r = Math.max(0.15, V.len(d));
+        const f = weights[i] * weights[j] / (r * r * r);
+        forces[i] = V.add(forces[i], V.scale(d, f));
+        forces[j] = V.sub(forces[j], V.scale(d, f));
       }
     }
+    let maxLen = 1e-9;
+    for (const f of forces) {
+      const l = V.len(f);
+      if (l > maxLen) maxLen = l;
+    }
     for (let i = 0; i < k; i++) {
-      if (pinned === i) continue;
-      dirs[i] = V.norm(V.add(dirs[i], V.scale(forces[i], 0.25)));
+      const d = dirs[i];
+      const t = V.sub(forces[i], V.scale(d, V.dot(d, forces[i])));
+      const l = V.len(t);
+      if (l < 1e-12) continue;
+      dirs[i] = V.norm(V.add(d, V.scale(t, Math.min(l / maxLen, 1) * cool)));
     }
   }
   return dirs;
+}
+// The cached frame for a centre, rotated so that slot `pinIndex` points along
+// `pinned` when one is given - which is how the bond back to the atom this one
+// was reached from keeps the direction it already has instead of the solver
+// freely re-orienting the subtree hanging off it.
+function domainDirs(orders, lp, pinned = null, pinIndex = -1) {
+  const key = orders.join("") + "|" + lp;
+  let base = FRAME_CACHE.get(key);
+  if (!base) {
+    base = domainFrame(orders, lp);
+    FRAME_CACHE.set(key, base);
+  }
+  if (pinned && pinIndex >= 0 && pinIndex < base.length && V.len(pinned) > 1e-9) {
+    const R = rotationFromTo(base[pinIndex], V.norm(pinned));
+    return base.map((d) => applyRot(R, d));
+  }
+  return base.map((d) => ({ ...d }));
 }
 V.neg = (a) => V.scale(a, -1);
 // 13 of the 27 neighbour-cell offsets - the ones that point forward. Pairing a
@@ -43593,24 +43722,54 @@ for (let dx = -1; dx <= 1; dx++) {
     }
   }
 }
-const IDEAL_CACHE = /* @__PURE__ */ new Map();
-function idealAngleMatrix(sigma, lp) {
-  // Depends on nothing but the domain counts, and a crowded build asks for the
-  // same counts hundreds of times over; each miss costs a 120-step Thomson solve.
-  const ck = sigma + "|" + lp;
-  const hit = IDEAL_CACHE.get(ck);
-  if (hit) return hit;
-  const k = sigma + lp;
-  const weights = [...Array(sigma).fill(1), ...Array(lp).fill(1.6)];
-  const dirs = thomsonDirs(k, weights);
+// The angles the springs in solveComponent are told to reach, for a centre with
+// these bonded orders and lone pairs. Rotation invariant, so it is read
+// straight off the cached frame; the frame lookup is already a cache hit.
+function angleMatrix(orders, lp) {
+  const dirs = domainDirs(orders, lp);
+  const k = dirs.length;
   const M = [];
   for (let i = 0; i < k; i++) {
     M.push([]);
     for (let j = 0; j < k; j++) M[i].push(Math.acos(Math.max(-1, Math.min(1, V.dot(dirs[i], dirs[j])))));
   }
-  const res = { M, k, isLp: (i) => i >= sigma };
-  IDEAL_CACHE.set(ck, res);
-  return res;
+  return { M, k, isLp: (i) => i >= orders.length };
+}
+// The atoms of the single cycle of a graph, in ring order, or null when the
+// graph is not one simple ring. Pruning every atom of degree one leaves only the
+// cycle, which is also how the caller's own builder finds it; a fused or bridged
+// graph leaves atoms with three or four core neighbours and is refused, because
+// one polygon cannot close two rings at once.
+function ringOrderOf(ids, neigh) {
+  const deg = /* @__PURE__ */ new Map();
+  const alive = new Set(ids);
+  for (const id of ids) deg.set(id, neigh.get(id).length);
+  for (; ; ) {
+    let changed = false;
+    for (const id of [...alive]) {
+      if (deg.get(id) > 1) continue;
+      alive.delete(id);
+      changed = true;
+      for (const n2 of neigh.get(id)) if (alive.has(n2)) deg.set(n2, deg.get(n2) - 1);
+    }
+    if (!changed) break;
+  }
+  const core = [...alive];
+  if (core.length < 3) return null;
+  for (const id of core) {
+    if (neigh.get(id).filter((n2) => alive.has(n2)).length !== 2) return null;
+  }
+  const order = [core[0]];
+  let prev = -1, cur2 = core[0];
+  for (let hops = 0; hops <= core.length; hops++) {
+    const nxt = neigh.get(cur2).find((n2) => alive.has(n2) && n2 !== prev);
+    if (nxt === undefined) return null;
+    prev = cur2;
+    cur2 = nxt;
+    if (cur2 === order[0]) break;
+    order.push(cur2);
+  }
+  return order.length === core.length ? order : null;
 }
 function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PURE__ */ new Map()) {
   const ids = atomIds;
@@ -43648,50 +43807,192 @@ function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PU
   target.set(root, { ...atoms2.get(root).pos });
   const parent = /* @__PURE__ */ new Map();
   const parentDir = /* @__PURE__ */ new Map();
-  const visited = /* @__PURE__ */ new Set([root]);
-  const queue = [root];
+  const LP_LEN = 0.55;
+  const lpPos = /* @__PURE__ */ new Map();
+  for (const id of ids) lpPos.set(id, []);
+  // Which domain slot each neighbour of an atom occupies. The bond back to the
+  // atom an atom was reached from always takes the last one, which is what
+  // domainDirs rotates the ideal frame against, and the same list is what the
+  // target angle matrix is built from - the seed and the springs have to read
+  // one ordering or the angle terms fight the positions they are meant to hold.
+  const slotOrder = /* @__PURE__ */ new Map();
+  for (const id of ids) slotOrder.set(id, neigh.get(id));
+  const bondOf = /* @__PURE__ */ new Map();
+  for (const id of ids) {
+    const m = /* @__PURE__ */ new Map();
+    for (const b of atBonds.get(id)) m.set(partnerId(b, id), b);
+    bondOf.set(id, m);
+  }
+  const ordersOf = (id, list) => list.map((n) => {
+    const b = bondOf.get(id).get(n);
+    return b && !b.ionic ? Math.max(1, b.order || 1) : 1;
+  });
+  const visited = /* @__PURE__ */ new Set();
+  const queue = [];
+  // A ring cannot be closed one bond at a time: walked atom by atom from local
+  // slot directions the two arms of a six-ring finish several angstroms apart,
+  // and a bond spring stretched that far has no leverage to bring them together,
+  // which is what turned benzene into an unfolded zig-zag. The cycle is therefore
+  // laid out as a closed polygon first - the same construction the engine's
+  // Builder.placeRing uses, including the alternating lift that opens a flat
+  // hexagon of CH2 centres into a chair - and the walk below only has to hang the
+  // substituents off ring atoms whose two ring directions are already known.
+  const ring = ids.length >= 3 ? ringOrderOf(ids, neigh) : null;
+  const inRing = ring ? new Set(ring) : null;
+  let ringCosA = 0;
+  let ringLift = 0;
+  if (ring) {
+    const nSide = ring.length;
+    let sumLen = 0;
+    let tetra = nSide >= 6 && nSide % 2 === 0;
+    for (let i = 0; i < nSide; i++) {
+      const a2 = ring[i], b2 = ring[(i + 1) % nSide];
+      const rb = bondOf.get(a2).get(b2);
+      sumLen += bondLength(atoms2.get(a2).el, atoms2.get(b2).el, rb && rb.ionic);
+      if (neigh.get(a2).length + lpCount.get(a2) !== 4 || neigh.get(b2).length + lpCount.get(b2) !== 4 || (rb && rb.order || 1) !== 1) tetra = false;
+    }
+    const side = sumLen / nSide;
+    ringCosA = -Math.cos(2 * Math.PI / nSide);
+    // Alternating the vertices out of the plane by lift opens the endocyclic
+    // angle toward the tetrahedral one while keeping every bond side long:
+    // 4*lift*lift = side*side*(cos(tetra) - cos(A)) / (1 - cos(A)), which is
+    // positive only from a six-ring up - a flat triangle, square or pentagon
+    // stays flat, because leaving the plane would make its angles worse, not
+    // better. Odd rings have no alternating pattern and stay planar too.
+    if (tetra) {
+      const pucker = (-1 / 3 - ringCosA) / (1 - ringCosA);
+      if (pucker > 0 && pucker < 0.5) ringLift = side * Math.sqrt(pucker) / 2;
+    }
+    const circum = ringLift > 0
+      ? Math.sqrt(Math.max(0, side * side - 4 * ringLift * ringLift)) / (2 * Math.sin(Math.PI / nSide))
+      : side / (2 * Math.sin(Math.PI / nSide));
+    // The polygon keeps the ring where the scene already has it: same centre, same
+    // best-fit plane, so a molecule the engine placed round and flat is re-seeded
+    // round and flat instead of snapping to a fresh orientation on every edit.
+    const mid = { x: 0, y: 0, z: 0 };
+    for (const id of ring) {
+      const p = target.get(id);
+      mid.x += p.x / nSide;
+      mid.y += p.y / nSide;
+      mid.z += p.z / nSide;
+    }
+    let nrm2 = { x: 0, y: 0, z: 0 };
+    for (let i = 0; i < nSide; i++) {
+      const p = target.get(ring[i]);
+      const q = target.get(ring[(i + 1) % nSide]);
+      const r3 = target.get(ring[(i + 2) % nSide]);
+      nrm2 = V.add(nrm2, V.cross(V.sub(q, p), V.sub(r3, q)));
+    }
+    nrm2 = V.len(nrm2) > 1e-9 ? V.norm(nrm2) : { x: 0, y: 0, z: 1 };
+    const toWorld = rotationFromTo({ x: 0, y: 0, z: 1 }, nrm2);
+    for (let i = 0; i < nSide; i++) {
+      const th = 2 * Math.PI * i / nSide;
+      const flat = {
+        x: circum * Math.cos(th),
+        y: circum * Math.sin(th),
+        z: ringLift > 0 ? (i % 2 ? -ringLift : ringLift) : 0
+      };
+      target.set(ring[i], V.add(mid, applyRot(toWorld, flat)));
+      visited.add(ring[i]);
+      queue.push(ring[i]);
+      parent.set(ring[i], i ? ring[i - 1] : null);
+      parentDir.set(ring[i], V.norm(V.sub(target.get(ring[(i + nSide - 1) % nSide]), target.get(ring[i]))));
+    }
+  } else {
+    visited.add(root);
+    queue.push(root);
+  }
   while (queue.length) {
     const cur = queue.shift();
     const curPos = target.get(cur);
-    const kids = neigh.get(cur).filter((n) => !visited.has(n));
-    const pinnedDir = parentDir.get(cur) || null;
-    const domains = kids.length + lpCount.get(cur);
-    if (domains === 0) continue;
-    const weights = [
-      ...kids.map(() => 1),
-      ...Array(lpCount.get(cur)).fill(1.6)
-    ];
-    const dirs = thomsonDirs(domains, weights, pinnedDir);
+    const par = parent.get(cur) || null;
+    const kids = [];
+    const others = [];
+    for (const n of neigh.get(cur)) {
+      if (!visited.has(n)) kids.push(n);
+      else if (n !== par) others.push(n);
+    }
+    const list = par ? [...others, ...kids, par] : [...others, ...kids];
+    slotOrder.set(cur, list);
+    const lp = lpCount.get(cur);
+    if (!list.length && !lp) continue;
+    let dirs;
+    const pinned = par ? [...others, par] : others;
+    const freeSlots = kids.length + lp;
+    const planeN = pinned.length === 2 ? V.cross(V.norm(V.sub(target.get(pinned[0]), curPos)), V.norm(V.sub(target.get(pinned[1]), curPos))) : null;
+    if (inRing && inRing.has(cur) && pinned.length === 2 && (freeSlots === 1 || freeSlots === 2) && V.len(planeN) > 1e-9) {
+      // Both ring bonds are known, so what is left of the centre is placed
+      // against them rather than from a free-floating frame: one remaining domain
+      // takes the bisector away from the ring, in the ring plane, which is where
+      // an aromatic C-H and a pyridine lone pair belong; two take the mirror pair
+      // above and below that plane, each at the ideal angle to both ring bonds,
+      // which is the CH2 of a saturated ring and the up/down substituents of a
+      // sugar. The frame is still read, but only for the angle it wants.
+      const u = V.norm(V.sub(target.get(pinned[0]), curPos));
+      const v = V.norm(V.sub(target.get(pinned[1]), curPos));
+      const bis = V.norm(V.add(u, v));
+      const nrm3 = V.norm(planeN);
+      const frame = domainDirs(ordersOf(cur, list), lp);
+      let sum2 = 0, cnt2 = 0;
+      for (let i = 0; i < 2; i++) {
+        for (let j = 2; j < frame.length; j++) {
+          sum2 += Math.acos(Math.max(-1, Math.min(1, V.dot(frame[i], frame[j]))));
+          cnt2++;
+        }
+      }
+      const cosBeta = cnt2 ? Math.cos(sum2 / cnt2) : -1 / 3;
+      const cosHalf = Math.max(1e-6, V.dot(bis, u));
+      const cosPhi = Math.max(-1, Math.min(1, -cosBeta / cosHalf));
+      const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
+      const spare = [];
+      if (freeSlots === 1) spare.push(V.neg(bis));
+      else {
+        spare.push(V.add(V.scale(bis, -cosPhi), V.scale(nrm3, sinPhi)));
+        spare.push(V.add(V.scale(bis, -cosPhi), V.scale(nrm3, -sinPhi)));
+      }
+      dirs = new Array(list.length + lp);
+      dirs[pinned.length === 2 && !par ? 1 : list.length - 1] = v;
+      dirs[0] = u;
+      kids.forEach((kid, i) => dirs[others.length + i] = spare[i]);
+      for (let m = 0; m < lp; m++) dirs[list.length + m] = spare[kids.length + m];
+    } else {
+      dirs = domainDirs(ordersOf(cur, list), lp, par ? parentDir.get(cur) : null, list.length - 1);
+    }
     kids.forEach((kid, i) => {
-      const dir = dirs[i];
+      const dir = dirs[others.length + i];
       const ka = atoms2.get(cur), kb = atoms2.get(kid);
-      const bl = bondLength(ka.el, kb.el, atBonds.get(cur).find((b) => partnerId(b, cur) === kid)?.ionic);
+      const b = bondOf.get(cur).get(kid);
+      const bl = bondLength(ka.el, kb.el, b && b.ionic);
       target.set(kid, V.add(curPos, V.scale(dir, bl)));
       parent.set(kid, cur);
       parentDir.set(kid, V.scale(dir, -1));
       visited.add(kid);
       queue.push(kid);
     });
-  }
-  const LP_LEN = 0.55;
-  const lpPos = /* @__PURE__ */ new Map();
-  const lpAssigned = /* @__PURE__ */ new Map();
-  for (const id of ids) {
-    const n = lpCount.get(id);
-    lpPos.set(id, []);
-    lpAssigned.set(id, []);
-    if (n === 0) continue;
-    const sigma = neigh.get(id).length;
-    const pinned = parentDir.get(id) || null;
-    const dirs = thomsonDirs(sigma + n, [...Array(sigma).fill(1), ...Array(n).fill(1.6)], pinned);
-    for (let i = 0; i < n; i++) {
-      lpPos.get(id).push(V.add(target.get(id), V.scale(dirs[sigma + i], LP_LEN)));
-    }
+    if (lp) lpPos.set(cur, dirs.slice(list.length).map((d) => V.add(curPos, V.scale(d, LP_LEN))));
   }
   const ideal = /* @__PURE__ */ new Map();
   for (const id of ids) {
-    const sigma = neigh.get(id).length;
-    ideal.set(id, idealAngleMatrix(sigma, lpCount.get(id)));
+    const list = slotOrder.get(id);
+    ideal.set(id, angleMatrix(ordersOf(id, list), lpCount.get(id)));
+  }
+  // A planar ring is told to keep the angle its own polygon has: a three-ring
+  // cannot reach 109.5 and a four-ring cannot reach it either, and pulling at a
+  // target the closure forbids is how the strained rings used to end up torn.
+  // The puckered chair already sits at the tetrahedral angle the frame wants, so
+  // it is left alone.
+  if (ring && ringLift === 0) {
+    const nSide = ring.length;
+    const endo = Math.acos(Math.max(-1, Math.min(1, ringCosA)));
+    for (let i = 0; i < nSide; i++) {
+      const entry = ideal.get(ring[i]);
+      if (!entry) continue;
+      const list = slotOrder.get(ring[i]);
+      const ia = list.indexOf(ring[(i + nSide - 1) % nSide]);
+      const ib = list.indexOf(ring[(i + 1) % nSide]);
+      if (ia < 0 || ib < 0) continue;
+      entry.M[ia][ib] = entry.M[ib][ia] = endo;
+    }
   }
   const vel = /* @__PURE__ */ new Map();
   for (const id of ids) vel.set(id, { x: 0, y: 0, z: 0 });
@@ -43754,7 +44055,7 @@ function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PU
       const c = target.get(id);
       const { M, k } = ideal.get(id);
       const ends = [];
-      for (const n of neigh.get(id)) ends.push(target.get(n));
+      for (const n of slotOrder.get(id)) ends.push(target.get(n));
       for (const lp of lpPos.get(id)) ends.push(lp);
       if (ends.length !== k) continue;
       for (let i = 0; i < k; i++) {
@@ -43769,17 +44070,22 @@ function solveComponent(atoms2, bonds2, atomIds, pinnedId = null, per = /* @__PU
           if (Math.abs(dTheta) < 5e-3) continue;
           const tI = V.norm(V.sub(uj, V.scale(ui, cosT)));
           const tJ = V.norm(V.sub(ui, V.scale(uj, cosT)));
-          const mag = 0.12 * dTheta;
-          const sigma = neigh.get(id).length;
+          // Force on an end is -dTheta along the perpendicular of the other end:
+          // that is the gradient of the angle energy, and it opens an angle that is
+          // too small. The opposite sign makes the term anti-restoring, which holds
+          // an undisturbed seed but amplifies any deviation from it by ~14% a step -
+          // enough to tear a ring polygon apart a hundred iterations after it is laid.
+          const mag = -0.12 * dTheta;
+          const sigma = slotOrder.get(id).length;
           if (i >= sigma) {
             lpPos.get(id)[i - sigma] = V.add(lpPos.get(id)[i - sigma], V.scale(tI, mag * 2));
           } else {
-            addF(neigh.get(id)[i], V.scale(tI, mag));
+            addF(slotOrder.get(id)[i], V.scale(tI, mag));
           }
           if (j >= sigma) {
             lpPos.get(id)[j - sigma] = V.add(lpPos.get(id)[j - sigma], V.scale(tJ, mag * 2));
           } else {
-            addF(neigh.get(id)[j], V.scale(tJ, mag));
+            addF(slotOrder.get(id)[j], V.scale(tJ, mag));
           }
         }
       }
@@ -44288,6 +44594,10 @@ const UI = {
     "nuclear.alphaBonds": "☢ {from} underwent alpha decay → {to} — bonds shattered!",
     "nuclear.alpha": "underwent alpha decay",
     "nuclear.beta": "decayed",
+    "nuclear.betaMinus": "☢ {from}-{fa} underwent beta-minus decay → {to}-{ta} · half-life {life}",
+    "nuclear.betaMinusBonds": "☢ {from}-{fa} underwent beta-minus decay → {to}-{ta} · half-life {life} — bonds broken!",
+    "nuclear.betaPlus": "☢ {from}-{fa} underwent beta-plus decay: a proton turned into a neutron and threw out a positron → {to}-{ta} · half-life {life}",
+    "nuclear.betaPlusBonds": "☢ {from}-{fa} underwent beta-plus decay: a proton turned into a neutron and threw out a positron → {to}-{ta} · half-life {life} — bonds broken!",
     "chem.rearranged": "Rearranged {formula} → {n} {product}",
     "chem.rearrangedO5": "Rearranged O5 → O3 + O2",
     "custom.deleteTitle": "Delete custom element",
@@ -44821,6 +45131,10 @@ const UI = {
     "nuclear.alphaBonds": "☢ {from} phân rã alpha → {to} — liên kết vỡ tung!",
     "nuclear.alpha": "phân rã alpha",
     "nuclear.beta": "phân rã beta",
+    "nuclear.betaMinus": "☢ {from}-{fa} phân rã beta-minus → {to}-{ta} · thời gian bán rã {life}",
+    "nuclear.betaMinusBonds": "☢ {from}-{fa} phân rã beta-minus → {to}-{ta} · thời gian bán rã {life} — vỡ liên kết!",
+    "nuclear.betaPlus": "☢ {from}-{fa} phân rã beta-plus: một proton hóa thành neutron và nhả một positron → {to}-{ta} · thời gian bán rã {life}",
+    "nuclear.betaPlusBonds": "☢ {from}-{fa} phân rã beta-plus: một proton hóa thành neutron và nhả một positron → {to}-{ta} · thời gian bán rã {life} — vỡ liên kết!",
     "chem.rearranged": "Đã sắp xếp lại {formula} → {n} {product}",
     "chem.rearrangedO5": "Đã sắp xếp lại O5 → O3 + O2",
     "custom.deleteTitle": "Xóa nguyên tố tùy chỉnh",
@@ -57750,6 +58064,151 @@ function updateRadioactiveDecay(now) {
     invalidate();
   }
 }
+// ── Beta decay, both signs ──
+// Radioactivity in this build has always been keyed to the proton number: above
+// bismuth a nucleus decays, at or below it a nucleus sits forever. That is a rule
+// about elements, not about nuclei, and the neutron gun has been building nuclei
+// that break it since the day it shipped - carbon-14, tritium, strontium-90 - while
+// the game had no way to say so. This is the other half: the measured half-lives in
+// beta-decay.js, counted down for real.
+//
+// beta-plus.js is the same machinery with the sign reversed. A neutron-rich nucleus
+// trades a neutron for a proton and throws an electron; a proton-rich one trades a
+// proton for a neutron and throws a positron. Which of the two happens is decided by
+// the nucleus, not by this code, so a plan is tagged "minus" or "plus" and everything
+// else is shared: one record gate, one sweep, one memoryless roll. Both tables come
+// from the same dump and between them name no nucleus twice, so asking them in turn
+// cannot answer the same nucleus in two voices.
+//
+// Two things set it apart from the chain above, and both are deliberate.
+//
+// 1. It runs only on nuclei the gun wrote into the isotope record. The masses this
+//    engine carries are standard atomic weights, and for eleven elements the
+//    rounded weight lands on a nuclide that is itself a measured emitter -
+//    bromine-80, silver-108, thallium-204 - so reading a half-life straight off the
+//    periodic table would decay an ordinary pool atom nobody ever shot at. A record
+//    is the only proof that this exact nucleus has a mass number anyone measured.
+// 2. The roll is memoryless. Each sweep asks only how much simulated time passed
+//    since the previous ask, so the chances of surviving them multiply into exactly
+//    2^(-t/T) and the mean wait is the measured half-life. The chain above re-rolls
+//    against the whole age of the atom every frame, which makes it accelerate; that
+//    is left as it is, but nothing here copies it.
+//
+// Bismuth and up belong to the proton-number chain, and both measured tables stop
+// at lead, so the two never speak for the same nucleus: one nucleus, one rule.
+// At or below it, which sign a nucleus has is whatever the charts measured for it.
+const betaTrack = /* @__PURE__ */ new Map();
+const BETA_SWEEP_MS = 250;
+let betaSweepAt = 0;
+function betaSources() {
+  const table = window.__mol3dBeta;
+  const gun = window.__protonGun;
+  if (!table || !gun) return null;
+  if (typeof gun.hasIsotopeRecord !== "function" || typeof gun.setNuclide !== "function" || typeof gun.isotopeOf !== "function") return null;
+  const plus = window.__mol3dBetaPlus;
+  return { table, gun, plus: plus && typeof plus.daughterOf === "function" ? plus : null };
+}
+function betaPlanFor(id, atom, src) {
+  if (!src.gun.hasIsotopeRecord(id)) return null;
+  let iso = null;
+  try {
+    iso = src.gun.isotopeOf(id);
+  } catch {
+    iso = null;
+  }
+  if (!iso || !Number.isFinite(iso.a) || iso.a <= 0 || iso.z !== atom.el.z) return null;
+  const minus = iso.z <= src.table.MAX_Z ? src.table.daughterOf(iso.z, iso.a) : null;
+  const plus = !minus && src.plus && iso.z <= src.plus.MAX_Z ? src.plus.daughterOf(iso.z, iso.a) : null;
+  const d = minus || plus;
+  if (!d) return null;
+  const el = ELEMENTS.find((e) => e.z === d.z);
+  if (!el) return null;
+  return { kind: minus ? "minus" : "plus", z: iso.z, a: iso.a, halfLife: d.halfLife, daughter: d, daughterEl: el };
+}
+function updateBetaDecay(now) {
+  const src = betaSources();
+  if (!src || timeFrozen) return;
+  if (now - betaSweepAt < BETA_SWEEP_MS) return;
+  betaSweepAt = now;
+  const fired = [];
+  for (const [id, atom] of atoms) {
+    if (isRadioactive(atom.el)) continue;
+    const plan = betaPlanFor(id, atom, src);
+    if (!plan) {
+      betaTrack.delete(id);
+      continue;
+    }
+    const seen = betaTrack.get(id);
+    if (!seen || seen.halfLife !== plan.halfLife || seen.z !== plan.z || seen.kind !== plan.kind) {
+      betaTrack.set(id, { kind: plan.kind, z: plan.z, halfLife: plan.halfLife, rollSimTime: simulationTime });
+      continue;
+    }
+    const elapsed = simulationTime - seen.rollSimTime;
+    seen.rollSimTime = simulationTime;
+    if (elapsed <= 0) continue;
+    if (Math.random() < 1 - Math.pow(2, -elapsed / seen.halfLife)) fired.push({ id, atom, plan });
+  }
+  for (const id of betaTrack.keys()) if (!atoms.has(id)) betaTrack.delete(id);
+  for (const shot of fired) {
+    const id = shot.id, atom = shot.atom, plan = shot.plan;
+    const d = plan.daughter, newEl = plan.daughterEl, oldEl = atom.el;
+    const pos = new Vector3(atom.pos.x, atom.pos.y, atom.pos.z);
+    // The nucleus changes first, then everything that reads it. The atom's label is
+    // drawn from the isotope record, so repainting it before the record said
+    // "daughter" would print the parent's mass number under the daughter's symbol.
+    atom.el = newEl;
+    src.gun.setNuclide(id, d.z, d.a);
+    betaTrack.delete(id);
+    // A neutron turning into a proton changes the element, and these bonds were
+    // chosen for the element that used to be here, so they go with it.
+    const broken = [];
+    for (const [bid, b] of bonds) {
+      if (b.a === id || b.b === id) broken.push(bid);
+    }
+    for (const bid of broken) bonds.delete(bid);
+    // What a beta particle leaving at nearly the speed of light looks like from
+    // outside: a flicker and a recoil, and no blast. Beta radiation ionises, it does
+    // not shove - nothing here damages or pushes neighbours, and the health system
+    // still sees no dose because dose is keyed to the same proton-number rule. The
+    // positron gets the brighter, wider flash because it does not travel alone: it
+    // annihilates against an electron almost at once and hands back two 511 keV
+    // gammas flying apart in opposite directions, which is the whole of PET.
+    reactionVFX.explode(pos, plan.kind === "plus" ? 0.5 : 0.35, plan.kind === "plus" ? 16737502 : 6547199);
+    atom.vel = atom.vel || { x: 0, y: 0, z: 0 };
+    atom.vel.x += (Math.random() - 0.5) * 0.3;
+    atom.vel.y += (Math.random() - 0.5) * 0.3;
+    atom.vel.z += (Math.random() - 0.5) * 0.3;
+    atom._decayShake = 260;
+    atom._decayTime = now;
+    const book = plan.kind === "plus" ? src.plus : src.table;
+    const line = plan.kind === "plus"
+      ? (broken.length ? "nuclear.betaPlusBonds" : "nuclear.betaPlus")
+      : (broken.length ? "nuclear.betaMinusBonds" : "nuclear.betaMinus");
+    status(t(line, {
+      from: oldEl.name,
+      fa: plan.a,
+      to: newEl.name,
+      ta: d.a,
+      life: book.formatLife(plan.halfLife)
+    }), "warn");
+    spawnAnim.set(id, now);
+    const label = labelSprites.get(id);
+    if (label) {
+      label.material.map = atomLabelTex(id, newEl);
+      label.material.needsUpdate = true;
+      const r = displayRadius(newEl);
+      const s = 0.42 + r * 0.55;
+      label.scale.set(s, s, 1);
+    }
+    if (window.__xray && typeof window.__xray.isActive === "function" && window.__xray.isActive() && typeof window.__xray.updateAtom === "function") {
+      window.__xray.updateAtom(id, atom);
+    }
+  }
+  if (fired.length > 0) {
+    reanalyze();
+    invalidate();
+  }
+}
 function trackRadioactiveAtom(id, atom, now) {
   if (isRadioactive(atom.el)) {
     const hl = DECAY_HALF_LIFE[atom.el.z] || 1;
@@ -64560,6 +65019,8 @@ function frame(now) {
   active = updateLerp(dt) || active;
   updateRadioactiveDecay(now);
   if (decayTrack.size) active = true;
+  updateBetaDecay(now);
+  if (betaTrack.size) active = true;
   for (const [, at] of atoms) { if (at._decayShake) { active = true; break; } }
   updateMolecularDecay(now, dt);
   updateReactivitySweep(now);

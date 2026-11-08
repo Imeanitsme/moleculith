@@ -43,8 +43,6 @@
       lastShot: 'Last shot',
       none: 'nothing fired yet',
       isotopeLine: 'A={a} = Z{z} + N{n}',
-      dropped: 'no isotope record',
-      droppedNote: 'No isotope record: {sym} occurs in nature heavier than the nucleus that just left the barrel, and this gun only tracks neutrons it added itself.',
       modeSet: 'Firing {kind}s — every shot spends 1 {kind} ({price}★ in the Rope Shop).',
       modeSetNoPrice: 'Firing {kind}s — every shot spends 1 {kind} from the Rope Shop.',
       armedNote: 'Mode: {kind} · {left} left',
@@ -56,9 +54,17 @@
       ammoApiMissing: 'The shop exposes no ammo stock, so shots stay free.',
       neutronAdded: 'Neutron captured: {sym}-{a} (Z={z}, N={n}) — the element and its chemistry are unchanged.',
       inBand: 'Inside the band of stability: the heaviest stable isotope of {sym} is {sym}-{max}.',
-      neutronRich: '⚠ {sym}-{a} is neutron-rich — the heaviest stable isotope of {sym} is {sym}-{max}, so this nucleus has a decay time of its own: it would β⁻-decay into {daughter}-{a}. Radioactivity in this build is keyed to the proton number alone (Z > 82), so nothing here will ever count that decay time down.',
-      neutronRichNoDaughter: '⚠ {sym}-{a} is neutron-rich — the heaviest stable isotope of {sym} is {sym}-{max}, so this nucleus has a decay time of its own: it would β⁻-decay. Radioactivity in this build is keyed to the proton number alone (Z > 82), so nothing here will ever count that decay time down.',
-      noStable: '⚠ {sym} has no stable isotope at all: every isotope of it has a finite decay time, so all of them are radioactive. Radioactivity in this build is keyed to the proton number alone (Z > 82), so it will not decay here either.',
+      neutronRich: '⚠ {sym}-{a} is neutron-rich: the heaviest stable isotope of {sym} is {sym}-{max}. The measured charts list no beta half-life for {sym}-{a}, electron or positron, so this build lets it sit.',
+      noStable: '⚠ {sym} has no stable isotope at all, so every nucleus of it carries a decay time. The measured charts list none for {sym}-{a}, so this build lets it sit.',
+      betaMeasured: '☢ {sym}-{a} is a measured beta-minus emitter: it gives up an electron and becomes {daughter}-{da}, with a half-life of {life}. This build counts that clock down.',
+      betaChain: 'Its path to stability: {chain}.',
+      betaPlusMeasured: '☢ {sym}-{a} is a measured positron emitter: a proton inside it turns into a neutron, throws out a positron, and the nucleus becomes {daughter}-{da}, with a half-life of {life}. This build counts that clock down.',
+      betaChainStop: 'The chain reads: {chain}. It comes to rest on {end}, which the charts list as {why}, so the run stops short of a stable nucleus and this build does not pretend otherwise.',
+      chainWhyEc: 'a pure electron-capture nuclide - an orbital electron falling in is not a positron flying out, and this build runs neither',
+      chainWhyOther: 'a decay mode other than the beta one counted here',
+      chainWhyNone: 'nothing the charts measure for it at all',
+      chainWhyHeavy: 'bismuth or heavier, where the fission countdown owns the nucleus',
+      chainWhyLong: 'still decaying, further than this panel prints a chain',
       heavy: '☢ Every nuclide with Z > 82 is radioactive, and this build does simulate that — a shot at it runs the fission countdown.',
       pastAll: '⚠ {sym}-{a} lies past every isotope of {sym} ever measured: no nucleus binds this many extra neutrons. That is not simulated here, so the gun only records what it was asked to do.',
       vInBand: 'in the band',
@@ -66,6 +72,8 @@
       vPast: 'past every measured isotope',
       vNoStable: 'no stable isotope',
       vHeavy: 'radioactive by proton number',
+      vBeta: 'measured β⁻ emitter',
+      vBetaP: 'measured β⁺ emitter',
       close: 'Close'
     },
     vi: {
@@ -84,8 +92,6 @@
       lastShot: 'Lần bắn cuối',
       none: 'chưa bắn phát nào',
       isotopeLine: 'A={a} = Z{z} + N{n}',
-      dropped: 'không còn sổ đồng vị',
-      droppedNote: 'Không còn sổ đồng vị: {sym} trong tự nhiên nặng hơn hạt nhân vừa rời nòng, và cây súng này chỉ theo dõi những neutron do chính nó thêm vào.',
       modeSet: 'Đang bắn {kind} — mỗi phát tốn 1 {kind} ({price}★ ở Cửa hàng Dây thừng).',
       modeSetNoPrice: 'Đang bắn {kind} — mỗi phát tốn 1 {kind} từ Cửa hàng Dây thừng.',
       armedNote: 'Chế độ: {kind} · còn {left} viên',
@@ -97,9 +103,17 @@
       ammoApiMissing: 'Cửa hàng không cung cấp kho đạn, nên mỗi phát vẫn miễn phí.',
       neutronAdded: 'Đã bắt một neutron: {sym}-{a} (Z={z}, N={n}) — vẫn là nguyên tố cũ, hóa học không đổi.',
       inBand: 'Nằm trong dải bền: đồng vị bền nặng nhất của {sym} là {sym}-{max}.',
-      neutronRich: '⚠ {sym}-{a} giàu neutron — đồng vị bền nặng nhất của {sym} là {sym}-{max}, nên hạt nhân này có thời gian phân hủy riêng: nó sẽ phân rã β⁻ thành {daughter}-{a}. Trong bản này tính phóng xạ chỉ gắn với số proton (Z > 82), nên không có gì ở đây đếm hết thời gian phân hủy đó.',
-      neutronRichNoDaughter: '⚠ {sym}-{a} giàu neutron — đồng vị bền nặng nhất của {sym} là {sym}-{max}, nên hạt nhân này có thời gian phân hủy riêng: nó sẽ phân rã β⁻. Trong bản này tính phóng xạ chỉ gắn với số proton (Z > 82), nên không có gì ở đây đếm hết thời gian phân hủy đó.',
-      noStable: '⚠ {sym} hoàn toàn không có đồng vị bền: mọi đồng vị của nó đều có thời gian phân hủy hữu hạn, nên tất cả đều phóng xạ. Trong bản này tính phóng xạ chỉ gắn với số proton (Z > 82), nên ở đây nó cũng không tự phân rã.',
+      neutronRich: '⚠ {sym}-{a} giàu neutron: đồng vị bền nặng nhất của {sym} là {sym}-{max}. Các bảng đo lường không ghi thời gian bán rã beta nào cho {sym}-{a}, dù là electron hay positron, nên bản này để nó nằm yên.',
+      noStable: '⚠ {sym} hoàn toàn không có đồng vị bền, nên mọi hạt nhân của nó đều mang một thời gian phân hủy. Các bảng đo lường không ghi thời gian bán rã cho {sym}-{a}, nên bản này để nó nằm yên.',
+      betaMeasured: '☢ {sym}-{a} là chất phát beta-minus đã đo: nó nhả một electron và hóa thành {daughter}-{da}, với thời gian bán rã {life}. Bản này sẽ đếm thời gian bán rã đó.',
+      betaChain: 'Đường đi tới bền của nó: {chain}.',
+      betaPlusMeasured: '☢ {sym}-{a} là chất phát positron đã đo: một proton trong nó hóa thành neutron, nhả một positron, và hạt nhân trở thành {daughter}-{da}, với thời gian bán rã {life}. Bản này sẽ đếm thời gian bán rã đó.',
+      betaChainStop: 'Chuỗi phân rã: {chain}. Nó dừng ở {end}, là hạt nhân mà các bảng đo xếp vào {why}, nên hành trình dừng trước khi tới một hạt nhân bền và bản này không nói khác đi.',
+      chainWhyEc: 'chỉ bắt electron - electron quỹ đạo rơi vào hạt nhân chứ không phải positron bay ra, và bản này không chạy cả hai',
+      chainWhyOther: 'một kiểu phân rã khác với kiểu beta được đếm ở đây',
+      chainWhyNone: 'không được các bảng đo ghi nhận điều gì',
+      chainWhyHeavy: 'từ bismuth trở lên, nơi đếm ngược phân hạch nắm hạt nhân',
+      chainWhyLong: 'vẫn đang phân rã, xa hơn mức bảng này in ra một chuỗi',
       heavy: '☢ Mọi hạt nhân có Z > 82 đều phóng xạ, và bản này có mô phỏng điều đó — bắn vào nó sẽ chạy đếm ngược phân hạch.',
       pastAll: '⚠ {sym}-{a} vượt quá mọi đồng vị của {sym} từng được đo: không hạt nhân nào giữ nổi nhiều neutron thừa đến thế. Điều đó không được mô phỏng ở đây, nên súng chỉ ghi lại những gì nó đã làm.',
       vInBand: 'trong dải bền',
@@ -107,6 +121,8 @@
       vPast: 'vượt mọi đồng vị từng đo',
       vNoStable: 'không có đồng vị bền',
       vHeavy: 'phóng xạ theo số proton',
+      vBeta: 'chất phát β⁻ đã đo',
+      vBetaP: 'chất phát β⁺ đã đo',
       close: 'Đóng'
     }
   };
@@ -259,9 +275,10 @@
   // --- The neutron ledger ---
   // An atom in this build carries nothing but its element, so isotope mass cannot
   // live on the atom (and must not live on ELEMENTS, which is shared by every atom
-  // of that element). This Map of atomId -> extra neutrons is the record: it
-  // survives repeated shots at the same atom, is re-anchored when a proton shot
-  // moves the nucleus up a row, and is pruned so a deleted atom cannot leak.
+  // of that element). This Map of atomId -> the nucleus itself is the record: it
+  // survives repeated shots at the same atom, travels with the nucleus when a
+  // proton shot moves it up a row or a decay turns it into another element, and is
+  // pruned so a deleted atom cannot leak.
   const neutronLedger = new Map();
   const LEDGER_PRUNE_MS = 2000;
   const LEDGER_KEY = 'mol3d.isotopes.v1';
@@ -277,16 +294,36 @@
     const atoms = window.__mol3d && window.__mol3d.atoms;
     return atoms && typeof atoms.get === 'function' ? atoms.get(atomId) : null;
   }
-  function excessOf(atomId) {
+  // A record is the gun's word that this exact nucleus is not the one the element
+  // ships with, and it keeps the mass number itself. "Extra neutrons over the
+  // natural average" cannot say a nucleus is lighter than that average: helium-3 is
+  // one neutron short of the 4 the periodic table prints, and a beta decay leaves
+  // daughters like that behind. The surplus is still available for the places that
+  // show it, derived from the record instead of kept beside it.
+  function aOf(rec) {
+    if (typeof rec.a === 'number') return rec.a;
+    return baseA(findElement(rec.z) || { z: rec.z, mass: null }) + rec.n;
+  }
+  function recordOf(atomId) {
     const rec = neutronLedger.get(atomId);
-    if (!rec || !(rec.n > 0)) return 0;
+    if (!rec) return null;
     const atom = liveAtom(atomId);
-    if (atom && atom.el && atom.el.z !== rec.z) return 0;
-    return Math.floor(rec.n);
+    if (atom && atom.el && atom.el.z !== rec.z) return null;
+    return rec;
+  }
+  function hasIsotopeRecord(atomId) { return recordOf(atomId) !== null; }
+  function excessOf(atomId) {
+    const rec = recordOf(atomId);
+    if (!rec) return 0;
+    const atom = liveAtom(atomId);
+    const el = (atom && atom.el) || findElement(rec.z) || { z: rec.z, mass: null };
+    return aOf(rec) - baseA(el);
   }
   function saveLedger() {
     const rows = [];
-    neutronLedger.forEach(function (rec, id) { rows.push([id, rec.z, rec.n]); });
+    neutronLedger.forEach(function (rec, id) {
+      rows.push(typeof rec.a === 'number' ? [id, rec.z, rec.n, rec.a] : [id, rec.z, rec.n]);
+    });
     try { localStorage.setItem(LEDGER_KEY, JSON.stringify(rows)); } catch (e) {}
   }
   function loadLedger() {
@@ -295,8 +332,15 @@
     if (!Array.isArray(rows)) return;
     for (const row of rows) {
       if (!Array.isArray(row) || row.length < 3) continue;
-      const z = Number(row[1]), n = Math.floor(Number(row[2]));
-      if (!(z > 0) || !(n > 0)) continue;
+      const z = Number(row[1]);
+      if (!(z > 0)) continue;
+      // A four-column row is a nucleus. A three-column row is the older record of
+      // a surplus, which still reads the same way it did before it was stored as a
+      // mass number - so a reload keeps every isotope a player paid for.
+      const a = Math.floor(Number(row[3]));
+      if (a > 0) { neutronLedger.set(row[0], { z: z, n: Math.floor(Number(row[2])) || 0, a: a }); continue; }
+      const n = Math.floor(Number(row[2]));
+      if (!(n > 0)) continue;
       neutronLedger.set(row[0], { z: z, n: n });
     }
   }
@@ -310,12 +354,17 @@
     });
     if (swept) saveLedger();
   }
-  function setExcess(atomId, n) {
-    const atom = liveAtom(atomId);
-    const z = atom && atom.el ? atom.el.z : null;
-    if (n > 0 && z !== null) neutronLedger.set(atomId, { z: z, n: Math.floor(n) });
-    else neutronLedger.delete(atomId);
+  // The record a decay leaves behind. The daughter is a real nucleus with a real
+  // mass number, so it is written as that and the surplus over the natural average
+  // is whatever falls out, rather than the other way round. The surplus is stored
+  // beside it because a build older than this one reads that column as the whole
+  // record, and a-baseline is exactly what it would have needed.
+  function setNuclide(atomId, z, a) {
+    const Z = Math.floor(Number(z)), mass = Math.floor(Number(a));
+    if (!(Z > 0) || !(mass > 0)) { neutronLedger.delete(atomId); saveLedger(); return false; }
+    neutronLedger.set(atomId, { z: Z, n: mass - baseA(findElement(Z) || { z: Z, mass: null }), a: mass });
     saveLedger();
+    return true;
   }
 
   // The app's own masses are standard atomic weights, so the nucleus a player
@@ -326,7 +375,10 @@
     const m = (el && typeof el.mass === 'number' && isFinite(el.mass)) ? Math.round(el.mass) : null;
     return (m !== null && m >= z) ? m : Math.max(1, z * 2 - 1);
   }
-  function massNumberOf(atomId, atom) { return baseA(atom.el) + excessOf(atomId); }
+  function massNumberOf(atomId, atom) {
+    const rec = recordOf(atomId);
+    return rec ? aOf(rec) : baseA(atom.el);
+  }
   function isotopeOf(el, a) { return { sym: el.sym, a: a, z: el.z, n: a - el.z, label: el.sym + '-' + a }; }
   function isotopeOfAtom(atomId, atom) { return isotopeOf(atom.el, massNumberOf(atomId, atom)); }
 
@@ -338,6 +390,8 @@
   if (!window.__protonGun) {
     window.__protonGun = {
       neutronExcessOf: excessOf,
+      hasIsotopeRecord: hasIsotopeRecord,
+      setNuclide: setNuclide,
       isotopeOf: function (atomId) {
         const atom = liveAtom(atomId);
         return atom ? isotopeOfAtom(atomId, atom) : null;
@@ -378,38 +432,101 @@
     return { key: 'pastAll', verdictKey: 'vPast', bandMax: lim };
   }
 
+  // What the measured charts say about this exact nucleus, worked out once so the
+  // status line and the panel cannot drift apart. Null means neither chart has a
+  // beta row for it - which is not the same sentence as stable, and is why the band
+  // wording below still has a job. Two charts now, because beta decay has two
+  // directions: neutron-rich nuclei throw an electron and gain a proton, proton-
+  // rich ones throw a positron and lose one. Asking beta-decay.js first is not a
+  // preference; the two tables are cut from the same dump and between them name no
+  // nucleus twice, so at most one of them has anything to say. Both stop at lead on
+  // purpose: bismuth and up belong to the build's proton-number chain, so the panel
+  // never promises a clock the engine would not run.
+  function betaNote(z, a) {
+    const symOf = function (zz) { const e = findElement(zz); return e ? e.sym : 'Z' + zz; };
+    const read = function (T, kind) {
+      if (!T || z > T.MAX_Z) return null;
+      const d = T.daughterOf(z, a);
+      if (!d) return null;
+      const path = T.pathTo(z, a);
+      let chain = symOf(z) + '-' + a;
+      for (const s of path.steps) chain += ' →(' + T.formatLife(s.halfLife) + ') ' + symOf(s.to.z) + '-' + s.to.a;
+      return {
+        kind: kind,
+        life: T.formatLife(d.halfLife),
+        daughter: symOf(d.z),
+        da: d.a,
+        shed: kind === 'minus' ? d.neutronsShed : d.protonsShed,
+        chain: chain,
+        steps: path.steps.length,
+        rest: symOf(path.endZ) + '-' + path.endA,
+        reason: path.reason
+      };
+    };
+    return read(window.__mol3dBeta, 'minus') || read(window.__mol3dBetaPlus, 'plus');
+  }
+
+  // 'path to stability' is a claim about where a chain ends, and the beta tables
+  // know four other endings: a nucleus the dump measures as pure electron capture,
+  // one it measures as some other mode, one it has never measured, and the top of
+  // the table where the proton-number chain takes over. Naming the reason is the
+  // difference between a chain and a promise.
+  const CHAIN_WHY = {
+    electronCapture: 'chainWhyEc',
+    otherMode: 'chainWhyOther',
+    unlisted: 'chainWhyNone',
+    protonChain: 'chainWhyHeavy',
+    handedOver: 'chainWhyOther',
+    capped: 'chainWhyLong'
+  };
+
+  function chainTail(b) {
+    if (b.reason !== 'stable') {
+      return L('betaChainStop', { chain: b.chain, end: b.rest, why: L(CHAIN_WHY[b.reason] || 'chainWhyNone') });
+    }
+    return b.steps < 2 ? '' : L('betaChain', { chain: b.chain });
+  }
+
   // The reason goes in the status line in full: an isotope the player just built
   // is a teaching moment, and hiding the caveat would be the fake part.
   function verdictText(el, iso, v) {
     const params = { sym: el.sym, a: iso.a, z: iso.z, n: iso.n, max: v.bandMax };
+    if (v.key !== 'heavy') {
+      const b = betaNote(iso.z, iso.a);
+      if (b) {
+        const head = L(b.kind === 'plus' ? 'betaPlusMeasured' : 'betaMeasured',
+          { sym: el.sym, a: iso.a, life: b.life, daughter: b.daughter, da: b.da });
+        const tail = chainTail(b);
+        return tail ? head + ' ' + tail : head;
+      }
+    }
     if (v.key === 'inBand') return L('inBand', params);
     if (v.key === 'noStable') return L('noStable', params);
     if (v.key === 'heavy') return L('heavy', params);
     if (v.key === 'pastAll') return L('pastAll', params);
-    const daughter = findElement(el.z + 1);
-    params.daughter = daughter ? daughter.sym : '';
-    return daughter ? L('neutronRich', params) : L('neutronRichNoDaughter', params);
+    return L('neutronRich', params);
   }
 
   let lastShot = null;
   function setLastShot(iso, v) {
-    lastShot = iso && v ? { iso: iso, verdictKey: v.verdictKey, warn: v.key !== 'inBand' } : null;
-  }
-  // A shot that leaves the gun with nothing honest to say about the isotope. The
-  // symbol is stored, not the sentence, so a language switch can rebuild it.
-  function setDroppedShot(sym) {
-    lastShot = { dropped: true, sym: sym };
+    if (!iso || !v) { lastShot = null; return; }
+    const measured = v.key === 'heavy' ? null : betaNote(iso.z, iso.a);
+    lastShot = {
+      iso: iso,
+      verdictKey: measured ? (measured.kind === 'plus' ? 'vBetaP' : 'vBeta') : v.verdictKey,
+      warn: measured ? true : v.key !== 'inBand'
+    };
   }
 
   function addNeutron(atom, atomId, paid) {
     pruneLedger();
     const el = atom.el;
-    const a = baseA(el) + excessOf(atomId) + 1;
+    const a = massNumberOf(atomId, atom) + 1;
     const iso = isotopeOf(el, a);
     const v = stabilityVerdict(el.z, a);
     // Nothing about the atom is touched: same Z, same electrons, same chemistry -
     // which is exactly why the engine needs no reanalyze for this shot either.
-    setExcess(atomId, a - baseA(el));
+    setNuclide(atomId, el.z, a);
     // The nucleus changed, so the atom's own label has to say so: the ledger is the
     // only record of A, and a paid-for neutron that only shows while the gun panel
     // happens to be open is not the same nucleus the player is looking at.
@@ -560,9 +677,6 @@
     const isoLine = panel.querySelector('.ng-iso');
     if (!lastShot) {
       isoLine.textContent = L('lastShot') + ': ' + L('none');
-    } else if (lastShot.dropped) {
-      isoLine.innerHTML = esc(L('lastShot')) + ': <b>' + esc(L('dropped')) + '</b>' +
-        '<div>' + esc(L('droppedNote', { sym: lastShot.sym })) + '</div>';
     } else {
       const s = lastShot.iso;
       isoLine.innerHTML = esc(L('lastShot')) + ': <b>' + esc(s.label) + '</b> · ' +
@@ -1341,23 +1455,15 @@
 
     var oldSym = oldEl.sym;
     // Proton capture lifts Z by one and A by one while N stands still, so the
-    // isotope the ledger holds has to be re-anchored against the new element's own
-    // baseline: 13C + p is 14N, not a natural nitrogen with a stray record.
-    var aBefore = baseA(oldEl) + excessOf(atomId);
+    // record travels with the nucleus instead of being re-anchored: 13C + p is 14N
+    // and 3H + p is 3He, one of them heavier than the new element's natural average
+    // and the other lighter than it. A mass number carries both.
+    var aBefore = massNumberOf(atomId, atom);
     var isNoble = NOBLE_GASES.has(newZ);
     atom.el = newEl;
-    var newExcess = (aBefore + 1) - baseA(newEl);
-    var after = null, verdict = null;
-    if (newExcess >= 0) {
-      setExcess(atomId, newExcess);
-      after = isotopeOfAtom(atomId, atom);
-      verdict = stabilityVerdict(newZ, after.a);
-    } else {
-      // The ledger counts only neutrons the gun itself added. When the element
-      // above is naturally heavier than this nucleus, the honest statement is that
-      // the gun has no isotope record for it any more - never a guessed one.
-      setExcess(atomId, 0);
-    }
+    setNuclide(atomId, newZ, aBefore + 1);
+    var after = isotopeOfAtom(atomId, atom);
+    var verdict = stabilityVerdict(newZ, after.a);
 
     var tail = spendTail(paid, 'proton');
     if (isNoble) {
@@ -1374,8 +1480,7 @@
       showStatus(tt('pg.addedProton', { from: oldSym, to: newEl.name, z: newZ }) + tail);
     }
 
-    if (after && verdict) setLastShot(after, verdict);
-    else setDroppedShot(newEl.sym);
+    setLastShot(after, verdict);
 
     if (window.__mol3d.updateAtomLabel) {
       window.__mol3d.updateAtomLabel(atomId, newEl);
@@ -1563,6 +1668,8 @@
       ammoOf: ammoCount,
       ammoPriceOf: ammoPrice,
       neutronExcessOf: excessOf,
+      hasIsotopeRecord: hasIsotopeRecord,
+      setNuclide: setNuclide,
       isotopeOf: function(atomId) {
         var atoms = window.__mol3d && window.__mol3d.atoms;
         var atom = atoms && typeof atoms.get === 'function' ? atoms.get(atomId) : null;

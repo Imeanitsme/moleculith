@@ -156,42 +156,14 @@
     return fill(s, params);
   }
 
-  // A transmutation is a crate transaction: the unit of the element above is spent,
-  // the unit this atom was bought as comes back, and the crate's id ledger follows
-  // the nucleus. Asking instead "is this element unlocked" was dead code once the
-  // shop traded every element, so one star of proton ammo could ladder an atom up
-  // the price table and mint expensive atoms nobody had paid for.
+  // A transmutation moves the crate's books, not its gate: the unit this atom was
+  // bought as goes back to the shelf, and a unit of the element above is taken only
+  // when the crate holds one. Where a paid-for particle lands is decided by the
+  // nucleus, so an element the player has never bought is still a legal destination.
   function crateTransmute(atomId, newZ) {
     const c = window.__mol3d && window.__mol3d.crate;
     if (!c || typeof c.transmute !== 'function') return true;
     return c.transmute(atomId, newZ) === true;
-  }
-  function tierPriceFor(z) {
-    const shop = window.__mol3dShop;
-    const tiers = shop && shop.catalogue && shop.catalogue.tiers;
-    if (!Array.isArray(tiers)) return null;
-    let base = null;
-    for (let i = 0; i < tiers.length; i++) if (z <= tiers[i].maxZ) { base = tiers[i].price; break; }
-    if (base === null) return null;
-    if (typeof shop.priceOf === 'function') return shop.priceOf(base);
-    return base;
-  }
-  function elNameOf(el) {
-    const i18n = window.__mol3d && window.__mol3d.i18n;
-    try {
-      if (el && i18n && typeof i18n.elName === 'function') return i18n.elName(el);
-    } catch (e) {}
-    return el ? (el.name || el.sym) : '';
-  }
-  function refuseUpgrade(newEl, extra) {
-    const price = tierPriceFor(newEl.z);
-    const params = { sym: newEl.sym, name: elNameOf(newEl), price: price };
-    const msg = price === null || price === undefined
-      ? tt('pg.needOwn', params)
-      : tt('pg.needOwnPrice', params);
-    showStatus('🔒 ' + msg + (typeof extra === 'string' ? extra : ''), 'err');
-    const shop = window.__mol3dShop;
-    if (shop && typeof shop.open === 'function') shop.open();
   }
 
   // ============================ NEUTRON + PROTON GUN ============================
@@ -230,9 +202,9 @@
     return null;
   }
   function kindKey(kind) { return kind === 'proton' ? 'kProton' : 'kNeutron'; }
-  // A shot the shop itself declines (the next element is not unlocked yet) hands
-  // the particle straight back: paying for nothing is not a fair reading of
-  // "you must buy protons and neutrons to shoot".
+  // A shot that never happened hands the particle straight back: paying for
+  // nothing is not a fair reading of "you must buy protons and neutrons to shoot".
+  // The only transmutation left that can decline is the one past the last element.
   function refundAmmo(kind) {
     const s = shopApi();
     if (s && typeof s.refundAmmo === 'function') s.refundAmmo(kind);
@@ -395,7 +367,12 @@
       isotopeOf: function (atomId) {
         const atom = liveAtom(atomId);
         return atom ? isotopeOfAtom(atomId, atom) : null;
-      }
+      },
+      // The cinematic is twelve seconds of white screen before any of its text is
+      // readable, so the panels stay reachable from here for testing and for the
+      // console alike.
+      fissionEvent: cineEvent,
+      fissionPreview: cinePreview
     };
   }
 
@@ -577,7 +554,7 @@
     '.ng-iso{margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:10px;',
     '  line-height:1.45;color:var(--muted);}',
     '.ng-iso b{color:var(--text);font-variant-numeric:tabular-nums;}',
-    '.ng-iso .ng-flag{color:#ffb347;}',
+    '.ng-iso .ng-flag{color:var(--warn,#ffb347);}',
     '@media (max-width:640px){#neutron-gun-panel{width:min(232px,66vw);padding:8px}.ng-mode{font-size:10px}}'
   ].join('\n');
 
@@ -821,27 +798,31 @@
       title: 'HÒA BÌNH THẾ GIỚI — XÓA SỔ HẠT NHÂN, MỘT LẦN VÀ MÃI MÃI',
       sub: 'Bạn vừa xem một hạt nhân tự chia đôi. Không một quốc gia nào cần thêm lý do để làm điều đó có chủ đích.',
       g: {
-        massTitle: 'Phân bố khối lượng mảnh vỡ — U-235, neutron nhiệt',
-        massNote: 'Hiệu suất độc lập Y(A), % trên mỗi số khối. Vạch đỏ: phép chia đôi mà bạn vừa buộc hạt nhân thực hiện.',
-        mark: 'chia đôi · xác suất < 1%',
-        energyTitle: 'Phân bố năng lượng — 202,5 MeV cho mỗi phân hạch',
+        massTitle: 'Phân bố khối lượng mảnh vỡ — {nu}',
+        massNote: 'Hiệu suất độc lập Y(A), % trên mỗi số khối; tổng bằng 200 % vì mỗi phân hạch sinh ra hai mảnh. {src} Vạch đỏ: phép chia đôi mà bạn vừa buộc {nu} thực hiện.',
+        srcEval: 'Đường cong là số liệu đã đo cho U-236*, hạt nhân mà U-235 hóa thành khi bắt một neutron nhiệt.',
+        srcModel: 'Đường cong là mô hình bản này tính cho {nu} theo đúng độ dễ phân hạch của nó (Z²/A = {x}); chưa có số liệu đo cho hạt nhân này.',
+        mark: 'chia đôi · khoảng {p} % số vụ phân hạch rơi vào đây',
+        energyTitle: 'Phân bố năng lượng — {q} MeV cho một phép chia đôi {nu}',
+        energyNote: 'Tính bằng công thức khối lượng bán thực nghiệm Bethe–Weizsäcker cho đúng cặp mảnh này. Phân hạch thật của {nu} thích hai mảnh không đều: ≈ {qAsym} MeV, còn U-235 với neutron nhiệt đo được {qMeasured} MeV.',
         eLab: ['động năng mảnh', 'neutron', 'gamma tức thời', 'beta', 'gamma sản phẩm', 'neutrino'],
         total: 'Tổng phát ra tức thời',
-        perKg: '1 phân hạch = 3,24 × 10⁻¹¹ J · 1 mol U-235 = 1,95 × 10¹⁰ kJ',
+        perKg: '1 phân hạch = {j} J · 1 mol {nu} = {kJ} kJ',
         axisA: 'số khối A',
+        axisY: 'Y(A) %, đỉnh {peak}',
         lose: 'thoát ra ngoài, không thu hồi được'
       },
       facts: [
-        'Hai mảnh vỡ mang đi ≈ 168 MeV động năng; tổng một phân hạch U-235 ≈ 202,5 MeV ≈ 3,24 × 10⁻¹¹ J.',
-        '1 kg U-235 phân hạch hoàn toàn: ≈ 8,3 × 10¹³ J ≈ 20 tấn TNT — đương lượng của một quả bom trút xuống một thành phố.',
+        'Hai mảnh vỡ mang đi ≈ {ke} MeV động năng; cả vụ chia đôi {nu} bạn vừa xem được ≈ {q} MeV ≈ {j} J.',
+        '1 kg {nu} phân hạch hoàn toàn: ≈ {ekg} J ≈ {kt} kiloton TNT — đương lượng của một quả bom trút xuống một thành phố.',
         'Hiroshima, 6-8-1945: quả Little Boy chở 64 kg uranium, chưa tới 1 kg kịp phân hạch; 90.000 – 146.000 người đã chết trước cuối năm đó.',
-        'Một liên kết hóa học bạn vừa xây ở đây: ≈ 4 eV. Phân hạch mạnh gấp ≈ 5 × 10⁷ lần.',
+        'Một liên kết hóa học bạn vừa xây ở đây: ≈ 4 eV. Phân hạch mạnh gấp ≈ {ratio} lần.',
         'Thời gian phân hủy của Pu-239 là 24.100 năm: sau đúng một thời gian phân hủy — 240 thế kỷ — một nửa chất độc vẫn còn đó, lâu hơn mọi nền văn minh trên mặt đất.'
       ],
       dialogue: [
         { who: 'aria', text: 'Bạn còn ở đó không? Ánh sáng vừa tan, và tôi không còn thấy phân tử nào nữa.' },
         { who: 'you', text: 'Tôi vẫn ở đây. Thế giới thì không.' },
-        { who: 'aria', text: 'Chỉ một hạt nhân vừa tách đôi. Hai mảnh, ba neutron, 200 MeV — gấp năm mươi triệu lần năng lượng của một liên kết hóa học.' },
+        { who: 'aria', text: 'Chỉ một hạt nhân vừa tách đôi: {nu} hóa thành {f1} và {f2}. Hai mảnh, ≈ {nubar} neutron, {q} MeV — gấp ≈ {ratioM} triệu lần năng lượng của một liên kết hóa học.' },
         { who: 'you', text: 'Tất cả những gì tôi xây bao lâu nay… giờ chỉ còn tro.' },
         { who: 'aria', text: 'Tro là cách nói đẹp. Đó là bụi của những nguyên tử từng là mái nhà, là cửa kính, là cơ thể con người.' },
         { who: 'you', text: 'Sao tôi không thấy giận? Tôi chỉ thấy trống.' },
@@ -860,27 +841,31 @@
       title: 'WORLD PEACE — ABOLISH NUCLEAR WEAPONS, ONCE AND FOR ALL',
       sub: 'You just watched a single nucleus split itself. No nation needs a better reason than that to do it on purpose.',
       g: {
-        massTitle: 'Fragment mass yield — U-235, thermal neutrons',
-        massNote: 'Independent cumulative yield Y(A), % per mass unit. Red line: the even split you just forced on the nucleus.',
-        mark: 'symmetric · probability < 1%',
-        energyTitle: 'Energy release — 202.5 MeV per fission',
+        massTitle: 'Fragment mass yield — {nu}',
+        massNote: 'Independent cumulative yield Y(A), % per mass unit; it sums to 200 % because every fission gives two fragments. {src} Red line: the even split you just forced on {nu}.',
+        srcEval: 'The curve is evaluated yield data for U-236*, the nucleus U-235 becomes when it captures a thermal neutron.',
+        srcModel: 'The curve is a model built for {nu} from its own fissility (Z²/A = {x}); no evaluated yield data exists for this nucleus.',
+        mark: 'even split · about {p} % of fissions land here',
+        energyTitle: 'Energy release — {q} MeV per even split of {nu}',
+        energyNote: 'Computed with the semi-empirical Bethe–Weizsäcker mass formula for exactly this pair. A real {nu} prefers unequal fragments: ≈ {qAsym} MeV, against the {qMeasured} MeV measured for thermal-neutron U-235.',
         eLab: ['fragment kinetic', 'neutrons', 'prompt gamma', 'beta', 'product gamma', 'neutrinos'],
         total: 'Prompt energy released',
-        perKg: 'one fission = 3.24 × 10⁻¹¹ J · 1 mol of U-235 = 1.95 × 10¹⁰ kJ',
+        perKg: 'one fission = {j} J · 1 mol of {nu} = {kJ} kJ',
         axisA: 'mass number A',
+        axisY: 'Y(A) %, peak {peak}',
         lose: 'escapes, cannot be recovered'
       },
       facts: [
-        'The two fragments carry away ≈ 168 MeV of kinetic energy; one U-235 fission totals ≈ 202.5 MeV ≈ 3.24 × 10⁻¹¹ J.',
-        '1 kg of U-235 fully fissioned: ≈ 8.3 × 10¹³ J ≈ 20 tonnes of TNT — the yield of a bomb dropped on a city.',
+        'The two fragments carry away ≈ {ke} MeV of kinetic energy; one even split of {nu} totals ≈ {q} MeV ≈ {j} J.',
+        '1 kg of {nu} fully fissioned: ≈ {ekg} J ≈ {kt} kilotonnes of TNT — the yield of a bomb dropped on a city.',
         'Hiroshima, 6 August 1945: Little Boy carried 64 kg of uranium and less than 1 kg actually fissioned; 90,000 – 146,000 people were dead by the end of that year.',
-        'A chemical bond you just built in here: ≈ 4 eV. Fission is ≈ 5 × 10⁷ times stronger per event.',
+        'A chemical bond you just built in here: ≈ 4 eV. Fission is ≈ {ratio} times stronger per event.',
         'Pu-239 has a decay time of 24,100 years: after exactly one decay time — 240 centuries — half the poison is still there, longer than every civilisation on this ground.'
       ],
       dialogue: [
         { who: 'aria', text: 'Are you still there? The light just cleared, and I cannot find a single molecule left.' },
         { who: 'you', text: 'I am still here. The world is not.' },
-        { who: 'aria', text: 'One nucleus split. Two fragments, three neutrons, 200 MeV — fifty million times the energy of one chemical bond.' },
+        { who: 'aria', text: 'One nucleus split: {nu} into {f1} and {f2}. Two fragments, ≈ {nubar} neutrons, {q} MeV — about {ratioM} million times the energy of one chemical bond.' },
         { who: 'you', text: 'Everything I built… is ash now.' },
         { who: 'aria', text: 'Ash is the polite word. It is dust from atoms that were roofs, and windows, and people.' },
         { who: 'you', text: 'Why am I not angry? I only feel empty.' },
@@ -895,6 +880,38 @@
   };
 
   let cine = null;
+
+  // Both languages are printed from one event object, so a placeholder that exists
+  // in only one of the two tables would either leak a raw {token} onto the screen
+  // or quietly drop a number from the other language. Same rule as STR above.
+  (function checkCineStrings() {
+    var problems = [];
+    var tokens = function (s) {
+      var out = [];
+      String(s).replace(/\{([a-zA-Z0-9_]+)\}/g, function (whole, key) { out.push(key); return whole; });
+      return out.sort().join(',');
+    };
+    var walk = function (path, a, b) {
+      if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length) problems.push(path + ': length');
+        a.forEach(function (v, i) { walk(path + '[' + i + ']', v, b[i]); });
+      } else if (a && typeof a === 'object' && b && typeof b === 'object') {
+        Object.keys(a).forEach(function (k) {
+          if (!Object.prototype.hasOwnProperty.call(b, k)) problems.push(path + '.' + k + ': missing in en');
+          else walk(path + '.' + k, a[k], b[k]);
+        });
+        Object.keys(b).forEach(function (k) {
+          if (!Object.prototype.hasOwnProperty.call(a, k)) problems.push(path + '.' + k + ': missing in vi');
+        });
+      } else if (tokens(a) !== tokens(b)) {
+        problems.push(path + ': placeholders');
+      }
+    };
+    walk('', CINE_STR.vi, CINE_STR.en);
+    if (problems.length && window.console && console.warn) {
+      console.warn('[proton-gun] fission cinematic strings:', problems.join(', '));
+    }
+  })();
 
   function cineLang() {
     const i18n = window.__mol3d && window.__mol3d.i18n;
@@ -1064,10 +1081,14 @@
       '" preserveAspectRatio="none" aria-hidden="true">' + polys + '</svg>';
   }
 
-  // Independent fission-fragment mass yield of U-235 with thermal neutrons, from the
-  // evaluated yield libraries: light peak A=95 (6.6 %), valley A=115 (0.8 %), heavy
-  // peak A=135 (6.8 %). The energy column is the standard partition of the 202.5 MeV
-  // per fission; neutrinos carry 8.8 MeV straight out of the reactor.
+  // Evaluated fission-fragment mass yield of U-236*, the compound nucleus a thermal
+  // neutron turns U-235 into: light peak A=95 (6.6 %), valley A=115 (0.8 %), heavy
+  // peak A=135 (6.8 %), summing to 200 % because every fission gives two fragments.
+  // ENERGY_MEV is the measured partition of the 202.5 MeV of that same reaction;
+  // neutrinos carry 8.8 MeV straight out of the reactor. These two tables are the
+  // only numbers in the cinematic that belong to one named nuclide, so the panels
+  // now say which nucleus they were measured for and which they only borrow - see
+  // cineEvent.
   const YIELD_PTS = [
     [70, .45], [75, .8], [79, 2.0], [82, 3.3], [85, 4.6], [88, 5.6], [90, 6.0],
     [92, 6.4], [94, 6.6], [96, 6.1], [98, 5.2], [101, 4.0], [104, 2.9], [107, 1.9],
@@ -1076,7 +1097,6 @@
     [146, 2.2], [149, 1.2], [152, .7], [155, .35], [158, .2], [162, .08], [165, .02]
   ];
   const ENERGY_MEV = [168.3, 4.8, 7.0, 7.0, 6.6, 8.8];
-  const YIELD_MAX = 7.2;
 
   function yieldAt(a) {
     if (a <= YIELD_PTS[0][0]) return YIELD_PTS[0][1];
@@ -1090,33 +1110,237 @@
     return 0;
   }
 
+  // --- What happens to the nucleus the player actually split ---
+  // Nothing here is uranium-235 unless uranium-235 is what split. The energy comes
+  // from the standard Bethe-Weizsäcker semi-empirical mass formula applied to the
+  // exact pair of fragments triggerFission creates, and the yield curve is either
+  // the evaluated table above or a two-peak model whose asymmetry is read off this
+  // nucleus' own fissility, Z²/A.
+  const SEMF = { av: 15.75, as: 17.8, ac: 0.711, aa: 23.7, ap: 11.18 };
+  const MEV_IN_J = 1.602176634e-13;
+  const AVOGADRO = 6.02214076e23;
+  const KTONNE_TNT_J = 4.184e12;
+  const BOND_EV = 4;
+  const Q_U236_MEASURED = ENERGY_MEV.reduce(function (s, v) { return s + v; }, 0);
+  // Below Z²/A = 33 a heavy nucleus gains almost nothing by splitting unevenly and
+  // the curve stays single-humped; by 36 - uranium - the double peak is fully
+  // developed and its peaks sit about 40 mass units apart, as the measured
+  // actinide curves (U-235 95/135, Cf-252 106/146) show.
+  const FISSILITY_SYMMETRIC = 33, FISSILITY_ASYMMETRIC = 36, PEAK_SEPARATION = 40;
+  const PEAK_SIGMA = { light: 6.0, heavy: 7.0, symmetric: 9.0 };
+  const SYMMETRIC_WING = 0.12;
+
+  function semfBinding(z, a) {
+    if (!(z > 0) || !(a >= z)) return 0;
+    const n = a - z;
+    const pair = (z % 2 === 0 && n % 2 === 0) ? SEMF.ap / Math.sqrt(a)
+      : (z % 2 === n % 2) ? -SEMF.ap / Math.sqrt(a)
+        : 0;
+    return SEMF.av * a - SEMF.as * Math.pow(a, 2 / 3) -
+      SEMF.ac * z * (z - 1) / Math.pow(a, 1 / 3) -
+      SEMF.aa * (n - z) * (n - z) / a + pair;
+  }
+
+  // Prompt neutrons per fission. 0.024 per mass unit above A = 133 reproduces the
+  // measured averages closely enough to quote: U-235 gives 2.44 against 2.43 and
+  // Cf-252 gives 3.86 against 3.76.
+  function neutronsPerFission(a) { return Math.max(0, 0.024 * a - 3.2); }
+
+  // The split as this build performs it: half the protons in triggerFission's
+  // floor(Z/2), and half of the mass that is left once the prompt neutrons are gone.
+  function evenSplit(z, a) {
+    const nu = neutronsPerFission(a);
+    const massLeft = Math.max(2, Math.round(a - nu));
+    const light = Math.round(massLeft / 2);
+    return { nu: nu, massLeft: massLeft, a1: light, a2: massLeft - light };
+  }
+
+  function gaussianYield(a, mu, sigma) {
+    return Math.exp(-((a - mu) * (a - mu)) / (2 * sigma * sigma));
+  }
+
+  function modelledYield(al, ah, mid) {
+    const even = Math.abs(ah - al) < 1;
+    const wing = even ? 1 : SYMMETRIC_WING;
+    const area = Math.sqrt(2 * Math.PI) *
+      (PEAK_SIGMA.light + PEAK_SIGMA.heavy + wing * PEAK_SIGMA.symmetric);
+    // Yield is normalised per fragment, so a complete distribution sums to two
+    // fragments per fission, i.e. 200 % over the mass axis.
+    const scale = 200 / area;
+    return function (a) {
+      return scale * (gaussianYield(a, al, PEAK_SIGMA.light) +
+        gaussianYield(a, ah, PEAK_SIGMA.heavy) +
+        wing * gaussianYield(a, mid, PEAK_SIGMA.symmetric));
+    };
+  }
+
+  function cineEvent(opts) {
+    const z = Math.max(2, Math.round(Number(opts.z) || 92));
+    const a = Math.max(4, Math.round(Number(opts.a) || z * 2.55));
+    const sym = opts.sym || (findElement(z) || { sym: 'Z' + z }).sym;
+    const zLight = Math.floor(z / 2), zHeavy = z - zLight;
+    const split = evenSplit(z, a);
+    const mid = split.massLeft / 2;
+    const fissility = z * z / a;
+    const ramp = Math.min(1, Math.max(0, (fissility - FISSILITY_SYMMETRIC) /
+      (FISSILITY_ASYMMETRIC - FISSILITY_SYMMETRIC)));
+    const separation = Math.min(PEAK_SEPARATION * ramp, Math.max(0, split.massLeft - 124));
+    const al = mid - separation / 2, ah = mid + separation / 2;
+    const measured = z === 92 && (a === 235 || a === 236);
+    const curveWindow = measured ? { at: yieldAt, lo: 70, hi: 165 } : (function () {
+      const fn = modelledYield(al, ah, mid);
+      return {
+        at: fn,
+        lo: Math.max(10, Math.round(Math.min(al, mid) - 4 * PEAK_SIGMA.light)),
+        hi: Math.round(Math.max(ah, mid) + 4 * PEAK_SIGMA.heavy)
+      };
+    })();
+    let peak = 0;
+    for (let i = 0; i <= 400; i++) {
+      const y = curveWindow.at(curveWindow.lo + ((curveWindow.hi - curveWindow.lo) * i) / 400);
+      if (y > peak) peak = y;
+    }
+    // Energy of the event the player watched, and of the split the curve says is
+    // most likely, from the same formula: the second number is what makes the first
+    // one honest about being an even split.
+    const q = semfBinding(zLight, split.a1) + semfBinding(zHeavy, split.a2) - semfBinding(z, a);
+    const zAsymHeavy = Math.round((z * ah) / split.massLeft);
+    const qPreferred = semfBinding(z - zAsymHeavy, Math.round(al)) +
+      semfBinding(zAsymHeavy, Math.round(ah)) - semfBinding(z, a);
+    const parts = ENERGY_MEV.map(function (m) { return (m * q) / Q_U236_MEASURED; });
+    const jPerFission = q * MEV_IN_J;
+    const jPerKg = (1000 / a) * AVOGADRO * jPerFission;
+    const nameOf = function (zz) { const e = findElement(zz); return e ? (e.name || e.sym) : 'Z' + zz; };
+    const fragNames = opts.fragNames || [nameOf(zLight), nameOf(zHeavy)];
+    return {
+      z: z, a: a, label: sym + '-' + a, nuName: nameOf(z),
+      nubar: split.nu, a1: split.a1, a2: split.a2,
+      frag1: fragNames[0] + '-' + split.a1, frag2: fragNames[1] + '-' + split.a2,
+      al: al, ah: ah, mid: mid, fissility: fissility, measured: measured,
+      curve: curveWindow, peak: peak, axisMax: peak * 1.08,
+      // A +/-3 mass unit window around the even split, as a share of the 200 % total.
+      evenShare: Math.min(100, (curveWindow.at(mid) * 6 / 200) * 100),
+      q: q, parts: parts, kinetic: parts[0], qPreferred: qPreferred,
+      jPerFission: jPerFission,
+      kjPerMol: (jPerFission * AVOGADRO) / 1000,
+      jPerKg: jPerKg,
+      kilotonnes: jPerKg / KTONNE_TNT_J,
+      bondRatio: (q * 1e6) / BOND_EV
+    };
+  }
+
+  const SUPERSCRIPT = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻' };
+
+  // The Vietnamese panel writes 3,24 where the English one writes 3.24, exactly as
+  // the two halves of CINE_STR always have.
+  function cineNum(value, dp) {
+    const s = Number(value).toFixed(dp);
+    return cineLang() === 'vi' ? s.replace('.', ',') : s;
+  }
+
+  // Very large and very small quantities keep the scientific form the panel was
+  // built with; anything a reader can hold in their head stays a plain number.
+  function cineSci(value, dp) {
+    const v = Number(value);
+    if (!(v > 0)) return cineNum(v, dp);
+    const e = Math.floor(Math.log10(v));
+    if (e >= -2 && e <= 4) return cineNum(v, dp);
+    const mantissa = v / Math.pow(10, e);
+    return cineNum(mantissa, dp) + ' × 10' +
+      String(e).replace(/[0-9-]/g, function (d) { return SUPERSCRIPT[d]; });
+  }
+
+  // One interpolation pass over every string the cinematic prints. A key that was
+  // given a placeholder no event provides keeps showing the raw token, which is a
+  // visible bug, unlike a wrong number that looks entirely plausible.
+  function cineT(template, params) {
+    return String(template).replace(/\{([a-zA-Z0-9_]+)\}/g, function (whole, key) {
+      return Object.prototype.hasOwnProperty.call(params, key) ? String(params[key]) : whole;
+    });
+  }
+
+  function cineParams(ev) {
+    return {
+      nu: ev.label,
+      name: ev.nuName,
+      x: cineNum(ev.fissility, 1),
+      p: cineNum(ev.evenShare, ev.evenShare < 10 ? 1 : 0),
+      q: cineNum(ev.q, 1),
+      ke: cineNum(ev.kinetic, 1),
+      qAsym: cineNum(ev.qPreferred, 1),
+      qMeasured: cineSci(Q_U236_MEASURED, 1),
+      j: cineSci(ev.jPerFission, 2),
+      kJ: cineSci(ev.kjPerMol, 2),
+      kgJ: cineSci(ev.jPerKg, 1),
+      kt: cineNum(ev.kilotonnes, ev.kilotonnes < 100 ? 1 : 0),
+      ratio: cineSci(ev.bondRatio, 1),
+      ratioM: cineNum(ev.bondRatio / 1e6, 0),
+      nubar: cineNum(ev.nubar, 1),
+      peak: cineNum(ev.peak, 1),
+      al: cineNum(Math.round(ev.al), 0),
+      ah: cineNum(Math.round(ev.ah), 0),
+      f1: ev.frag1,
+      f2: ev.frag2
+    };
+  }
+
+  // One place turns the language table plus the event into the sentences that get
+  // printed, so the two panels, the caption and the dialogue cannot disagree about
+  // which nucleus split.
+  function cineWords(S, ev) {
+    const P = cineParams(ev);
+    const g = S.g;
+    P.src = cineT(ev.measured ? g.srcEval : g.srcModel, P);
+    return {
+      params: P,
+      massTitle: cineT(g.massTitle, P),
+      massNote: cineT(g.massNote, P),
+      mark: cineT(g.mark, P),
+      axisY: cineT(g.axisY, P),
+      energyTitle: cineT(g.energyTitle, P),
+      energyNote: cineT(g.energyNote, P),
+      perKg: cineT(g.perKg, P),
+      facts: S.facts.map(function (f) { return cineT(f, P); }),
+      dialogue: S.dialogue.map(function (d) { return { who: d.who, text: cineT(d.text, P) }; })
+    };
+  }
+
+  // The whole cinematic for one nucleus, in one language, as the panels print it.
+  // Watching a real fission costs twelve seconds of white screen, so this is how the
+  // copy gets read and checked: same tables, same event, same interpolation.
+  function cinePreview(z, a, sym, lang) {
+    const ev = cineEvent({ z: z, a: a, sym: sym });
+    return { event: ev, words: cineWords(CINE_STR[lang === 'en' ? 'en' : 'vi'], ev) };
+  }
+
   // Drawn on the whiteout while the screen is still blank, so the instrument reads
   // before the world does.
-  function cineGraphs(sheet, data) {
-    const S = CINE_STR[cineLang()].g;
-    const aMin = 70, aMax = 165, nBars = 48;
-    const aTot = Math.max(4, Math.round((data.z || 92) * 2.55));
-    const a1 = Math.round(aTot / 2), a2 = aTot - a1;
+  function cineGraphs(sheet, ev) {
+    const S = CINE_STR[cineLang()];
+    const W = cineWords(S, ev);
+    const nBars = 48;
+    const aMin = ev.curve.lo, aMax = ev.curve.hi;
     let ybars = '', ebars = '', elabs = '';
     for (let i = 0; i < nBars; i++) ybars += '<div class="pg-bar"><i></i></div>';
-    for (let e = 0; e < ENERGY_MEV.length; e++) {
-      ebars += '<div class="pg-bar pg-en' + (e === ENERGY_MEV.length - 1 ? ' pg-lose' : '') + '"><i></i></div>';
-      elabs += '<div class="pg-cap-lab">' + esc(S.eLab[e]) + '<br>' + ENERGY_MEV[e].toFixed(1) + '</div>';
+    for (let e = 0; e < ev.parts.length; e++) {
+      ebars += '<div class="pg-bar pg-en' + (e === ev.parts.length - 1 ? ' pg-lose' : '') + '"><i></i></div>';
+      elabs += '<div class="pg-cap-lab">' + esc(S.g.eLab[e]) + '<br>' + esc(cineNum(ev.parts[e], 1)) + '</div>';
     }
     const box = cineNode('div', 'pg-graphs');
     box.innerHTML =
       '<div class="pg-gpanel">' +
-        '<div class="pg-gtitle">' + esc(S.massTitle) + '</div>' +
-        '<div class="pg-gnote">' + esc(S.massNote) + '</div>' +
+        '<div class="pg-gtitle">' + esc(W.massTitle) + '</div>' +
+        '<div class="pg-gnote">' + esc(W.massNote) + '</div>' +
         '<div class="pg-gplot">' + ybars + '<div class="pg-marks"></div></div>' +
-        '<div class="pg-axis"><span>A ' + aMin + '</span><span>' + esc(S.axisA) +
-          '</span><span>A ' + aMax + ' · Y(A) %</span></div>' +
+        '<div class="pg-axis"><span>A ' + aMin + '</span><span>' + esc(S.g.axisA) +
+          '</span><span>A ' + aMax + ' · ' + esc(W.axisY) + '</span></div>' +
       '</div>' +
       '<div class="pg-gpanel">' +
-        '<div class="pg-gtitle">' + esc(S.energyTitle) + '</div>' +
+        '<div class="pg-gtitle">' + esc(W.energyTitle) + '</div>' +
+        '<div class="pg-gnote">' + esc(W.energyNote) + '</div>' +
         '<div class="pg-gplot">' + ebars + '</div>' +
         '<div class="pg-lrow">' + elabs + '</div>' +
-        '<div class="pg-readout">' + esc(S.total) + ': <b>0.0</b> MeV &middot; ' + esc(S.perKg) + '</div>' +
+        '<div class="pg-readout">' + esc(S.g.total) + ': <b>0.0</b> MeV &middot; ' + esc(W.perKg) + '</div>' +
       '</div>';
     sheet.appendChild(box);
     void box.offsetHeight;
@@ -1126,22 +1350,22 @@
     for (let i = 0; i < nBars; i++) {
       const a = aMin + ((aMax - aMin) * i) / (nBars - 1);
       ys[i].style.transitionDelay = (Math.random() * 1100).toFixed(0) + 'ms';
-      ys[i].style.height = Math.max(0.6, (yieldAt(a) / YIELD_MAX) * 100).toFixed(1) + '%';
+      ys[i].style.height = Math.max(0.6, (ev.curve.at(a) / ev.axisMax) * 100).toFixed(1) + '%';
     }
     const es = plots[1].querySelectorAll('.pg-bar i');
-    const eMax = Math.max.apply(null, ENERGY_MEV);
+    const eMax = Math.max.apply(null, ev.parts);
     for (let e = 0; e < es.length; e++) {
       es[e].style.transitionDelay = (600 + Math.random() * 1400).toFixed(0) + 'ms';
-      es[e].style.height = (ENERGY_MEV[e] / eMax) * 100 + '%';
+      es[e].style.height = (ev.parts[e] / eMax) * 100 + '%';
     }
 
     const marks = box.querySelector('.pg-marks');
-    [a1, a2].forEach(function (a, i) {
+    [ev.a1, ev.a2].forEach(function (a, i) {
       const mk = document.createElement('div');
       mk.className = 'pg-mark';
       mk.style.left = (((a - aMin) / (aMax - aMin)) * 100).toFixed(2) + '%';
       mk.innerHTML = i === 0
-        ? '<span>A ' + a + ' / ' + a2 + ' — ' + esc(S.mark) + '</span>'
+        ? '<span>A ' + a + ' / ' + ev.a2 + ' — ' + esc(W.mark) + '</span>'
         : '<span></span>';
       mk.style.transitionDelay = '1500ms';
       mk.style.opacity = '1';
@@ -1149,17 +1373,18 @@
     });
 
     const readout = box.querySelector('.pg-readout b');
-    const totalMev = ENERGY_MEV.reduce(function (a, b) { return a + b; }, 0);
+    const totalMev = ev.q;
     let shown = 0;
     const ticker = cineEvery(function () {
       shown = Math.min(totalMev, shown + totalMev / 45);
-      readout.textContent = shown.toFixed(1);
+      readout.textContent = cineNum(shown, 1);
       if (shown >= totalMev) clearInterval(ticker);
     }, 28);
   }
 
-  function cineWasteland() {
+  function cineWasteland(ev) {
     const S = CINE_STR[cineLang()];
+    const W = cineWords(S, ev);
     const wrap = cineNode('div', 'pg-waste');
     wrap.innerHTML =
       '<div class="pg-sky"></div>' +
@@ -1170,7 +1395,7 @@
       '<div class="pg-grain"></div>' +
       '<div class="pg-caption"><div class="pg-peace">☮</div>' +
         '<div class="pg-cap-title">' + esc(S.title) + '</div>' +
-        '<ul class="pg-cap-facts">' + S.facts.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>' +
+        '<ul class="pg-cap-facts">' + W.facts.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>' +
         '<div class="pg-cap-sub">' + esc(S.sub) + '</div>' +
       '</div>';
     const ash = wrap.querySelector('.pg-ash');
@@ -1190,8 +1415,9 @@
     return wrap;
   }
 
-  function cineDialogue(done) {
+  function cineDialogue(ev, done) {
     const S = CINE_STR[cineLang()];
+    const LINES = cineWords(S, ev).dialogue;
     const box = cineNode('div', 'pg-dialogue');
     box.innerHTML =
       '<button class="pg-skip" type="button">' + esc(S.skip) + '</button>' +
@@ -1204,18 +1430,19 @@
     const textEl = box.querySelector('.pg-text');
     const hint = box.querySelector('.pg-hint');
     const AVATAR = '<img src="./assets/TutorialAssets/Assistant.gif" alt="ARIA" />';
-    let idx = 0, tick = null, wait = null;
+    let idx = 0, tick = null, wait = null, lastText = '';
 
     function showNext() {
-      if (idx >= S.dialogue.length) { finish(); return; }
-      const entry = S.dialogue[idx++];
+      if (idx >= LINES.length) { finish(); return; }
+      const entry = LINES[idx++];
       const isYou = entry.who === 'you';
       line.classList.toggle('pg-you', isYou);
       face.innerHTML = isYou ? '<div class="pg-you-mark">☹</div>' : AVATAR;
       nameEl.textContent = isYou ? S.you : S.aria;
       textEl.textContent = '';
       hint.textContent = '';
-      const chars = Array.from(entry.text);
+      lastText = entry.text;
+      const chars = Array.from(lastText);
       let i = 0;
       tick = cineEvery(function () {
         textEl.textContent = chars.slice(0, ++i).join('');
@@ -1233,7 +1460,7 @@
       if (wait) { clearTimeout(wait); wait = null; }
       if (tick) {
         clearInterval(tick); tick = null;
-        textEl.textContent = S.dialogue[idx - 1].text;
+        textEl.textContent = lastText;
         hint.textContent = S.hint;
         wait = cineAfter(showNext, 380);
         return;
@@ -1269,17 +1496,19 @@
   }
 
   // origin: client-space point of the atom that split (captured before it is gone)
+  // z and a: the nucleus as it was, so every panel and every line describes it.
   function playFissionCinematic(opts) {
     if (cine) return false;
     ensureCineStyles();
     cine = { nodes: [], timers: [], millis: [], raf: null };
+    const ev = cineEvent(opts);
     const origin = opts.origin && isFinite(opts.origin.x) && isFinite(opts.origin.y)
       ? opts.origin : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const sheet = cineGrow(origin, function () {
       // Arm the reveal before drawing anything, so a bad frame cannot leave the
       // player staring at a white screen with no scheduled way out.
       cineAfter(function () {
-        cineWasteland();
+        cineWasteland(ev);
         if (opts.onReveal) opts.onReveal();
         if (sheet) {
           sheet.style.transition = 'opacity ' + (CINE.fadeMs / 1000) + 's ease-out';
@@ -1287,10 +1516,10 @@
         }
         cineAfter(function () { if (sheet && sheet.parentNode) sheet.parentNode.removeChild(sheet); }, CINE.fadeMs + 140);
         cineAfter(function () {
-          cineDialogue(function () { cineRestore(opts.elementName, opts.onDone); });
+          cineDialogue(ev, function () { cineRestore(opts.elementName, opts.onDone); });
         }, CINE.fadeMs + 320);
       }, CINE.holdMs);
-      cineGraphs(sheet, opts);
+      cineGraphs(sheet, ev);
     });
     return true;
   }
@@ -1446,12 +1675,7 @@
       paintGun();
       return;
     }
-    if (!crateTransmute(atomId, newZ)) {
-      refundAmmo('proton');
-      refuseUpgrade(newEl, refundNote('proton'));
-      paintGun();
-      return;
-    }
+    crateTransmute(atomId, newZ);
 
     var oldSym = oldEl.sym;
     // Proton capture lifts Z by one and A by one while N stands still, so the
@@ -1503,10 +1727,13 @@
     clearCriticalTimer();
     timerAtomId = atomId;
     var countdown = 60;
+    // A shot at a nucleus already counting down is refused, so the isotope armed
+    // here is the isotope that splits - and it is the one the countdown names.
+    var isotopeName = atom.el.name + '-' + massNumberOf(atomId, atom);
 
-    showStatus(tt('pg.critical', { name: atom.el.name, z: atom.el.z, n: countdown }));
+    showStatus(tt('pg.critical', { name: isotopeName, z: atom.el.z, n: countdown }));
     createCriticalOverlay();
-    updateCriticalOverlay(atom.el.name, atom.el.z, countdown);
+    updateCriticalOverlay(isotopeName, atom.el.z, countdown);
     showRedFlash();
     startAlarmSound();
 
@@ -1517,7 +1744,7 @@
       }
 
       countdown--;
-      updateCriticalOverlay(atom.el.name, atom.el.z, countdown);
+      updateCriticalOverlay(isotopeName, atom.el.z, countdown);
 
       if (countdown > 0) {
         showStatus(tt('pg.criticalLeft', { n: countdown }));
@@ -1547,6 +1774,10 @@
     if (!atom) return;
     var oldZ = atom.el.z;
     var oldName = atom.el.name;
+    // Read before the ledger record dies with the atom: the cinematic has to quote
+    // the isotope the player actually built, not the element it is made of.
+    var oldA = massNumberOf(atomId, atom);
+    var oldSym = atom.el.sym;
     var pos = { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z };
     // The bubble has to grow from where the atom actually is on screen, so read it
     // while the atom still exists; clearAll() later would make it unresolvable.
@@ -1561,6 +1792,7 @@
     var el1 = findElement(split1);
     var el2 = findElement(split2);
     if (!el1 || !el2) return;
+    var fragments = evenSplit(oldZ, oldA);
 
     window.__mol3d.atoms.delete(atomId);
     // The atom is gone, so its isotope record goes with it; the sweep below would
@@ -1583,7 +1815,11 @@
       window.__mol3d.triggerNuclearVFX();
     }
 
-    showStatus(tt('pg.fission', { name: oldName, a: el1.name, b: el2.name }));
+    showStatus(tt('pg.fission', {
+      name: oldName + '-' + oldA,
+      a: el1.name + '-' + fragments.a1,
+      b: el2.name + '-' + fragments.a2
+    }));
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();
@@ -1594,6 +1830,9 @@
       origin: screen,
       elementName: oldName,
       z: oldZ,
+      a: oldA,
+      sym: oldSym,
+      fragNames: [el1.name, el2.name],
       onReveal: function() {
         if (window.__mol3d.clearAll) window.__mol3d.clearAll();
         resetCameraToGround();
@@ -1653,7 +1892,10 @@
     });
     window.addEventListener('resize', function () { if (panel && panel.classList.contains('open')) placeGun(); });
 
-    window.__protonGun = {
+    // Merged, not replaced: the early block above already handed over the isotope
+    // record readers the engine needs before a single atom exists, and assigning
+    // fresh here would take them away again as soon as the button wiring finished.
+    window.__protonGun = Object.assign(window.__protonGun || {}, {
       toggle: function() { if (btn) btn.click(); },
       isActive: function() { return active; },
       shoot: shootProton,
@@ -1680,7 +1922,7 @@
         return iso ? stabilityVerdict(iso.z, iso.a) : null;
       },
       panelOpen: function() { return !!(panel && panel.classList.contains('open')); }
-    };
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

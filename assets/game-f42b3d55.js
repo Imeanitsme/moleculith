@@ -44593,7 +44593,12 @@ const UI = {
     "time.speedSlow": "⏪ Speed: {speed}",
     "nuclear.alphaBonds": "☢ {from} underwent alpha decay → {to} — bonds shattered!",
     "nuclear.alpha": "underwent alpha decay",
+    "nuclear.alphaHe": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · the alpha carries {ea} · half-life {life}",
+    "nuclear.alphaHeBonds": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · the alpha carries {ea} · half-life {life} — bonds shattered!",
+    "nuclear.ec": "☢ {from}-{fa} captured an electron: a proton became a neutron → {to}-{ta} · Q {q} · half-life {life}",
+    "nuclear.ecBonds": "☢ {from}-{fa} captured an electron: a proton became a neutron → {to}-{ta} · Q {q} · half-life {life} — bonds broken!",
     "nuclear.beta": "decayed",
+    "nuclear.qClause": " · Q {q}",
     "nuclear.betaMinus": "☢ {from}-{fa} underwent beta-minus decay → {to}-{ta} · half-life {life}",
     "nuclear.betaMinusBonds": "☢ {from}-{fa} underwent beta-minus decay → {to}-{ta} · half-life {life} — bonds broken!",
     "nuclear.betaPlus": "☢ {from}-{fa} underwent beta-plus decay: a proton turned into a neutron and threw out a positron → {to}-{ta} · half-life {life}",
@@ -44694,8 +44699,6 @@ const UI = {
     "iso.panelTitle": "Isomer Validator",
     "iso.check": "Check",
     "chat.title": "Chat",
-    "pg.needOwn": "You don't own {name} ({sym}) yet — buy it in the shop before transmuting into it",
-    "pg.needOwnPrice": "You don't own {name} ({sym}) yet — buy it in the shop for {price} ★",
     "btn.format.title": "Format — X-Ray and formal charge options",
     "fmt.xray": "X-Ray configuration",
     "fmt.grid": "Atom grid outline",
@@ -45130,7 +45133,12 @@ const UI = {
     "time.speedSlow": "⏪ Tốc độ: {speed}",
     "nuclear.alphaBonds": "☢ {from} phân rã alpha → {to} — liên kết vỡ tung!",
     "nuclear.alpha": "phân rã alpha",
+    "nuclear.alphaHe": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · hạt alpha mang {ea} · bán rã {life}",
+    "nuclear.alphaHeBonds": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · hạt alpha mang {ea} · bán rã {life} — liên kết vỡ tung!",
+    "nuclear.ec": "☢ {from}-{fa} bắt electron: một proton hóa thành neutron → {to}-{ta} · Q {q} · bán rã {life}",
+    "nuclear.ecBonds": "☢ {from}-{fa} bắt electron: một proton hóa thành neutron → {to}-{ta} · Q {q} · bán rã {life} — vỡ liên kết!",
     "nuclear.beta": "phân rã beta",
+    "nuclear.qClause": " · Q {q}",
     "nuclear.betaMinus": "☢ {from}-{fa} phân rã beta-minus → {to}-{ta} · thời gian bán rã {life}",
     "nuclear.betaMinusBonds": "☢ {from}-{fa} phân rã beta-minus → {to}-{ta} · thời gian bán rã {life} — vỡ liên kết!",
     "nuclear.betaPlus": "☢ {from}-{fa} phân rã beta-plus: một proton hóa thành neutron và nhả một positron → {to}-{ta} · thời gian bán rã {life}",
@@ -45231,8 +45239,6 @@ const UI = {
     "iso.panelTitle": "Bộ Kiểm Tra Đồng Phân",
     "iso.check": "Kiểm Tra",
     "chat.title": "Trò Chuyện",
-    "pg.needOwn": "Bạn chưa sở hữu {name} ({sym}) — hãy mua trong cửa hàng trước khi biến đổi thành nguyên tố này",
-    "pg.needOwnPrice": "Bạn chưa sở hữu {name} ({sym}) — hãy mua trong cửa hàng với giá {price} ★",
     "btn.format.title": "Định dạng — tùy chọn tia X và điện tích hình thức",
     "fmt.xray": "Cấu hình tia X",
     "fmt.grid": "Lưới viền nguyên tử",
@@ -54544,21 +54550,23 @@ function crateRegister(id, el) {
   cratePaid.set(id, el.z);
 }
 
-// The proton gun pushes a nucleus up one element. That is a crate transaction,
-// not a free mint: the crate has to hold a unit of the element above, the unit
-// this atom was bought as comes back, and the id ledger is re-anchored so that
-// deleting the atom later returns what the crate actually paid for it.
+// The proton gun pushes a nucleus up one element, and ownership is not a gate on
+// where a paid-for particle lands. The crate still keeps its books straight: the
+// unit this atom was bought as goes back to the shelf, and a unit of the element
+// above is taken only when the crate holds one. An element the crate has never
+// stocked leaves the new nucleus unregistered, so it reads as a consequence of the
+// shot - it cost nothing, and deleting it later refunds nothing.
 function crateTransmute(id, newZ) {
   const s = crateShop();
   if (!s || crateFreePlays()) return true;
   if (!(newZ > 0)) return false;
-  if (s.takeAtom(newZ) !== true) return false;
+  const stocked = s.takeAtom(newZ) === true;
   const oldZ = cratePaid.get(id);
   if (oldZ !== void 0) {
     cratePaid.delete(id);
     s.refundAtom(oldZ);
   }
-  cratePaid.set(id, newZ);
+  if (stocked) cratePaid.set(id, newZ);
   rebuildCrateBadges();
   return true;
 }
@@ -55366,6 +55374,7 @@ function drawEnergyDiagram(canvas, eaUncat, eaCat, dH) {
   const w = canvas.width;
   const h = canvas.height;
   const styles = getComputedStyle(document.documentElement);
+  const P = uiPalette();
   const textColor = styles.getPropertyValue("--muted").trim() || "#5a7090";
   const borderColor = styles.getPropertyValue("--border").trim() || "rgba(60,120,200,0.25)";
   ctx.clearRect(0, 0, w, h);
@@ -55411,7 +55420,7 @@ function drawEnergyDiagram(canvas, eaUncat, eaCat, dH) {
   ctx.textAlign = "center";
   ctx.font = "8px sans-serif";
   ctx.fillText("Reaction Progress", w / 2, h - 4);
-  ctx.strokeStyle = "#f85149";
+  ctx.strokeStyle = P.err;
   ctx.lineWidth = 2;
   ctx.beginPath();
   const reactantE = 0;
@@ -55439,7 +55448,7 @@ function drawEnergyDiagram(canvas, eaUncat, eaCat, dH) {
   }
   ctx.stroke();
   if (eaCat < eaUncat) {
-    ctx.strokeStyle = "#10B981";
+    ctx.strokeStyle = P.ok;
     ctx.lineWidth = 2;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -55469,33 +55478,33 @@ function drawEnergyDiagram(canvas, eaUncat, eaCat, dH) {
   ctx.font = "bold 8px sans-serif";
   const legX = w - pad.right - 75;
   const legY = pad.top + 4;
-  ctx.strokeStyle = "#f85149";
+  ctx.strokeStyle = P.err;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(legX, legY + 4);
   ctx.lineTo(legX + 14, legY + 4);
   ctx.stroke();
-  ctx.fillStyle = "#f85149";
+  ctx.fillStyle = P.err;
   ctx.textAlign = "left";
   ctx.fillText("Uncatalyzed", legX + 18, legY + 7);
   if (eaCat < eaUncat) {
-    ctx.strokeStyle = "#10B981";
+    ctx.strokeStyle = P.ok;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
     ctx.moveTo(legX, legY + 18);
     ctx.lineTo(legX + 14, legY + 18);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = "#10B981";
+    ctx.fillStyle = P.ok;
     ctx.fillText("Catalyzed", legX + 18, legY + 21);
   }
   ctx.font = "bold 9px monospace";
   ctx.textAlign = "center";
   const peakX = xToX(0.5);
-  ctx.fillStyle = "#f85149";
+  ctx.fillStyle = P.err;
   ctx.fillText(`Ea=${eaUncat.toFixed(0)}`, peakX, eToY(eaUncat) - 6);
   if (eaCat < eaUncat) {
-    ctx.fillStyle = "#10B981";
+    ctx.fillStyle = P.ok;
     ctx.fillText(`Ea=${eaCat.toFixed(0)}`, peakX + 20, eToY(eaCat) - 6);
   }
 }
@@ -56658,9 +56667,9 @@ function initTopBar(mode) {
   if (!topModeBadge) return;
   if (mode === "multiplayer") {
     topModeBadge.textContent = t("top.multiplayer");
-    topModeBadge.style.color = "#4ade80";
-    topModeBadge.style.borderColor = "#4ade80";
-    topModeBadge.style.background = "rgba(74, 222, 128, 0.15)";
+    topModeBadge.style.color = "var(--ok)";
+    topModeBadge.style.borderColor = "var(--ok)";
+    topModeBadge.style.background = "var(--ok-soft)";
     if (topBarMP) topBarMP.hidden = false;
   } else {
     topModeBadge.textContent = t("top.singleplayer");
@@ -57047,8 +57056,8 @@ style.textContent = `
     left: 50%;
     transform: translateX(-50%);
     padding: 16px 24px;
-    background: rgba(102, 126, 234, 0.9);
-    color: #fff;
+    background: var(--accent, rgba(102, 126, 234, 0.9));
+    color: var(--on-accent, #fff);
     border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
@@ -57737,7 +57746,7 @@ function updateTimeDisplay() {
       const elapsed = Date.now() - worldFreezeStart;
       const remaining = Math.max(0, Math.ceil((WORLD_MAX_DURATION - elapsed) / 1e3));
       display.textContent = t("time.frozenBadge", { n: remaining });
-      display.style.color = "#f85149";
+      display.style.color = "var(--err)";
     } else {
       display.textContent = timeFrozen ? t("time.frozenShort") : formatSimulationTime(simulationTime);
       display.style.color = "";
@@ -57975,91 +57984,196 @@ function decayProduct(z) {
   return z - 2;
 }
 const decayTrack = /* @__PURE__ */ new Map();
+const DECAY_SWEEP_MS = 250;
+let decaySweepAt = 0;
 function isRadioactive(el) {
   return el.z > 82;
 }
-function updateRadioactiveDecay(now) {
-  if (decayTrack.size === 0) return;
-  if (timeFrozen) return;
-  const toDecay = [];
-  for (const [id, info] of decayTrack) {
-    const atom = atoms.get(id);
-    if (!atom) {
-      decayTrack.delete(id);
-      continue;
-    }
-    const elapsed = simulationTime - info.spawnSimTime;
-    const halfLife = info.halfLife;
-    const decayProb = 1 - Math.pow(2, -elapsed / halfLife);
-    if (Math.random() < decayProb) {
-      toDecay.push({ id, atom });
-    }
+// The nucleus a scene atom actually is. The gun's ledger is the only record of a
+// mass number anyone measured; without one the atom is the nuclide its element
+// table was written against. nuclear.js owns what that nucleus does next, so the
+// decay loop, the inspector and the kinetics panel can never disagree.
+function nuclideOf(id, atom) {
+  const N = window.__nuclear;
+  const gun = window.__protonGun;
+  let a = 0;
+  if (gun && typeof gun.isotopeOf === "function") {
+    const iso = gun.isotopeOf(id);
+    if (iso && iso.z === atom.el.z && iso.a > 0) a = iso.a;
   }
-  for (const { id, atom } of toDecay) {
-    const oldEl = atom.el;
-    const newZ = decayProduct(oldEl.z);
-    if (newZ === null) {
-      decayTrack.delete(id);
-      continue;
+  if (!(a > 0)) a = N && N.referenceA(atom.el.z) || Math.round(atom.el.mass);
+  return { z: atom.el.z, a: Math.round(a) };
+}
+// A random direction on the sphere, for the two bodies a decay throws apart.
+function decayDirection() {
+  const u = Math.random() * 2 - 1;
+  const phi = Math.random() * Math.PI * 2;
+  const s = Math.sqrt(Math.max(0, 1 - u * u));
+  return { x: s * Math.cos(phi), y: u, z: s * Math.sin(phi) };
+}
+function repaintNucleus(id, el, now) {
+  spawnAnim.set(id, now);
+  const label = labelSprites.get(id);
+  if (label) {
+    label.material.map = atomLabelTex(id, el);
+    label.material.needsUpdate = true;
+    const r = displayRadius(el);
+    const s = 0.42 + r * 0.55;
+    label.scale.set(s, s, 1);
+  }
+  if (window.__xray && typeof window.__xray.isActive === "function" && window.__xray.isActive() && typeof window.__xray.updateAtom === "function") {
+    const at = atoms.get(id);
+    if (at) window.__xray.updateAtom(id, at);
+  }
+}
+function breakBondsAt(id) {
+  const broken = [];
+  for (const [bid, b] of bonds) {
+    if (b.a === id || b.b === id) broken.push(bid);
+  }
+  for (const bid of broken) bonds.delete(bid);
+  return broken;
+}
+// One nucleus, one event. The branch is drawn from the measured branching ratios,
+// so bismuth-212 really is mostly a beta emitter and californium-252 really does
+// split spontaneously three times in a hundred.
+function emitNuclearDecay(shot, now) {
+  const N = window.__nuclear;
+  const id = shot.id, atom = shot.atom, nuc = shot.nuc;
+  const branch = N.sampleBranch(nuc.z, nuc.a);
+  decayTrack.delete(id);
+  if (!branch) return;
+  if (branch.mode === "fission") {
+    if (window.__protonGun && typeof window.__protonGun.fission === "function") {
+      window.__protonGun.fission(id);
     }
-    const newEl = ELEMENTS.find((e) => e.z === newZ);
-    if (!newEl) {
-      decayTrack.delete(id);
-      continue;
-    }
-    const pos = new Vector3(atom.pos.x, atom.pos.y, atom.pos.z);
-    atom.el = newEl;
-    decayTrack.delete(id);
-    const isAlphaDecay = oldEl.z - newEl.z === 2;
-    const wasRadioactive = oldEl.z > 82;
-    const explosionScale = isAlphaDecay ? 2.5 : (wasRadioactive ? 2.0 : 1.0);
-    const bondsToRemove = [];
-    for (const [bid, b] of bonds) {
-      if (b.a === id || b.b === id) bondsToRemove.push(bid);
-    }
-    for (const bid of bondsToRemove) bonds.delete(bid);
-    if (wasRadioactive) {
-      reactionVFX.fission(pos, explosionScale);
-      applyExplosionDamage(pos, explosionScale, 1);
-      triggerNuclearExplosionVFX();
-      for (const [otherId, otherAtom] of atoms) {
-        if (otherId === id) continue;
-        const otherPos = new Vector3(otherAtom.pos.x, otherAtom.pos.y, otherAtom.pos.z);
-        const dist = pos.distanceTo(otherPos);
-        if (dist < 6 && dist > 0.01) {
-          const force = new Vector3().subVectors(otherPos, pos).normalize().multiplyScalar(8 / (dist * dist));
-          otherAtom.pos.x += force.x;
-          otherAtom.pos.y += force.y;
-          otherAtom.pos.z += force.z;
-          otherAtom.vel = otherAtom.vel || { x: 0, y: 0, z: 0 };
-          otherAtom.vel.x = (otherAtom.vel.x || 0) + force.x * 3;
-          otherAtom.vel.y = (otherAtom.vel.y || 0) + force.y * 3;
-          otherAtom.vel.z = (otherAtom.vel.z || 0) + force.z * 3;
-        }
+    return;
+  }
+  const d = branch.daughter;
+  const newEl = d && ELEMENTS.find((e) => e.z === d.z);
+  if (!newEl) return;
+  const oldEl = atom.el;
+  const pos = new Vector3(atom.pos.x, atom.pos.y, atom.pos.z);
+  const gun = window.__protonGun;
+  const life = N.formatLife(branch.halfLife);
+  const qText = N.formatEnergy(branch.q);
+  // The nucleus changes first, then everything that reads it: the label is drawn
+  // from the isotope record, so repainting before the record said "daughter" would
+  // print the parent's mass number under the daughter's symbol.
+  atom.el = newEl;
+  if (gun && typeof gun.setNuclide === "function") gun.setNuclide(id, d.z, d.a);
+  const broken = breakBondsAt(id);
+  atom.vel = atom.vel || { x: 0, y: 0, z: 0 };
+  if (branch.mode === "alpha") {
+    // Alpha decay is a two-body split. Momentum is equal and opposite, so the
+    // light helium nucleus carries A_d/(A_d+4) of the Q value and flies off at
+    // (A_d/4) times the speed the heavy daughter recoils with. The helium is a
+    // real atom in the scene: it cost nothing, it is noble so it bonds to nothing,
+    // and eight of them are what a uranium atom eventually turns into.
+    const al = N.alpha(nuc.z, nuc.a);
+    const dir = decayDirection();
+    const speed = 2.6 * Math.sqrt(Math.max(0.05, al.alphaEnergy));
+    const recoil = speed * 4 / Math.max(4, nuc.a - 4);
+    atom.vel.x -= dir.x * recoil;
+    atom.vel.y -= dir.y * recoil;
+    atom.vel.z -= dir.z * recoil;
+    const hePos = {
+      x: atom.pos.x + dir.x * (displayRadius(oldEl) + displayRadius(newEl) + 0.9),
+      y: atom.pos.y + dir.y * (displayRadius(oldEl) + displayRadius(newEl) + 0.9),
+      z: atom.pos.z + dir.z * (displayRadius(oldEl) + displayRadius(newEl) + 0.9)
+    };
+    const heId = spawnAtom("He", hePos, { charge: false, silent: true });
+    if (heId != null) {
+      if (gun && typeof gun.setNuclide === "function") gun.setNuclide(heId, 2, 4);
+      const he = atoms.get(heId);
+      if (he) {
+        he.vel = { x: dir.x * speed, y: dir.y * speed, z: dir.z * speed };
+        repaintNucleus(heId, he.el, now);
       }
-      atom._decayShake = 2000;
-      atom._decayTime = now;
     }
-    if (bondsToRemove.length > 0 && wasRadioactive) {
-      status(t("nuclear.alphaBonds", { from: oldEl.name, to: newEl.name }), "warn");
-    } else {
-      status(`☢ ${oldEl.name} ${isAlphaDecay ? t("nuclear.alpha") : t("nuclear.beta")} → ${newEl.name}`, "warn");
+    const scale = 1.2 + Math.max(0, al.q) / 4;
+    reactionVFX.fission(pos, scale);
+    applyExplosionDamage(pos, scale, 1);
+    triggerNuclearExplosionVFX();
+    for (const [otherId, otherAtom] of atoms) {
+      if (otherId === id || otherId === heId) continue;
+      const otherPos = new Vector3(otherAtom.pos.x, otherAtom.pos.y, otherAtom.pos.z);
+      const dist = pos.distanceTo(otherPos);
+      if (dist < 6 && dist > 0.01) {
+        const force = new Vector3().subVectors(otherPos, pos).normalize().multiplyScalar(8 / (dist * dist));
+        otherAtom.pos.x += force.x;
+        otherAtom.pos.y += force.y;
+        otherAtom.pos.z += force.z;
+        otherAtom.vel = otherAtom.vel || { x: 0, y: 0, z: 0 };
+        otherAtom.vel.x = (otherAtom.vel.x || 0) + force.x * 3;
+        otherAtom.vel.y = (otherAtom.vel.y || 0) + force.y * 3;
+        otherAtom.vel.z = (otherAtom.vel.z || 0) + force.z * 3;
+      }
     }
-    if (isRadioactive(newEl)) {
-      const hl = DECAY_HALF_LIFE[newEl.z] || 1;
-      decayTrack.set(id, { spawnSimTime: simulationTime, halfLife: hl });
-    }
-    spawnAnim.set(id, now);
-    const label = labelSprites.get(id);
-    if (label) {
-      label.material.map = atomLabelTex(id, newEl);
-      label.material.needsUpdate = true;
-      const r = displayRadius(newEl);
-      const s = 0.42 + r * 0.55;
-      label.scale.set(s, s, 1);
-    }
+    atom._decayShake = 2000;
+    atom._decayTime = now;
+    status(t(broken.length ? "nuclear.alphaHeBonds" : "nuclear.alphaHe", {
+      from: oldEl.sym, fa: nuc.a, to: newEl.sym, ta: d.a,
+      q: qText, life, ea: N.formatEnergy(al.alphaEnergy)
+    }), "warn");
+  } else {
+    // A weak transition ionises, it does not shove: a flicker and a recoil, no
+    // blast and no dose to the neighbours, exactly as the light-element beta loop
+    // does it. The positron flashes brighter because it annihilates at once and
+    // hands back two 511 keV gammas flying apart.
+    const plus = branch.mode === "betaPlus";
+    reactionVFX.explode(pos, plus ? 0.5 : 0.35, plus ? 16737502 : branch.mode === "electronCapture" ? 11034879 : 6547199);
+    atom.vel.x += (Math.random() - 0.5) * 0.3;
+    atom.vel.y += (Math.random() - 0.5) * 0.3;
+    atom.vel.z += (Math.random() - 0.5) * 0.3;
+    atom._decayShake = 260;
+    atom._decayTime = now;
+    const key = plus ? (broken.length ? "nuclear.betaPlusBonds" : "nuclear.betaPlus")
+      : branch.mode === "electronCapture" ? (broken.length ? "nuclear.ecBonds" : "nuclear.ec")
+        : (broken.length ? "nuclear.betaMinusBonds" : "nuclear.betaMinus");
+    status(t(key, {
+      from: oldEl.sym, fa: nuc.a, to: newEl.sym, ta: d.a,
+      life: life + t("nuclear.qClause", { q: qText })
+    }), "warn");
   }
-  if (toDecay.length > 0) {
+  repaintNucleus(id, newEl, now);
+}
+// The roll is memoryless: each sweep asks only how much simulated time passed
+// since the previous ask, so the survival chances multiply into exactly 2^(-t/T)
+// and the mean wait is the measured half-life. Re-rolling against the whole age of
+// the atom every frame - which is what this loop used to do - makes decay
+// accelerate, and a nucleus that has already survived a year would be far likelier
+// to go in the next second than one just placed.
+function updateRadioactiveDecay(now) {
+  const N = window.__nuclear;
+  if (!N || timeFrozen) return;
+  if (now - decaySweepAt < DECAY_SWEEP_MS) return;
+  decaySweepAt = now;
+  const fired = [];
+  for (const [id, atom] of atoms) {
+    if (!isRadioactive(atom.el)) {
+      decayTrack.delete(id);
+      continue;
+    }
+    const nuc = nuclideOf(id, atom);
+    const c = N.clock(nuc.z, nuc.a);
+    if (!c || !(c.halfLife > 0)) {
+      decayTrack.delete(id);
+      continue;
+    }
+    const seen = decayTrack.get(id);
+    if (!seen || seen.halfLife !== c.halfLife || seen.z !== nuc.z || seen.a !== nuc.a) {
+      decayTrack.set(id, { z: nuc.z, a: nuc.a, halfLife: c.halfLife, rollSimTime: simulationTime });
+      continue;
+    }
+    const elapsed = simulationTime - seen.rollSimTime;
+    seen.rollSimTime = simulationTime;
+    if (elapsed <= 0) continue;
+    if (Math.random() < 1 - Math.pow(2, -elapsed / seen.halfLife)) fired.push({ id, atom, nuc });
+  }
+  for (const id of decayTrack.keys()) if (!atoms.has(id)) decayTrack.delete(id);
+  for (const shot of fired) emitNuclearDecay(shot, now);
+  if (fired.length > 0) {
     reanalyze();
     invalidate();
   }
@@ -58209,11 +58323,16 @@ function updateBetaDecay(now) {
     invalidate();
   }
 }
+// Seeding the record at birth only saves the first sweep from having to discover
+// the nucleus; the sweep re-reads it every time anyway, because the neutron gun
+// can rewrite a nucleus that has already been placed.
 function trackRadioactiveAtom(id, atom, now) {
-  if (isRadioactive(atom.el)) {
-    const hl = DECAY_HALF_LIFE[atom.el.z] || 1;
-    decayTrack.set(id, { spawnSimTime: simulationTime, halfLife: hl });
-  }
+  const N = window.__nuclear;
+  if (!N || !isRadioactive(atom.el)) return;
+  const nuc = nuclideOf(id, atom);
+  const c = N.clock(nuc.z, nuc.a);
+  if (!c || !(c.halfLife > 0)) return;
+  decayTrack.set(id, { z: nuc.z, a: nuc.a, halfLife: c.halfLife, rollSimTime: simulationTime });
 }
 function weakestBondIdOf(comp) {
   const atomSet = new Set(comp.atoms);
@@ -59355,8 +59474,9 @@ function labelTex(sym, a) {
   const left = 64 - (supW + symW) / 2;
   g.font = `bold ${size}px "Segoe UI", Arial, sans-serif`;
   g.lineWidth = isotope ? Math.max(4, size * 0.15) : 10;
-  g.strokeStyle = "rgba(8,12,18,0.9)";
-  g.fillStyle = "#f4f8ff";
+  const LP = uiPalette();
+  g.strokeStyle = LP.labelEdge;
+  g.fillStyle = LP.labelText;
   const symX = left + supW + symW / 2;
   g.strokeText(sym, symX, 68);
   g.fillText(sym, symX, 68);
@@ -59396,13 +59516,28 @@ function badgeTex(fc) {
   const txt = fc > 0 ? `${fc}+` : `${-fc}−`;
   g.lineWidth = 8;
   g.lineJoin = "round";
-  g.strokeStyle = "rgba(8,12,18,0.95)";
+  g.strokeStyle = uiPalette().labelEdge;
   g.strokeText(txt, 64, 34);
-  g.fillStyle = fc > 0 ? "#7ee787" : "#ff9d96";
+  const BP = uiPalette();
+  g.fillStyle = fc > 0 ? BP.ok : BP.err;
   g.fillText(txt, 64, 34);
   const t2 = new CanvasTexture(c);
   badgeCache.set(fc, t2);
   return t2;
+}
+function retextureLabels() {
+  for (const [, tex] of labelCache) tex.dispose();
+  labelCache.clear();
+  for (const [, tex] of badgeCache) tex.dispose();
+  badgeCache.clear();
+  for (const [id, sp] of labelSprites) {
+    const at = atoms.get(id);
+    if (!at) continue;
+    if (sp.material.map) sp.material.map.dispose();
+    sp.material.map = atomLabelTex(id, at.el);
+    sp.material.needsUpdate = true;
+  }
+  for (const [, sp] of badgeSprites) sp.userData.fc = void 0;
 }
 function syncSprites() {
   for (const [id, at] of atoms) {
@@ -61697,7 +61832,7 @@ function buildPeriodicTable() {
     b.className = "el" + (unlocked ? "" : " locked");
     b.style.gridColumn = g.col;
     b.style.gridRow = g.row;
-    b.style.borderColor = unlocked ? el.color : "#555";
+    b.style.borderColor = unlocked ? el.color : "var(--muted)";
     b.dataset.sym = el.sym;
     b.dataset.z = z;
     b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
@@ -61761,7 +61896,7 @@ function buildPool() {
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)}`.toLowerCase();
     b.title = unlocked ? `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}` : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
     const dot = document.createElement("i");
-    dot.style.background = unlocked ? el.color : "#555";
+    dot.style.background = unlocked ? el.color : "var(--muted)";
     const s = document.createElement("span");
     s.className = "s";
     s.textContent = el.sym;
@@ -62301,7 +62436,8 @@ function drawBohrModel(el) {
   const neutrons = Math.round(el.mass) - el.z;
   const maxR = Math.min(cx, cy) - 20;
   const shellR = shells.map((_, i) => 30 + i * (maxR - 30) / Math.max(shells.length - 1, 1));
-  ctx.strokeStyle = "rgba(88, 166, 255, 0.15)";
+  const P = uiPalette();
+  ctx.strokeStyle = P.shell;
   ctx.lineWidth = 1;
   for (const r of shellR) {
     ctx.beginPath();
@@ -62333,19 +62469,19 @@ function drawBohrModel(el) {
       const ex = cx + Math.cos(angle) * r;
       const ey = cy + Math.sin(angle) * r;
       const eGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, 6);
-      eGrad.addColorStop(0, "rgba(88, 166, 255, 0.8)");
-      eGrad.addColorStop(1, "rgba(88, 166, 255, 0)");
+      eGrad.addColorStop(0, P.light ? "rgba(11,110,168,0.55)" : "rgba(88, 166, 255, 0.8)");
+      eGrad.addColorStop(1, P.light ? "rgba(11,110,168,0)" : "rgba(88, 166, 255, 0)");
       ctx.fillStyle = eGrad;
       ctx.beginPath();
       ctx.arc(ex, ey, 6, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#58a6ff";
+      ctx.fillStyle = P.electron;
       ctx.beginPath();
       ctx.arc(ex, ey, 3, 0, Math.PI * 2);
       ctx.fill();
     }
   }
-  ctx.fillStyle = "rgba(139, 148, 158, 0.6)";
+  ctx.fillStyle = P.muted;
   ctx.font = "9px system-ui";
   ctx.textAlign = "left";
   for (let s = 0; s < shells.length; s++) {
@@ -64534,7 +64670,12 @@ function updatePhaseSceneFilter(state, changed) {
     ".phase-dense_plasma{background:rgba(255,60,0,.25);color:#ff6b35;border:1px solid rgba(255,60,0,.5);text-shadow:0 0 6px rgba(255,100,0,.6)}",
     ".phase-dilute_plasma{background:rgba(100,140,255,.25);color:#88bbff;border:1px solid rgba(100,140,255,.5);text-shadow:0 0 6px rgba(100,180,255,.6)}",
     ".phase-compressed_mantle{background:rgba(180,180,80,.2);color:#ccaa44;border:1px solid rgba(180,180,80,.4);text-shadow:0 0 4px rgba(200,180,60,.4)}",
-    ".phase-supercritical{background:rgba(0,200,120,.2);color:#44ddaa;border:1px solid rgba(0,200,120,.4);text-shadow:0 0 4px rgba(0,220,140,.4)}"
+    ".phase-supercritical{background:rgba(0,200,120,.2);color:#44ddaa;border:1px solid rgba(0,200,120,.4);text-shadow:0 0 4px rgba(0,220,140,.4)}",
+    "html[data-theme=light] .phase-indicator{text-shadow:none}",
+    "html[data-theme=light] .phase-dense_plasma{background:rgba(190,50,0,.12);color:#a83200;border-color:rgba(190,50,0,.45)}",
+    "html[data-theme=light] .phase-dilute_plasma{background:rgba(30,80,200,.12);color:#1f4fa8;border-color:rgba(30,80,200,.4)}",
+    "html[data-theme=light] .phase-compressed_mantle{background:rgba(150,120,0,.14);color:#7a6200;border-color:rgba(150,120,0,.4)}",
+    "html[data-theme=light] .phase-supercritical{background:rgba(0,140,90,.12);color:#0a6b48;border-color:rgba(0,140,90,.4)}"
   ].join("\n");
   document.head.appendChild(s);
 })();
@@ -64809,6 +64950,31 @@ const SCENE_THEMES = {
   light: { bg: 16185594, gridA: 13226457, gridB: 14541801, meta: "#f6f8fa" }
 };
 const btnTheme = document.getElementById("btn-theme");
+// Canvas surfaces cannot inherit CSS variables, so they ask for the resolved palette
+// at draw time. Called on every repaint, which is also what makes a live theme flip work.
+function uiPalette() {
+  const light = document.documentElement.dataset.theme === "light";
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fb) => (cs.getPropertyValue(name) || "").trim() || fb;
+  return {
+    light,
+    text: v("--text", light ? "#1a2a40" : "#e0f0ff"),
+    muted: v("--muted", light ? "#607090" : "#5a7a9a"),
+    accent: v("--accent", light ? "#0088cc" : "#00d4ff"),
+    border: v("--border", light ? "rgba(0,140,200,0.2)" : "rgba(0,200,255,0.15)"),
+    panel: v("--panel-2", light ? "rgba(230,236,245,0.95)" : "rgba(18,26,48,0.95)"),
+    board: v("--board", light ? "#f7fafc" : "#050912"),
+    ok: v("--ok", light ? "#1a7f37" : "#00ff88"),
+    err: v("--err", light ? "#cf222e" : "#ff3366"),
+    warn: v("--warn", light ? "#9a6700" : "#ffaa00"),
+    onAccent: v("--on-accent", light ? "#ffffff" : "#04121c"),
+    labelBg: light ? "rgba(255,255,255,0.82)" : "rgba(0,0,0,0.7)",
+    labelEdge: light ? "rgba(255,255,255,0.95)" : "rgba(8,12,18,0.9)",
+    labelText: light ? "#12233a" : "#f4f8ff",
+    shell: light ? "rgba(0,110,170,0.28)" : "rgba(88,166,255,0.15)",
+    electron: light ? "#0b6ea8" : "#58a6ff"
+  };
+}
 function applyTheme(mode) {
   const st = SCENE_THEMES[mode] || SCENE_THEMES.dark;
   document.documentElement.dataset.theme = mode === "light" ? "light" : "dark";
@@ -64821,6 +64987,16 @@ function applyTheme(mode) {
   scene.add(grid);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", st.meta);
   btnTheme.textContent = t("btn.theme", { mode: t(mode === "light" ? "theme.light" : "theme.dark") });
+  window.dispatchEvent(new CustomEvent("mol3d:theme", { detail: { mode: document.documentElement.dataset.theme } }));
+}
+function setTheme(mode) {
+  themeMode = mode === "light" ? "light" : "dark";
+  try {
+    localStorage.setItem(THEME_KEY, themeMode);
+  } catch {
+  }
+  applyTheme(themeMode);
+  invalidate();
 }
 let themeMode = "dark";
 try {
@@ -64830,13 +65006,7 @@ try {
 }
 applyTheme(themeMode);
 btnTheme.addEventListener("click", () => {
-  themeMode = themeMode === "dark" ? "light" : "dark";
-  try {
-    localStorage.setItem(THEME_KEY, themeMode);
-  } catch {
-  }
-  applyTheme(themeMode);
-  invalidate();
+  setTheme(themeMode === "dark" ? "light" : "dark");
   status(t("status.theme", { mode: t(themeMode === "light" ? "theme.light" : "theme.dark") }));
 });
 const btnLang = document.getElementById("btn-lang");
@@ -65250,6 +65420,15 @@ function spawnFormulaMolecule(formula) {
   return ids;
 }
 window.__mol3d = {
+  theme: {
+    get: function () { return document.documentElement.dataset.theme === "light" ? "light" : "dark"; },
+    set: setTheme,
+    key: THEME_KEY,
+    onChange: function (fn) {
+      window.addEventListener("mol3d:theme", function (ev) { fn(ev.detail.mode); });
+      return fn;
+    }
+  },
   atoms,
   bonds,
   overrides,
@@ -65263,6 +65442,9 @@ window.__mol3d = {
   _godMode: false,
   simulation,
   kinetics: { createSimulation, compileNetwork, parseRateExpr, rk4Step },
+  // The element-keyed clock the shipped chain was written against. nuclear.js
+  // reads it as the labelled fallback for nuclides no measured chart names.
+  decayHalfLives: DECAY_HALF_LIFE,
   redox: { analysis: redoxAnalysis, numbers: oxidationNumbers, stamp: stampRedoxFramework, overlay: redoxBlockHtml, reactions: () => REACTIONS.concat(MAYHEM_REACTIONS) },
   environment,
   atmosphere,
@@ -65285,6 +65467,24 @@ window.__mol3d = {
   spawnAtomFromScreen,
   status,
   i18n: { t, getLang, elName },
+  // Bond legality belongs to the game, not to the tool that draws it. BluePrint
+  // builds the Maps these expect (atoms: id -> {id, el}, bonds: id -> {id, a, b,
+  // order}) and asks before it lets a line onto the board, so a drawing can never
+  // promise a structure the scene would refuse.
+  chem: {
+    bondCheck,
+    upgradeCheck,
+    pairOrderCap,
+    orderCapacityOf,
+    neutralCovalenceOf,
+    lonePairsAt,
+    ringClosureOf,
+    // The distance the scene would draw between two element balls. The 2D editor
+    // measures its own bonds with this so a long Na–Cl never shrinks to a C–C.
+    bondLength,
+    isMetal: isMetal$1,
+    elementBySym: elementBySym$1
+  },
   progression: {
     rankManager,
     rebuildPool,
@@ -65318,7 +65518,8 @@ window.__mol3d = {
     price: (list) => crateBillPrice(list),
     bill: (list) => crateBuy(list, true),
     take: (ids) => crateMarkTaken(ids ? Array.from(ids) : []),
-    // One nucleus, one element up. Returns false when the crate will not cover it.
+    // One nucleus, one element up. Ownership never refuses it; the crate only
+    // moves stock it actually holds.
     transmute: (id, newZ) => crateTransmute(id, newZ)
   },
   triggerDeath: triggerPlayerDeath,
@@ -65941,4 +66142,13 @@ if (void 0) {
     }
   });
 }
+window.addEventListener("mol3d:theme", () => {
+  retextureLabels();
+  if (bohrActive) {
+    const at = atoms.get(selectedId);
+    if (at) drawBohrModel(at.el);
+  }
+  updateInspector();
+  invalidate();
+});
 initBackgroundMusic();

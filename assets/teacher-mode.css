@@ -18,6 +18,64 @@
   --success: #4caf50;
   --warning: #ff9800;
   --error: #f44336;
+  /* Canvas/simulation palette. Dark values are the literals the JS draw code
+     shipped with; pal() resolves these so a theme flip repaints correctly. */
+  --sim-bg: #0b0b16;
+  --sim-grid: #24243f;
+  --sim-line: #3a3a5c;
+  --sim-text: #e8e8f0;
+  --sim-dim: #a8dadc;
+  --sim-blue: #2196f3;
+  --sim-yellow: #ffeb3b;
+  --sim-purple: #9575cd;
+  --sim-neutron: #7b8bb5;
+  --sim-carbon: #6b6b8a;
+  --sim-indigo: #5c6bc0;
+  --sim-periwinkle: #7986cb;
+  --sim-brown: #8d6e63;
+  --sim-panel: #141428;
+  --sim-tick: #6a6a8a;
+  --sim-steel-a: #8d93a8;
+  --sim-steel-b: #5b6172;
+  --sim-metal: #3b3b55;
+  --sim-on-sphere: #0b0b16;
+  /* Chalk-white ink and markers that sit directly on the canvas background.
+     White is only legible against a dark plate, so light mode swaps it for
+     page ink; the dark canvas keeps the shipped #ffffff literals. */
+  --sim-chalk: #ffffff;
+  --sim-shade: rgba(0,0,0,0.35);
+  --sim-shade-soft: rgba(0,0,0,0.25);
+  --sim-glass: rgba(255,255,255,0.02);
+  --sim-liquid: rgba(38,198,218,0.4);
+  --sim-liquid-soft: rgba(38,198,218,0.25);
+  --sim-liquid-deep: rgba(38,198,218,0.6);
+  --sim-orbit: rgba(255,235,59,0.35);
+  --sim-guide: rgba(255,235,59,0.25);
+  --spec-violet: #7e57c2;
+  --spec-cyan: #29b6f6;
+  --spec-yellow: #ffee58;
+  --spec-amber: #ff9800;
+  --spec-red: #ef5350;
+  /* The decayed-nucleus dots in the half-life simulation. */
+  --sim-spent: rgba(120,120,150,0.4);
+  /* Steam wisps over the heated calorimeter beaker (dark: white on near-black). */
+  --sim-steam: #ffffff;
+  /* Endpoints of the gas-particle temperature blend: at 0 the cold endpoint,
+     at 1 the hot one, so the shipped rgb() channels stay exactly reproducible. */
+  --sim-gas-cold: #7896e6;
+  --sim-gas-hot: #ff5a3c;
+  /* DOM colours that shipped as bare literals. Each rule below now reads the
+     token with its own original literal as the var() fallback, so the dark page
+     is unchanged even if this block were never parsed. */
+  --on-accent: white;
+  --overlay: rgba(0, 0, 0, 0.8);
+  --success-soft: rgba(76, 175, 80, 0.1);
+  --success-bg: rgba(76, 175, 80, 0.2);
+  --error-bg: rgba(244, 67, 54, 0.2);
+  --block-s: #e94560;
+  --block-p: #2196f3;
+  --block-d: #4caf50;
+  --block-f: #9575cd;
 }
 
 body {
@@ -124,7 +182,7 @@ body {
 .btn-small {
   background: var(--accent);
   border: none;
-  color: white;
+  color: var(--on-accent, white);
   padding: 4px 12px;
   border-radius: 4px;
   font-size: 12px;
@@ -224,7 +282,7 @@ body {
 }
 
 .lesson-content .example {
-  background: rgba(76, 175, 80, 0.1);
+  background: var(--success-soft, rgba(76, 175, 80, 0.1));
   border: 1px solid var(--success);
   border-radius: 6px;
   padding: 12px 16px;
@@ -382,7 +440,7 @@ body {
 .btn-primary {
   background: var(--accent);
   border: none;
-  color: white;
+  color: var(--on-accent, white);
   padding: 10px 24px;
   border-radius: 6px;
   font-size: 14px;
@@ -403,13 +461,13 @@ body {
 }
 
 .feedback-area.correct {
-  background: rgba(76, 175, 80, 0.2);
+  background: var(--success-bg, rgba(76, 175, 80, 0.2));
   border: 1px solid var(--success);
   color: var(--success);
 }
 
 .feedback-area.incorrect {
-  background: rgba(244, 67, 54, 0.2);
+  background: var(--error-bg, rgba(244, 67, 54, 0.2));
   border: 1px solid var(--error);
   color: var(--error);
 }
@@ -468,10 +526,10 @@ body {
   font-weight: 700;
 }
 
-.ptable-cell.bl-s { border-left-color: #e94560; }
-.ptable-cell.bl-p { border-left-color: #2196f3; }
-.ptable-cell.bl-d { border-left-color: #4caf50; }
-.ptable-cell.bl-f { border-left-color: #9575cd; }
+.ptable-cell.bl-s { border-left-color: var(--block-s, #e94560); }
+.ptable-cell.bl-p { border-left-color: var(--block-p, #2196f3); }
+.ptable-cell.bl-d { border-left-color: var(--block-d, #4caf50); }
+.ptable-cell.bl-f { border-left-color: var(--block-f, #9575cd); }
 
 .ptable-gap {
   display: flex;
@@ -507,7 +565,7 @@ body {
 .chem-calc button {
   background: var(--accent);
   border: none;
-  color: white;
+  color: var(--on-accent, white);
   padding: 8px;
   border-radius: 4px;
   cursor: pointer;
@@ -553,7 +611,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--overlay, rgba(0, 0, 0, 0.8));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -639,4 +697,95 @@ body {
     min-width: 150px;
     font-size: 12px;
   }
+}
+
+/* ---------- Light theme ----------
+   Same contract as the game page: localStorage "mol3d.theme" mirrored onto
+   html[data-theme="light"], theme-colour meta #f6f8fa. Dark is the shipped
+   default and never reads these rules, so the dark page stays pixel-identical.
+   The hue of this page's own identity (rose #e94560 + navy) is kept: the accent
+   is only deepened, never swapped for another surface's accent token. */
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #f6f8fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e6ecf3;
+  --accent: #c2243c;
+  --accent-hover: #9c1b30;
+  --text-primary: #16233a;
+  --text-secondary: #46617a;
+  --border: rgba(20, 40, 80, 0.24);
+  --success: #276b2c;
+  --warning: #9a5b00;
+  --error: #c62828;
+
+  --sim-bg: #eef2f7;
+  --sim-grid: #788aab;
+  --sim-line: #6f81a3;
+  --sim-text: #182742;
+  --sim-dim: #46617a;
+  --sim-blue: #1565c0;
+  --sim-yellow: #7a6200;
+  --sim-purple: #5e35b1;
+  --sim-neutron: #56658f;
+  --sim-carbon: #4a4a66;
+  --sim-indigo: #303f9f;
+  --sim-periwinkle: #3949ab;
+  --sim-brown: #6d4c41;
+  --sim-panel: #b9cde3;
+  --sim-tick: #55677f;
+  --sim-steel-a: #6b7484;
+  --sim-steel-b: #454c5a;
+  --sim-metal: #6b7a92;
+  --sim-on-sphere: #ffffff;
+  --sim-chalk: #0d1830;
+  --sim-shade: rgba(20,40,80,0.10);
+  --sim-shade-soft: rgba(20,40,80,0.07);
+  --sim-glass: rgba(20,40,80,0.05);
+  /* Liquids: #006b75 at these alphas lands on the same visibility the shipped
+     dark teals have on #0b0b16 (2.4 / 1.7 / 3.2 contrast against the plate),
+     so a solution reads as a solution in either theme. */
+  --sim-liquid: rgba(0, 107, 117, 0.55);
+  --sim-liquid-soft: rgba(0, 107, 117, 0.35);
+  --sim-liquid-deep: rgba(0, 107, 117, 0.72);
+  --sim-orbit: rgba(122,98,0,0.55);
+  --sim-guide: rgba(122,98,0,0.45);
+  --spec-violet: #5e35b1;
+  --spec-cyan: #01579b;
+  --spec-yellow: #6b5a00;
+  --spec-amber: #8f5100;
+  --spec-red: #c62828;
+  --sim-spent: rgba(74, 84, 112, 0.72);
+  --sim-steam: #1d3a5c;
+  --sim-gas-cold: #3f5fae;
+  --sim-gas-hot: #d1381c;
+  /* DOM tokens. --on-accent stays white: every light-mode accent fill below is
+     deepened enough for white ink (5.8:1 on #c2243c, 8.0:1 on #9c1b30).
+     --overlay keeps the dark value on purpose — a dimming scrim is not a theme
+     colour, and the modal card under it is still a white panel. */
+  --on-accent: #ffffff;
+  --overlay: rgba(0, 0, 0, 0.8);
+  --success-soft: rgba(39, 107, 44, 0.10);
+  --success-bg: rgba(39, 107, 44, 0.12);
+  --error-bg: rgba(198, 40, 40, 0.10);
+  --block-s: #c2243c;
+  --block-p: #1565c0;
+  --block-d: #276b2c;
+  --block-f: #5e35b1;
+}
+
+/* DOM colours that shipped as bare literals live in the tokens above
+   (--success-soft / --success-bg / --error-bg / --block-*), so the light values
+   are already applied by the block. The modal scrim (--overlay, rgba(0,0,0,0.8))
+   is deliberately NOT overridden: dimming scrims are theme-independent and
+   stay black. */
+
+/* Solid state/accent fills carry their text to white so AA holds on the
+   darkened light-theme chips (the shipped dark pairs are untouched). */
+html[data-theme="light"] .quiz-option.correct,
+html[data-theme="light"] .quiz-option.incorrect,
+html[data-theme="light"] .lesson-item.active,
+html[data-theme="light"] .quiz-option.selected,
+html[data-theme="light"] .ptable-cell:hover {
+  color: #ffffff;
 }

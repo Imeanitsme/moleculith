@@ -3,9 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="theme-color" content="#0d1117" />
   <title>PHÂN TỬ SỐ - Phòng dạy Hóa học</title>
-  <link rel="stylesheet" href="./assets/teacher-mode.css">
+  <link rel="stylesheet" href="./assets/teacher-mode.css?v=2">
+  <script>
+    /* Blocking, so the stored theme is on <html> before the body paints and a
+       light-mode user never sees a dark flash. Reads the key the game writes
+       (mol3d.theme); unset or unreadable means this page's shipped dark theme.
+       The two meta values are the app contract: #f6f8fa for light, #0d1117 for
+       dark, the same pair the game page and assets/teacher-mode.js use. */
+    (function () {
+      var mode = 'dark';
+      try {
+        var saved = localStorage.getItem('mol3d.theme');
+        if (saved === 'light' || saved === 'dark') mode = saved;
+      } catch (e) { /* private mode: stay dark */ }
+      document.documentElement.dataset.theme = mode;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', mode === 'light' ? '#f6f8fa' : '#0d1117');
+    })();
+  </script>
 </head>
 <body>
   <div id="teacher-app">
@@ -20,6 +37,7 @@
         <h1>PHÂN TỬ SỐ - Phòng dạy Hóa học</h1>
       </div>
       <div class="header-right">
+        <button id="btn-theme" class="btn-small" title="Switch to light colours">Light mode</button>
         <button id="btn-lang" class="btn-small" title="Switch to English">English</button>
         <select id="topic-selector" class="topic-select">
           <option value="overview">Course Overview</option>
@@ -157,7 +175,7 @@
     </div>
   </div>
 
-  <script src="./assets/teacher-mode.js?v=4"></script>
+  <script src="./assets/teacher-mode.js?v=5"></script>
   <script src="./assets/molecular-engine.js?v=20"></script>
 </body>
 </html>

@@ -5244,35 +5244,37 @@
   var Panel = (function() {
     var el = null, tab = 'structure', busy = false, timer = null, lastLang = null, open = false;
 
+    // Every colour resolves through the app's theme variables; the literals are
+    // only fallbacks for standalone pages that ship no stylesheet.
     var CSS = '.mpe-panel{position:fixed;top:56px;right:10px;width:min(520px,94vw);max-height:calc(100vh - 150px);' +
-      'display:flex;flex-direction:column;background:rgba(12,16,28,.96);color:#e8eefc;border:1px solid #3a4a6b;' +
-      'border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.55);z-index:9500;font:13px/1.45 "Segoe UI",Roboto,sans-serif;overflow:hidden}' +
+      'display:flex;flex-direction:column;background:var(--panel,rgba(12,16,28,.96));color:var(--text,#e8eefc);border:1px solid var(--border,#3a4a6b);' +
+      'border-radius:12px;box-shadow:var(--panel-shadow,0 12px 40px rgba(0,0,0,.55));z-index:9500;font:13px/1.45 "Segoe UI",Roboto,sans-serif;overflow:hidden}' +
       '.mpe-panel[hidden]{display:none}' +
-      '.mpe-hd{display:flex;align-items:center;gap:8px;padding:9px 11px;background:linear-gradient(90deg,#1b2a4a,#14203a);border-bottom:1px solid #33415f}' +
+      '.mpe-hd{display:flex;align-items:center;gap:8px;padding:9px 11px;background:linear-gradient(90deg,var(--panel-2,#1b2a4a),var(--panel,#14203a));border-bottom:1px solid var(--border,#33415f)}' +
       '.mpe-hd b{flex:1;font-size:14px}' +
-      '.mpe-hd button{background:#233457;color:#cfe0ff;border:1px solid #40547e;border-radius:7px;padding:3px 8px;font-size:12px;cursor:pointer}' +
-      '.mpe-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:7px 9px;border-bottom:1px solid #2a3550}' +
-      '.mpe-tabs button{background:#18233b;color:#a9bdda;border:1px solid #2c3a5a;border-radius:16px;padding:3px 10px;font-size:12px;cursor:pointer}' +
-      '.mpe-tabs button.on{background:#2f6df0;color:#fff;border-color:#5b8cff}' +
+      '.mpe-hd button{background:var(--panel-2,#233457);color:var(--text,#cfe0ff);border:1px solid var(--border,#40547e);border-radius:7px;padding:3px 8px;font-size:12px;cursor:pointer}' +
+      '.mpe-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:7px 9px;border-bottom:1px solid var(--border,#2a3550)}' +
+      '.mpe-tabs button{background:var(--panel-2,#18233b);color:var(--muted,#a9bdda);border:1px solid var(--border,#2c3a5a);border-radius:16px;padding:3px 10px;font-size:12px;cursor:pointer}' +
+      '.mpe-tabs button.on{background:var(--accent,#2f6df0);color:var(--on-accent,#fff);border-color:var(--accent,#5b8cff)}' +
       '.mpe-body{padding:10px 11px;overflow:auto;flex:1}' +
-      '.mpe-box{border:1px solid #2b3a5c;border-radius:9px;padding:8px 9px;margin:0 0 9px;background:rgba(20,28,46,.7)}' +
-      '.mpe-box.warn{border-color:#8a6a22;background:rgba(64,48,12,.55)}' +
-      '.mpe-box.bad{border-color:#8a2f2f;background:rgba(64,18,18,.55)}' +
-      '.mpe-box.good{border-color:#215d3a;background:rgba(14,44,28,.5)}' +
-      '.mpe-box h4{margin:0 0 6px;font-size:12px;letter-spacing:.3px;text-transform:uppercase;color:#7fd1ff}' +
+      '.mpe-box{border:1px solid var(--border,#2b3a5c);border-radius:9px;padding:8px 9px;margin:0 0 9px;background:var(--panel-2,rgba(20,28,46,.7))}' +
+      '.mpe-box.warn{border-color:var(--warn,#8a6a22);background:var(--warn-soft,rgba(64,48,12,.55))}' +
+      '.mpe-box.bad{border-color:var(--err,#8a2f2f);background:var(--err-soft,rgba(64,18,18,.55))}' +
+      '.mpe-box.good{border-color:var(--ok,#215d3a);background:var(--ok-soft,rgba(14,44,28,.5))}' +
+      '.mpe-box h4{margin:0 0 6px;font-size:12px;letter-spacing:.3px;text-transform:uppercase;color:var(--accent,#7fd1ff)}' +
       '.mpe-t{width:100%;border-collapse:collapse;font-size:12px}' +
-      '.mpe-t th{text-align:left;color:#8fa6c8;font-weight:600;padding:2px 5px;border-bottom:1px solid #2f3f61;white-space:nowrap}' +
-      '.mpe-t td{padding:2px 5px;border-bottom:1px solid #222c44;font-variant-numeric:tabular-nums}' +
+      '.mpe-t th{text-align:left;color:var(--muted,#8fa6c8);font-weight:600;padding:2px 5px;border-bottom:1px solid var(--border,#2f3f61);white-space:nowrap}' +
+      '.mpe-t td{padding:2px 5px;border-bottom:1px solid var(--border,#222c44);font-variant-numeric:tabular-nums}' +
       '.mpe-kv{display:grid;grid-template-columns:auto 1fr;gap:2px 9px;font-size:12px}' +
-      '.mpe-k{color:#8fa6c8}.mpe-v{text-align:right;font-variant-numeric:tabular-nums}' +
-      '.mpe-ul{margin:0;padding-left:16px;font-size:12px;color:#c6d4ee}' +
+      '.mpe-k{color:var(--muted,#8fa6c8)}.mpe-v{text-align:right;font-variant-numeric:tabular-nums}' +
+      '.mpe-ul{margin:0;padding-left:16px;font-size:12px;color:var(--text,#c6d4ee)}' +
       '.mpe-row{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 9px;align-items:center}' +
-      '.mpe-row button,.mpe-row select{background:#1e2c4a;color:#d6e4ff;border:1px solid #3a4f7a;border-radius:7px;padding:4px 9px;font-size:12px;cursor:pointer}' +
-      '.mpe-row button.on{background:#2f6df0;border-color:#5b8cff;color:#fff}' +
-      '.mpe-note{font-size:11.5px;color:#93a7c6;margin:0 0 8px}' +
-      '.mpe-ok{color:#7ee2a8}.mpe-err{color:#ff9d9d}' +
-      '.mpe-pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;background:#243352;color:#a9c2e8}' +
-      '.mpe-spark{width:100%;height:56px;display:block;background:#101a2d;border:1px solid #26334f;border-radius:6px}' +
+      '.mpe-row button,.mpe-row select{background:var(--panel-2,#1e2c4a);color:var(--text,#d6e4ff);border:1px solid var(--border,#3a4f7a);border-radius:7px;padding:4px 9px;font-size:12px;cursor:pointer}' +
+      '.mpe-row button.on{background:var(--accent,#2f6df0);border-color:var(--accent,#5b8cff);color:var(--on-accent,#fff)}' +
+      '.mpe-note{font-size:11.5px;color:var(--muted,#93a7c6);margin:0 0 8px}' +
+      '.mpe-ok{color:var(--ok,#7ee2a8)}.mpe-err{color:var(--err-text,#ff9d9d)}' +
+      '.mpe-pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;background:var(--panel-2,#243352);color:var(--muted,#a9c2e8)}' +
+      '.mpe-spark{width:100%;height:56px;display:block;background:var(--panel-2,#101a2d);border:1px solid var(--border,#26334f);border-radius:6px}' +
       '@media(max-width:640px){.mpe-panel{top:48px;left:8px;right:8px;width:auto;max-height:58vh;font-size:12px}' +
       '.mpe-t th,.mpe-t td{padding:2px 3px;font-size:11px}}';
 
@@ -5496,7 +5498,7 @@
         pts.push(((i / (h.length - 1)) * W).toFixed(1) + ',' + (H - 4 - ((h[i].E - min) / span) * (H - 8)).toFixed(1));
       }
       return '<svg class="mpe-spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
-        '<polyline fill="none" stroke="#5b8cff" stroke-width="1.5" points="' + pts.join(' ') + '"/></svg>';
+        '<polyline fill="none" style="stroke:var(--accent,#5b8cff)" stroke-width="1.5" points="' + pts.join(' ') + '"/></svg>';
     }
 
     // dyn.status is the integrator's own state name; the panel renders the word

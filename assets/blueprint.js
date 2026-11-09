@@ -76,6 +76,8 @@
       placed: 'Placed {sym}',
       unknownEl: 'Unknown element "{sym}"',
       bondMade: 'Bond {a}{o}{b}',
+      bondIonic: '{a} hands an electron to {b} — joined as an ionic bond',
+      bondNoRaise: 'That bond cannot carry any more',
       bondLower: 'Bond lowered to order {n}',
       bondCut: 'Bond removed',
       wouldMerge: 'Those two atoms are already connected — drawing a bond there would fuse the two fragments',
@@ -94,11 +96,13 @@
       nothingRedo: 'Nothing to redo',
       copied: '{n} atoms copied',
       pasted: 'Pasted {n} atoms',
+      pasteSkipped: '{n} copied bonds were refused by the rules',
       nothingPaste: 'Clipboard is empty — copy something first',
       nothingSel: 'Select atoms first',
       hAdded: '{n} hydrogens added',
       hNone: 'Every valence is already satisfied',
       hBlocked: '{n} hydrogens skipped: the atoms with an open valence are not bonded to anything yet',
+      hRefused: '{n} hydrogens refused by the rules',
       laidOut: 'Layout cleaned',
       cleared: 'Canvas cleared',
       emptyDoc: 'The canvas is empty — place some atoms first',
@@ -122,6 +126,7 @@
       fragment: 'fragment',
       fragments: 'fragments',
       ringNote: 'rings detected',
+      badBonds: 'bonds the rules refuse',
       emptyFormula: '—',
       radLabel: 'C',
       presetWater: 'Water H2O',
@@ -130,8 +135,24 @@
       presetCyclohexane: 'Cyclohexane C6H12',
       presetNitrate: 'Nitrate NO3-',
       loadedPreset: 'Loaded {name} into the editor',
+      presetRepaired: '{n} bonds did not fit the rules and were corrected',
+      presetRepairedOne: '1 bond did not fit the rules and was corrected',
+      saveRepaired: '{n} bonds from the saved board did not fit the rules and were corrected',
+      saveRepairedOne: '1 bond from the saved board did not fit the rules and was corrected',
       loadFailed: 'Not a molecule state — expected {atoms:[...], bonds:[...]}',
-      stateLoaded: 'Loaded {n} atoms and {b} bonds',
+      stateLoaded: 'Loaded {a} and {b}',
+      oneAtom: '1 atom', manyAtoms: '{n} atoms',
+      oneBond: '1 bond', manyBonds: '{n} bonds',
+      sVsepr: 'VSEPR',
+      vsepr: 'Auto-VSEPR — atoms land on the joints the electron domains allow',
+      placedJoint: '{sym} dropped onto a free joint of {a}',
+      jointLp: ' from the lone pair of {a}',
+      jointNone: 'No free joint left on {a}: every position its rules allow is taken',
+      altFreeNote: 'Hold Alt to drop an atom off the joints',
+      dragRigid: '{n} atoms moved as one piece',
+      dockedJoint: 'Docked onto the joint of {a} — the bond tool joins them',
+      geometryOn: 'Auto-VSEPR on — new atoms snap to the joints',
+      geometryOff: 'Auto-VSEPR off — free placement',
       nothingErase: 'Nothing there to erase',
       bondOrderSet: 'New bond order: {n}',
       snapOn: 'Snap grid on',
@@ -151,6 +172,8 @@
       helpSecKeys: 'Keyboard',
       helpSecExport: 'Export',
       helpSecPresets: 'Quick build — right-click an empty spot on the canvas',
+      helpSecGeometry: 'Geometry — automatic VSEPR',
+      geomNote: 'Bond lengths come from the game engine\'s own ball-to-ball measure, and directions from the electron domains around each centre: 2 domains 180°, 3 domains 120°, 4 domains the 90° cross of a structural formula, 5 a pentagon, 6 a hexagon. Lone pairs count as domains too, so water is bent at 105°, ammonia keeps 107°/107°/146° and xenon difluoride stays linear. Atoms never land where the mouse stopped: each one drops onto the free joint nearest the pointer, and a centre that is still allowed to grow is shown the joints of the arrangement it is heading for, so the fifth and sixth fluorine of sulfur hexafluoride belong to sulfur rather than to the fluorine beside them. Joints on the skeleton are offered before joints on its ends, and a joint the rules close is refused with the reason shown. After every drop only the piece just edited settles, and it settles around the atom it was built from, so nothing already placed moves. A click that lands on an atom already carrying the element in the tool asks for one more atom on that spot, so it takes the nearest free joint of a neighbouring centre — the direction the structure is heading for — instead of only selecting the atom; a click in the middle of an atom never grows that same atom, because a click on its centre carries no direction. A click on an atom carrying a different element paints that element and re-asks every bond left behind, correcting any line the new atom cannot hold and naming the rule that refused it. Hold Alt to place off the joints; the Auto-VSEPR switch turns the model off and drawing becomes free grid placement.',
       helpExportNote: 'Build 3D hands the drawing to the game engine: the atoms are spawned in free space near the camera target, every bond goes through the game bond rules, and the engine then rebuilds the real 3D geometry from the connectivity, so rings come out as real rings. The scene derives lone pairs and charges from the structure itself, so the export carries the connectivity, the bond orders and the molecular charge. PNG keeps the drawing exactly as it looks, the MOL block keeps the 2D coordinates, SMILES keeps connectivity, bond orders and charges.',
       kUndo: 'Undo / redo',
       kClip: 'Copy / cut / paste the selection',
@@ -167,10 +190,12 @@
       kSpaceKey: 'Space (or the wheel) pans, Ctrl + wheel zooms',
       kChargeKeys: 'Formal charge +1 / −1 on the selection',
       kLpKeys: 'Lone pair add / remove on the selection',
+      kAltKey: 'Hold while placing or dragging to ignore the joints',
       kEscKey: 'Close popups, then the selection, then the panel',
       exportNoRoom: 'The scene is full — {n} atom(s) could not be placed',
       exportNeedStars: 'This drawing costs ⭐{n} in atoms — buy the elements first',
       exportRejected: 'The scene rejected {n} bond(s): {list}',
+      exportLowered: '{n} bond(s) kept a lower order in the scene: {list}',
       exportedList: '{n} atoms, {b} bonds'
     },
     vi: {
@@ -226,6 +251,8 @@
       placed: 'Đã đặt {sym}',
       unknownEl: 'Không rõ nguyên tố "{sym}"',
       bondMade: 'Liên kết {a}{o}{b}',
+      bondIonic: '{a} nhường electron cho {b} — nối bằng liên kết ion',
+      bondNoRaise: 'Liên kết này không mang thêm được nữa',
       bondLower: 'Hạ liên kết xuống bậc {n}',
       bondCut: 'Đã cắt liên kết',
       wouldMerge: 'Hai nguyên tử này đã nối với nhau — vẽ liên kết ở đó sẽ gộp hai phân tử làm một',
@@ -244,11 +271,13 @@
       nothingRedo: 'Không còn gì để làm lại',
       copied: 'Đã sao chép {n} nguyên tử',
       pasted: 'Đã dán {n} nguyên tử',
+      pasteSkipped: 'Quy tắc đã từ chối {n} liên kết được dán',
       nothingPaste: 'Bộ nhớ tạm trống — hãy sao chép trước',
       nothingSel: 'Hãy chọn nguyên tử trước',
       hAdded: 'Đã thêm {n} nguyên tử hydro',
       hNone: 'Mọi hoá trị đều đã được lấp đầy',
       hBlocked: 'Bỏ qua {n} hydro: các nguyên tử còn hoá trị trống chưa liên kết với gì',
+      hRefused: 'Quy tắc đã từ chối {n} hydro',
       laidOut: 'Đã dọn layout',
       cleared: 'Đã xoá sạch canvas',
       emptyDoc: 'Canvas đang trống — hãy đặt vài nguyên tử trước',
@@ -272,6 +301,7 @@
       fragment: 'mảnh',
       fragments: 'mảnh',
       ringNote: 'vòng đã phát hiện',
+      badBonds: 'liên kết quy tắc bác bỏ',
       emptyFormula: '—',
       radLabel: 'C',
       presetWater: 'Nước H2O',
@@ -280,8 +310,24 @@
       presetCyclohexane: 'Xiclohexan C6H12',
       presetNitrate: 'Nitrat NO3-',
       loadedPreset: 'Đã nạp {name} vào trình vẽ',
+      presetRepaired: '{n} liên kết không hợp quy tắc và đã bị sửa',
+      presetRepairedOne: '1 liên kết không hợp quy tắc và đã bị sửa',
+      saveRepaired: '{n} liên kết trong bảng đã lưu không hợp quy tắc và đã bị sửa',
+      saveRepairedOne: '1 liên kết trong bảng đã lưu không hợp quy tắc và đã bị sửa',
       loadFailed: 'Không phải trạng thái phân tử — cần {atoms:[...], bonds:[...]}',
-      stateLoaded: 'Đã nạp {n} nguyên tử và {b} liên kết',
+      stateLoaded: 'Đã nạp {a} và {b}',
+      oneAtom: '1 nguyên tử', manyAtoms: '{n} nguyên tử',
+      oneBond: '1 liên kết', manyBonds: '{n} liên kết',
+      sVsepr: 'VSEPR',
+      vsepr: 'Tự động VSEPR — nguyên tử đáp vào khớp mà các vùng electron cho phép',
+      placedJoint: 'Đã đặt {sym} vào khớp trống của {a}',
+      jointLp: ' từ cặp electron tự do của {a}',
+      jointNone: 'Không còn khớp trống trên {a}: mọi vị trí hợp lệ đều đã bị chiếm',
+      altFreeNote: 'Giữ Alt để đặt nguyên tử ngoài các khớp',
+      dragRigid: 'Đã di chuyển {n} nguyên tử như một khối',
+      dockedJoint: 'Đã áp vào khớp của {a} — dùng công cụ liên kết để nối chúng',
+      geometryOn: 'Bật VSEPR — nguyên tử mới bám vào khớp',
+      geometryOff: 'Tắt VSEPR — đặt tự do',
       nothingErase: 'Không có gì để tẩy ở đó',
       bondOrderSet: 'Bậc liên kết mới: {n}',
       snapOn: 'Đã bật dính lưới',
@@ -301,6 +347,8 @@
       helpSecKeys: 'Phím tắt',
       helpSecExport: 'Xuất',
       helpSecPresets: 'Dựng nhanh — nhấp chuột phải vào vùng trống trên Canvas',
+      helpSecGeometry: 'Hình học — VSEPR tự động',
+      geomNote: 'Độ dài liên kết lấy từ thước đo giữa hai quả cầu của engine trò chơi, còn hướng lấy từ các vùng electron quanh mỗi nguyên tử trung tâm: 2 vùng 180°, 3 vùng 120°, 4 vùng là hình chữ thập 90° của công thức cấu tạo, 5 vùng hình ngũ giác, 6 vùng hình lục giác. Cặp electron tự do cũng được tính là một vùng, nên nước gấp khúc 105°, amoniac giữ 107°/107°/146° và xenon điflorua vẫn thẳng hàng. Nguyên tử không đáp vào nơi con trỏ dừng lại: mỗi nguyên tử đáp vào khớp trống gần con trỏ nhất, và một tâm còn được phép mở rộng sẽ hiện các khớp của cấu hình mà nó đang hướng tới, nên flo thứ năm và thứ sáu của sulfur hexafluorua thuộc về sulfur chứ không thuộc về nguyên tử flo bên cạnh. Khớp trên khung xương được ưu tiên trước khớp ở đầu mạch, còn khớp bị quy tắc đóng lại thì bị từ chối kèm theo lý do. Sau mỗi lần đặt, chỉ phần vừa sửa mới tự cân bằng, và nó cân bằng quanh nguyên tử vừa được xây, nên những gì đã đặt không bị xê dịch. Một cú click rơi trên nguyên tử đã mang chính nguyên tố đang chọn được hiểu là đòi thêm một nguyên tử ngay chỗ đó, nên nó đáp vào khớp trống gần nhất của một tâm láng giềng — hướng mà cấu trúc đang tiến tới — thay vì chỉ chọn nguyên tử; một cú click vào giữa một nguyên tử không bao giờ làm chính nguyên tử đó lớn thêm, vì click vào tâm thì không mang theo hướng nào. Một cú click trên nguyên tử mang nguyên tố khác sẽ sơn nguyên tố mới và hỏi lại mọi liên kết còn lại, chỉnh lại liên kết mà nguyên tử mới không gánh nổi và nêu tên quy tắc đã từ chối nó. Giữ Alt để đặt ngoài khớp; công tắc Auto-VSEPR tắt mô hình và việc vẽ trở thành đặt tự do theo lưới.',
       helpExportNote: 'Nút Dựng 3D giao bản vẽ cho engine của trò chơi: nguyên tử được thả vào khoảng trống gần tâm quay của camera, mỗi liên kết đi qua luật liên kết của trò chơi, rồi engine dựng lại hình học 3D thật từ kết nối — vì vậy vòng được tạo thành vòng đúng. Cảnh tự suy ra electron tự do và điện tích, nên bản xuất mang kết nối, bậc liên kết và điện tích phân tử. PNG giữ đúng hình đang vẽ, khối MOL giữ toạ độ 2D, SMILES giữ kết nối, bậc liên kết và điện tích.',
       kUndo: 'Hoàn tác / làm lại',
       kClip: 'Sao chép / cắt / dán phần chọn',
@@ -317,10 +365,12 @@
       kSpaceKey: 'Space (hoặc con lăn) để kéo trang, Ctrl + con lăn để phóng',
       kChargeKeys: 'Điện tích hình thức +1 / −1 cho phần đang chọn',
       kLpKeys: 'Thêm / bớt cặp electron tự do cho phần đang chọn',
+      kAltKey: 'Giữ khi đặt hoặc kéo nguyên tử để bỏ qua các khớp',
       kEscKey: 'Đóng hộp nổi, rồi bỏ chọn, rồi đóng bảng',
       exportNoRoom: 'Cảnh đã đầy — không đặt được {n} nguyên tử',
       exportNeedStars: 'Bản vẽ này tốn ⭐{n} nguyên tử — hãy mua nguyên tố trước',
       exportRejected: 'Cảnh từ chối {n} liên kết: {list}',
+      exportLowered: '{n} liên kết giữ bậc thấp hơn trong cảnh: {list}',
       exportedList: '{n} nguyên tử, {b} liên kết'
     }
   };
@@ -346,6 +396,12 @@
     }
     return s;
   }
+  // A count and its noun, agreed in the language being shown. English marks the
+  // single; Vietnamese carries the number either way.
+  function counted(n, one, many) { return tx(n === 1 ? one : many, { n: n }); }
+  // "1 bond was corrected" / "3 bonds were corrected": the count is the subject of
+  // these sentences, so the verb has to agree with it.
+  function repairedNote(oneKey, manyKey, n) { return tx(n === 1 ? oneKey : manyKey, { n: n }); }
   function toast(msg, kind) {
     var a = app();
     if (a && typeof a.status === 'function') { try { a.status(msg, kind || 'info'); return; } catch (e) {} }
@@ -387,15 +443,40 @@
     O: 2, S: 2, Se: 2, Te: 2, Po: 2, F: 1, Cl: 1, Br: 1, I: 1, At: 1
   };
   var ORGANIC = { B: 1, C: 1, N: 1, O: 1, P: 1, S: 1, F: 1, Cl: 1, Br: 1, I: 1, Se: 1, As: 1, Si: 1 };
-  // Bond orders the pair can actually carry, so "+1" never offers a fake bond.
-  var MAX_ORD = { H: 1, F: 1, Cl: 1, Br: 1, I: 1, At: 1, O: 2, N: 4, C: 4, S: 4, P: 5, B: 4, Se: 4 };
-  // The shipped engine caps a bond pair at order 3 and allows 4 only between two
-  // transition metals (pairOrderCap in the game bundle), so the editor stops at
-  // the same place and never draws something the scene will refuse.
-  var TM = {};
-  ('Sc,Ti,V,Cr,Mn,Fe,Co,Ni,Cu,Zn,Y,Zr,Nb,Mo,Tc,Ru,Rh,Pd,Ag,Cd,Hf,Ta,W,Re,Os,Ir,Pt,Au,Hg,' +
-    'La,Ce,Pr,Nd,Pm,Sm,Eu,Gd,Tb,Dy,Ho,Er,Tm,Yb,Lu,Ac,Th,Pa,U,Np,Pu,Am,Cm,Bk,Cf,Es,Fm,Md,No,Lr')
-    .split(',').forEach(function (s) { TM[s] = 1; });
+  // The valence states a structural formula may leave a main-group atom in. A
+  // drawing is not an electron count: sulfur written O=S=O is S(IV) with one lone
+  // pair, not a divalent sulfur carrying two hydrogens, and a terminal chlorine is
+  // Cl(I) with three lone pairs, never a seven-way claw. Symbols outside this
+  // table — the transition metals and the rest — take the drawing at its word and
+  // are given no implicit hydrogen.
+  var V_STATES = {
+    H: [1], D: [1], T: [1],
+    Li: [1], Na: [1], K: [1], Rb: [1], Cs: [1], Fr: [1],
+    Be: [2], Mg: [2], Ca: [2], Sr: [2], Ba: [2], Ra: [2],
+    B: [3], Al: [3], Ga: [3], In: [3], Tl: [1, 3],
+    C: [4], Si: [4], Ge: [4], Sn: [2, 4], Pb: [2, 4],
+    N: [1, 3, 5], P: [3, 5], As: [3, 5], Sb: [3, 5], Bi: [3, 5],
+    O: [2], S: [2, 4, 6], Se: [2, 4, 6], Te: [2, 4, 6], Po: [2, 4, 6],
+    F: [1], Cl: [1, 3, 5, 7], Br: [1, 3, 5, 7], I: [1, 3, 5, 7], At: [1, 3, 5, 7],
+    He: [0], Ne: [0], Ar: [0], Kr: [0, 2], Xe: [2, 4, 6], Rn: [2, 4]
+  };
+  // Which state this atom is in: the smallest listed state that can carry the
+  // bonds drawn on it. A positive charge buys one bond per unit at the same state
+  // (ammonium is still N(III), nitrate still N(V)), a negative one costs a bond
+  // because the electron took the hydrogen's place.
+  function valenceState(sym, cov, q) {
+    var list = V_STATES[sym], need = Math.max(0, cov - (q || 0)), i;
+    if (!list) return need;
+    for (i = 0; i < list.length; i++) if (list[i] >= need) return list[i];
+    return need;
+  }
+  // The highest state this element can ever reach — how far an unfinished atom may
+  // still grow, which is what decides the directions it offers while undecided.
+  function highestState(sym) {
+    var list = V_STATES[sym];
+    if (list) return list[list.length - 1];
+    return neutralValence(sym);
+  }
   // Pauling electronegativities for the symbols a structural formula actually
   // uses; the game registry carries the full table once it is up.
   var EN_TBL = {
@@ -463,20 +544,75 @@
     if (el.anion) return el.anion;
     return el.maxBonds || 1;
   }
-  // Readable ink for the dark board: a colour whose relative luminance is too low
-  // (Hf, Rf, …) is lifted towards white instead of being replaced, so the element
-  // keeps its identity.
+  // The board is painted on a canvas, so CSS alone cannot retheme it: every stroke
+  // and fill resolves through this palette, which is rebuilt when the app flips
+  // data-theme. The literals are fallbacks for a page with no stylesheet.
+  var PAL = null;
+  function hexRgb(hex) {
+    var m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!m) return null;
+    var h = m[1];
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function pal() {
+    if (PAL) return PAL;
+    var light = document.documentElement.dataset.theme === 'light';
+    var cs = window.getComputedStyle(document.documentElement);
+    function v(name, fb) { var x = cs.getPropertyValue(name); return (x && x.trim()) || fb; }
+    var accent = v('--accent', light ? '#0088cc' : '#00d4ff');
+    var rgb = hexRgb(accent) || (light ? [0, 136, 204] : [0, 212, 255]);
+    function a(al) { return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + al + ')'; }
+    PAL = {
+      light: light,
+      board: v('--board', light ? '#f7fafc' : '#050912'),
+      line: v('--board-line', light ? '#33465e' : '#c8d6e8'),
+      grid: v('--board-grid', light ? 'rgba(0,90,140,0.07)' : 'rgba(0,200,255,0.055)'),
+      gridMajor: v('--board-grid-major', light ? 'rgba(0,90,140,0.16)' : 'rgba(0,200,255,0.14)'),
+      axis: v('--board-axis', light ? 'rgba(0,110,170,0.35)' : 'rgba(0,212,255,0.28)'),
+      pos: v('--charge-pos', light ? '#c0392b' : '#ff9c9c'),
+      neg: v('--charge-neg', light ? '#1f5fa8' : '#9ecbff'),
+      hot: v('--hot', light ? '#9a6700' : '#ffe08a'),
+      warn: v('--warn', light ? '#9a6700' : '#ffb300'),
+      text: v('--text', light ? '#1a2a40' : '#e0f0ff'),
+      ink: light ? '#1a2a40' : '#e6edf3',
+      accent: accent,
+      a: a,
+      electron: light ? 'rgba(0,110,170,0.85)' : 'rgba(120,225,255,0.9)',
+      over: light ? 'rgba(192,57,43,0.6)' : 'rgba(255,80,110,0.65)',
+      lpJoint: light ? 'rgba(70,90,120,0.13)' : 'rgba(150,170,200,0.13)'
+    };
+    return PAL;
+  }
+  // Readable ink for whichever board is showing. On dark, a colour whose relative
+  // luminance is too low (Hf, Rf, …) is lifted towards white; on light, a pale one
+  // (C, N, …) is dropped towards black. Both keep the hue, so the element keeps its
+  // identity instead of being replaced by a generic colour.
   function legible(hex) {
+    var P = pal();
     var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
-    if (!m) return '#e6edf3';
+    if (!m) return P.ink;
     var n = parseInt(m[1], 16);
     var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
     function ch(x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }
-    var L = 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
-    if (L >= 0.22) return hex;
-    var t = Math.min(1, (0.3 - L) / Math.max(0.001, 1 - L));
-    function mix(x) { return Math.round(x + (248 - x) * t); }
-    return 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(b) + ')';
+    function lum(R, G, B) { return 0.2126 * ch(R) + 0.7152 * ch(G) + 0.0722 * ch(B); }
+    var L = lum(r, g, b);
+    if (!P.light) {
+      if (L >= 0.22) return hex;
+      var t = Math.min(1, (0.3 - L) / Math.max(0.001, 1 - L));
+      function up(x) { return Math.round(x + (248 - x) * t); }
+      return 'rgb(' + up(r) + ',' + up(g) + ',' + up(b) + ')';
+    }
+    // 0.14 against the #f7fafc board is a 5:1 contrast ratio, the floor for 15px text.
+    if (L <= 0.15) return hex;
+    var lo = 0, hi = 1, s = 1;
+    for (var it = 0; it < 24; it++) {
+      s = (lo + hi) / 2;
+      if (lum(r * s, g * s, b * s) > 0.14) hi = s; else lo = s;
+    }
+    function dn(x) { return Math.round(x * s); }
+    return 'rgb(' + dn(r) + ',' + dn(g) + ',' + dn(b) + ')';
   }
 
   // ==========================================================================
@@ -491,12 +627,12 @@
   var ui = {
     open: false, min: false, tool: 'select', el: 'C', bond: 1,
     zoom: 1, pan: { x: 0, y: 0 }, grid: true, snap: true,
-    showH: true, showQ: true, showLP: true, shells: false,
+    showH: true, showQ: true, showLP: true, shells: false, vsepr: true,
     sel: [],            // array of atom ids, in selection order
     clip: null, hover: null, drag: null, box: null, previewBond: null,
     ptrs: {}, pinch: null, down: null, movedFar: false, pendingBond: 0,
-    space: false, pasteAt: null, lastPointer: null,
-    hist: [], future: [], cur: '', help: false
+    space: false, pasteAt: null, lastPointer: null, alt: false,
+    hist: [], future: [], cur: '', help: false, rev: 1
   };
   var els = {};
   var dpr = 1;
@@ -583,6 +719,638 @@
     }
     return q;
   }
+  // Covalent bookkeeping. The shipped engine counts a shared bond and a
+  // transferred bond separately (orderSumOf/ionicCountOf), so the editor keeps the
+  // same two sums and never lets an electron transfer eat a valence slot.
+  function covSum(id) {
+    var s = 0, bs = bondsOf(id);
+    for (var i = 0; i < bs.length; i++) if (!bs[i].ionic) s += Math.max(1, bs[i].order || 1);
+    return s;
+  }
+  function ionSum(id) {
+    var s = 0, bs = bondsOf(id);
+    for (var i = 0; i < bs.length; i++) if (bs[i].ionic) s += Math.max(1, bs[i].order || 1);
+    return s;
+  }
+
+  // ==========================================================================
+  // 2b. Bond legality.
+  //     The game owns the chemistry rules; they are published as window.__mol3d.chem.
+  //     The editor builds the atom/bond maps those rules expect and asks before a
+  //     line reaches the board, so a drawing can never promise a structure the 3D
+  //     scene will refuse — and a noble gas can neither be bonded here nor be shown
+  //     as if it were. Nothing is re-implemented: refusal wording comes back through
+  //     the game's own i18n, in the language the player is playing in.
+  // ==========================================================================
+  function rules() {
+    var a = app();
+    return a && a.chem ? a.chem : null;
+  }
+  // The registry's own element object, so every field the rules read is the real
+  // one (cat, valenceElectrons, charges, anionCharge) and not an editor copy.
+  function gameEl(sym) {
+    var r = rules();
+    if (r && typeof r.elementBySym === 'function') {
+      try { var e = r.elementBySym(sym); if (e) return e; } catch (err) { /* fall through */ }
+    }
+    return elOf(sym);
+  }
+  function ruleAtoms() {
+    var m = new Map();
+    for (var i = 0; i < doc.atoms.length; i++) {
+      var a = doc.atoms[i];
+      m.set(a.id, { id: a.id, el: gameEl(a.sym) });
+    }
+    return m;
+  }
+  function ruleBonds() {
+    var m = new Map();
+    for (var i = 0; i < doc.bonds.length; i++) {
+      var b = doc.bonds[i];
+      m.set(b.id, { id: b.id, a: b.a, b: b.b, order: Math.max(1, b.order || 1), ionic: !!b.ionic });
+    }
+    return m;
+  }
+  function trReason(reason) {
+    if (!reason) return '';
+    var a = app();
+    if (a && a.i18n && typeof a.i18n.t === 'function') {
+      try {
+        var s = a.i18n.t(reason.key, reason.p);
+        if (s && s !== reason.key) return s;
+      } catch (err) { /* fall through */ }
+    }
+    return String(reason.key || '');
+  }
+  // Raise one approved order at a time, moving the working sums with every step
+  // that passes; upgradeCheck measures the bond it is handed as the next order up.
+  // The climb stops at the order that was asked for: a single bond must stay a
+  // single bond wherever a double would also have been legal.
+  function stepUp(r, am, bm, rec, want) {
+    var top = rec.order, reason = null;
+    for (var o = rec.order + 1; o <= want && o <= 5; o++) {
+      var up = r.upgradeCheck(am, bm, { id: rec.id, a: rec.a, b: rec.b, order: o, ionic: rec.ionic });
+      if (!up.ok) { reason = up.reason; break; }
+      rec.order = o;
+      top = o;
+    }
+    return { order: top, reason: reason };
+  }
+  // A bond the player asked for between two atoms that are not yet joined.
+  function bondPlan(aId, bId, want) {
+    var r = rules();
+    want = Math.max(1, Math.round(want || 1));
+    if (!r) return { ok: true, type: 'covalent', order: want };
+    var am = ruleAtoms(), bm = ruleBonds();
+    var chk = r.bondCheck(am, bm, aId, bId);
+    if (!chk.ok) return { ok: false, reason: chk.reason };
+    var rec = { id: 'plan', a: aId, b: bId, order: 1, ionic: chk.type === 'ionic' };
+    bm.set('plan', rec);
+    var s = stepUp(r, am, bm, rec, want);
+    return { ok: true, type: chk.type, order: s.order, reason: s.reason, short: s.order < want };
+  }
+  // A bond whose end(s) are not on the board yet: the atoms are attached only for
+  // the length of the question, so a refused bond leaves nothing behind to undo.
+  function probePlan(probes, aId, bId, want) {
+    var n = doc.atoms.length;
+    for (var i = 0; i < probes.length; i++) doc.atoms.push(probes[i]);
+    var plan;
+    try { plan = bondPlan(aId, bId, want); }
+    finally { doc.atoms.length = n; }
+    return plan;
+  }
+  // An existing bond, raised toward want. Stopping short is reported with the
+  // game's own reason so the player learns which rule stopped them.
+  function raisePlan(bond, want) {
+    var r = rules();
+    want = Math.max(1, Math.round(want || 1));
+    if (!r) return { ok: true, order: want };
+    var am = ruleAtoms(), bm = ruleBonds();
+    var rec = bm.get(bond.id);
+    if (!rec) return { ok: false, order: Math.max(1, bond.order || 1) };
+    var s = stepUp(r, am, bm, rec, want);
+    return { ok: s.order >= want, order: s.order, reason: s.reason };
+  }
+  // The highest order this bond could legally reach right now.
+  function headroom(bond) {
+    var r = rules();
+    if (!r) return 5;
+    var am = ruleAtoms(), bm = ruleBonds();
+    var rec = bm.get(bond.id);
+    if (!rec) return Math.max(1, bond.order || 1);
+    return stepUp(r, am, bm, rec, 5).order;
+  }
+  // The two numbers the engine measures an atom against: how many shared pairs it
+  // can coordinate at all, and how many it makes while carrying no formal charge.
+  // Both are read from the game's own element record, so the editor's flags and the
+  // scene's verdicts can never disagree.
+  function capacityOf(sym) {
+    var r = rules();
+    if (r && typeof r.orderCapacityOf === 'function') {
+      try { var c = r.orderCapacityOf(gameEl(sym)); if (c) return c; } catch (err) { /* fall through */ }
+    }
+    return valenceOf(elOf(sym));
+  }
+  function neutralValence(sym) {
+    var r = rules();
+    if (r && typeof r.neutralCovalenceOf === 'function') {
+      try { var c = r.neutralCovalenceOf(gameEl(sym)); if (c) return c; } catch (err) { /* fall through */ }
+    }
+    return valenceOf(elOf(sym));
+  }
+  // Audit of the whole board: every bond re-asked from nothing, so a document that
+  // predates these rules (or arrived from a file) cannot keep an illegal line.
+  function auditBonds() {
+    var r = rules();
+    if (!r) return [];
+    var bad = [];
+    for (var i = 0; i < doc.bonds.length; i++) {
+      var b = doc.bonds[i];
+      var am = ruleAtoms(), bm = ruleBonds();
+      bm.delete(b.id);
+      var chk = r.bondCheck(am, bm, b.a, b.b);
+      if (!chk.ok) { bad.push({ id: b.id, reason: chk.reason }); continue; }
+      var rec = { id: b.id, a: b.a, b: b.b, order: 1, ionic: chk.type === 'ionic' };
+      bm.set(b.id, rec);
+      var s = stepUp(r, am, bm, rec, Math.max(1, b.order || 1));
+      if (s.order < (b.order || 1)) bad.push({ id: b.id, reason: s.reason, order: s.order });
+      else if (!!b.ionic !== rec.ionic) bad.push({ id: b.id, retype: rec.ionic });
+    }
+    return bad;
+  }
+  // Bring a board that did not arrive through the drawing tools — a preset, a
+  // loaded file, a document saved before these rules existed, an atom whose
+  // element was just painted over — back inside them, and report what had to
+  // change. A bond the rules refuse outright cannot stay on the board, because
+  // the board is a promise the 3D scene would have to break.
+  // One correction per pass, then the board is asked again: a bond cut for one
+  // atom usually frees the neighbours that were only over the line because of it,
+  // so repairing everything found in a single sweep would cut four bonds where
+  // the rules need one gone.
+  function repairBoard() {
+    var notes = [], pass = 0;
+    while (pass++ < 200) {
+      var bad = auditBonds();
+      if (!bad.length) break;
+      if (!applyRepair(bad[0], notes)) break;
+    }
+    return notes;
+  }
+  // The one fix for one flagged bond. False means the board cannot move, so the
+  // caller stops rather than looping on a fault it has already applied.
+  function applyRepair(item, notes) {
+    var b = bondById(item.id);
+    if (!b) return false;
+    var A = atomById(b.a), B = atomById(b.b);
+    var pair = A && B ? A.sym + '–' + B.sym : '';
+    if (item.order === void 0 && item.retype === void 0) {
+      removeBond(b.id);
+      notes.push(pair + ': ' + trReason(item.reason));
+      return true;
+    }
+    if (item.retype !== void 0) {
+      if (!!b.ionic === item.retype) return false;
+      b.ionic = item.retype;
+      return true;
+    }
+    if (b.order === item.order) return false;
+    b.order = item.order;
+    notes.push(pair + ' → ' + ordGlyph(b.order) + ': ' + trReason(item.reason));
+    return true;
+  }
+
+  // ==========================================================================
+  // 2c. Geometry: bond lengths and VSEPR joints.
+  //     A structural formula is a shape, not a scatter of letters. Distances come
+  //     from the scene's own ball-and-stick measure (window.__mol3d.chem.bondLength
+  //     — the very function the 3D builder calls), directions come from VSEPR: the
+  //     atoms around a centre plus its lone pairs fix the steric number, and the
+  //     steric number fixes the angles. An atom therefore lands on a joint of the
+  //     structure, never wherever the pointer happened to stop; Alt is the one
+  //     deliberate escape, for parking a fragment wherever it is wanted.
+  // ==========================================================================
+  var TAU = Math.PI * 2;
+  var D2R = Math.PI / 180;
+  var JOINT_GRAB = GRID * 1.15;       // inside this, the click was on the joint
+  var JOINT_MAGNET = BOND_LEN * 1.55; // near a structure the joint still wins
+  var CC_ANG = -1;
+
+  // Valence electrons for the handful of cases the registry is not up for. The
+  // game's own table is used whenever it is there; this only keeps the geometry
+  // sane if the editor is opened before the scene finishes booting.
+  var VA_E = {
+    H: 1, He: 2, Li: 1, Be: 2, B: 3, C: 4, N: 5, O: 6, F: 7, Ne: 8, Na: 1, Mg: 2, Al: 3,
+    Si: 4, P: 5, S: 6, Cl: 7, Ar: 8, K: 1, Ca: 2, Ga: 3, Ge: 4, As: 5, Se: 6, Br: 7, Kr: 8,
+    Rb: 1, Sr: 2, In: 3, Sn: 4, Sb: 5, Te: 6, I: 7, Xe: 8, Cs: 1, Ba: 2, Tl: 1, Pb: 2,
+    Bi: 3, Po: 6, At: 7, Rn: 8
+  };
+
+  function engineAng(symA, symB, ionic) {
+    var r = rules(), ea = gameEl(symA), eb = gameEl(symB);
+    if (!ea || !eb) return 0;
+    if (r && typeof r.bondLength === 'function') {
+      try {
+        var L = r.bondLength(ea, eb, !!ionic);
+        if (L > 0 && isFinite(L)) return L;
+      } catch (err) { /* fall back to the radii below */ }
+    }
+    if (typeof ea.radius === 'number' && typeof eb.radius === 'number') {
+      var s = (ea.radius + eb.radius) / 55;   // the scene's own formula
+      return ionic ? s * 1.18 : s;
+    }
+    return 0;
+  }
+  function ccAng() {
+    if (CC_ANG < 0) CC_ANG = engineAng('C', 'C', false);
+    return CC_ANG;
+  }
+  // The scene's angstroms are ball-packing units (its C–C is 2.764), so the board
+  // is calibrated on the measure it already uses: one C–C is BOND_LEN. The other
+  // pairs keep the scene's proportions, reinseded into a band a drawing can read —
+  // Na–Cl is 1.8× a C–C in the scene, which is true but not something a 2D bond
+  // should ever look like.
+  function lengthPx(symA, symB, ionic) {
+    var ang = engineAng(symA, symB, ionic), base = ccAng();
+    if (!(ang > 0) || !(base > 0)) return BOND_LEN;
+    var k = ang / base;
+    k = Math.max(0.74, Math.min(ionic ? 1.42 : 1.18, k));
+    return Math.round(BOND_LEN * k * 100) / 100;
+  }
+
+  function normAng(a) {
+    while (a > Math.PI) a -= TAU;
+    while (a < -Math.PI) a += TAU;
+    return a;
+  }
+  function angDist(a, b) { return Math.abs(normAng(a - b)); }
+
+  function valenceElectrons(sym) {
+    var el = gameEl(sym);
+    if (el && typeof el.valenceElectrons === 'number' && isFinite(el.valenceElectrons)) return el.valenceElectrons;
+    return VA_E[sym] || 0;
+  }
+  function isMetalSym(sym) {
+    var r = rules();
+    if (r && typeof r.isMetal === 'function') {
+      try { return !!r.isMetal(sym); } catch (err) { /* fall through */ }
+    }
+    var el = gameEl(sym);
+    return !!(el && /alkali|alkaline|transition|post|lanthanide|actinide/.test(String(el.cat)));
+  }
+  // Hydrogens the drawing leaves out but the valence still owes — the same open
+  // valences the add-hydrogens button fills. They are invisible and they still
+  // hold their room: a chain carbon drawn with two neighbours is a four-domain
+  // centre, and drawing it as a two-domain one would make every alkane a ruler.
+  function implicitH(a) {
+    if (!a || a.sym === 'H') return 0;
+    if (isMetalSym(a.sym)) return 0;
+    var cov = covSum(a.id), q = a.q || 0;
+    var owed = valenceState(a.sym, cov, q) - Math.max(0, cov - q);
+    return Math.max(0, Math.min(4, Math.round(owed)));
+  }
+  function autoLP(a) {
+    var bonds = covSum(a.id) + implicitH(a);
+    var left = valenceElectrons(a.sym) - (a.q || 0) - bonds;
+    return Math.max(0, Math.floor(left / 2));
+  }
+  // The lone-pair tool is an override; until it is used the count is the engine's
+  // own electron bookkeeping, so water shows two pairs without being told to.
+  function lpCount(a) {
+    if (!a) return 0;
+    if (a.lpSet) return Math.max(0, a.lp | 0);
+    return autoLP(a);
+  }
+  // The lone-pair tool is the one way to overrule that bookkeeping; a count that
+  // lands back on the automatic number hands the decision back to the engine.
+  function setLP(a, n) {
+    n = Math.max(0, Math.min(6, Math.round(n) || 0));
+    a.lp = n;
+    a.lpSet = n === autoLP(a) ? 0 : 1;
+    return n;
+  }
+
+  // The angle between two neighbouring bonded domains.
+  function domainGap(cn, lp) {
+    if (cn <= 1) return 0;
+    var sn = cn + lp;
+    if (lp === 0) {
+      if (sn === 2) return Math.PI;
+      if (sn === 3) return 120 * D2R;
+      if (sn === 4) return 90 * D2R;     // tetrahedral, drawn as the cross
+      if (sn === 5) return 72 * D2R;
+      if (sn === 6) return 60 * D2R;
+      return TAU / cn;
+    }
+    if (sn <= 2) return Math.PI;
+    if (sn === 3) return cn === 2 ? 119 * D2R : 120 * D2R;   // AX2E (SO2) / AX3
+    if (sn === 4) return cn === 2 ? 104.5 * D2R : cn === 3 ? 107 * D2R : 90 * D2R;
+    if (sn === 5) return cn === 2 ? Math.PI : 90 * D2R;      // AX2E3 / AX3E2 / AX4E
+    if (sn === 6) return cn === 2 ? Math.PI : 90 * D2R;      // AX2E4 / AX4E2
+    return TAU / Math.max(3, cn);
+  }
+  function evenDirs(n) {
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(i * TAU / n - Math.PI / 2);
+    return out;
+  }
+  // The full arrangement of domains around a centre: the bonded ones (real bonds
+  // and the hydrogens the drawing left implicit) and the lone pairs, which share
+  // the circle and push the bonds together.
+  function shapeDirs(cn, lp, sym) {
+    // A centre with nothing to point, or with a single bond that has not decided
+    // its shape yet, gets the directions its highest valence state can still grow
+    // into. They are only an invitation: the settle replaces them with the model
+    // the moment the atom has enough neighbours to have a shape.
+    if (cn <= 1) {
+      var hub = isMetalSym(sym) ? 6 : Math.max(2, Math.min(6, highestState(sym)));
+      return { bonds: evenDirs(hub), lps: [] };
+    }
+    var gap = domainGap(cn, lp);
+    if (!gap) return { bonds: [0], lps: [] };
+    if (lp === 0) return { bonds: evenDirs(cn), lps: [] };
+    if (gap * (cn - 1) >= Math.PI * 1.72) return { bonds: evenDirs(cn), lps: [] };
+    var span = gap * (cn - 1), bonds = [], i;
+    for (i = 0; i < cn; i++) bonds.push(-span / 2 + gap * i);
+    var rest = TAU - span, lps = [];
+    for (i = 0; i < lp; i++) lps.push(Math.PI + (i - (lp - 1) / 2) * (rest / (lp + 1)));
+    return { bonds: bonds, lps: lps };
+  }
+  // Rotate the ideal arrangement so it lies as well as it can over the bonds that
+  // are already drawn: an atom that has been built up joint by joint keeps its
+  // orientation, and its free slots are the joints the next atom drops into.
+  function fitRotation(can, drawn) {
+    if (!can.length || !drawn.length) return 0;
+    var best = 0, bestScore = Infinity, i, j, k;
+    for (i = 0; i < drawn.length; i++) {
+      for (j = 0; j < can.length; j++) {
+        var phi = normAng(drawn[i] - can[j]), s = 0;
+        for (k = 0; k < drawn.length; k++) {
+          var m = Math.PI;
+          for (var t = 0; t < can.length; t++) m = Math.min(m, angDist(drawn[k], phi + can[t]));
+          s += m * m;
+        }
+        if (s < bestScore - 1e-9) { bestScore = s; best = phi; }
+      }
+    }
+    return best;
+  }
+  // Covalent neighbours hold a slot; ionic contacts are electrostatic and point
+  // wherever the counter-ion happens to be, so they never claim a VSEPR direction.
+  function drawnDirs(id) {
+    var me = atomById(id), out = [];
+    if (!me) return out;
+    var bs = bondsOf(id);
+    for (var i = 0; i < bs.length; i++) {
+      if (bs[i].ionic) continue;
+      var o = atomById(bs[i].a === id ? bs[i].b : bs[i].a);
+      if (!o) continue;
+      var dx = o.x - me.x, dy = o.y - me.y;
+      if (!dx && !dy) { out.push({ ang: 0, id: o.id }); continue; }
+      out.push({ ang: Math.atan2(dy, dx), id: o.id });
+    }
+    return out;
+  }
+  // The shape a centre will have once the bond being offered actually lands.
+  // Joints are asked for before the atom exists, so a sulphur sitting on four
+  // fluorines is shown the six positions of the octahedron it is becoming rather
+  // than the five domains of the molecule it is today. Without that, the fifth
+  // joint of SF6 has nowhere to go and the next atom falls onto a neighbouring
+  // halogen instead — a chain the rules allow and the user never meant.
+  function jointShape(a, addOrder) {
+    var cn = drawnDirs(a.id).length;
+    if (!addOrder) return shapeDirs(cn + implicitH(a), lpCount(a), a.sym);
+    var cov = covSum(a.id) + addOrder, q = a.q || 0;
+    var owed = Math.max(0, Math.min(4, Math.round(valenceState(a.sym, cov, q) - Math.max(0, cov - q))));
+    var land = cn + 1 + owed;
+    var left = valenceElectrons(a.sym) - q - (cov + owed);
+    var lp = a.lpSet ? Math.max(0, a.lp | 0) : Math.max(0, Math.floor(left / 2));
+    // A centre the rules still let grow is shown the directions of the arrangement
+    // it is heading for, not of the intermediate molecule it happens to be today:
+    // phosphorus is a pentagon from its first chlorine, so the fifth drop finds its
+    // joint where the player aimed instead of in the gap the third one left behind.
+    // The settled shape is still the honest one — stop at three chlorines and the
+    // pyramid appears, and the lone-pair dots keep their real angles.
+    var hub = a.lpSet ? land
+      : isMetalSym(a.sym) ? 6
+      : Math.max(2, Math.min(6, Math.min(highestState(a.sym), capacityOf(a.sym))));
+    if (hub > land) return shapeDirs(hub, 0, a.sym);
+    return shapeDirs(land, lp, a.sym);
+  }
+  // The places a new atom may sit against this one: every free bonded slot, and
+  // behind them the lone-pair slots, which is how H2O takes its third hydrogen.
+  function slotsOf(a, ionic, addOrder) {
+    if (!a) return [];
+    var drawn = drawnDirs(a.id);
+    var sh = ionic ? { bonds: evenDirs(6), lps: [] } : jointShape(a, addOrder);
+    var phi = fitRotation(sh.bonds.concat(sh.lps), drawn.map(function (d) { return d.ang; }));
+    var out = [], i, j;
+    for (i = 0; i < sh.bonds.length; i++) out.push({ ang: normAng(sh.bonds[i] + phi), kind: 'bond' });
+    for (i = 0; i < sh.lps.length; i++) out.push({ ang: normAng(sh.lps[i] + phi), kind: 'lp' });
+    for (i = 0; i < out.length; i++) {
+      for (j = 0; j < drawn.length; j++) {
+        if (angDist(out[i].ang, drawn[j].ang) < 42 * D2R) { out[i].taken = true; break; }
+      }
+    }
+    return out;
+  }
+  // The directions the lone pairs of this atom actually occupy, so the dots on the
+  // board are drawn where the VSEPR model puts them rather than in whichever of
+  // eight compass points happens to be clear of a bond.
+  function lpDirsOf(a) {
+    var sl = slotsOf(a, false), out = [];
+    for (var i = 0; i < sl.length; i++) {
+      if (sl[i].kind === 'lp' && !sl[i].taken) out.push(sl[i].ang);
+    }
+    return out;
+  }
+  function blockedAt(x, y, skipId, len, skip) {
+    var keep = Math.max(26, len * 0.62);
+    for (var i = 0; i < doc.atoms.length; i++) {
+      var a = doc.atoms[i];
+      if (a.id === skipId || (skip && skip[a.id])) continue;
+      if (Math.hypot(a.x - x, a.y - y) < keep) return true;
+    }
+    return false;
+  }
+  // Every joint on the board where `sym` could legally be dropped right now. The
+  // legality question is asked once per parent atom, through the same rules every
+  // other drawing path goes through, so a joint is never a promise the scene
+  // breaks. Cached against the document, rebuilt by the edit that changed it.
+  var jointCache = { key: '', list: null };
+  // Joints are positions, not just topology: dragging a fragment across the board
+  // has to invalidate the cache even though no atom was added or removed, so the
+  // shape of the document is mixed into the key.
+  function shapeKey() {
+    var h = 2166136261, i;
+    for (i = 0; i < doc.atoms.length; i++) {
+      var a = doc.atoms[i];
+      h = (h ^ Math.round(a.x * 4)) * 16777619 >>> 0;
+      h = (h ^ Math.round(a.y * 4)) * 16777619 >>> 0;
+      h = (h ^ a.id) * 16777619 >>> 0;
+    }
+    return h;
+  }
+  function allJoints(sym, wantOrder) {
+    var key = [ui.rev, sym, wantOrder, doc.atoms.length, doc.bonds.length, shapeKey()].join('|');
+    if (jointCache.key === key && jointCache.list) return jointCache.list;
+    var out = [], probe = { id: '~jnt', sym: sym, x: 0, y: 0, q: 0, lp: 0 };
+    for (var i = 0; i < doc.atoms.length; i++) {
+      var a = doc.atoms[i];
+      var plan = probePlan([probe], a.id, '~jnt', wantOrder);
+      if (!plan.ok) continue;
+      var len = lengthPx(a.sym, sym, plan.type === 'ionic');
+      var slots = slotsOf(a, plan.type === 'ionic', plan.order);
+      // Which atom gets the new bond. Joints are drawn from the atom already on
+      // the board, and the ones that have to be preferred are the ones the
+      // structure is actually missing: an atom that still owes its valence a
+      // bond first, an atom whose valence is full but whose coordination can
+      // still rise next, an atom standing alone last of all because its
+      // directions are only an invitation to begin. Within one class the atom
+      // with more neighbours wins, so the skeleton grows before its ends: the
+      // fifth chlorine of PCl5 belongs to phosphorus even when a terminal
+      // chlorine is sitting right where the pointer is.
+      var deg = drawnDirs(a.id).length;
+      var rank = !plan.type && !deg ? 2 : (implicitH(a) > 0 ? 0 : 1);
+      for (var j = 0; j < slots.length; j++) {
+        if (slots[j].taken) continue;
+        var x = a.x + Math.cos(slots[j].ang) * len, y = a.y + Math.sin(slots[j].ang) * len;
+        if (blockedAt(x, y, a.id, len)) continue;
+        out.push({
+          x: x, y: y, ang: slots[j].ang, kind: slots[j].kind, rank: rank, deg: deg, parent: a.id,
+          order: plan.order, ionic: plan.type === 'ionic', len: len,
+          short: plan.short, reason: plan.reason
+        });
+      }
+    }
+    if (key) jointCache = { key: key, list: out };
+    return out;
+  }
+  // The single number every joint list is ordered by: class, then how built-up
+  // the atom is, then whether the slot is a real bonding direction or a lone
+  // pair standing in for one, then whether the centre had to make room for it,
+  // then the distance the player actually aimed at.
+  function jointWeight(t) {
+    return t.rank * 1e9 - t.deg * 1e6 + (t.kind === 'lp' ? 1e3 : 0) + (t.room ? 5e5 : 0) + (t.dist || 0);
+  }
+  // The joints of `all` the pointer can actually reach, copied with the distance
+  // it aimed past.
+  function collectJoints(all, x, y, reach) {
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      var j = all[i];
+      var d = Math.hypot(j.x - x, j.y - y);
+      if (d > reach) continue;
+      out.push({ x: j.x, y: j.y, ang: j.ang, kind: j.kind, rank: j.rank, deg: j.deg, parent: j.parent,
+        order: j.order, ionic: j.ionic, len: j.len, short: j.short, reason: j.reason, dist: d });
+    }
+    return out;
+  }
+  // One-to-one assignment of the drawn bonds onto distinct slots of a rotated
+  // target, cheapest angular cost first, returning the slots left over. The slot
+  // `anchor` is held back for the bond that is being drawn now, so the best fit
+  // can never hand the door it opened to a bond that was already there. Greedy is
+  // enough here: the sets are at most six wide and the answer only has to leave a
+  // door open, not be perfect.
+  function freeSlotsAfterAssign(slots, phi, drawn, anchor) {
+    var cand = [], i, j;
+    for (i = 0; i < drawn.length; i++)
+      for (j = 0; j < slots.length; j++) {
+        if (j === anchor) continue;
+        cand.push({ n: i, s: j, d: angDist(normAng(slots[j].ang + phi), drawn[i].ang) });
+      }
+    cand.sort(function (p, q) { return p.d - q.d; });
+    var bn = {}, bs = {}, used = 0, cost = 0;
+    for (i = 0; i < cand.length && used < drawn.length; i++) {
+      var c = cand[i];
+      if (bn[c.n] || bs[c.s]) continue;
+      bn[c.n] = 1; bs[c.s] = 1; cost += c.d * c.d; used++;
+    }
+    if (used < drawn.length) return null;
+    var free = [];
+    if (anchor !== undefined && anchor >= 0)
+      free.push({ ang: normAng(slots[anchor].ang + phi), kind: slots[anchor].kind });
+    for (j = 0; j < slots.length; j++)
+      if (j !== anchor && !bs[j]) free.push({ ang: normAng(slots[j].ang + phi), kind: slots[j].kind });
+    return { free: free, cost: cost };
+  }
+  // The last resort of a growing centre. A tetrafluoride sits in a square, four
+  // bonds ninety degrees apart, and the octahedron it is heading for has six slots
+  // sixty degrees apart — no rotation of one fits inside the other, so every slot
+  // falls within the taken window of a bond and the centre offers no door at all:
+  // the fifth fluorine has nowhere to land and would settle on a neighbour instead,
+  // which the rules permit and the player never meant. So the arrangement is asked
+  // a different question: anchor one slot under the pointer, hand the bonds that
+  // are already drawn the best of the remaining slots, and open whatever is left.
+  // The settle afterwards spaces the finished molecule properly; this only has to
+  // keep it buildable.
+  function roomJoints(x, y, sym, wantOrder) {
+    var out = [], probe = { id: '~room', sym: sym, x: 0, y: 0, q: 0, lp: 0 };
+    for (var i = 0; i < doc.atoms.length; i++) {
+      var a = doc.atoms[i];
+      var reach = Math.hypot(x - a.x, y - a.y);
+      if (reach > JOINT_MAGNET * 1.7) continue;
+      var plan = probePlan([probe], a.id, '~room', wantOrder);
+      if (!plan.ok) continue;
+      var len = lengthPx(a.sym, sym, plan.type === 'ionic');
+      if (reach > len * 1.7) continue;
+      var drawn = drawnDirs(a.id);
+      var sh = plan.type === 'ionic' ? { bonds: evenDirs(6), lps: [] } : jointShape(a, plan.order);
+      var slots = [], k;
+      for (k = 0; k < sh.bonds.length; k++) slots.push({ ang: sh.bonds[k], kind: 'bond' });
+      for (k = 0; k < sh.lps.length; k++) slots.push({ ang: sh.lps[k], kind: 'lp' });
+      if (slots.length <= drawn.length) continue;
+      // The neighbours of the atom being grown are not in the way: they are about
+      // to move onto the new arrangement with it. A square of four bonds has no
+      // room for a sixth direction measured against where those four sit today,
+      // but the settle that follows the bond spaces all six properly, so the door
+      // is real even while the geometry around it is still half-built.
+      var moving = {};
+      for (k = 0; k < doc.bonds.length; k++) {
+        var bd = doc.bonds[k];
+        if (bd.a === a.id) moving[bd.b] = 1; else if (bd.b === a.id) moving[bd.a] = 1;
+      }
+      var aim = Math.atan2(y - a.y, x - a.x), best = null;
+      for (k = 0; k < slots.length; k++) {
+        var got = freeSlotsAfterAssign(slots, normAng(aim - slots[k].ang), drawn, k);
+        if (!got || !got.free.length) continue;
+        if (!best || best.cost > got.cost) best = got;
+      }
+      if (!best) continue;
+      var deg = drawn.length;
+      var rank = !plan.type && !deg ? 2 : (implicitH(a) > 0 ? 0 : 1);
+      for (k = 0; k < best.free.length; k++) {
+        var ang = best.free[k].ang;
+        var px = a.x + Math.cos(ang) * len, py = a.y + Math.sin(ang) * len;
+        out.push({ x: px, y: py, ang: ang, kind: best.free[k].kind, rank: rank, deg: deg, parent: a.id,
+          order: plan.order, ionic: plan.type === 'ionic', len: len,
+          short: plan.short, reason: plan.reason, dist: Math.hypot(px - x, py - y), room: 1 });
+      }
+    }
+    out.sort(function (p, q) { return jointWeight(p) - jointWeight(q); });
+    return out;
+  }
+  function jointsNear(x, y, sym, wantOrder) {
+    var out = collectJoints(allJoints(sym, wantOrder), x, y, JOINT_MAGNET);
+    // The doors a centre keeps open for the arrangement it is heading for, even
+    // when the shape it has today already covers every one of them. Added to the
+    // normal list rather than used only when it is empty: at the fifth fluorine of
+    // SF6 the terminal fluorines still offer joints, so an empty-list fallback
+    // would never fire and the bond would land on a neighbour the player never
+    // meant. The ranking sends it to sulfur anyway, and the room penalty below
+    // keeps a made-room joint from ever beating a real one on the same atom.
+    var room = roomJoints(x, y, sym, wantOrder);
+    for (var i = 0; i < room.length; i++) {
+      if (room[i].dist > JOINT_MAGNET * 1.8) continue;
+      out.push(room[i]);
+    }
+    out.sort(function (p, q) { return jointWeight(p) - jointWeight(q); });
+    return out;
+  }
+  function jointsOf(parentId, sym, wantOrder) {
+    var all = allJoints(sym, wantOrder), out = [];
+    for (var i = 0; i < all.length; i++) if (all[i].parent === parentId) out.push(all[i]);
+    return out;
+  }
 
   // ==========================================================================
   // 4. Styles. Inline in the asset, scoped to #bp-panel / .bp-*, so nothing here
@@ -593,15 +1361,15 @@
     '#bp-panel{position:fixed;z-index:1000;display:none;flex-direction:column;width:740px;height:520px;',
     'min-width:320px;min-height:250px;left:80px;top:84px;overflow:hidden;box-sizing:border-box;',
     'background:var(--panel,rgba(12,18,35,.93));border:1px solid var(--border,rgba(0,200,255,.18));',
-    'border-radius:12px;box-shadow:0 10px 38px rgba(0,0,0,.62),0 0 1px rgba(0,212,255,.4);',
+    'border-radius:12px;box-shadow:var(--panel-shadow,0 10px 38px rgba(0,0,0,.62));',
     'color:var(--text,#e0f0ff);font-family:inherit;font-size:12px;touch-action:manipulation}',
     '#bp-panel.open{display:flex}',
     '#bp-panel *{box-sizing:border-box}',
     '#bp-head{display:flex;align-items:center;gap:6px;padding:6px 8px;flex:none;cursor:move;',
     'border-bottom:1px solid var(--border,rgba(0,200,255,.15));',
-    'background:linear-gradient(180deg,rgba(0,212,255,.10),transparent);user-select:none;touch-action:none}',
+    'background:linear-gradient(180deg,var(--accent-soft,rgba(0,212,255,.10)),transparent);user-select:none;touch-action:none}',
     '#bp-badge{flex:none;font-size:9px;font-weight:800;letter-spacing:.09em;padding:3px 5px;border-radius:5px;',
-    'background:var(--accent,#00d4ff);color:#04121c}',
+    'background:var(--accent,#00d4ff);color:var(--on-accent,#04121c)}',
     '#bp-title{flex:none;font-size:12px;font-weight:700;color:var(--accent,#00d4ff);white-space:nowrap}',
     '#bp-readout{flex:1 1 auto;min-width:0;text-align:right;font-size:11px;line-height:1.2;',
     'color:var(--muted,#5a7a9a);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -613,7 +1381,7 @@
     'color:var(--text,#e0f0ff);font-size:12px;font-family:inherit}',
     '.bp-hbtn:hover{border-color:var(--accent,#00d4ff);color:var(--accent,#00d4ff)}',
     '#bp-elbar{display:flex;align-items:center;gap:5px;padding:5px 8px;flex:none;flex-wrap:wrap;',
-    'border-bottom:1px solid var(--border,rgba(0,200,255,.12));background:rgba(0,0,0,.18)}',
+    'border-bottom:1px solid var(--border,rgba(0,200,255,.12));background:var(--row-alt,rgba(0,0,0,.18))}',
     '#bp-elchip{display:flex;align-items:center;gap:5px;min-width:66px;padding:3px 8px;border-radius:7px;',
     'cursor:pointer;font-family:inherit;font-size:12px;color:var(--text,#e0f0ff);',
     'background:var(--panel-2,rgba(18,26,48,.95));border:1px solid var(--border,rgba(0,200,255,.25))}',
@@ -622,17 +1390,17 @@
     '#bp-elchip .bp-en{font-size:10px;color:var(--muted,#5a7a9a);max-width:104px;overflow:hidden;',
     'text-overflow:ellipsis;white-space:nowrap}',
     '#bp-elsearch{width:132px;padding:4px 7px;border-radius:7px;font-family:inherit;font-size:11px;',
-    'color:var(--text,#e0f0ff);background:rgba(0,0,0,.3);border:1px solid var(--border,rgba(0,200,255,.2))}',
+    'color:var(--text,#e0f0ff);background:var(--panel-2,rgba(0,0,0,.3));border:1px solid var(--border,rgba(0,200,255,.2))}',
     '.bp-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted,#5a7a9a)}',
     '.bp-seg{display:flex;gap:2px}',
     '.bp-seg button{width:26px;height:23px;padding:0;font-size:12px;line-height:1;cursor:pointer;',
     'border-radius:6px;font-family:inherit;border:1px solid var(--border,rgba(0,200,255,.2));',
     'background:var(--panel-2,rgba(18,26,48,.9));color:var(--text,#e0f0ff)}',
-    '.bp-seg button.on{background:var(--accent,#00d4ff);color:#04121c;border-color:var(--accent,#00d4ff)}',
+    '.bp-seg button.on{background:var(--accent,#00d4ff);color:var(--on-accent,#04121c);border-color:var(--accent,#00d4ff)}',
     '.bp-tg{display:flex;align-items:center;gap:3px;padding:3px 6px;border-radius:6px;cursor:pointer;',
     'font-family:inherit;font-size:10px;border:1px solid var(--border,rgba(0,200,255,.18));',
     'background:transparent;color:var(--muted,#5a7a9a)}',
-    '.bp-tg i{width:7px;height:7px;border-radius:2px;background:rgba(255,255,255,.16);flex:none}',
+    '.bp-tg i{width:7px;height:7px;border-radius:2px;background:var(--border,rgba(255,255,255,.16));flex:none}',
     '.bp-tg.on{color:var(--text,#e0f0ff);border-color:var(--accent,#00d4ff)}',
     '.bp-tg.on i{background:var(--accent,#00d4ff);box-shadow:0 0 6px var(--accent-glow,rgba(0,212,255,.6))}',
     '.bp-grow{flex:1 1 auto}',
@@ -643,68 +1411,69 @@
     'border-radius:6px;border:1px solid transparent;background:var(--panel-2,rgba(18,26,48,.7));',
     'color:var(--text,#e0f0ff);overflow:hidden;white-space:nowrap}',
     '.bp-tool:hover{border-color:var(--accent,#00d4ff)}',
-    '.bp-tool.on{background:var(--accent,#00d4ff);color:#04121c;border-color:var(--accent,#00d4ff);font-weight:700}',
+    '.bp-tool.on{background:var(--accent,#00d4ff);color:var(--on-accent,#04121c);border-color:var(--accent,#00d4ff);font-weight:700}',
     '.bp-rail-div{flex:none;height:1px;margin:3px 2px;background:var(--border,rgba(0,200,255,.14))}',
-    '#bp-canvas-wrap{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;background:#050912}',
+    '#bp-canvas-wrap{position:relative;flex:1 1 auto;min-width:0;overflow:hidden;background:var(--board,#050912)}',
     '#bp-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;',
     '-webkit-user-select:none;user-select:none}',
     '#bp-elpop{position:absolute;left:6px;top:6px;width:238px;max-height:calc(100% - 12px);display:none;',
     'flex-direction:column;gap:4px;padding:6px;border-radius:10px;z-index:4;',
-    'background:rgba(7,12,24,.97);border:1px solid var(--border,rgba(0,200,255,.25));',
-    'box-shadow:0 8px 26px rgba(0,0,0,.6)}',
+    'background:var(--overlay,rgba(7,12,24,.97));border:1px solid var(--border,rgba(0,200,255,.25));',
+    'box-shadow:var(--panel-shadow,0 8px 26px rgba(0,0,0,.6))}',
     '#bp-elpop.open{display:flex}',
     '#bp-ellist{display:flex;flex-wrap:wrap;gap:3px;overflow-y:auto;min-height:0;max-height:268px;padding:2px}',
     '#bp-ellist button{width:31px;height:26px;border-radius:5px;cursor:pointer;font-family:inherit;',
-    'font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);',
-    'color:#e6edf3;padding:0;line-height:1}',
+    'font-size:11px;font-weight:700;border:1px solid var(--border,rgba(255,255,255,.10));background:var(--accent-soft,rgba(255,255,255,.045));',
+    'color:var(--text,#e6edf3);padding:0;line-height:1}',
     '#bp-ellist button:hover{border-color:var(--accent,#00d4ff)}',
     '#bp-ellist button.on{outline:2px solid var(--accent,#00d4ff)}',
     '#bp-ellist .bp-empty{width:100%;font-size:10px;color:var(--muted,#5a7a9a);padding:4px}',
     '#bp-zoombtns{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:3px;z-index:3}',
     '#bp-zoombtns button{width:26px;height:24px;padding:0;font-size:11px;font-family:inherit;cursor:pointer;',
-    'border-radius:6px;border:1px solid var(--border,rgba(0,200,255,.22));background:rgba(7,12,24,.9);',
+    'border-radius:6px;border:1px solid var(--border,rgba(0,200,255,.22));background:var(--overlay-soft,rgba(7,12,24,.9));',
     'color:var(--text,#e0f0ff)}',
     '#bp-zoombtns button:hover{border-color:var(--accent,#00d4ff)}',
     '#bp-hint{position:absolute;left:8px;bottom:8px;max-width:64%;font-size:10px;line-height:1.35;',
-    'color:var(--muted,#5a7a9a);background:rgba(5,9,18,.82);border:1px solid var(--border,rgba(0,200,255,.14));',
+    'color:var(--muted,#5a7a9a);background:var(--overlay-soft,rgba(5,9,18,.82));border:1px solid var(--border,rgba(0,200,255,.14));',
     'border-radius:7px;padding:4px 7px;pointer-events:none;z-index:3}',
     '#bp-io,#bp-helpcard{position:absolute;inset:8px;display:none;flex-direction:column;gap:6px;padding:8px;',
-    'border-radius:10px;background:rgba(6,10,20,.97);border:1px solid var(--border,rgba(0,200,255,.25));z-index:6}',
+    'border-radius:10px;background:var(--overlay,rgba(6,10,20,.97));border:1px solid var(--border,rgba(0,200,255,.25));z-index:6}',
     '#bp-io.open,#bp-helpcard.open{display:flex}',
     '#bp-io h4,#bp-helpcard h4{margin:0;font-size:12px;color:var(--accent,#00d4ff)}',
     '#bp-io textarea{flex:1 1 auto;min-height:0;resize:none;font-family:ui-monospace,Consolas,monospace;',
-    'font-size:11px;line-height:1.4;padding:7px;border-radius:7px;color:#c9e6ff;',
-    'background:#03060c;border:1px solid var(--border,rgba(0,200,255,.2))}',
+    'font-size:11px;line-height:1.4;padding:7px;border-radius:7px;color:var(--text,#c9e6ff);',
+    'background:var(--board,#03060c);border:1px solid var(--border,rgba(0,200,255,.2))}',
     '#bp-io .bp-row,#bp-helpcard .bp-row{display:flex;gap:5px;flex-wrap:wrap;flex:none}',
     '#bp-help-body{flex:1 1 auto;min-height:0;overflow-y:auto;font-size:11px;line-height:1.55}',
     '#bp-help-body h5{margin:8px 0 3px;font-size:11px;color:var(--accent,#00d4ff)}',
     '#bp-help-body ul{margin:0;padding-left:16px}',
     '#bp-help-body li{margin:2px 0}',
     '#bp-help-body kbd{font-family:ui-monospace,Consolas,monospace;font-size:10px;padding:1px 4px;',
-    'border-radius:4px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14)}',
+    'border-radius:4px;background:var(--accent-soft,rgba(255,255,255,.09));border:1px solid var(--border,rgba(255,255,255,.14))}',
     '#bp-ctx{position:absolute;display:none;flex-direction:column;padding:4px;border-radius:8px;z-index:7;',
-    'min-width:154px;background:rgba(7,12,24,.98);border:1px solid var(--border,rgba(0,200,255,.28));',
-    'box-shadow:0 8px 24px rgba(0,0,0,.6)}',
+    'min-width:154px;background:var(--overlay,rgba(7,12,24,.98));border:1px solid var(--border,rgba(0,200,255,.28));',
+    'box-shadow:var(--panel-shadow,0 8px 24px rgba(0,0,0,.6))}',
     '#bp-ctx.open{display:flex}',
     '#bp-ctx button{text-align:left;padding:5px 8px;font-family:inherit;font-size:11px;cursor:pointer;',
     'border:none;border-radius:5px;background:transparent;color:var(--text,#e0f0ff)}',
     '#bp-ctx button:hover{background:var(--accent-soft,rgba(0,212,255,.12));color:var(--accent,#00d4ff)}',
     '#bp-foot{flex:none;display:flex;align-items:center;gap:4px;padding:5px 8px;flex-wrap:wrap;',
-    'border-top:1px solid var(--border,rgba(0,200,255,.13));background:rgba(0,0,0,.2)}',
+    'border-top:1px solid var(--border,rgba(0,200,255,.13));background:var(--row-alt,rgba(0,0,0,.2))}',
     '.bp-abtn{padding:4px 7px;font-family:inherit;font-size:11px;cursor:pointer;border-radius:6px;',
     'border:1px solid var(--border,rgba(0,200,255,.2));background:var(--panel-2,rgba(18,26,48,.9));',
     'color:var(--text,#e0f0ff);white-space:nowrap}',
     '.bp-abtn:hover:not(:disabled){border-color:var(--accent,#00d4ff)}',
     '.bp-abtn:disabled{opacity:.4;cursor:default}',
-    '.bp-abtn.pr{background:var(--accent,#00d4ff);color:#04121c;border-color:var(--accent,#00d4ff);font-weight:700}',
+    '.bp-abtn.pr{background:var(--accent,#00d4ff);color:var(--on-accent,#04121c);border-color:var(--accent,#00d4ff);font-weight:700}',
     '.bp-abtn.pr:hover{filter:brightness(1.12)}',
     '#bp-resize{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;z-index:5;',
-    'touch-action:none;background:linear-gradient(135deg,transparent 45%,rgba(0,212,255,.45) 46%,',
-    'transparent 52%,rgba(0,212,255,.45) 60%,transparent 66%)}',
+    'touch-action:none;background:linear-gradient(135deg,transparent 45%,var(--accent-glow,rgba(0,212,255,.45)) 46%,',
+    'transparent 52%,var(--accent-glow,rgba(0,212,255,.45)) 60%,transparent 66%)}',
     '#bp-panel.min #bp-elbar,#bp-panel.min #bp-body,#bp-panel.min #bp-foot,#bp-panel.min #bp-resize{display:none}',
     '#bp-panel.min{height:auto !important;min-height:0}',
-    '.bp-chip{padding:2px 6px;border-radius:5px;background:rgba(255,170,0,.12);color:var(--warn,#ffaa00);',
-    'border:1px solid rgba(255,170,0,.3);font-size:10px}',
+    '.bp-chip{padding:2px 6px;border-radius:5px;background:var(--warn-soft,rgba(255,170,0,.12));color:var(--warn,#ffaa00);',
+    'border:1px solid var(--warn,rgba(255,170,0,.3));font-size:10px}',
+    '.bp-chip.err{background:var(--err-soft,rgba(255,80,110,.14));color:var(--err-text,#ff6b84);border-color:var(--err,rgba(255,80,110,.4))}',
     /* Small screens and landscape phones: a full-width sheet that docks under the',
        top bar so the pool strip and the action bar keep working. */
     '@media (max-width:780px),(max-height:640px){',
@@ -792,6 +1561,7 @@
       '<button type="button" class="bp-tg" data-tg="showQ"><i></i><span></span></button>' +
       '<button type="button" class="bp-tg" data-tg="showLP"><i></i><span></span></button>' +
       '<button type="button" class="bp-tg" data-tg="shells"><i></i><span></span></button>' +
+      '<button type="button" class="bp-tg" data-tg="vsepr"><i></i><span></span></button>' +
       '</div>';
 
     var body = '<div id="bp-body"><div id="bp-rail"></div>' +
@@ -893,6 +1663,7 @@
     for (var i = 0; i < doc.atoms.length; i++) alive[doc.atoms[i].id] = 1;
     doc.bonds = doc.bonds.filter(function (x) { return alive[x.a] && alive[x.b]; });
     ui.sel = ui.sel.filter(function (id) { return alive[id]; });
+    ui.rev++;
     return true;
   }
   function beforeChange() {
@@ -901,6 +1672,7 @@
     ui.future.length = 0;
   }
   function afterChange() {
+    ui.rev++;
     ui.cur = snapshot();
     scheduleSave();
     refresh();
@@ -930,7 +1702,7 @@
         doc: JSON.parse(ui.cur), ui: {
           zoom: ui.zoom, pan: ui.pan, el: ui.el, tool: ui.tool, bond: ui.bond,
           grid: ui.grid, snap: ui.snap, showH: ui.showH, showQ: ui.showQ, showLP: ui.showLP,
-          shells: ui.shells, left: els.panel.style.left, top: els.panel.style.top,
+          shells: ui.shells, vsepr: ui.vsepr, left: els.panel.style.left, top: els.panel.style.top,
           w: els.panel.style.width, h: els.panel.style.height
         }
       }));
@@ -958,7 +1730,7 @@
     if (u.el && BY_SYM[u.el]) ui.el = u.el;
     if (u.tool) ui.tool = u.tool;
     if (u.bond) ui.bond = u.bond;
-    ['grid', 'snap', 'showH', 'showQ', 'showLP', 'shells'].forEach(function (k) {
+    ['grid', 'snap', 'showH', 'showQ', 'showLP', 'shells', 'vsepr'].forEach(function (k) {
       if (typeof u[k] === 'boolean') ui[k] = u[k];
     });
     if (u.left && u.top) {
@@ -1014,18 +1786,10 @@
   function removeBond(id) {
     doc.bonds = doc.bonds.filter(function (b) { return b.id !== id; });
   }
-  function addBond(aId, bId, order) {
-    var b = { id: newId(), a: aId, b: bId, order: order };
+  function addBond(aId, bId, order, ionic) {
+    var b = { id: newId(), a: aId, b: bId, order: order, ionic: !!ionic };
     doc.bonds.push(b);
     return b;
-  }
-  function capOrder(a, b) {
-    var va = elOf(a.sym), vb = elOf(b.sym);
-    var ca = va && va.maxBonds ? va.maxBonds : 4;
-    var cb = vb && vb.maxBonds ? vb.maxBonds : 4;
-    var ma = MAX_ORD[a.sym] || 4, mb = MAX_ORD[b.sym] || 4;
-    var pair = TM[a.sym] && TM[b.sym] ? 4 : 3;
-    return Math.max(1, Math.min(pair, ma, mb, ca, cb));
   }
 
   function setTool(t) {
@@ -1073,7 +1837,16 @@
   }
 
   // ---- drawing actions ---------------------------------------------------
-  function actPlaceAtom(x, y) {
+  // An atom does not go where the mouse stopped; it goes on a joint. The joint set
+  // is the free VSEPR direction of the atoms already on the board, at the distance
+  // the scene would use for that pair, and each one has been through the rules
+  // before it is offered. Alt is the one deliberate escape hatch, for parking a
+  // fragment in empty space; near a structure there is no free position.
+  function actPlaceAtom(x, y, free) {
+    if (!free && ui.vsepr) {
+      var js = jointsNear(x, y, ui.el, ui.bond);
+      if (js.length) return placeFromJoint(js[0]);
+    }
     var p = snapPoint(x, y);
     var f = freeSpotNear(p.x, p.y);
     beforeChange();
@@ -1082,38 +1855,177 @@
     toast(tx('placed', { sym: a.sym }), 'ok');
     return a;
   }
+  // A centre that is still allowed to grow keeps joints at positions its shape of
+  // the moment has not moved out of yet, so the spot a neighbour occupies can be
+  // one of them. Clicking there with the atom tool asks for one more atom in that
+  // direction, not for a paint of the atom already sitting on it: the joint set is
+  // consulted and a joint owned by a different atom than the one hit wins.
+  function jointUnderAtom(x, y, sym, hitId) {
+    if (!ui.vsepr) return null;
+    var js = jointsNear(x, y, sym, ui.bond);
+    for (var i = 0; i < js.length; i++) {
+      if (js[i].parent !== hitId) return js[i];
+    }
+    return null;
+  }
+  // Drop the current element onto a joint and join it to the atom that owns it.
+  function placeFromJoint(j) {
+    var parent = atomById(j.parent);
+    if (!parent) return null;
+    beforeChange();
+    var a = makeAtom(ui.el, j.x, j.y);
+    var b = addBond(j.parent, a.id, j.order, j.ionic);
+    // The joint was computed for the atom as it stood before this bond. Once the
+    // bond exists the parent may have fewer domains left to fill — a carbon that
+    // was one double bond short of sp3 is sp after the second — so the piece is
+    // settled onto the model instead of keeping the shape of an unfinished atom.
+    settleAround(a.id, j.parent);
+    afterChange();
+    bondToast(parent, a, b, false,
+      (j.short ? trReason(j.reason) + ' ' : '') + tx(j.kind === 'lp' ? 'jointLp' : 'placedJoint',
+        { sym: a.sym, a: parent.sym }));
+    return a;
+  }
+  // The joint of `parent` that a drag heading in direction `ang` is asking for.
+  function jointByAngle(parentId, sym, order, ang) {
+    var js = jointsOf(parentId, sym, order), best = null, bs = Infinity;
+    for (var i = 0; i < js.length; i++) {
+      var s = angDist(js[i].ang, ang) + (js[i].kind === 'lp' ? 0.6 : 0);
+      if (s < bs) { bs = s; best = js[i]; }
+    }
+    return best;
+  }
   function actBond(aId, bId, wantOrder) {
     if (aId === bId) return;
     var A = atomById(aId), B = atomById(bId);
     if (!A || !B) return;
-    var order = wantOrder || ui.bond;
+    var order = Math.max(1, wantOrder || ui.bond);
     var ex = bondBetween(aId, bId);
     if (ex) {
-      var cap = capOrder(A, B);
-      var next = Math.min(order, cap);
-      if (next === ex.order) {
+      if (order === ex.order) {
         beforeChange();
         removeBond(ex.id);
+        // Cutting one line of a ring opens it; the piece is then allowed to take
+        // the shape an open chain has rather than keeping a hexagon it no longer
+        // is. An unordered click does not cut, so nothing moves.
+        if (ringOpened(A, B)) settleAround(aId);
         afterChange();
         toast(tx('bondCut'), 'info');
         return;
       }
+      if (order < ex.order) {
+        beforeChange();
+        ex.order = order;
+        settleAround(aId);
+        afterChange();
+        toast(tx('bondLower', { n: order }), 'ok');
+        return;
+      }
+      var up = raisePlan(ex, order);
+      if (up.order <= ex.order) {
+        toast(trReason(up.reason) || tx('bondNoRaise'), 'err');
+        return;
+      }
       beforeChange();
-      ex.order = next;
+      ex.order = up.order;
+      settleAround(aId);
       afterChange();
-      toast(tx('bondMade', { a: A.sym, o: ordGlyph(next), b: B.sym }), 'ok');
+      bondToast(A, B, ex, false, up.order < order ? trReason(up.reason) : null);
       return;
     }
+    // The game decides whether these two atoms may be joined at all, and how
+    // strongly. A refused pair is reported with the game's own sentence.
+    var plan = bondPlan(aId, bId, order);
+    if (!plan.ok) { toast(trReason(plan.reason), 'err'); return; }
     // Two atoms that already share a path do not fuse fragments — the new bond
     // closes a ring, which is how cyclohexane and benzene get drawn.
     var closesRing = connected(aId, bId);
-    order = Math.min(order, capOrder(A, B));
     beforeChange();
-    addBond(aId, bId, order);
+    var nb = addBond(aId, bId, plan.order, plan.type === 'ionic');
+    // Joining two atoms that were each placed by their own structure means the
+    // piece has to reconcile both: it settles into one set of VSEPR angles.
+    if (closesRing || Math.hypot(A.x - B.x, A.y - B.y) > 1) settleAround(aId);
     afterChange();
-    var msg = tx('bondMade', { a: A.sym, o: ordGlyph(order), b: B.sym });
+    bondToast(A, B, nb, closesRing, plan.short ? trReason(plan.reason) : null);
+  }
+  // Whether a bond that has just been cut belonged to a ring: if the two atoms
+  // are still reachable one way round, the cut opened the ring instead of
+  // splitting the piece.
+  function ringOpened(A, B) {
+    return !!A && !!B && connected(A.id, B.id);
+  }
+  function bondToast(A, B, bond, closesRing, note) {
+    var msg = bond.ionic
+      ? tx('bondIonic', { a: A.sym, b: B.sym })
+      : tx('bondMade', { a: A.sym, o: ordGlyph(bond.order), b: B.sym });
     if (closesRing) msg += ' · ' + tx('ringClosed');
+    if (note) msg += ' — ' + note;
     toast(msg, 'ok');
+  }
+  // Bond tool dragged from an atom out over empty canvas: the far end becomes a new
+  // atom of the current element, but only if the game would join them. Where it
+  // lands is the structure's decision — the free joint the drag points at.
+  function actBondToNew(fromId, x, y, wantOrder) {
+    var from = atomById(fromId);
+    if (!from) return null;
+    var order = Math.max(1, wantOrder || ui.bond);
+    if (ui.vsepr) {
+      var jt = jointByAngle(fromId, ui.el, order, Math.atan2(y - from.y, x - from.x));
+      if (jt) return placeFromJoint(jt);
+    }
+    var probe = { id: '~probe', sym: ui.el, x: 0, y: 0, q: 0, lp: 0 };
+    var plan = probePlan([probe], fromId, probe.id, order);
+    if (!plan.ok) { toast(trReason(plan.reason), 'err'); return null; }
+    var len = lengthPx(from.sym, ui.el, plan.type === 'ionic');
+    var ang = Math.atan2(y - from.y, x - from.x);
+    var f = ui.vsepr ? { x: from.x + Math.cos(ang) * len, y: from.y + Math.sin(ang) * len } :
+      freeSpotNear(snapPoint(x, y).x, snapPoint(x, y).y);
+    if (blockedAt(f.x, f.y, from.id, len)) f = freeSpotNear(f.x, f.y);
+    beforeChange();
+    var na = makeAtom(ui.el, f.x, f.y);
+    var nb = addBond(fromId, na.id, plan.order, plan.type === 'ionic');
+    afterChange();
+    bondToast(from, na, nb, false, plan.short ? trReason(plan.reason) : null);
+    return na;
+  }
+  // Bond tool dragged across empty canvas: both ends are new atoms (or one new and
+  // one already on the board), joined only if the rules approve the pair.
+  function actNewBondDrag(x0, y0, x1, y1, endHit, wantOrder) {
+    var order = Math.max(1, wantOrder || ui.bond);
+    var intoExisting = !!endHit;
+    var PA = { id: '~probeA', sym: ui.el, x: 0, y: 0, q: 0, lp: 0 };
+    var PB = intoExisting ? endHit : { id: '~probeB', sym: ui.el, x: 0, y: 0, q: 0, lp: 0 };
+    var probes = intoExisting ? [PA] : [PA, PB];
+    var plan = probePlan(probes, PA.id, PB.id, order);
+    if (!plan.ok) { toast(trReason(plan.reason), 'err'); return; }
+    // The first end is placed like any other atom: on a joint of whatever is close
+    // enough to hold it, and only out in free space when nothing is.
+    var start = null;
+    if (ui.vsepr) {
+      var js = jointsNear(x0, y0, ui.el, order);
+      if (js.length) start = js[0];
+    }
+    var a0 = snapPoint(x0, y0), f0 = freeSpotNear(a0.x, a0.y);
+    beforeChange();
+    var A0 = start ? makeAtom(ui.el, start.x, start.y) : makeAtom(ui.el, f0.x, f0.y);
+    if (start) addBond(start.parent, A0.id, start.order, start.ionic);
+    var B0 = intoExisting ? atomById(endHit.id) : null;
+    if (!B0) {
+      var len = lengthPx(A0.sym, ui.el, plan.type === 'ionic');
+      var f1;
+      if (ui.vsepr) {
+        var jb = jointByAngle(A0.id, ui.el, order, Math.atan2(y1 - A0.y, x1 - A0.x));
+        f1 = jb ? { x: jb.x, y: jb.y } :
+          { x: A0.x + Math.cos(Math.atan2(y1 - A0.y, x1 - A0.x)) * len, y: A0.y + Math.sin(Math.atan2(y1 - A0.y, x1 - A0.x)) * len };
+        if (blockedAt(f1.x, f1.y, A0.id, len)) f1 = freeSpotNear(f1.x, f1.y);
+      } else {
+        f1 = freeSpotNear(snapPoint(x1, y1).x, snapPoint(x1, y1).y);
+      }
+      B0 = makeAtom(ui.el, f1.x, f1.y);
+    }
+    var nb = addBond(A0.id, B0.id, plan.order, plan.type === 'ionic');
+    afterChange();
+    bondToast(A0, B0, nb, false, plan.short ? trReason(plan.reason) : null);
   }
   function connected(aId, bId) {
     // true when a path already joins the two atoms (so a new bond closes a ring)
@@ -1143,13 +2055,17 @@
     afterChange();
   }
   function actCycleBondUp(bond) {
-    var A = atomById(bond.a), B = atomById(bond.b);
-    var cap = A && B ? capOrder(A, B) : 4;
-    if (bond.order >= cap) { toast(tx('bondOrderSet', { n: cap }), 'err'); return; }
+    var up = raisePlan(bond, Math.max(1, bond.order || 1) + 1);
+    if (!up.ok) {
+      toast(trReason(up.reason) || tx('bondNoRaise', { n: headroom(bond) }), 'err');
+      return;
+    }
     beforeChange();
-    bond.order += 1;
+    bond.order = up.order;
     afterChange();
-    toast(tx('bondOrderSet', { n: bond.order }), 'ok');
+    var A = atomById(bond.a), B = atomById(bond.b);
+    toast(tx('bondOrderSet', { n: bond.order }) +
+      (A && B ? ' · ' + A.sym + ordGlyph(bond.order) + B.sym : ''), 'ok');
   }
   function actCharge(id, delta) {
     var a = atomById(id);
@@ -1167,11 +2083,12 @@
   function actLonePair(id, delta) {
     var a = atomById(id);
     if (!a) return;
-    if (delta < 0 && !(a.lp > 0)) { toast(tx('lpNone'), 'err'); return; }
+    var cur = lpCount(a);
+    if (delta < 0 && cur <= 0) { toast(tx('lpNone'), 'err'); return; }
     beforeChange();
-    a.lp = Math.max(0, Math.min(6, (a.lp || 0) + delta));
+    var n = setLP(a, cur + delta);
     afterChange();
-    toast(tx('lpSet', { sym: a.sym, n: a.lp }), 'ok');
+    toast(tx('lpSet', { sym: a.sym, n: n }), 'ok');
   }
   function actEraseAt(id, bondHit) {
     beforeChange();
@@ -1233,12 +2150,12 @@
     var atoms = [];
     for (var j = 0; j < doc.atoms.length; j++) {
       var a = doc.atoms[j];
-      if (alive[a.id]) atoms.push({ id: a.id, sym: a.sym, x: a.x, y: a.y, q: a.q || 0, lp: a.lp || 0 });
+      if (alive[a.id]) atoms.push({ id: a.id, sym: a.sym, x: a.x, y: a.y, q: a.q || 0, lp: a.lp || 0, lpSet: a.lpSet ? 1 : 0 });
     }
     var bonds = [];
     for (var k = 0; k < doc.bonds.length; k++) {
       var b = doc.bonds[k];
-      if (alive[b.a] && alive[b.b]) bonds.push({ id: b.id, a: b.a, b: b.b, order: b.order });
+      if (alive[b.a] && alive[b.b]) bonds.push({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: !!b.ionic });
     }
     return { atoms: atoms, bonds: bonds };
   }
@@ -1265,33 +2182,64 @@
     var dx = off && typeof off.x === 'number' ? off.x : GRID;
     var dy = off && typeof off.y === 'number' ? off.y : GRID;
     beforeChange();
-    var created = [];
+    var created = [], shift = null;
     for (var i = 0; i < ui.clip.atoms.length; i++) {
       var s = ui.clip.atoms[i];
-      var p = snapPoint(s.x + dx, s.y + dy);
-      var a = makeAtom(s.sym, p.x, p.y);
+      // The clipboard is one piece: only its first atom is snapped to the grid and
+      // the rest follow, otherwise a copy of a joint-built molecule would arrive
+      // with every bond length nudged a little.
+      if (!shift) {
+        var p0 = snapPoint(s.x + dx, s.y + dy);
+        shift = { x: p0.x - (s.x + dx), y: p0.y - (s.y + dy) };
+      }
+      var a = makeAtom(s.sym, s.x + dx + shift.x, s.y + dy + shift.y);
       a.q = s.q || 0;
       a.lp = s.lp || 0;
+      a.lpSet = s.lpSet ? 1 : 0;
       map[s.id] = a.id;
       created.push(a.id);
     }
+    var refused = 0;
     for (var j = 0; j < ui.clip.bonds.length; j++) {
       var b = ui.clip.bonds[j];
-      if (map[b.a] && map[b.b]) addBond(map[b.a], map[b.b], b.order || 1);
+      if (!map[b.a] || !map[b.b]) continue;
+      // A clipboard can predate the rules (or carry a bond the rules dislike once it
+      // lands among new neighbours), so every pasted line is asked again.
+      var plan = bondPlan(map[b.a], map[b.b], Math.max(1, b.order || 1));
+      if (!plan.ok) { refused++; continue; }
+      addBond(map[b.a], map[b.b], plan.order, plan.type === 'ionic');
     }
+    if (ui.vsepr) applyDock(created);
     ui.sel = created;
     afterChange();
     toast(tx('pasted', { n: created.length }), 'ok');
+    if (refused) toast(tx('pasteSkipped', { n: refused }), 'err');
   }
   function actAddHydrogens() {
-    var adds = [];
+    var adds = [], refused = 0, why = null;
     for (var i = 0; i < doc.atoms.length; i++) {
       var a = doc.atoms[i];
       if (a.sym === 'H') continue;
       var el = elOf(a.sym);
       if (!el) continue;
-      var need = valenceOf(el) - orderSum(a.id);
+      // Only shared pairs spend valence; an ionic neighbour already paid in electrons.
+      var need = implicitH(a);
       if (need <= 0) continue;
+      if (ui.vsepr) {
+        // The joints of this atom are exactly the positions its electron domains
+        // leave free, so filling the open valences becomes the same operation the
+        // drawing tools do instead of a second, differently-shaped rule.
+        var js = jointsOf(a.id, 'H', 1), got = 0;
+        for (var jj2 = 0; jj2 < js.length && got < need; jj2++) {
+          adds.push({ parent: a.id, x: js[jj2].x, y: js[jj2].y });
+          got++;
+        }
+        if (got < need) {
+          refused += need - got;
+          why = why || tx('jointNone', { a: a.sym });
+        }
+        continue;
+      }
       var dirs = [];
       var bs = bondsOf(a.id);
       for (var j = 0; j < bs.length; j++) {
@@ -1306,6 +2254,9 @@
         if (!dirs.length) ang = (k / need) * Math.PI * 2 - Math.PI / 2;
         else if (dirs.length === 1) ang = dirs[0] + Math.PI + (need === 1 ? 0 : (k - (need - 1) / 2) * (2.03 / Math.max(1, need - 1)));
         else ang = (k / need) * Math.PI * 2 + 0.4;
+        var probe = { id: '~probeH', sym: 'H', x: 0, y: 0, q: 0, lp: 0 };
+        var hp = probePlan([probe], a.id, probe.id, 1);
+        if (!hp.ok) { refused++; why = why || trReason(hp.reason); continue; }
         adds.push({
           parent: a.id,
           x: a.x + Math.cos(ang) * BOND_LEN,
@@ -1314,6 +2265,7 @@
       }
     }
     if (!adds.length) {
+      if (refused) { toast(tx('hRefused', { n: refused }) + (why ? ' — ' + why : ''), 'err'); return; }
       var stray = 0;
       for (var m = 0; m < doc.atoms.length; m++) {
         var at = doc.atoms[m];
@@ -1327,17 +2279,19 @@
       var s2 = adds[n];
       var p2 = freeSpotNear(s2.x, s2.y);
       var h = makeAtom('H', p2.x, p2.y);
-      addBond(s2.parent, h.id, 1);
+      addBond(s2.parent, h.id, 1, false);
     }
     afterChange();
-    toast(tx('hAdded', { n: adds.length }), 'ok');
+    toast(tx('hAdded', { n: adds.length }) + (refused ? ' — ' + tx('hRefused', { n: refused }) : ''), 'ok');
   }
 
   // ---- clean layout ------------------------------------------------------
-  // Standard structural drawing: every bond the same length, 120-degree zig-zag
-  // chains, and regular polygons wherever a ring closes. The seed is a deterministic
-  // walk of the spanning forest; a small distance/angle/repulsion relaxation then
-  // closes the rings that the walk could only leave open.
+  // Two standards, and the VSEPR toggle picks between them. With geometry on the
+  // layout is the same model the joints are drawn from: the electron domains of
+  // each centre fix its directions, the scene's own ball-to-ball measure fixes
+  // each bond's length, and a relaxation then closes the rings that a tree walk
+  // can only leave open. With it off this is the classic drawing rule - one bond
+  // length, 120-degree zig-zag chains, regular polygons for rings.
   function actCleanLayout() {
     if (!doc.atoms.length) { toast(tx('emptyDoc'), 'err'); return; }
     beforeChange();
@@ -1365,6 +2319,28 @@
     }
     return out;
   }
+  // The directions a walk may hand to the children of this centre: the VSEPR
+  // arrangement rotated to agree with the neighbours that already have positions,
+  // minus the slots those neighbours occupy.
+  function freeSlotsOf(a, placed) {
+    var cn = neighbours(a.id).length + implicitH(a), lp = lpCount(a);
+    var sh = shapeDirs(cn, lp, a.sym);
+    var phi = fitRotation(sh.bonds.concat(sh.lps), placed);
+    var out = [], i, j;
+    for (i = 0; i < sh.bonds.length; i++) {
+      var ang = normAng(sh.bonds[i] + phi), used = false;
+      for (j = 0; j < placed.length; j++) {
+        if (angDist(ang, placed[j]) < 42 * D2R) used = true;
+      }
+      if (!used) out.push(ang);
+    }
+    // A ring closes over slots that are already spoken for; the relaxation sorts
+    // the overlap out, and a walk with no direction at all would drop atoms on top.
+    if (!out.length) {
+      for (i = 0; i < sh.bonds.length; i++) out.push(normAng(sh.bonds[i] + phi));
+    }
+    return out;
+  }
   function seedComponent(ids) {
     var root = ids[0];
     var seen = {}, parent = {}, order = [root];
@@ -1388,10 +2364,27 @@
       kids = kids.filter(function (x) { return !pos[x]; });
       if (!kids.length) continue;
       var back = cid === root ? 0 : Math.atan2(pos[cid].y - pos[parent[cid]].y, pos[cid].x - pos[parent[cid]].x);
+      var me = atomById(cid);
+      var useVsepr = ui.vsepr && me;
+      var free = null;
+      if (useVsepr) {
+        var placed = [], bs2 = bondsOf(cid);
+        for (j = 0; j < bs2.length; j++) {
+          var nb2 = bs2[j].a === cid ? bs2[j].b : bs2[j].a;
+          if (!pos[nb2]) continue;
+          placed.push(Math.atan2(pos[cid].y - pos[nb2].y, pos[cid].x - pos[nb2].x));
+        }
+        free = freeSlotsOf(me, placed);
+      }
       var span = kids.length === 1 ? 0 : Math.min(Math.PI * 5 / 6, Math.PI * 2 / 3 * (kids.length - 1));
       for (var m = 0; m < kids.length; m++) {
-        var a = back + (kids.length === 1 ? 0 : -span / 2 + (span * m) / (kids.length - 1));
-        pos[kids[m]] = { x: pos[cid].x + Math.cos(a) * BOND_LEN, y: pos[cid].y + Math.sin(a) * BOND_LEN };
+        var kid = kids[m], ka = atomById(kid);
+        var a2 = free && free.length
+          ? free[Math.min(m, free.length - 1)]
+          : back + (kids.length === 1 ? 0 : -span / 2 + (span * m) / (kids.length - 1));
+        var bond = bondBetween(cid, kid);
+        var len = useVsepr && ka ? lengthPx(me.sym, ka.sym, !!(bond && bond.ionic)) : BOND_LEN;
+        pos[kid] = { x: pos[cid].x + Math.cos(a2) * len, y: pos[cid].y + Math.sin(a2) * len };
       }
     }
     for (var n = 0; n < order.length; n++) {
@@ -1431,7 +2424,7 @@
     }
     return best >= 3 && best <= 9 ? best : 0;
   }
-  function relaxComponent(ids) {
+  function relaxComponent(ids, steps) {
     if (ids.length < 2) return;
     var pos = {}, nb = {}, cycle = {}, i, j;
     for (i = 0; i < ids.length; i++) {
@@ -1453,14 +2446,21 @@
       }
     }
     var L = BOND_LEN;
-    for (var it = 0; it < 600; it++) {
+    // Each bond is pulled toward the length the scene would draw it at, so a Na-Cl
+    // stays visibly longer than a C-C instead of being averaged into one length.
+    var rest = {};
+    for (i = 0; i < doc.bonds.length; i++) {
+      var bx = doc.bonds[i], bA = atomById(bx.a), bB = atomById(bx.b);
+      rest[bx.id] = ui.vsepr && bA && bB ? lengthPx(bA.sym, bB.sym, !!bx.ionic) : L;
+    }
+    for (var it = 0; it < (steps || 600); it++) {
       var damp = 0.5 * Math.pow(0.995, it);
       for (i = 0; i < doc.bonds.length; i++) {
         var b = doc.bonds[i];
         if (!pos[b.a] || !pos[b.b]) continue;
         var dx = pos[b.b].x - pos[b.a].x, dy = pos[b.b].y - pos[b.a].y;
         var d = Math.hypot(dx, dy) || 0.001;
-        var f = (d - L) / d * 0.5 * damp;
+        var f = (d - (rest[b.id] || L)) / d * 0.5 * damp;
         pos[b.a].x += dx * f; pos[b.a].y += dy * f;
         pos[b.b].x -= dx * f; pos[b.b].y -= dy * f;
       }
@@ -1510,12 +2510,119 @@
       if (at2 && pos[ids[i]]) { at2.x = pos[ids[i]].x; at2.y = pos[ids[i]].y; }
     }
   }
+  // A piece that has just gained or lost a bond is allowed to settle into the
+  // angles its own electron domains ask for. It is a settle, not a redraw: the
+  // topology the user built is untouched and only the geometry inside it evens
+  // out, around the one atom the edit was made from. That anchor is what keeps
+  // growth predictable: adding the fifth chlorine to phosphorus moves the
+  // chlorines, never the phosphorus the user is building from.
+  function settleAround(id, anchorId) {
+    if (!ui.vsepr || !id) return;
+    var ids = componentOf(id);
+    if (ids.length < 3) return;
+    var anchor = atomById(anchorId || id);
+    if (!anchor) return;
+    var ax = anchor.x, ay = anchor.y;
+    relaxComponent(ids, 140);
+    var now = atomById(anchor.id);
+    if (!now) return;
+    var dx = ax - now.x, dy = ay - now.y;
+    if (!dx && !dy) return;
+    for (var i = 0; i < ids.length; i++) {
+      var a = atomById(ids[i]);
+      if (a) { a.x += dx; a.y += dy; }
+    }
+  }
+  // The angle the model asks for between two specific neighbours: the gap
+  // between the two canonical slots they sit in. Pulling every pair to one bare
+  // domain gap would ask ammonia for three 107-degree angles, which do not fit
+  // around a point, and the relaxation would settle on 120 — erasing the very
+  // space the lone pair is supposed to keep. Slots are taken from the drawn
+  // positions, so a piece built joint by joint keeps the orientation it grew in.
+  // Which bonding slot each drawn neighbour belongs to. The answer has to be a
+  // pairing, not one independent nearest-slot lookup per neighbour: an atom
+  // dropped onto a lone-pair direction is still only one of the model's bonding
+  // positions, and two greedy lookups can land both of them on the same slot.
+  // Taking the closest slot every time would then report no angle at all and let
+  // the generic rule redraw linear XeF2 as bent.
+  // The pairing also keeps the order the neighbours actually sit in around the
+  // centre. That is what makes the angles the relaxation asks for fit around a
+  // point: six bonds handed six slots in sequence means the gaps sum to a full
+  // turn, so an octahedron being grown from a square can be evened out at all.
+  // A nearest-slot greedy can instead hand out the slots out of sequence, which
+  // asks for gaps that add up to more than 360 degrees, and the relaxation stalls
+  // somewhere in the middle of that contradiction with two bonds nearly on top of
+  // each other. Cheapest cyclic order is searched exhaustively: at most eight
+  // slots, so the whole search is a few hundred comparisons.
+  var slotMemo = {};
+  function slotMap(id) {
+    var at = atomById(id);
+    if (!at) return null;
+    var dr = drawnDirs(id);
+    if (dr.length < 2) return null;
+    var mkey = id + '|' + ui.rev + '|' + dr.map(function (d) {
+      var o = atomById(d.id); return o ? Math.round(o.x * 8) + ',' + Math.round(o.y * 8) : 'x';
+    }).join(';');
+    if (Object.keys(slotMemo).length > 512) slotMemo = {};
+    if (slotMemo[mkey] !== undefined) return slotMemo[mkey] || null;
+    var res = null;
+    var sh = shapeDirs(dr.length + implicitH(at), lpCount(at), at.sym);
+    if (sh.bonds.length >= dr.length) {
+      var phi = fitRotation(sh.bonds.concat(sh.lps), dr.map(function (d) { return d.ang; }));
+      var can = [], i, j;
+      for (i = 0; i < sh.bonds.length; i++) can.push(normAng(sh.bonds[i] + phi));
+      can.sort(function (p, q) { return p - q; });
+      var seq = [];
+      for (i = 0; i < dr.length; i++) seq.push(i);
+      seq.sort(function (p, q) { return normAng(dr[p].ang) - normAng(dr[q].ang); });
+      var dAng = seq.map(function (k) { return normAng(dr[k].ang); });
+      var D = dAng.length, S = can.length, best = null;
+      for (var mask = 0; mask < (1 << S); mask++) {
+        var sel = [], bits = 0;
+        for (i = 0; i < S; i++) if (mask & (1 << i)) { sel.push(can[i]); bits++; }
+        if (bits !== D) continue;
+        for (var off = 0; off < D; off++) {
+          var cost = 0;
+          for (i = 0; i < D; i++) {
+            var g = angDist(sel[(i + off) % D], dAng[i]);
+            cost += g * g;
+          }
+          if (!best || cost < best.cost - 1e-12) best = { sel: sel, off: off, cost: cost };
+        }
+      }
+      if (best) {
+        res = { dr: dr, slots: {} };
+        for (i = 0; i < D; i++) res.slots[seq[i]] = best.sel[(i + best.off) % D];
+      }
+    }
+    slotMemo[mkey] = res || false;
+    return res;
+  }
+  function slotAngle(id, other1, other2) {
+    var m = slotMap(id);
+    if (!m) return 0;
+    var a = null, b = null;
+    for (var i = 0; i < m.dr.length; i++) {
+      if (m.dr[i].id === other1) a = m.slots[i];
+      if (m.dr[i].id === other2) b = m.slots[i];
+    }
+    if (a === null || b === null) return 0;
+    var d = Math.abs(a - b);
+    return d > Math.PI ? 2 * Math.PI - d : d;
+  }
   function idealAngle(id, p1, p2, deg, cycle, nb) {
     var rs = cycle[id];
     if (rs >= 3) {
       var r1 = (nb[p1.id] || []).some(function (x) { return x.id === id && cycle[p1.id] === rs; });
       var r2 = (nb[p2.id] || []).some(function (x) { return x.id === id && cycle[p2.id] === rs; });
+      // Two ring bonds of the same ring keep that ring's interior angle; the
+      // polygon closes only because they hold it.
       if (r1 && r2 && deg <= 3) return (rs - 2) * Math.PI / rs;
+    }
+    var at = atomById(id);
+    if (at && ui.vsepr) {
+      var g = slotAngle(id, p1.id, p2.id);
+      if (g > 0) return g;
     }
     if (deg === 2) {
       var triple = p1.order >= 3 || p2.order >= 3;
@@ -1674,7 +2781,7 @@
     for (i = 0; i < doc.atoms.length; i++) {
       var a = doc.atoms[i];
       if (fold.hidden[a.id]) continue;
-      var el = elOf(a.sym) || { sym: a.sym, ink: '#e6edf3' };
+      var el = elOf(a.sym) || { sym: a.sym, ink: pal().ink };
       var ink = legible(el.ink || el.color);
       var dirs = [];
       var nbs = neighbours(a.id);
@@ -1705,10 +2812,11 @@
       var wPre = measure(ctx, pre), wPost = measure(ctx, post);
       var wAb = measure(ctx, above), wBe = measure(ctx, below);
       var over = false;
-      var v = valenceOf(el);
-      if (v && orderSum(a.id) > v) over = true;
+      var v = capacityOf(a.sym);
+      if (v && covSum(a.id) > v) over = true;
       var box = {
-        id: a.id, sym: a.sym, x: a.x, y: a.y, ink: ink, q: a.q || 0, lp: a.lp || 0,
+        id: a.id, sym: a.sym, x: a.x, y: a.y, ink: ink, q: a.q || 0, lp: lpCount(a),
+        lpAng: ui.vsepr ? lpDirsOf(a) : [],
         pre: pre, post: post, above: above, below: below,
         wSym: wSym, wPre: wPre, wPost: wPost,
         w: Math.max(wPre + wSym + wPost, wAb, wBe, 15) + 6,
@@ -1723,7 +2831,7 @@
       var b = doc.bonds[i];
       var A = byId[b.a], B = byId[b.b];
       if (!A || !B) continue;
-      bv.push({ id: b.id, order: Math.max(1, b.order || 1), A: A, B: B, a: b.a, b: b.b, hot: false });
+      bv.push({ id: b.id, order: Math.max(1, b.order || 1), ionic: !!b.ionic, A: A, B: B, a: b.a, b: b.b, hot: false });
     }
     var bk = [];
     for (i = 0; i < doc.brackets.length; i++) {
@@ -1740,7 +2848,38 @@
       var pa2 = byId[ui.previewBond.id];
       if (pa2) view.preview = { from: pa2, x: ui.previewBond.x, y: ui.previewBond.y };
     }
+    var jp = jointPreview();
+    view.joints = jp ? jp.list : [];
+    view.jointPick = jp ? jp.pick : -1;
     return view;
+  }
+  // What the board would accept right now, under the pointer: the free joints, and
+  // the one the next click takes. Drawn before the commit so the player is never
+  // guessing which position the atom will end up in.
+  function jointPreview() {
+    if (!ui.vsepr || !ui.lastPointer) return null;
+    // A carried fragment shows the one joint it is about to dock onto.
+    if (ui.drag && ui.drag.mode === 'move') {
+      return ui.drag.dock ? { list: [ui.drag.dock.joint], pick: 0 } : null;
+    }
+    if (ui.tool !== 'atom' && ui.tool !== 'bond') return null;
+    if (hitAtom(ui.lastPointer.x, ui.lastPointer.y)) return null;
+    var p = ui.lastPointer, list, pick, i;
+    var from = (ui.previewBond && ui.previewBond.id) || 0;
+    if (from && atomById(from)) {
+      var f = atomById(from);
+      list = jointsOf(from, ui.el, ui.bond);
+      pick = -1;
+      var ang = Math.atan2(p.y - f.y, p.x - f.x), bs = Infinity;
+      for (i = 0; i < list.length; i++) {
+        var s = angDist(list[i].ang, ang) + (list[i].kind === 'lp' ? 0.6 : 0);
+        if (s < bs) { bs = s; pick = i; }
+      }
+    } else {
+      list = jointsNear(p.x, p.y, ui.el, ui.bond).slice(0, 14);
+      pick = list.length ? 0 : -1;
+    }
+    return list.length ? { list: list, pick: pick } : null;
   }
   function boxOf(ids, byId) {
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -1800,7 +2939,7 @@
   function paint(ctx, W, H, scale, vp, forExport) {
     curVp = vp;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    ctx.fillStyle = '#050912';
+    ctx.fillStyle = pal().board;
     ctx.fillRect(0, 0, W, H);
     if (!view) buildView();
     ctx.save();
@@ -1821,7 +2960,7 @@
     var left = -vp.x / vp.z, top = -vp.y / vp.z;
     var right = left + W / vp.z, bottom = top + H / vp.z;
     ctx.lineWidth = 1 / vp.z;
-    ctx.strokeStyle = 'rgba(0,200,255,0.055)';
+    ctx.strokeStyle = pal().grid;
     var minor = step / 2;
     if (vp.z > 0.75) {
       ctx.beginPath();
@@ -1829,12 +2968,12 @@
       for (y = Math.ceil(top / minor) * minor; y < bottom; y += minor) { ctx.moveTo(left, y); ctx.lineTo(right, y); }
       ctx.stroke();
     }
-    ctx.strokeStyle = 'rgba(0,200,255,0.14)';
+    ctx.strokeStyle = pal().gridMajor;
     ctx.beginPath();
     for (x = Math.ceil(left / step) * step; x < right; x += step) { ctx.moveTo(x, top); ctx.lineTo(x, bottom); }
     for (y = Math.ceil(top / step) * step; y < bottom; y += step) { ctx.moveTo(left, y); ctx.lineTo(right, y); }
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,212,255,0.28)';
+    ctx.strokeStyle = pal().axis;
     ctx.lineWidth = 1.4 / vp.z;
     ctx.beginPath();
     ctx.moveTo(0, top); ctx.lineTo(0, bottom);
@@ -1848,6 +2987,21 @@
     return Math.min(hw / au, hh / av2);
   }
 
+  // Which end of an ionic bond gave the electron away. The game's own metal table
+  // decides, so the drawing never contradicts the scene.
+  function cationEnd(bondView) {
+    var A = atomById(bondView.a), B = atomById(bondView.b);
+    if (!A || !B) return bondView.A;
+    var r = rules();
+    if (r && typeof r.isMetal === 'function') {
+      try {
+        if (r.isMetal(gameEl(A.sym))) return bondView.A;
+        if (r.isMetal(gameEl(B.sym))) return bondView.B;
+      } catch (e) { /* fall through */ }
+    }
+    var ea = (gameEl(A.sym) || {}).en || 0, eb = (gameEl(B.sym) || {}).en || 0;
+    return ea <= eb ? bondView.A : bondView.B;
+  }
   function drawBonds(ctx) {
     for (var i = 0; i < view.bonds.length; i++) {
       var b = view.bonds[i];
@@ -1861,8 +3015,27 @@
       var x2 = b.B.x - ux * t2, y2 = b.B.y - uy * t2;
       var hot = ui.hover && ui.hover.type === 'bond' && ui.hover.id === b.id;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = hot ? '#ffe08a' : '#c8d6e8';
+      ctx.strokeStyle = hot ? pal().hot : pal().line;
       ctx.lineWidth = hot ? 3 : 2.5;
+      if (b.ionic) {
+        // A transferred electron is not a shared pair: the convention is a dotted
+        // line, with + on the donor and − on the acceptor.
+        ctx.save();
+        ctx.setLineDash([2.6 / curVp.z, 3.4 / curVp.z]);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.setLineDash([]);
+        var cat = cationEnd(b) === b.A ? 1 : 2;
+        var fx = cat === 1 ? x1 : x2, fy = cat === 1 ? y1 : y2;
+        var sx = cat === 1 ? x2 : x1, sy = cat === 1 ? y2 : y1;
+        ctx.font = FONT_SUP;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = hot ? pal().hot : pal().pos;
+        ctx.fillText('+', fx + ux * 9, fy + uy * 9 - 6 / curVp.z);
+        ctx.fillStyle = hot ? pal().hot : pal().neg;
+        ctx.fillText('−', sx - ux * 9, sy - uy * 9 - 6 / curVp.z);
+        ctx.restore();
+        continue;
+      }
       var px = -uy, py = ux;
       var n = b.order;
       if (n === 1) {
@@ -1889,15 +3062,15 @@
       var selected = selHas(v.id);
       if (!forExport && selected) {
         ctx.save();
-        ctx.shadowColor = 'rgba(0,212,255,0.85)';
+        ctx.shadowColor = pal().a(0.85);
         ctx.shadowBlur = 14;
-        ctx.fillStyle = 'rgba(0,212,255,0.14)';
+        ctx.fillStyle = pal().a(0.14);
         roundBox(ctx, v.x - v.w / 2, v.y - v.h / 2, v.w, v.h, 5);
         ctx.fill();
         ctx.restore();
       }
       if (v.over) {
-        ctx.strokeStyle = 'rgba(255,80,110,0.65)';
+        ctx.strokeStyle = pal().over;
         ctx.setLineDash([3 / curVp.z, 3 / curVp.z]);
         ctx.lineWidth = 1.2;
         roundBox(ctx, v.x - v.w / 2 - 2, v.y - v.h / 2 - 2, v.w + 4, v.h + 4, 6);
@@ -1919,7 +3092,7 @@
       if (v.below.length) drawStacked(ctx, v.below, v.x, v.y + v.h / 2 + 1, v.ink, 1);
       if (ui.showQ && v.q) {
         ctx.font = FONT_SUP;
-        ctx.fillStyle = v.q > 0 ? '#ff9c9c' : '#9ecbff';
+        ctx.fillStyle = v.q > 0 ? pal().pos : pal().neg;
         ctx.textAlign = 'left';
         var cx = v.x + total / 2 + 1.5, cy = v.y - v.h / 2 + 4;
         ctx.fillText(supCharge(v.q), cx, cy);
@@ -1947,10 +3120,19 @@
     var a = Math.abs(q);
     return (a > 1 ? String(a) : '') + (q > 0 ? '+' : '−');
   }
+  var LP_COMPASS = [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4];
   function drawLonePairs(ctx, v) {
-    var cand = [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4];
-    var used = [];
-    var i, j;
+    var cand, used = [], i, j;
+    if (v.lpAng && v.lpAng.length) {
+      // The model's own directions first; a hand-set count above them still gets
+      // its dots, just in the nearest clear compass slot.
+      cand = v.lpAng.slice();
+      for (i = 0; i < LP_COMPASS.length && cand.length < v.lp; i++) {
+        if (cand.indexOf(LP_COMPASS[i]) < 0) cand.push(LP_COMPASS[i]);
+      }
+    } else {
+      cand = LP_COMPASS.slice();
+    }
     for (i = 0; i < cand.length; i++) {
       var a = cand[i];
       var minD = 99;
@@ -2006,13 +3188,13 @@
       var base = Math.max(v.w, v.h) / 2 + 5;
       for (j = 0; j < counts.length; j++) {
         var r = base + j * 11;
-        ctx.strokeStyle = 'rgba(0,212,255,0.30)';
+        ctx.strokeStyle = pal().a(0.3);
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(v.x, v.y, r, 0, Math.PI * 2);
         ctx.stroke();
         var n = Math.min(counts[j], 18);
-        ctx.fillStyle = 'rgba(120,225,255,0.9)';
+        ctx.fillStyle = pal().electron;
         for (var k = 0; k < n; k++) {
           var a = (k / n) * Math.PI * 2 - Math.PI / 2 + j * 0.22;
           ctx.beginPath();
@@ -2028,7 +3210,7 @@
       var pad = 9;
       var x = g.bb.x - pad, y = g.bb.y - pad, w = g.bb.w + pad * 2, h = g.bb.h + pad * 2;
       var arm = Math.max(7, Math.min(15, h * 0.22));
-      ctx.strokeStyle = '#ffb300';
+      ctx.strokeStyle = pal().warn;
       ctx.lineWidth = 2.4;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -2037,7 +3219,7 @@
       ctx.stroke();
       if (g.q) {
         ctx.font = FONT_SUP;
-        ctx.fillStyle = g.q > 0 ? '#ff9c9c' : '#9ecbff';
+        ctx.fillStyle = g.q > 0 ? pal().pos : pal().neg;
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText(supCharge(g.q), x + w + 3, y + 6);
@@ -2047,8 +3229,8 @@
   function drawSelection(ctx) {
     if (ui.box) {
       var b = ui.box;
-      ctx.strokeStyle = 'rgba(0,212,255,0.9)';
-      ctx.fillStyle = 'rgba(0,212,255,0.08)';
+      ctx.strokeStyle = pal().a(0.9);
+      ctx.fillStyle = pal().a(0.08);
       ctx.lineWidth = 1 / curVp.z;
       ctx.setLineDash([4 / curVp.z, 3 / curVp.z]);
       var x = Math.min(b.x0, b.x1), y = Math.min(b.y0, b.y1);
@@ -2058,9 +3240,38 @@
       ctx.setLineDash([]);
     }
   }
+  // Every free joint under the pointer, drawn as a ring, with the one the next
+  // click takes picked out and its bond already ghosted in. The player sees the
+  // chemistry's answer before committing to it.
+  function drawJoints(ctx) {
+    var z = Math.max(0.35, curVp ? curVp.z : 1), i;
+    var list = view.joints, pick = view.jointPick;
+    for (i = 0; i < list.length; i++) {
+      var j = list[i], on = i === pick, par = view.byId[j.parent];
+      if (on && par) {
+        var dx = j.x - par.x, dy = j.y - par.y, L = Math.hypot(dx, dy) || 1;
+        ctx.strokeStyle = pal().a(0.55);
+        ctx.lineWidth = 1.6 / z;
+        ctx.setLineDash([5 / z, 4 / z]);
+        ctx.beginPath();
+        ctx.moveTo(par.x + dx / L * trimEnd(par, dx / L, dy / L), par.y + dy / L * trimEnd(par, dx / L, dy / L));
+        ctx.lineTo(j.x, j.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.beginPath();
+      ctx.arc(j.x, j.y, (on ? 7 : 4.2) / z, 0, Math.PI * 2);
+      ctx.fillStyle = on ? pal().a(0.30) : (j.kind === 'lp' ? pal().lpJoint : pal().a(0.11));
+      ctx.fill();
+      ctx.strokeStyle = on ? pal().accent : pal().a(0.45);
+      ctx.lineWidth = (on ? 1.9 : 1) / z;
+      ctx.stroke();
+    }
+  }
   function drawPreview(ctx) {
+    if (view.joints && view.joints.length) drawJoints(ctx);
     if (view.preview) {
-      ctx.strokeStyle = 'rgba(0,212,255,0.85)';
+      ctx.strokeStyle = pal().a(0.85);
       ctx.lineWidth = 2.5;
       ctx.setLineDash([6 / ui.zoom, 4 / ui.zoom]);
       var f = view.preview.from;
@@ -2075,7 +3286,7 @@
     }
     if (ui.hover && ui.hover.type === 'atom' && view.byId[ui.hover.id]) {
       var v = view.byId[ui.hover.id];
-      ctx.strokeStyle = 'rgba(0,212,255,0.55)';
+      ctx.strokeStyle = pal().a(0.55);
       ctx.lineWidth = 1.4;
       roundBox(ctx, v.x - v.w / 2 - 2, v.y - v.h / 2 - 2, v.w + 4, v.h + 4, 6);
       ctx.stroke();
@@ -2120,30 +3331,50 @@
   // ==========================================================================
   var curVp = { x: 0, y: 0, z: 1 };
 
-  function formulaTerms() {
-    var counts = {}, i;
-    for (i = 0; i < doc.atoms.length; i++) {
-      var s = doc.atoms[i].sym;
-      counts[s] = (counts[s] || 0) + 1;
-    }
-    var keys = Object.keys(counts).filter(function (k) { return k !== 'C' && k !== 'H'; }).sort();
+  // Hill order within one fragment: carbon, then hydrogen, then everything else
+  // alphabetically (and without carbon, hydrogen joins that alphabetical run).
+  function hillOf(counts) {
+    var other = Object.keys(counts).filter(function (k) { return k !== 'C' && k !== 'H'; }).sort();
     var out = [];
     if (counts.C) out.push({ t: 'C', n: counts.C });
     if (counts.H) out.push({ t: 'H', n: counts.H });
-    for (i = 0; i < keys.length; i++) out.push({ t: keys[i], n: counts[keys[i]] });
-    if (!counts.C && counts.H) { out = [{ t: 'H', n: counts.H }].concat(out.filter(function (o) { return o.t !== 'H'; })); }
+    for (var i = 0; i < other.length; i++) out.push({ t: other[i], n: counts[other[i]] });
     return out;
   }
-  function formulaHtml() {
-    var terms = formulaTerms();
-    if (!terms.length) return '<b>' + tx('emptyFormula') + '</b>';
-    var s = '';
-    for (var i = 0; i < terms.length; i++) {
-      s += terms[i].t + (terms[i].n > 1 ? '<sub>' + terms[i].n + '</sub>' : '');
+  // One entry per distinct fragment on the board, each counted separately. Two lone
+  // argon atoms are two atoms of argon and must never read as a bonded Og2; a board
+  // of three waters reads as 3 H2O, with the coefficient saying they are apart.
+  function formulaTerms() {
+    var comps = components(), byKeys = {}, order = [];
+    for (var c = 0; c < comps.length; c++) {
+      var ids = comps[c], counts = {};
+      for (var i = 0; i < ids.length; i++) {
+        var a = atomById(ids[i]);
+        if (a) counts[a.sym] = (counts[a.sym] || 0) + 1;
+      }
+      var terms = hillOf(counts), key = '';
+      for (var j = 0; j < terms.length; j++) key += terms[j].t + terms[j].n;
+      var q = netCharge(ids);
+      var slot = key + '|' + q;
+      var g = byKeys[slot];
+      if (!g) { g = { terms: terms, q: q, n: 0 }; byKeys[slot] = g; order.push(g); }
+      g.n++;
     }
-    var q = doc.atoms.reduce(function (a, x) { return a + (x.q || 0); }, 0);
-    if (q) s += '<span class="bp-chg">' + supHTML(q) + '</span>';
-    return '<b>' + s + '</b>';
+    return order;
+  }
+  function formulaHtml() {
+    var groups = formulaTerms();
+    if (!groups.length) return '<b>' + tx('emptyFormula') + '</b>';
+    var parts = [];
+    for (var i = 0; i < groups.length; i++) {
+      var g = groups[i], s = g.n > 1 ? g.n + ' ' : '';
+      for (var j = 0; j < g.terms.length; j++) {
+        s += g.terms[j].t + (g.terms[j].n > 1 ? '<sub>' + g.terms[j].n + '</sub>' : '');
+      }
+      if (g.q) s += '<span class="bp-chg">' + supHTML(g.q) + '</span>';
+      parts.push(s);
+    }
+    return '<b>' + parts.join(' · ') + '</b>';
   }
   function supHTML(q) {
     var a = Math.abs(q);
@@ -2154,9 +3385,12 @@
     var over = 0;
     for (var i = 0; i < doc.atoms.length; i++) {
       var a = doc.atoms[i];
-      var v = valenceOf(elOf(a.sym));
-      if (v && orderSum(a.id) > v) over++;
+      var v = capacityOf(a.sym);
+      if (v && covSum(a.id) > v) over++;
     }
+    // Every tool now asks the game before a line reaches the board, so this should
+    // read zero. It exists for documents that came in from a file or an older save.
+    var illegal = auditBonds().length;
     var bits = [formulaHtml()];
     bits.push('<span>' + tx('countsLbl') + ': ' + doc.atoms.length + '/' + doc.bonds.length + '</span>');
     if (comps.length > 1) bits.push('<span class="bp-chip">' + comps.length + ' ' +
@@ -2164,6 +3398,7 @@
     var rings = ringCount();
     if (rings) bits.push('<span class="bp-chip">' + rings + ' ' + tx('ringNote') + '</span>');
     if (over) bits.push('<span class="bp-chip">' + over + ' ⚠</span>');
+    if (illegal) bits.push('<span class="bp-chip err">' + illegal + ' ' + tx('badBonds') + '</span>');
     els.readout.innerHTML = bits.join(' · ');
   }
   function syncHint() {
@@ -2172,6 +3407,7 @@
     var txt = str ? tx(str) : '';
     if (ui.sel.length) txt = tx('selN', { n: ui.sel.length }) + ' — ' + txt;
     if (ui.pendingBond) txt = tx('tBond');
+    else if (ui.vsepr && (ui.tool === 'atom' || ui.tool === 'bond')) txt += ' · ' + tx('altFreeNote');
     els.hint.textContent = txt;
   }
   function syncCursor() {
@@ -2209,8 +3445,8 @@
       b.title = tx('bond' + b.dataset.o);
     }
     var tgs = els.panel.querySelectorAll('.bp-tg');
-    var TG = { grid: 'sGrid', showH: 'sH', showQ: 'sQ', showLP: 'sLP', shells: 'sBohr' };
-    var TGK = { grid: 'grid', showH: 'hydrogens', showQ: 'charges', showLP: 'lp', shells: 'shells' };
+    var TG = { grid: 'sGrid', showH: 'sH', showQ: 'sQ', showLP: 'sLP', shells: 'sBohr', vsepr: 'sVsepr' };
+    var TGK = { grid: 'grid', showH: 'hydrogens', showQ: 'charges', showLP: 'lp', shells: 'shells', vsepr: 'vsepr' };
     for (i = 0; i < tgs.length; i++) {
       b = tgs[i];
       var key = b.dataset.tg;
@@ -2220,7 +3456,7 @@
     }
     var el = elOf(ui.el);
     els.elSym.textContent = ui.el;
-    els.elSym.style.color = el ? legible(el.ink || el.color) : '#e6edf3';
+    els.elSym.style.color = el ? legible(el.ink || el.color) : pal().ink;
     els.elName.textContent = el ? elNameLocal(el) : '';
     els.elchip.title = tx('element') + (el ? ': ' + elNameLocal(el) + ' (Z=' + el.z + ')' : '');
     els.elSearch.placeholder = tx('elSearchPh');
@@ -2295,7 +3531,7 @@
     for (i = 0; i < btns.length; i++) {
       btns[i].style.color = legible((function (s) {
         var x = elOf(s);
-        return x ? (x.ink || x.color) : '#e6edf3';
+        return x ? (x.ink || x.color) : pal().ink;
       })(btns[i].dataset.sym));
       btns[i].addEventListener('click', function (ev) {
         var sym = ev.currentTarget.dataset.sym;
@@ -2336,6 +3572,85 @@
     ui.pan.y = Math.max(-4000, Math.min(4000, ui.pan.y));
   }
 
+  function componentOf(id) {
+    var seen = {}, stack = [id], out = [];
+    seen[id] = 1;
+    while (stack.length) {
+      var x = stack.pop();
+      out.push(x);
+      var bs = bondsOf(x);
+      for (var i = 0; i < bs.length; i++) {
+        var o = bs[i].a === x ? bs[i].b : bs[i].a;
+        if (!seen[o]) { seen[o] = 1; stack.push(o); }
+      }
+    }
+    return out;
+  }
+  // A molecule is a piece of matter, not a bag of letters: dragging an atom that is
+  // bonded to anything moves its whole fragment and leaves the shape alone. Only an
+  // unbonded atom travels on its own.
+  function rigidSet(ids) {
+    var seen = {}, out = [], i;
+    for (i = 0; i < ids.length; i++) seen[ids[i]] = 1;
+    for (i = 0; i < ids.length; i++) {
+      var a = atomById(ids[i]);
+      if (!a || !bondsOf(a.id).length) continue;
+      var comp = componentOf(a.id);
+      for (var j = 0; j < comp.length; j++) seen[comp[j]] = 1;
+    }
+    for (var k in seen) {
+      if (Object.prototype.hasOwnProperty.call(seen, k)) out.push(+k);
+    }
+    return out;
+  }
+  // Every atom of the drag sits at its grab-time position plus one shared delta,
+  // which is what keeps a molecule rigid.
+  function moveBy(d, dx, dy) {
+    for (var i = 0; i < d.ids.length; i++) {
+      var at = atomById(d.ids[i]);
+      var o = d.orig[at && at.id];
+      if (!o) continue;
+      at.x = o.x + dx;
+      at.y = o.y + dy;
+    }
+  }
+  // The joint the dragged fragment is reaching for: an atom of the fragment that
+  // sits close to a free joint belonging to an atom outside it. The fragment is
+  // translated as a whole so that one atom lands exactly on the joint, which is
+  // how a carried -OH finds the carbon it belongs to instead of floating near it.
+  function dockForFragment(ids) {
+    if (!ui.vsepr) return null;
+    var inSet = {}, i, j, best = null;
+    for (i = 0; i < ids.length; i++) inSet[ids[i]] = 1;
+    for (i = 0; i < ids.length; i++) {
+      var a = atomById(ids[i]);
+      if (!a) continue;
+      var js = jointsNear(a.x, a.y, a.sym);
+      for (j = 0; j < js.length; j++) {
+        var st = atomById(js[j].parent);
+        if (!st || inSet[st.id]) continue;
+        if (js[j].dist > JOINT_GRAB) continue;
+        var score = jointWeight(js[j]);
+        if (!best || score < best.score) {
+          best = { atom: a.id, x: a.x, y: a.y, joint: js[j], dist: js[j].dist, score: score, parentSym: st.sym };
+        }
+      }
+    }
+    return best;
+  }
+  // Seat the fragment on the joint it is nearest, again by moving every atom of
+  // it by the same amount.
+  function applyDock(ids) {
+    var dock = dockForFragment(ids);
+    if (!dock) return null;
+    var ex = dock.joint.x - dock.x, ey = dock.joint.y - dock.y;
+    for (var i = 0; i < ids.length; i++) {
+      var a = atomById(ids[i]);
+      if (a) { a.x += ex; a.y += ey; }
+    }
+    return { dock: dock, dx: ex, dy: ey };
+  }
+
   function onPointerDown(e) {
     hideCtx();
     if (e.pointerType === 'touch' && Object.keys(ui.ptrs).length) {
@@ -2361,9 +3676,12 @@
       if (va) {
         if (ui.down.meta || ui.down.shift) selectOnly(va.id, true);
         else if (!selHas(va.id)) selectOnly(va.id, false);
+        // Dragging an atom drags its whole fragment: a structure is one piece, and
+        // moving a single letter out of it would shear the bonds and every angle
+        // the joints were built from.
         ui.drag = {
-          mode: 'move', ids: withFoldedH(ui.sel.slice()), wx: p.wx, wy: p.wy,
-          orig: {}, pushed: false
+          mode: 'move', ids: rigidSet(withFoldedH(ui.sel.slice())), wx: p.wx, wy: p.wy,
+          anchor: va.id, dx: 0, dy: 0, dock: null, orig: {}, pushed: false
         };
         for (var i = 0; i < ui.drag.ids.length; i++) {
           var at = atomById(ui.drag.ids[i]);
@@ -2406,6 +3724,15 @@
     var hov = ha ? { type: 'atom', id: ha.id } : (hb ? { type: 'bond', id: hb.id } : null);
     var changed = JSON.stringify(hov) !== JSON.stringify(ui.hover);
     if (changed) { ui.hover = hov; if (!ui.drag) render(); }
+    // The joint rings follow the pointer, so an idle move with a drawing tool has
+    // to repaint even when nothing is hovered.
+    if (!ui.drag && !changed && ui.vsepr && (ui.tool === 'atom' || ui.tool === 'bond')) {
+      var lp = ui.lastJointDraw;
+      if (!lp || Math.hypot(p.wx - lp.x, p.wy - lp.y) > 5) {
+        ui.lastJointDraw = { x: p.wx, y: p.wy };
+        render();
+      }
+    }
     if (ui.down && !ui.movedFar && Math.hypot(e.clientX - ui.down.x, e.clientY - ui.down.y) > 4) ui.movedFar = true;
     if (!ui.drag) return;
     var d = ui.drag;
@@ -2429,15 +3756,22 @@
     if (d.mode === 'move') {
       if (!d.pushed && ui.movedFar) { beforeChange(); d.pushed = true; }
       var dx = p.wx - d.wx, dy = p.wy - d.wy;
-      for (var i = 0; i < d.ids.length; i++) {
-        var at = atomById(d.ids[i]);
-        var o = d.orig[at.id];
-        if (!o) continue;
-        var nx = o.x + dx, ny = o.y + dy;
-        if (ui.snap) { nx = Math.round(nx / GRID) * GRID; ny = Math.round(ny / GRID) * GRID; }
-        at.x = nx;
-        at.y = ny;
+      // One delta for the whole fragment. Snapping atom by atom would scramble the
+      // shape into a grid of letters, so the grabbed atom is snapped and everything
+      // bonded to it follows at exactly the distance and angle it already had.
+      var ao = d.orig && d.orig[d.anchor];
+      if (ao && (ui.snap || ui.vsepr)) {
+        dx = Math.round((ao.x + dx) / GRID) * GRID - ao.x;
+        dy = Math.round((ao.y + dy) / GRID) * GRID - ao.y;
       }
+      moveBy(d, dx, dy);
+      // Then the joint magnet: if the carried piece is reaching a free joint, it
+      // slides the rest of the way onto it so the two structures meet exactly.
+      // Alt holds the piece where the hand put it.
+      var seat = e.altKey ? null : applyDock(d.ids);
+      d.dock = seat ? seat.dock : null;
+      d.dx = dx + (seat ? seat.dx : 0);
+      d.dy = dy + (seat ? seat.dy : 0);
       render();
       return;
     }
@@ -2479,7 +3813,11 @@
     }
     if (d.mode === 'pan') { scheduleSave(); syncCursor(); render(); return; }
     if (d.mode === 'move') {
-      if (d.pushed) afterChange();
+      if (d.pushed) {
+        afterChange();
+        if (d.dock) toast(tx('dockedJoint', { a: d.dock.parentSym }), 'info');
+        else if (d.ids.length > 1) toast(tx('dragRigid', { n: d.ids.length }), 'info');
+      }
       ui.box = null;
       render();
       syncButtons();
@@ -2511,13 +3849,8 @@
       if (!tb && ui.movedFar) {
         var hb = hitBond(p.wx, p.wy);
         if (hb) { if (e.shiftKey) actCycleBondUp(hb); else actCycleBondDown(hb); return; }
-        var pt = snapPoint(p.wx, p.wy);
-        var f2 = freeSpotNear(pt.x, pt.y);
-        beforeChange();
-        var na = makeAtom(ui.el, f2.x, f2.y);
-        addBond(d.from, na.id, Math.min(ui.bond, capOrder(atomById(d.from), na)));
-        afterChange();
-        toast(tx('bondMade', { a: atomById(d.from).sym, o: ordGlyph(ui.bond), b: na.sym }), 'ok');
+        actBondToNew(d.from, p.wx, p.wy, ui.bond);
+        ui.pendingBond = 0;
         return;
       }
       if (!tb && !ui.movedFar) {
@@ -2533,18 +3866,8 @@
       // The bond tool was pressed on empty canvas: a drag draws a whole new bond,
       // a plain click just drops one atom.
       var endHit = hitAtom(p.wx, p.wy);
-      if (!ui.movedFar) { actPlaceAtom(d.wx, d.wy); return; }
-      beforeChange();
-      var s0 = snapPoint(d.wx, d.wy), f0 = freeSpotNear(s0.x, s0.y);
-      var A0 = makeAtom(ui.el, f0.x, f0.y);
-      var B0 = endHit && endHit.id !== A0.id ? atomById(endHit.id) : null;
-      if (!B0) {
-        var s1 = snapPoint(p.wx, p.wy), f1 = freeSpotNear(s1.x, s1.y);
-        B0 = makeAtom(ui.el, f1.x, f1.y);
-      }
-      addBond(A0.id, B0.id, Math.min(ui.bond, capOrder(A0, B0)));
-      afterChange();
-      toast(tx('bondMade', { a: A0.sym, o: ordGlyph(Math.min(ui.bond, capOrder(A0, B0))), b: B0.sym }), 'ok');
+      if (!ui.movedFar) { actPlaceAtom(d.wx, d.wy, e.altKey); return; }
+      actNewBondDrag(d.wx, d.wy, p.wx, p.wy, endHit, ui.bond);
       return;
     }
     if (d.mode === 'tap') {
@@ -2558,13 +3881,20 @@
             if (at3 && at3.sym !== ui.el) {
               beforeChange();
               at3.sym = ui.el;
+              // Painting a new element onto an atom changes what its bonds are
+              // allowed to be, so the board is re-audited the way a loaded file
+              // is: a line the new atom cannot hold is corrected, not kept.
+              var notes = repairBoard();
               afterChange();
-              toast(tx('placed', { sym: ui.el }), 'ok');
+              toast(tx('placed', { sym: ui.el }) + (notes.length ? ' — ' +
+                repairedNote('presetRepairedOne', 'presetRepaired', notes.length) + ': ' + notes.join('; ') : ''),
+                notes.length ? 'err' : 'ok');
             } else {
-              selectOnly(target, false);
-              syncButtons();
+              var grown = e.altKey ? null : jointUnderAtom(p.wx, p.wy, ui.el, target);
+              if (grown) placeFromJoint(grown);
+              else { selectOnly(target, false); syncButtons(); }
             }
-          } else actPlaceAtom(pt3.x, pt3.y);
+          } else actPlaceAtom(pt3.x, pt3.y, e.altKey);
         } else if (d.hit) {
           var endA = hitAtom(p.wx, p.wy);
           if (endA && endA.id !== d.hit) actBond(d.hit, endA.id, 1);
@@ -2683,9 +4013,9 @@
     for (var i = 0; i < ids.length; i++) {
       var a = atomById(ids[i]);
       if (!a) continue;
-      var want = (a.lp || 0) + delta;
+      var want = lpCount(a) + delta;
       if (want < 0) continue;
-      a.lp = Math.min(6, want);
+      setLP(a, want);
       done.push(a);
     }
     if (!done.length) { ui.hist.pop(); toast(tx('lpNone'), 'err'); return; }
@@ -2698,13 +4028,13 @@
     ui.sel = withFoldedH(doc.atoms.map(function (a) { return a.id; }));
     afterChangeNoHist();
   }
-  function nudgeSel(dx, dy) {
+  function nudgeSel(dx, dy, noDock) {
     if (!ui.sel.length) {
       ui.pan.x += dx; ui.pan.y += dy;
       clampPan(); scheduleSave(); render();
       return;
     }
-    var ids = withFoldedH(ui.sel.slice()), moved = 0, i;
+    var ids = rigidSet(withFoldedH(ui.sel.slice())), moved = 0, i;
     beforeChange();
     for (i = 0; i < ids.length; i++) {
       var a = atomById(ids[i]);
@@ -2713,6 +4043,9 @@
       moved++;
     }
     if (!moved) { ui.hist.pop(); return; }
+    // The fine step is the one that means "exactly here", so Alt skips the joint
+    // magnet the same way it skips it for a drag.
+    if (!noDock) applyDock(ids);
     afterChange();
   }
   function resetZoom() {
@@ -2773,10 +4106,10 @@
     }
     if (k === 'Delete' || k === 'Backspace') { claim(e); actDeleteSel(); return; }
     if (k === 'Escape') { claim(e); if (!dismissTop()) close(); return; }
-    if (k === 'ArrowUp') { claim(e); nudgeSel(0, e.altKey ? -4 : -GRID); return; }
-    if (k === 'ArrowDown') { claim(e); nudgeSel(0, e.altKey ? 4 : GRID); return; }
-    if (k === 'ArrowLeft') { claim(e); nudgeSel(e.altKey ? -4 : -GRID, 0); return; }
-    if (k === 'ArrowRight') { claim(e); nudgeSel(e.altKey ? 4 : GRID, 0); return; }
+    if (k === 'ArrowUp') { claim(e); nudgeSel(0, e.altKey ? -4 : -GRID, e.altKey); return; }
+    if (k === 'ArrowDown') { claim(e); nudgeSel(0, e.altKey ? 4 : GRID, e.altKey); return; }
+    if (k === 'ArrowLeft') { claim(e); nudgeSel(e.altKey ? -4 : -GRID, 0, e.altKey); return; }
+    if (k === 'ArrowRight') { claim(e); nudgeSel(e.altKey ? 4 : GRID, 0, e.altKey); return; }
     if (k === '+' || k === '=') { claim(e); zoomStep(1.25); return; }
     if (k === '-' || k === '_') { claim(e); zoomStep(0.8); return; }
     if (k === '0') { claim(e); resetZoom(); return; }
@@ -2947,21 +4280,33 @@
     var s = p.make();
     beforeChange();
     doc.atoms = []; doc.bonds = []; doc.brackets = []; doc.nextId = 1; ui.sel = [];
-    var ids = [];
+    var ids = [], made = [];
     for (i = 0; i < s.atoms.length; i++) {
       var d = s.atoms[i];
       var a = makeAtom(d.sym, d.x, d.y);
-      a.q = d.q || 0; a.lp = d.lp || 0;
+      a.q = d.q || 0;
       ids.push(a.id);
+      made.push(a);
     }
     for (i = 0; i < s.bonds.length; i++) {
       addBond(ids[s.bonds[i][0]], ids[s.bonds[i][1]], s.bonds[i][2] || 1);
     }
+    // Lone pairs are the engine's bookkeeping; a preset only states them when it
+    // means something other than what the electrons alone would give, and once the
+    // bonds exist - otherwise the count would be read against an empty atom.
+    for (i = 0; i < made.length; i++) {
+      if (s.atoms[i].lp !== undefined) setLP(made[i], s.atoms[i].lp);
+    }
+    // A preset is a claim about a real molecule, so it is held to the same rules as
+    // anything drawn by hand; if one of these ever fails the audit, the board says so.
+    var fixNotes = repairBoard();
     afterChange();
     if (p.addH) actAddHydrogens();
     if (p.bracket) { ui.sel = ids.slice(); actBracket(); ui.sel = []; refresh(); }
     actFit();
-    toast(tx('loadedPreset', { name: tx(p.key) }), 'ok');
+    toast(tx('loadedPreset', { name: tx(p.key) }) +
+      (fixNotes.length ? ' — ' + repairedNote('presetRepairedOne', 'presetRepaired', fixNotes.length) + ': ' + fixNotes.join('; ') : ''),
+      fixNotes.length ? 'err' : 'ok');
     return true;
   }
   function bindPreset(id) { return function () { applyPreset(id); }; }
@@ -2991,6 +4336,7 @@
     ['H', 'kHKey'],
     ['K / L', 'kChargeKeys'],
     ['[ / ]', 'kLpKeys'],
+    ['Alt', 'kAltKey'],
     ['↑ ↓ ← →', 'kNudgeKeys'],
     ['Space / Ctrl + wheel', 'kSpaceKey'],
     ['Esc', 'kEscKey']
@@ -3021,6 +4367,7 @@
       items.push('<kbd>' + esc(KEY_ROWS[i][0]) + '</kbd> — ' + esc(tx(KEY_ROWS[i][1])));
     }
     html += '<h5>' + esc(tx('helpSecKeys')) + '</h5>' + helpList(items);
+    html += '<h5>' + esc(tx('helpSecGeometry')) + '</h5><p>' + esc(tx('geomNote')) + '</p>';
     items = [];
     for (i = 0; i < PRESETS.length; i++) items.push(esc(tx(PRESETS[i].key)));
     html += '<h5>' + esc(tx('helpSecPresets')) + '</h5>' + helpList(items);
@@ -3038,13 +4385,14 @@
   // 13. Text and image export.
   // ==========================================================================
   function formulaText() {
-    var terms = formulaTerms(), i, s = '';
-    for (i = 0; i < terms.length; i++) {
-      s += terms[i].t + (terms[i].n > 1 ? terms[i].n : '');
+    var groups = formulaTerms(), parts = [];
+    for (var i = 0; i < groups.length; i++) {
+      var g = groups[i], s = g.n > 1 ? g.n + ' ' : '';
+      for (var j = 0; j < g.terms.length; j++) s += g.terms[j].t + (g.terms[j].n > 1 ? g.terms[j].n : '');
+      if (g.q) s += ' ' + signed(g.q);
+      parts.push(s);
     }
-    var q = doc.atoms.reduce(function (t, a) { return t + (a.q || 0); }, 0);
-    if (q) s += ' ' + signed(q);
-    return s;
+    return parts.join(' + ');
   }
 
   function downloadUrl(href, name) {
@@ -3097,7 +4445,9 @@
     for (i = 0; i < doc.bonds.length; i++) {
       var b = doc.bonds[i];
       if (!idx[b.a] || !idx[b.b]) continue;
-      bl.push([idx[b.a], idx[b.b], Math.max(1, Math.min(7, b.order || 1))]);
+      // Type 8 is the V2000 code for a coordination/ionic link: the electrons were
+      // transferred, not shared, and a MolFile must not claim otherwise.
+      bl.push([idx[b.a], idx[b.b], b.ionic ? 8 : Math.max(1, Math.min(7, b.order || 1))]);
     }
     lines.push('  MOLECULITH BLUEPRINT');
     lines.push('  2D structural drawing from the in-game editor');
@@ -3127,16 +4477,23 @@
 
   // ---- SMILES -------------------------------------------------------------
   // Connectivity, bond orders and formal charges, with the hydrogens that hang
-  // off one heavy atom folded into it (B,H2 → BH2) and a bond the engine would
-  // call ionic (Pauling ΔEN > 1.7) written as the salt dot, exactly the way real
-  // SMILES writes NaCl. Lone pairs are not part of SMILES: the reader re-derives
-  // them from the valence, and a bond order above three has no SMILES symbol, so
-  // it is written as a triple bond.
+  // off one heavy atom folded into it (B,H2 → BH2) and a bond the engine called
+  // ionic written as the salt dot, exactly the way real SMILES writes NaCl. Lone
+  // pairs are not part of SMILES: the reader re-derives them from the valence,
+  // and a bond order above three has no SMILES symbol, so it is written as a
+  // triple bond.
   function paulingIonic(A, B) {
     var ea = elOf(A.sym), eb = elOf(B.sym);
     if (!ea || !eb) return false;
     var d = ea.en && eb.en ? Math.abs(ea.en - eb.en) : 0;
     return d > 1.7;
+  }
+  // The bond record is the authority: `bondPlan` asked the engine which kind of
+  // bond this is and the answer was stored. The Pauling gap only stands in for
+  // documents saved before the flag existed.
+  function isIonicBond(bond, A, B) {
+    if (bond && typeof bond.ionic === 'boolean') return bond.ionic;
+    return !!A && !!B && paulingIonic(A, B);
   }
   function smilesNeighbors(id, skipIonic) {
     var out = [], at = atomById(id), bs = bondsOf(id), i;
@@ -3144,7 +4501,7 @@
     for (i = 0; i < bs.length; i++) {
       var other = atomById(bs[i].a === id ? bs[i].b : bs[i].a);
       if (!other) continue;
-      if (skipIonic && paulingIonic(at, other)) continue;
+      if (skipIonic && isIonicBond(bs[i], at, other)) continue;
       out.push({ id: other.id, order: Math.max(1, Math.min(3, bs[i].order || 1)), bond: bs[i] });
     }
     // a deterministic order keeps the same drawing on the same string
@@ -3225,7 +4582,7 @@
     var derivedQ = {}, bi;
     for (bi = 0; bi < doc.bonds.length; bi++) {
       var bd = doc.bonds[bi], BA = atomById(bd.a), BB = atomById(bd.b);
-      if (!BA || !BB || !paulingIonic(BA, BB)) continue;
+      if (!BA || !BB || !isIonicBond(bd, BA, BB)) continue;
       if ((BA.q || 0) || (BB.q || 0)) continue;
       var ea = elOf(BA.sym), eb = elOf(BB.sym);
       var xa = ea && ea.en ? ea.en : 0, xb = eb && eb.en ? eb.en : 0;
@@ -3244,7 +4601,7 @@
       var p = atomById(bs[0].a === h.id ? bs[0].b : bs[0].a);
       if (!p || p.sym === 'H') continue;
       if (Math.max(1, bs[0].order || 1) !== 1) continue;
-      if (paulingIonic(p, h)) continue;
+      if (isIonicBond(bs[0], p, h)) continue;
       folded[h.id] = 1;
       foldCount[p.id] = (foldCount[p.id] || 0) + 1;
     }
@@ -3553,6 +4910,11 @@
     });
     return found;
   }
+  function sceneBondOrder(bid) {
+    var A = app();
+    if (!A || !A.bonds || typeof A.bonds.get !== 'function') return 0;
+    try { var b = A.bonds.get(bid); return b ? (b.order || 1) : 0; } catch (e) { return 0; }
+  }
   function sceneCompKey(ids) {
     return ids.slice().sort(function (x, y) { return x - y; }).join(',');
   }
@@ -3616,7 +4978,7 @@
       }
     }
 
-    var made = [], bondCount = 0, rejected = [], noRoom = 0;
+    var made = [], bondCount = 0, rejected = [], lowered = [], noRoom = 0;
     for (var c = 0; c < comps.length; c++) {
       var f = fragData(comps[c]);
       if (!f.syms.length) continue;
@@ -3650,7 +5012,17 @@
           rejected.push(f.syms[ia] + '–' + f.syms[ib]);
           continue;
         }
-        if (order > 1) { try { A.devOrder(bid, order); } catch (e3) { /* stays single */ } }
+        // The scene raises a bond one legal step at a time, exactly the way the
+        // player's own bond tool does. Writing the order straight in would let a
+        // drawing place a multiple bond the scene's rules refuse.
+        if (order > 1) {
+          for (var u = 1; u < order; u++) {
+            if (sceneBondOrder(bid) !== u) break;
+            try { A.devUpgrade(bid); } catch (e3) { break; }
+          }
+          var reached = sceneBondOrder(bid);
+          if (reached < order) lowered.push(f.syms[ia] + ordGlyph(reached) + f.syms[ib]);
+        }
         bondCount++;
       }
       if (f.q && map.length) {
@@ -3666,9 +5038,10 @@
     if (typeof A.refreshInspector === 'function') { try { A.refreshInspector(); } catch (e6) {} }
     var summary = tx('exportedList', { n: made.length, b: bondCount }) + costText(cost);
     if (rejected.length) summary += ' · ' + tx('exportRejected', { n: rejected.length, list: rejected.slice(0, 4).join(', ') });
+    if (lowered.length) summary += ' · ' + tx('exportLowered', { n: lowered.length, list: lowered.slice(0, 4).join(', ') });
     if (noRoom) summary += ' · ' + tx('exportNoRoom', { n: noRoom });
-    toast(tx('exported', { list: summary }), rejected.length || noRoom ? 'info' : 'ok');
-    return { ids: made, atoms: made.length, bonds: bondCount, rejected: rejected, noRoom: noRoom, cost: cost };
+    toast(tx('exported', { list: summary }), rejected.length || noRoom || lowered.length ? 'info' : 'ok');
+    return { ids: made, atoms: made.length, bonds: bondCount, rejected: rejected, lowered: lowered, noRoom: noRoom, cost: cost };
   }
 
   // The crate, reached through the game's own hook when the bundle has one and
@@ -3812,6 +5185,7 @@
     }
     if (!Object.prototype.hasOwnProperty.call(ui, key)) return;
     ui[key] = !ui[key];
+    if (key === 'vsepr') toast(ui.vsepr ? tx('geometryOn') : tx('geometryOff'), 'info');
     scheduleSave();
     refresh();
   }
@@ -3964,6 +5338,20 @@
 
   var fittedOnce = false;
 
+  // A board restored from storage can carry bonds drawn before the rules were
+  // wired in: the gate guards what is made from now on, not what is loaded. The
+  // first open that finds the engine answering repairs the document once, the
+  // same way a preset does.
+  var savedRepaired = false;
+  function repairRestoredDoc() {
+    if (savedRepaired || !rules() || !doc.bonds.length) return;
+    savedRepaired = true;
+    var notes = repairBoard();
+    if (!notes.length) return;
+    saveAll();
+    toast(repairedNote('saveRepairedOne', 'saveRepaired', notes.length) + ': ' + notes.join('; '), 'err');
+  }
+
   function open() {
     if (ui.open) return;
     var A = app();
@@ -3975,6 +5363,7 @@
     els.panel.removeAttribute('aria-hidden');
     ensurePlaced();
     rebuildElementsIfNeeded();
+    repairRestoredDoc();
     refresh();
     if (!fittedOnce) { fittedOnce = true; actFit(); }
     // re-measure once the browser has laid the sheet out for real
@@ -4065,11 +5454,16 @@
       var el = elOf(want) || elOf(sym);
       if (!el) continue;
       var id = newId();
+      // An import that states lone pairs means them; one that does not leaves the
+      // count to the electron bookkeeping.
+      var lpv = t.lp === undefined || t.lp === null || t.lp === '' ? null
+        : clampNum(Math.round(num(t.lp)), 0, 6);
       var rec = {
         id: id, sym: el.sym,
         x: Math.round(num(t.x)), y: Math.round(num(t.y)),
         q: clampNum(Math.round(num(t.q !== undefined ? t.q : t.charge)), -8, 8),
-        lp: clampNum(Math.round(num(t.lp)), 0, 6)
+        lp: lpv === null ? 0 : lpv,
+        lpSet: lpv === null ? 0 : 1
       };
       a.push(rec);
       byNew[id] = rec;
@@ -4089,7 +5483,13 @@
       if (ia === undefined || ib === undefined || ia === ib) continue;
       if (bondBetween(ia, ib)) continue;
       var A = byNew[ia], B = byNew[ib];
-      b.push({ id: newId(), a: ia, b: ib, order: clampNum(Math.round(num(ord)) || 1, 1, capOrder(A, B)) });
+      // Only a cheap per-atom ceiling while the document is still being assembled;
+      // the real audit runs on the assembled board in loadState.
+      var ceil = Math.min(capacityOf(A.sym), capacityOf(B.sym), 5);
+      b.push({
+        id: newId(), a: ia, b: ib, ionic: !!(x && x.ionic),
+        order: clampNum(Math.round(num(ord)) || 1, 1, ceil)
+      });
     }
     var rawK = (s && (s.k || s.brackets)) || [];
     if (!Array.isArray(rawK)) rawK = [];
@@ -4119,10 +5519,18 @@
     if (!ui.open) open();
     beforeChange();
     if (!applySnapshot(JSON.stringify(norm))) { ui.hist.pop(); toast(tx('loadFailed'), 'err'); return false; }
+    // A file is a description of a molecule, not a licence to draw it: anything the
+    // rules refuse is corrected here and named in the message.
+    var fixNotes = repairBoard();
     ui.sel = [];
     afterChange();
     actFit();
-    toast(tx('stateLoaded', { n: doc.atoms.length, b: doc.bonds.length }), 'ok');
+    toast(tx('stateLoaded', {
+      a: counted(doc.atoms.length, 'oneAtom', 'manyAtoms'),
+      b: counted(doc.bonds.length, 'oneBond', 'manyBonds')
+    }) +
+      (fixNotes.length ? ' — ' + repairedNote('presetRepairedOne', 'presetRepaired', fixNotes.length) + ': ' + fixNotes.join('; ') : ''),
+      fixNotes.length ? 'err' : 'ok');
     return true;
   }
 
@@ -4152,11 +5560,11 @@
       setBondOrder(clampNum(Math.round(num(n)) || 1, 1, 3));
       return ui.bond;
     },
-    place: function (sym, x, y) {
+    place: function (sym, x, y, free) {
       ensureUp();
       if (sym !== undefined && sym !== null && sym !== '' && !setElement(String(sym))) return null;
       if (!ui.open) open();
-      var a = actPlaceAtom(num(x), num(y));
+      var a = actPlaceAtom(num(x), num(y), !!free);
       return a ? a.id : null;
     },
     bond: function (a, b, order) {
@@ -4164,10 +5572,10 @@
       var A = atomById(+a), B = atomById(+b);
       if (!A || !B) return null;
       var want = order === undefined || order === null || order === ''
-        ? ui.bond : clampNum(Math.round(num(order)) || 1, 1, capOrder(A, B));
+        ? ui.bond : clampNum(Math.round(num(order)) || 1, 1, 5);
       actBond(A.id, B.id, want);
       var e = bondBetween(A.id, B.id);
-      return e ? { id: e.id, a: e.a, b: e.b, order: e.order } : null;
+      return e ? { id: e.id, a: e.a, b: e.b, order: e.order, ionic: !!e.ionic } : null;
     },
     erase: function (id) {
       ensureUp();
@@ -4221,7 +5629,7 @@
     addHydrogens: function () { ensureUp(); if (!ui.open) open(); actAddHydrogens(); return doc.atoms.length; },
     cleanLayout: function () { ensureUp(); actCleanLayout(); return true; },
     fit: function () { ensureUp(); actFit(); return { zoom: ui.zoom, pan: { x: ui.pan.x, y: ui.pan.y } }; },
-    view: function () { return { zoom: ui.zoom, pan: { x: ui.pan.x, y: ui.pan.y }, grid: ui.grid, snap: ui.snap }; },
+    view: function () { return { zoom: ui.zoom, pan: { x: ui.pan.x, y: ui.pan.y }, grid: ui.grid, snap: ui.snap, vsepr: ui.vsepr }; },
     help: function (on) { ensureUp(); toggleHelp(on); return !!ui.help; }
   };
 
@@ -4250,6 +5658,15 @@
 
     window.addEventListener('mol3d:lang', function () { onLangChange(true); });
     window.setInterval(function () { onLangChange(false); }, 250);
+
+    // The board is a canvas, so CSS variables alone cannot recolour it: drop the
+    // cached palette and the view-model (which bakes legible ink) and repaint.
+    window.addEventListener('mol3d:theme', function () {
+      PAL = null;
+      view = null;
+      refresh();
+      if (elPopOpen) buildElList(els.elSearch.value || '');
+    });
   }
 
   window.__blueprint = api;

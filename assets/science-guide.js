@@ -715,9 +715,41 @@
         justify-content: center;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       }
+      /* The guide has always worn its own rose-and-navy palette rather than the
+         app's cyan one, so it declares that palette as scoped variables and swaps
+         the set for light theme. Tapping the app's --accent directly would repaint
+         the guide cyan in dark mode, which is not what the theme toggle promises. */
+      #science-guide-panel {
+        --g-panel-a: #1a1a2e;
+        --g-panel-b: #16213e;
+        --g-line: #0f3460;
+        --g-fill: rgba(15, 52, 96, 0.3);
+        --g-fill-faint: rgba(15, 52, 96, 0.2);
+        --g-fill-strong: rgba(15, 52, 96, 0.5);
+        --g-accent: #e94560;
+        --g-accent-soft: #ff6b6b;
+        --g-accent-fill: rgba(233, 69, 96, 0.3);
+        --g-on-accent: white;
+        --g-muted: #a8dadc;
+        --g-text: #f1faee;
+      }
+      html[data-theme="light"] #science-guide-panel {
+        --g-panel-a: #ffffff;
+        --g-panel-b: #eef1f8;
+        --g-line: rgba(20, 40, 80, 0.24);
+        --g-fill: rgba(30, 60, 110, 0.07);
+        --g-fill-faint: rgba(30, 60, 110, 0.05);
+        --g-fill-strong: rgba(30, 60, 110, 0.13);
+        --g-accent: #c2264b;
+        --g-accent-soft: #d9575f;
+        --g-accent-fill: rgba(194, 38, 75, 0.14);
+        --g-on-accent: #ffffff;
+        --g-muted: #46617a;
+        --g-text: #16233a;
+      }
       .guide-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        border: 2px solid #0f3460;
+        background: linear-gradient(135deg, var(--g-panel-a) 0%, var(--g-panel-b) 100%);
+        border: 2px solid var(--g-line);
         border-radius: 12px;
         width: 90%;
         max-width: 800px;
@@ -734,19 +766,19 @@
         justify-content: space-between;
         align-items: center;
         padding: 16px 20px;
-        border-bottom: 2px solid #0f3460;
-        background: rgba(15, 52, 96, 0.3);
+        border-bottom: 2px solid var(--g-line);
+        background: var(--g-fill);
         border-radius: 10px 10px 0 0;
       }
       .guide-title {
         font-size: 20px;
         font-weight: bold;
-        color: #e94560;
+        color: var(--g-accent);
       }
       .guide-close {
-        background: #e94560;
+        background: var(--g-accent);
         border: none;
-        color: white;
+        color: var(--g-on-accent);
         width: 32px;
         height: 32px;
         border-radius: 50%;
@@ -755,7 +787,7 @@
         transition: all 0.2s;
       }
       .guide-close:hover {
-        background: #ff6b6b;
+        background: var(--g-accent-soft);
         transform: scale(1.1);
       }
       .guide-nav-bar {
@@ -764,8 +796,8 @@
         flex-shrink: 0;
         gap: 6px;
         padding: 0 8px;
-        border-bottom: 1px solid #0f3460;
-        background: rgba(15, 52, 96, 0.2);
+        border-bottom: 1px solid var(--g-line);
+        background: var(--g-fill-faint);
       }
       .guide-nav-bar.no-overflow .guide-nav-arrow {
         display: none;
@@ -774,18 +806,18 @@
         flex-shrink: 0;
         width: 30px;
         padding: 5px 0;
-        background: rgba(15, 52, 96, 0.5);
-        border: 1px solid #0f3460;
+        background: var(--g-fill-strong);
+        border: 1px solid var(--g-line);
         border-radius: 6px;
-        color: #a8dadc;
+        color: var(--g-muted);
         font-size: 18px;
         line-height: 1.1;
         cursor: pointer;
         transition: all 0.15s ease;
       }
       .guide-nav-arrow:hover:not(:disabled) {
-        background: rgba(233, 69, 96, 0.3);
-        border-color: #e94560;
+        background: var(--g-accent-fill);
+        border-color: var(--g-accent);
       }
       .guide-nav-arrow:disabled {
         opacity: 0.3;
@@ -804,13 +836,13 @@
         overscroll-behavior-x: contain;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
-        scrollbar-color: #0f3460 rgba(15, 52, 96, 0.2);
+        scrollbar-color: var(--g-line) var(--g-fill-faint);
       }
       .guide-nav-btn {
         flex-shrink: 0;
-        background: rgba(15, 52, 96, 0.5);
-        border: 1px solid #0f3460;
-        color: #a8dadc;
+        background: var(--g-fill-strong);
+        border: 1px solid var(--g-line);
+        color: var(--g-muted);
         padding: 8px 14px;
         border-radius: 6px;
         cursor: pointer;
@@ -819,13 +851,13 @@
         transition: all 0.2s;
       }
       .guide-nav-btn:hover {
-        background: rgba(233, 69, 96, 0.3);
-        border-color: #e94560;
+        background: var(--g-accent-fill);
+        border-color: var(--g-accent);
       }
       .guide-nav-btn.active {
-        background: #e94560;
-        border-color: #e94560;
-        color: white;
+        background: var(--g-accent);
+        border-color: var(--g-accent);
+        color: var(--g-on-accent);
       }
       .guide-content {
         flex: 1;
@@ -834,53 +866,53 @@
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
-        scrollbar-color: #e94560 rgba(15, 52, 96, 0.2);
+        scrollbar-color: var(--g-accent) var(--g-fill-faint);
         padding: 20px;
-        color: #f1faee;
+        color: var(--g-text);
       }
       .guide-content:focus {
         outline: none;
       }
       .guide-content:focus-visible {
-        outline: 1px solid #e94560;
+        outline: 1px solid var(--g-accent);
         outline-offset: -4px;
       }
       .guide-content h2 {
-        color: #e94560;
+        color: var(--g-accent);
         margin: 0 0 20px 0;
         font-size: 24px;
       }
       .guide-section {
-        background: rgba(15, 52, 96, 0.3);
-        border: 1px solid #0f3460;
+        background: var(--g-fill);
+        border: 1px solid var(--g-line);
         border-radius: 8px;
         padding: 16px;
         margin-bottom: 16px;
       }
       .guide-section h3 {
-        color: #a8dadc;
+        color: var(--g-muted);
         margin: 0 0 12px 0;
         font-size: 17px;
       }
       .guide-text {
         line-height: 1.7;
-        color: #f1faee;
+        color: var(--g-text);
         font-size: 14px;
       }
       .guide-text b {
-        color: #e94560;
+        color: var(--g-accent);
       }
       .guide-welcome {
         text-align: center;
         padding: 40px 20px;
       }
       .guide-welcome h2 {
-        color: #e94560;
+        color: var(--g-accent);
         font-size: 28px;
         margin-bottom: 16px;
       }
       .guide-welcome p {
-        color: #a8dadc;
+        color: var(--g-muted);
         font-size: 16px;
         line-height: 1.6;
         margin: 12px 0;
@@ -889,18 +921,18 @@
         height: 6px;
       }
       .guide-nav::-webkit-scrollbar-thumb {
-        background: #0f3460;
+        background: var(--g-line);
         border-radius: 3px;
       }
       .guide-content::-webkit-scrollbar {
         width: 8px;
       }
       .guide-content::-webkit-scrollbar-track {
-        background: rgba(15, 52, 96, 0.2);
+        background: var(--g-fill-faint);
         border-radius: 4px;
       }
       .guide-content::-webkit-scrollbar-thumb {
-        background: #e94560;
+        background: var(--g-accent);
         border-radius: 4px;
       }
       @media (max-width: 768px) {

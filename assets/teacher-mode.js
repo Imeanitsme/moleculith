@@ -2005,7 +2005,7 @@
   const $ = function(id) { return document.getElementById(id); };
 
   const els = {
-    back: $('btn-back'), lang: $('btn-lang'), selector: $('topic-selector'),
+    back: $('btn-back'), lang: $('btn-lang'), theme: $('btn-theme'), selector: $('topic-selector'),
     progressBtn: $('btn-progress'), nav: $('lesson-nav'), content: $('lesson-content'),
     simArea: $('simulation-area'), reset: $('btn-reset'), play: $('btn-play'),
     pause: $('btn-pause'), canvas: $('simulation-canvas'), params: $('sim-params'),
@@ -2085,12 +2085,12 @@
 
   function clearCanvas() {
     fitCanvas();
-    ctx.fillStyle = '#0b0b16';
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, ctx.W, ctx.H);
   }
 
   function label(text, x, y, color, size, align) {
-    ctx.fillStyle = color || '#e8e8f0';
+    ctx.fillStyle = color || C.text;
     ctx.font = (size || 12) + 'px "Segoe UI", sans-serif';
     ctx.textAlign = align || 'left';
     ctx.textBaseline = 'middle';
@@ -2100,7 +2100,7 @@
 
   function box(x, y, w, h, stroke, fill) {
     if (fill) { ctx.fillStyle = fill; ctx.fillRect(x, y, w, h); }
-    ctx.strokeStyle = stroke || '#3a3a5c';
+    ctx.strokeStyle = stroke || C.line;
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
   }
@@ -2131,7 +2131,7 @@
       ctx.beginPath();
       ctx.arc(x + 6, y + i * 16, 5, 0, Math.PI * 2);
       ctx.fill();
-      label(items[i].t, x + 17, y + i * 16, '#a8dadc', 11);
+      label(items[i].t, x + 17, y + i * 16, C.dim, 11);
     }
   }
 
@@ -2165,7 +2165,7 @@
     const topic = LESSONS[currentTopic];
     if (!topic) return;
     const ls = topic.lessons[currentLessonIndex] || topic.lessons[0];
-    const accent = topic.color;
+    const accent = topicColor(topic);
     els.content.innerHTML =
       '<h2 style="color:' + accent + '">' + tc(currentTopic) + '</h2>' +
       '<h3 style="margin-top:2px">' + c(ls.title) + '</h3>' +
@@ -2199,11 +2199,11 @@
       let done = 0;
       for (let j = 0; j < tp.lessons.length; j++) if (doneLessons[k + ':' + j]) done++;
       rows += '<div class="constant-item" data-topic="' + k + '" style="cursor:pointer">' +
-        '<span class="const-name"><span style="color:' + tp.color + '">●</span> ' + tc(k) + '</span>' +
+        '<span class="const-name"><span style="color:' + topicColor(tp) + '">●</span> ' + tc(k) + '</span>' +
         '<span class="const-value">' + done + '/' + tp.lessons.length + '</span></div>';
     }
     els.content.innerHTML =
-      '<h2 style="color:#e94560">' + t('overview') + '</h2>' +
+      '<h2 style="color:var(--accent)">' + t('overview') + '</h2>' +
       '<p>' + t('courseIntro') + '</p>' +
       '<div class="progress-stats" style="grid-template-columns:repeat(3,1fr)">' +
       '<div class="stat-card"><div class="stat-value">' + TOPIC_ORDER.length + '</div><div class="stat-label">' + t('courseTopics') + '</div></div>' +
@@ -2300,8 +2300,100 @@
   }
 
   // ---------- Simulation registry ----------
-  const C = { accent: '#e94560', green: '#4caf50', blue: '#2196f3', yellow: '#ffeb3b',
-    dim: '#a8dadc', red: '#f44336', purple: '#9575cd', grid: '#24243f', text: '#e8e8f0' };
+  // Canvas surfaces cannot inherit CSS variables, so every draw resolves the
+  // palette from the live custom properties once (not per shape). The fallbacks
+  // below are the exact literals the shipped dark theme uses, so with no
+  // --sim-* tokens present the colours are byte-for-byte what they were.
+  function pal() {
+    const cs = getComputedStyle(document.documentElement);
+    const gv = function(name, fb) {
+      const s = (cs.getPropertyValue(name) || '').trim();
+      return s || fb;
+    };
+    return {
+      accent: gv('--accent', '#e94560'),
+      green: gv('--success', '#4caf50'),
+      blue: gv('--sim-blue', '#2196f3'),
+      yellow: gv('--sim-yellow', '#ffeb3b'),
+      dim: gv('--sim-dim', '#a8dadc'),
+      red: gv('--error', '#f44336'),
+      purple: gv('--sim-purple', '#9575cd'),
+      grid: gv('--sim-grid', '#24243f'),
+      text: gv('--sim-text', '#e8e8f0'),
+      bg: gv('--sim-bg', '#0b0b16'),
+      line: gv('--sim-line', '#3a3a5c'),
+      neutron: gv('--sim-neutron', '#7b8bb5'),
+      carbon: gv('--sim-carbon', '#6b6b8a'),
+      indigo: gv('--sim-indigo', '#5c6bc0'),
+      periwinkle: gv('--sim-periwinkle', '#7986cb'),
+      brown: gv('--sim-brown', '#8d6e63'),
+      panel: gv('--sim-panel', '#141428'),
+      tick: gv('--sim-tick', '#6a6a8a'),
+      steelA: gv('--sim-steel-a', '#8d93a8'),
+      steelB: gv('--sim-steel-b', '#5b6172'),
+      metal: gv('--sim-metal', '#3b3b55'),
+      onSphere: gv('--sim-on-sphere', '#0b0b16'),
+      chalk: gv('--sim-chalk', '#ffffff'),
+      shade: gv('--sim-shade', 'rgba(0,0,0,0.35)'),
+      shadeSoft: gv('--sim-shade-soft', 'rgba(0,0,0,0.25)'),
+      glass: gv('--sim-glass', 'rgba(255,255,255,0.02)'),
+      liquid: gv('--sim-liquid', 'rgba(38,198,218,0.4)'),
+      liquidSoft: gv('--sim-liquid-soft', 'rgba(38,198,218,0.25)'),
+      liquidDeep: gv('--sim-liquid-deep', 'rgba(38,198,218,0.6)'),
+      orbit: gv('--sim-orbit', 'rgba(255,235,59,0.35)'),
+      guide: gv('--sim-guide', 'rgba(255,235,59,0.25)'),
+      specViolet: gv('--spec-violet', '#7e57c2'),
+      specCyan: gv('--spec-cyan', '#29b6f6'),
+      specYellow: gv('--spec-yellow', '#ffee58'),
+      specAmber: gv('--spec-amber', '#ff9800'),
+      specRed: gv('--spec-red', '#ef5350'),
+      spent: gv('--sim-spent', 'rgba(120,120,150,0.4)'),
+      steam: gv('--sim-steam', '#ffffff'),
+      gasCold: gv('--sim-gas-cold', '#7896e6'),
+      gasHot: gv('--sim-gas-hot', '#ff5a3c')
+    };
+  }
+  let C = pal();
+
+  // Rebuild an rgba() string from a palette hex so translucent palette tints
+  // flip with the theme. For the shipped dark palette this reproduces the
+  // original literal character-for-character.
+  function rgba(hex, a) {
+    const n = parseInt(String(hex).slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+
+  // Linear channel blend of two palette hexes, in the same 'rgb(r,g,b)' shape
+  // the shipped code built by hand. With the dark endpoints (#7896e6 → #ff5a3c)
+  // the arithmetic is identical to the original literals (120+135t, 150-60t,
+  // 230-170t), so the dark page is unchanged.
+  function mixHex(from, to, t) {
+    const a = parseInt(String(from).slice(1), 16);
+    const b = parseInt(String(to).slice(1), 16);
+    const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+    const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+    return 'rgb(' + Math.round(ar + (br - ar) * t) + ',' +
+      Math.round(ag + (bg - ag) * t) + ',' + Math.round(ab + (bb - ab) * t) + ')';
+  }
+
+  // Near-white lesson accents (notably the #fdd835 / #ffca28 topics) are
+  // unreadable on the light page, so light mode swaps them for dark
+  // amber/olive variants. Dark mode returns the stored colour untouched.
+  const LIGHT_TOPIC = {
+    '#e94560': '#c2243c', '#4caf50': '#2e7d32', '#2196f3': '#1565c0',
+    '#ff7043': '#d84315', '#ab47bc': '#8e24aa', '#26c6da': '#00838f',
+    '#ef5350': '#d32f2f', '#5c6bc0': '#303f9f', '#66bb6a': '#388e3c',
+    '#fdd835': '#7a5d00', '#7e57c2': '#5e35b1', '#29b6f6': '#0277bd',
+    '#8d6e63': '#5d4037', '#00acc1': '#00838f', '#ffca28': '#8a6000',
+    '#26a69a': '#00796b', '#ff8a65': '#e64a19', '#4fc3f7': '#0277bd',
+    '#9ccc65': '#558b2f', '#f06292': '#c2185b'
+  };
+  function topicColor(topic) {
+    if (!topic || !topic.color) return '';
+    const col = topic.color;
+    if (document.documentElement.dataset.theme !== 'light') return col;
+    return LIGHT_TOPIC[col] || col;
+  }
 
   function slider(id, text, min, max, step, val, unit) {
     return '<div class="param-control"><label for="' + id + '">' + text +
@@ -2310,7 +2402,7 @@
   }
 
   function drop(id, text, opts) {
-    let h = '<div class="param-control"><label for="' + id + '">' + text + '</label><select id="' + id + '" style="width:100%;background:#1a1a2e;color:#e8e8f0;border:1px solid #3a3a5c;border-radius:6px;padding:6px">';
+    let h = '<div class="param-control"><label for="' + id + '">' + text + '</label><select id="' + id + '" style="width:100%;background:var(--bg-secondary);color:var(--sim-text);border:1px solid var(--sim-line);border-radius:6px;padding:6px">';
     for (let i = 0; i < opts.length; i++) h += '<option value="' + opts[i].v + '">' + opts[i].l + '</option>';
     return h + '</select></div>';
   }
@@ -2343,6 +2435,7 @@
     if (!ctx) return;
     const sim = currentSim();
     if (!sim) return;
+    C = pal();
     readParams();
     clearCanvas();
     try { sim.d(ctx, params); } catch (e) { /* a broken draw must not kill the page */ }
@@ -2411,10 +2504,12 @@
       for (let i = 0; i < cap && placed < nucleons; i++) {
         const a = (i / cap) * Math.PI * 2 + ring * 0.7;
         const r = ring === 0 ? 5 : ring * 7;
-        sphere(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 5, '#7b8bb5');
+        sphere(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 5, C.neutron);
         placed++;
       }
     }
+    // On the saturated nucleon spheres, not on the plate, so white is right in
+    // both themes (5.0:1 on the light #d32f2f protons, 5.8:1 on #56658f neutrons).
     label('+' + protons, cx, cy, '#fff', 11, 'center');
 
     // shells, 2n² capacity
@@ -2440,7 +2535,7 @@
     label('Z = ' + protons + '   N = ' + neutrons + '   A = ' + (protons + neutrons), 14, 48, C.text, 12);
     label(charge === 0 ? 'neutral atom' : (charge > 0 ? 'cation ' + charge + '+' : 'anion ' + (-charge) + '−'),
       14, 66, charge === 0 ? C.green : C.purple, 12);
-    legend([{ c: C.red, t: 'proton' }, { c: '#7b8bb5', t: 'neutron' }, { c: C.yellow, t: 'electron' }], ctx.W - 90, 20);
+    legend([{ c: C.red, t: 'proton' }, { c: C.neutron, t: 'neutron' }, { c: C.yellow, t: 'electron' }], ctx.W - 90, 20);
   }
 
   function drawIonicBond(ctx, p) {
@@ -2514,7 +2609,7 @@
     const spread = mol === 'CH4' || mol === 'NH3' ? 70 : 78;
     if (central >= 0) {
       const c = data.a[central];
-      sphere(cx, cy, 26, c === 'C' ? '#6b6b8a' : (c === 'O' ? C.red : (c === 'N' ? C.blue : C.purple)));
+      sphere(cx, cy, 26, c === 'C' ? C.carbon : (c === 'O' ? C.red : (c === 'N' ? C.blue : C.purple)));
       label(c, cx, cy, '#fff', 15, 'center');
       const ang = (data.a.length - 1);
       for (let i = 0; i < ang; i++) {
@@ -2541,7 +2636,7 @@
     }
 
     // shared pair density
-    ctx.fillStyle = 'rgba(255,235,59,0.18)';
+    ctx.fillStyle = rgba(C.yellow, 0.18);
     ctx.beginPath(); ctx.ellipse(cx, cy, 30, 18, 0, 0, Math.PI * 2); ctx.fill();
     for (let i = 0; i < data.d * 2; i++) {
       const a = simState.time * 1.6 + i * Math.PI / data.d;
@@ -2604,11 +2699,11 @@
     const q = mass * c * dT;
     const liquid = Math.min(0.8, 0.25 + mass * 0.35);
 
-    box(cx - 70, cy - 70, 140, 140, C.dim, '#141428');
-    ctx.fillStyle = 'rgba(33,150,243,' + (0.35 + dT / 100) + ')';
+    box(cx - 70, cy - 70, 140, 140, C.dim, C.panel);
+    ctx.fillStyle = rgba(C.blue, 0.35 + dT / 100);
     ctx.fillRect(cx - 64, cy + 64 - 128 * liquid, 128, 128 * liquid);
     // thermometer
-    box(cx + 82, cy - 70, 12, 120, C.dim, '#0b0b16');
+    box(cx + 82, cy - 70, 12, 120, C.dim, C.bg);
     const th = Math.max(0.05, Math.min(1, (dT + 20) / 120));
     ctx.fillStyle = C.red;
     ctx.fillRect(cx + 84, cy + 46 - 116 * th, 8, 116 * th);
@@ -2619,7 +2714,7 @@
 
     for (let i = 0; i < 8; i++) {
       const t = (simState.time * 0.6 + i / 8) % 1;
-      ctx.fillStyle = 'rgba(255,255,255,' + (0.25 * (1 - t)) + ')';
+      ctx.fillStyle = rgba(C.steam, 0.25 * (1 - t));
       ctx.beginPath();
       ctx.arc(cx - 40 + (i % 4) * 22, cy + 40 - t * 90, 3 + t * 4, 0, Math.PI * 2);
       ctx.fill();
@@ -2675,7 +2770,7 @@
 
     // energy profile inset
     const bx = ctx.W - 150, by = 24, bw = 130, bh = 70;
-    box(bx, by, bw, bh, C.grid, 'rgba(0,0,0,0.35)');
+    box(bx, by, bw, bh, C.grid, C.shade);
     ctx.strokeStyle = C.blue; ctx.beginPath();
     ctx.moveTo(bx + 6, by + bh - 16);
     ctx.lineTo(bx + 40, by + 12);
@@ -2705,7 +2800,7 @@
     ctx.beginPath(); ctx.moveTo(cx - 26, cy - 4); ctx.lineTo(cx + 26, cy - 4); ctx.stroke();
     const fill = Math.max(0, Math.min(1, (parseFloat(p['param-fill']) || 100) / 100));
     if (fill > 0) {
-      ctx.fillStyle = 'rgba(38,198,218,0.4)';
+      ctx.fillStyle = C.liquid;
       const top = cy + 62 - fill * 66;
       ctx.beginPath();
       ctx.moveTo(cx - 50, cy + 26);
@@ -2720,7 +2815,7 @@
       const a = i * 2.39996, r = 4 + 11 * Math.sqrt(i);
       const x = cx + Math.cos(a) * r * 1.6, y = cy + 34 + Math.sin(a) * r * 0.5;
       if (y < cy + 62 && y > cy - 4) {
-        ctx.fillStyle = 'rgba(233,69,96,0.9)';
+        ctx.fillStyle = rgba(C.accent, 0.9);
         ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fill();
       }
     }
@@ -2755,7 +2850,9 @@
       label(String(i), x, barY + 38, C.dim, 10, 'center');
     }
     const px = barX + barW * Math.max(0, Math.min(14, pH)) / 14;
-    ctx.fillStyle = '#fff';
+    // The pointer sits above the bar, on the canvas plate itself, so its white
+    // is a background ink rather than a marker on a saturated fill.
+    ctx.fillStyle = C.chalk;
     ctx.beginPath(); ctx.moveTo(px, barY - 4); ctx.lineTo(px - 6, barY - 16); ctx.lineTo(px + 6, barY - 16); ctx.closePath(); ctx.fill();
 
     // beaker
@@ -2793,7 +2890,7 @@
       ctx.moveTo(x - 40, cy - 50); ctx.lineTo(x - 40, cy + 40);
       ctx.lineTo(x + 40, cy + 40); ctx.lineTo(x + 40, cy - 50);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(38,198,218,0.25)';
+      ctx.fillStyle = C.liquidSoft;
       ctx.fillRect(x - 39, cy - 40, 78, 79);
       label(sym + (col === C.red ? ' → ' + sym + '²⁺ + 2e⁻' : '²⁺ + 2e⁻ → ' + sym), x, cy + 58, C.dim, 10, 'center');
       label('E° = ' + (E[sym]).toFixed(2) + ' V', x, cy - 86, C.text, 11, 'center');
@@ -2812,7 +2909,7 @@
       ctx.beginPath(); ctx.arc(x, cy - 104, 3, 0, Math.PI * 2); ctx.fill();
     }
     label('e⁻ flow', (x1 + x2) / 2, cy - 116, C.yellow, 11, 'center');
-    box((x1 + x2) / 2 - 16, cy - 34, 32, 66, C.purple, 'rgba(149,117,205,0.25)');
+    box((x1 + x2) / 2 - 16, cy - 34, 32, 66, C.purple, rgba(C.purple, 0.25));
     label('salt bridge', (x1 + x2) / 2, cy + 44, C.purple, 10, 'center');
 
     label('V', vpos, cy - 104, C.text, 12, 'center');
@@ -2834,14 +2931,14 @@
       ester: { g: '–COO–', col: C.purple, ex: 'CH₃COOC₂H₅ ethyl ethanoate', note: 'fruity smell, hydrolysis' },
       amine: { g: '–NH₂', col: C.blue, ex: 'CH₃NH₂ methylamine', note: 'basic, pKb ≈ 3.3' },
       alkene: { g: 'C=C', col: C.accent, ex: 'CH₂=CH₂ ethene', note: 'decolourises bromine water' },
-      halide: { g: '–Br', col: '#8d6e63', ex: 'CH₃Br bromomethane', note: 'site of nucleophilic substitution' }
+      halide: { g: '–Br', col: C.brown, ex: 'CH₃Br bromomethane', note: 'site of nucleophilic substitution' }
     }[grp] || { g: '–?', col: C.dim, ex: '', note: '' };
 
     ctx.strokeStyle = C.dim; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - 120, cy); ctx.lineTo(cx - 40, cy); ctx.stroke();
     ctx.lineWidth = 1;
     sphere(cx + 10, cy, 30, data.col);
-    label(data.g, cx + 10, cy, '#0b0b16', 15, 'center');
+    label(data.g, cx + 10, cy, C.onSphere, 15, 'center');
     label('R', cx - 140, cy, C.text, 16, 'left');
     ctx.strokeStyle = C.dim;
     ctx.beginPath(); ctx.moveTo(cx + 40, cy); ctx.lineTo(cx + 110, cy); ctx.stroke();
@@ -2877,7 +2974,7 @@
       const yv = Math.pow(0.5, n);
       if (yv < 0.02) break;
       const x = x0 + w * (t12 * n / tmax);
-      ctx.strokeStyle = 'rgba(255,235,59,0.25)'; ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = C.guide; ctx.setLineDash([3, 4]);
       ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 - h * yv);
       ctx.lineTo(x0, y0 - h * yv); ctx.stroke(); ctx.setLineDash([]);
       label(n + '·t½', x + 2, y0 - h * yv - 8, C.yellow, 9);
@@ -2892,7 +2989,7 @@
       const seed = i * 9301 + 49297;
       const life = ((seed % 1000) / 1000) * t12 * 2;
       if (life < tt) {
-        ctx.fillStyle = 'rgba(120,120,150,0.4)';
+        ctx.fillStyle = C.spent;
         ctx.beginPath(); ctx.arc(x0 + 8 + (i * 13) % w, y0 - h - 16, 3, 0, Math.PI * 2); ctx.fill();
       } else {
         ctx.fillStyle = C.blue;
@@ -2964,7 +3061,7 @@
     const n = parseFloat(p['param-moles']) || 1;
     const P = n * 8.314 * T / (V * 24.94);
     const x0 = 24, y0 = 24, w = ctx.W * 0.5, h = ctx.H - 48;
-    box(x0, y0, w, h, C.dim, 'rgba(255,255,255,0.02)');
+    box(x0, y0, w, h, C.dim, C.glass);
 
     const vrms = Math.sqrt(3 * 8.314 * T / 0.032);
     const speedScale = vrms / 500;
@@ -2983,7 +3080,7 @@
       if (q.y < 0.01 || q.y > 0.99) { q.a = -q.a; q.y = Math.max(0.01, Math.min(0.99, q.y)); }
       const px = x0 + w * q.x, py = y0 + h * q.y;
       const hot = Math.min(1, (T - 100) / 500);
-      ctx.fillStyle = 'rgb(' + Math.round(120 + 135 * hot) + ',' + Math.round(150 - 60 * hot) + ',' + Math.round(230 - 170 * hot) + ')';
+      ctx.fillStyle = mixHex(C.gasCold, C.gasHot, hot);
       ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
     }
 
@@ -3041,7 +3138,7 @@
     }
     pts.map(proj).sort(function(a, b) { return a[2] - b[2]; }).forEach(function(v) {
       const r = 9 + v[2] * 0.02;
-      const col = kind === 'nacl' && v === null ? C.blue : (v[2] > 0 ? C.accent : '#5c6bc0');
+      const col = kind === 'nacl' && v === null ? C.blue : (v[2] > 0 ? C.accent : C.indigo);
       sphere(v[0], v[1], Math.max(6, r), kind === 'nacl' ? (v[2] > 0 ? C.red : C.purple) : C.blue);
     });
 
@@ -3082,8 +3179,8 @@
       const ox = cx + Math.cos(a) * (l === 0 ? 0 : R * 0.42);
       const oy = cy + Math.sin(a) * (l === 0 ? 0 : R * 0.42);
       const g = ctx.createRadialGradient(ox, oy, 2, ox, oy, rr);
-      g.addColorStop(0, 'rgba(33,150,243,0.75)');
-      g.addColorStop(1, 'rgba(33,150,243,0)');
+      g.addColorStop(0, rgba(C.blue, 0.75));
+      g.addColorStop(1, rgba(C.blue, 0));
       ctx.fillStyle = g;
       ctx.save();
       ctx.translate(ox, oy); ctx.rotate(a); ctx.scale(1.5, 0.8); ctx.translate(-ox, -oy);
@@ -3097,7 +3194,7 @@
     // node count rings
     const radialNodes = n - 1 - l;
     for (let i = 0; i <= radialNodes; i++) {
-      ctx.strokeStyle = 'rgba(255,235,59,0.35)';
+      ctx.strokeStyle = C.orbit;
       ctx.beginPath(); ctx.arc(cx, cy, 16 + i * 22, 0, Math.PI * 2); ctx.stroke();
     }
 
@@ -3192,13 +3289,13 @@
 
     const mx = ctx.W * 0.62, my = ctx.H - 60;
     // metal plate
-    ctx.fillStyle = '#8d93a8'; ctx.fillRect(mx - 10, my - 70, 20, 90);
-    ctx.fillStyle = '#5b6172'; ctx.fillRect(mx + 10, my + 18, 150, 8);
+    ctx.fillStyle = C.steelA; ctx.fillRect(mx - 10, my - 70, 20, 90);
+    ctx.fillStyle = C.steelB; ctx.fillRect(mx + 10, my + 18, 150, 8);
     label('cathode', mx, my + 40, C.dim, 10, 'center');
     label('collector', mx + 120, my - 78, C.dim, 10, 'center');
 
     // incoming photon
-    const hue = lam < 450 ? '#7e57c2' : (lam < 495 ? '#29b6f6' : (lam < 590 ? '#ffee58' : (lam < 620 ? '#ff9800' : '#ef5350')));
+    const hue = lam < 450 ? C.specViolet : (lam < 495 ? C.specCyan : (lam < 590 ? C.specYellow : (lam < 620 ? C.specAmber : C.specRed)));
     const t = (simState.time * 0.8) % 1;
     if (lam >= 100) {
       ctx.strokeStyle = hue; ctx.lineWidth = 2; ctx.beginPath();
@@ -3247,7 +3344,7 @@
     const bx = ctx.W * 0.4, by = ctx.H - 40;
 
     // surface of adsorbent
-    ctx.fillStyle = '#3b3b55';
+    ctx.fillStyle = C.metal;
     ctx.fillRect(bx - 130, by - 14, 260, 30);
     const sites = 20;
     for (let i = 0; i < sites; i++) {
@@ -3265,7 +3362,7 @@
       const ph = (simState.time * 0.4 + i * 0.37) % 1;
       const x = bx - 120 + (i * 53) % 240;
       const y = by - 60 - ((i * 71) % 60) - ph * 8;
-      sphere(x, y, 5, '#7986cb');
+      sphere(x, y, 5, C.periwinkle);
     }
 
     // isotherm plot
@@ -3360,9 +3457,9 @@
 
     // burette
     const bxx = ctx.W - 90;
-    box(bxx - 14, 26, 28, 120, C.dim, 'rgba(38,198,218,0.25)');
+    box(bxx - 14, 26, 28, 120, C.dim, C.liquidSoft);
     const drop = Math.max(0, 1 - V / (Veq * 2));
-    ctx.fillStyle = 'rgba(38,198,218,0.6)';
+    ctx.fillStyle = C.liquidDeep;
     ctx.fillRect(bxx - 13, 26 + 118 * (1 - drop), 26, 118 * drop);
     ctx.strokeStyle = C.dim;
     ctx.beginPath(); ctx.moveTo(bxx, 146); ctx.lineTo(bxx, 168); ctx.stroke();
@@ -3399,7 +3496,7 @@
     label('reactants', 14, 30, C.dim, 11);
     for (let i = 0; i < data.w.length; i++) {
       const wid = Math.max(24, data.w[i] * 1.1);
-      box(x, 40, wid, 34, C.blue, 'rgba(33,150,243,0.3)');
+      box(x, 40, wid, 34, C.blue, rgba(C.blue, 0.3));
       label(data.w[i].toFixed(1), x + wid / 2, 57, C.text, 10, 'center');
       x += wid + 8;
     }
@@ -3409,7 +3506,7 @@
     for (let i = 0; i < data.p.length; i++) {
       const wid = Math.max(24, data.p[i] * 1.1);
       const wanted = i === 0;
-      box(x, ctx.H / 2 + 34, wid, 34, wanted ? C.green : C.red, wanted ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.25)');
+      box(x, ctx.H / 2 + 34, wid, 34, wanted ? C.green : C.red, wanted ? rgba(C.green, 0.35) : rgba(C.red, 0.25));
       label(data.p[i].toFixed(1), x + wid / 2, ctx.H / 2 + 51, C.text, 10, 'center');
       x += wid + 8;
     }
@@ -3496,7 +3593,7 @@
     for (let i = 0; i < fill.length; i++) {
       const f = fill[i];
       const x = 20 + (i % 4) * 100, yy = 60 + Math.floor(i / 4) * 62;
-      box(x, yy, 88, 48, C.grid, 'rgba(0,0,0,0.25)');
+      box(x, yy, 88, 48, C.grid, C.shadeSoft);
       label(f.name, x + 44, yy + 12, C.text, 12, 'center');
       const cells = Math.ceil(f.cap / 2);
       for (let j = 0; j < cells; j++) {
@@ -3563,7 +3660,7 @@
     'balance-equation': {
       p: function() {
         return '<div class="param-control"><label for="param-equation">' + t('equation') + '</label>' +
-          '<input type="text" id="param-equation" value="2 H2 + O2 -> 2 H2O" style="width:100%;background:#1a1a2e;color:#e8e8f0;border:1px solid #3a3a5c;border-radius:6px;padding:6px"></div>';
+          '<input type="text" id="param-equation" value="2 H2 + O2 -> 2 H2O" style="width:100%;background:var(--bg-secondary);color:var(--sim-text);border:1px solid var(--sim-line);border-radius:6px;padding:6px"></div>';
       },
       d: drawBalanceEquation
     },
@@ -3858,7 +3955,7 @@
     const raw = els.calcInput.value.trim();
     if (!raw) {
       els.calcResult.textContent = t('enterFormula');
-      els.calcResult.style.color = C.dim;
+      setCalcColor('dim');
       return;
     }
     const massMatch = raw.match(/^(\d+(?:\.\d+)?)\s*(?:g|gram|grams?)\s*(?:of\s+)?(.+)$/i);
@@ -3868,7 +3965,7 @@
       if (res.mass > 0) {
         els.calcResult.textContent = g + ' g ' + massMatch[2].trim() + ' = ' + (g / res.mass).toFixed(4) +
           ' mol  (' + res.mass.toFixed(3) + ' ' + t('gPerMol') + ')';
-        els.calcResult.style.color = C.green;
+        setCalcColor('ok');
         return;
       }
     }
@@ -3884,13 +3981,13 @@
         els.calcResult.textContent = raw + ' — ' + t('molarMass') + ' ' + res.mass.toFixed(3) +
           ' ' + t('gPerMol') + '  ·  ' + n + ' ' + (n === 1 ? t('atomOne') : t('atomsIn')) + ' (' + breakdown + ')';
       }
-      els.calcResult.style.color = C.green;
+      setCalcColor('ok');
     } else if (res.unknown) {
       els.calcResult.textContent = t('unknownElement') + ' ' + res.unknown;
-      els.calcResult.style.color = C.red;
+      setCalcColor('err');
     } else {
       els.calcResult.textContent = t('invalidFormula') + ': ' + raw;
-      els.calcResult.style.color = C.red;
+      setCalcColor('err');
     }
   }
 
@@ -4001,7 +4098,8 @@
     els.progressCanvas.style.height = h + 'px';
     const g = els.progressCanvas.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.fillStyle = '#0b0b16';
+    C = pal();
+    g.fillStyle = C.bg;
     g.fillRect(0, 0, w, h);
     const bw = (w - 30) / TOPIC_ORDER.length;
     for (let i = 0; i < TOPIC_ORDER.length; i++) {
@@ -4010,18 +4108,88 @@
       let done = 0;
       for (let j = 0; j < tp.lessons.length; j++) if (doneLessons[k + ':' + j]) done++;
       const ratio = done / tp.lessons.length;
-      g.fillStyle = ratio > 0 ? tp.color : '#24243f';
+      g.fillStyle = ratio > 0 ? topicColor(tp) : C.grid;
       const bh = ratio * (h - 46);
       g.fillRect(15 + i * bw, h - 26 - bh, bw - 3, Math.max(2, bh));
-      g.fillStyle = '#6a6a8a';
+      g.fillStyle = C.tick;
       g.font = '8px sans-serif';
       g.textAlign = 'center';
       g.fillText(String(i + 1), 15 + i * bw + bw / 2, h - 12);
     }
-    g.strokeStyle = '#3a3a5c';
+    g.strokeStyle = C.line;
     g.beginPath(); g.moveTo(15, h - 26); g.lineTo(w - 15, h - 26); g.stroke();
-    g.fillStyle = '#a8dadc'; g.font = '10px sans-serif'; g.textAlign = 'left';
+    g.fillStyle = C.dim; g.font = '10px sans-serif'; g.textAlign = 'left';
     g.fillText(t('courseTopics'), 15, 14);
+  }
+
+  // ---------- Theme (shared app contract: localStorage "mol3d.theme") ----------
+  // The theme lives on <html data-theme>, exactly like the game page, and the
+  // blocking script in teacher-mode.html has already put it there before paint.
+  // What is left here is the part CSS cannot do on its own: a canvas keeps
+  // wearing the colours it was drawn with, and a few strings (the lesson
+  // heading accent, the topic dots) bake a colour into the markup, so a flip has
+  // to re-resolve the palette and repaint every surface.
+  const THEME_KEY = 'mol3d.theme';
+  // The two theme-colour meta values, identical to the ones the blocking head
+  // snippet writes in teacher-mode.html, so the two never disagree.
+  const THEME_LIGHT_META = '#f6f8fa';
+  const THEME_DARK_META = '#0d1117';
+
+  function themeMode() {
+    return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  }
+
+  // The label names the theme the button switches TO, so it reads as a promise.
+  function syncThemeUI() {
+    const light = themeMode() === 'light';
+    if (els.theme) {
+      els.theme.textContent = light ? 'Dark mode' : 'Light mode';
+      els.theme.setAttribute('title', light ? 'Switch to dark colours' : 'Switch to light colours');
+    }
+    const tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute('content', light ? THEME_LIGHT_META : THEME_DARK_META);
+  }
+
+  // The result line writes its colour into an inline style, so the choice has to
+  // be remembered as a role and re-resolved from the palette on a flip.
+  let calcColorRole = '';
+  function applyCalcColor() {
+    if (!els.calcResult) return;
+    if (!calcColorRole) return;
+    els.calcResult.style.color = calcColorRole === 'ok' ? C.green : (calcColorRole === 'err' ? C.red : C.dim);
+  }
+
+  function setCalcColor(role) {
+    calcColorRole = role;
+    applyCalcColor();
+  }
+
+  function repaintTheme() {
+    C = pal();
+    // Lesson bodies carry their topic accent as an inline colour, and the
+    // parameter fields are styled through custom properties, which follow the
+    // theme by themselves; the quiz is class-based, so it needs no rebuild.
+    if (currentTopic === 'overview') renderOverview();
+    else { renderNav(); renderLesson(); }
+    applyCalcColor();
+    drawSim();
+    if (els.modal && !els.modal.hidden) drawProgressChart();
+  }
+
+  // Adopt a mode that is already decided (the head snippet, another surface in
+  // this document, or another tab): paint the page, do not re-persist it.
+  function applyTheme(mode) {
+    document.documentElement.dataset.theme = mode === 'light' ? 'light' : 'dark';
+    syncThemeUI();
+    repaintTheme();
+  }
+
+  function setTheme(mode) {
+    const m = mode === 'light' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_KEY, m); } catch (e) { /* private mode */ }
+    // The mol3d:theme listener is the single repaint path, so a click repaints
+    // exactly once (and any other surface in the app reacts the same way).
+    window.dispatchEvent(new CustomEvent('mol3d:theme', { detail: { mode: m } }));
   }
 
   // ---------- Events & boot ----------
@@ -4036,6 +4204,19 @@
       saveProgress();
       updateAllLanguage();
     });
+    if (els.theme) els.theme.addEventListener('click', function() {
+      setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+    });
+    window.addEventListener('mol3d:theme', function(ev) {
+      applyTheme(ev && ev.detail && ev.detail.mode === 'light' ? 'light' : 'dark');
+    });
+    // Follow a toggle made in another tab (the game page or this page).
+    window.addEventListener('storage', function(ev) {
+      if (ev.key === 'mol3d.theme') applyTheme(ev.newValue === 'light' ? 'light' : 'dark');
+    });
+    // The head snippet already set html[data-theme]; sync the meta and button
+    // label to it (also normalises a stale #1a1a2e meta from a cached page).
+    applyTheme(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
     if (els.selector) els.selector.addEventListener('change', function() { loadTopic(els.selector.value); });
     if (els.reset) els.reset.addEventListener('click', function() {
       stopLoop();

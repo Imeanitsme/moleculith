@@ -8,7 +8,14 @@
   <title>Chemical Decomposition Kinetics Modeler</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
+    /* Scrollbars, <select> popups and number spinners are UA-drawn, and they paint
+       from the used color-scheme, so it has to follow the theme rather than stay
+       pinned dark. Declared on the root for the document widgets and on the tool
+       for its own subtree; the light block below overrides both. */
+    :root { color-scheme: dark; }
+    html[data-theme="light"] { color-scheme: light; }
     #decomp-tool {
+      color-scheme: dark;
       --bg: #0a0f1c;
       --panel: #121a2e;
       --panel-2: #1a2440;
@@ -17,6 +24,11 @@
       --muted: #8a93b5;
       --accent: #4d96ff;
       --danger: #ff6b6b;
+      /* Chart.js paints on a canvas, so the two colours that exist only there get
+         their own variables. They hold the literals already hard-coded in the
+         chart config, which stay as the no-stylesheet fallbacks. */
+      --chart-legend: #aab4d4;
+      --chart-grid: rgba(255, 255, 255, .06);
       font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       color: var(--text);
       background: var(--bg);
@@ -140,17 +152,78 @@
     #decomp-tool tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
     #decomp-tool .note { font-size: 12px; color: var(--muted); line-height: 1.6; max-width: 1200px; margin: 0 auto; }
     #decomp-tool .note b { color: var(--text); }
+    /* ── Light theme ── the app contract: localStorage "mol3d.theme", applied as
+       html[data-theme="light"], --theme-color #f6f8fa. Every rule above stays as
+       written; these selectors only ever match once data-theme="light" is on <html>,
+       and they outrank the dark rules they stand in for. The tool keeps its own blue
+       hue, just deepened, so flipping the theme does not repaint it in the game's
+       cyan. The pathway chips wear a type colour as their background, so the chip ink
+       is set by whichever set is showing: dark ink on the bright dark set, light ink
+       on the deepened light set. */
+    html[data-theme="light"] #decomp-tool {
+      color-scheme: light;
+      --bg: #e8edf5;
+      --panel: #ffffff;
+      --panel-2: #dfe6f1;
+      --border: #c3cfe0;
+      --text: #1a2a40;
+      --muted: #55637e;
+      --accent: #0b5fce;
+      --danger: #cf222e;
+      --chart-legend: #3d4d68;
+      --chart-grid: rgba(20, 40, 80, .13);
+    }
+    /* body keeps its default 8px margin, so the strip around the tool is painted by
+       body, not by #decomp-tool; give the light page a background there too. */
+    html[data-theme="light"] body { background: #e8edf5; }
+    html[data-theme="light"] #decomp-tool .badge { color: #f6f8fa; }
+    html[data-theme="light"] #decomp-tool button.primary { color: #f6f8fa; }
+    html[data-theme="light"] #decomp-tool .empty { background: rgba(246, 248, 250, 0.78); }
+    html[data-theme="light"] #decomp-tool tr.hl td { background: rgba(11, 95, 206, 0.10); }
+    html[data-theme="light"] #decomp-tool tbody tr:hover td { background: rgba(20, 40, 80, 0.05); }
+    #decomp-tool .theme-btn {
+      flex: none;
+      margin-top: 10px;
+      padding: 6px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
     @media (max-width: 940px) {
       #decomp-tool .layout { grid-template-columns: 1fr; }
       #decomp-tool .chart-box { height: 300px; }
     }
   </style>
+  <script>
+    /* Blocking, so the stored theme is on <html> before the body paints and the page
+       never flashes dark. Reads the same key the game writes (mol3d.theme) and pushes
+       it onto the two metas the browser chrome and its own widgets read. */
+    (function () {
+      'use strict';
+      var mode = 'dark';
+      try {
+        var saved = localStorage.getItem('mol3d.theme');
+        if (saved === 'light' || saved === 'dark') mode = saved;
+      } catch (e) { /* private mode: stay dark */ }
+      document.documentElement.dataset.theme = mode;
+      var light = mode === 'light';
+      var cs = document.querySelector('meta[name="color-scheme"]');
+      if (cs) cs.setAttribute('content', light ? 'light' : 'dark');
+      var tc = document.querySelector('meta[name="theme-color"]');
+      if (tc) tc.setAttribute('content', light ? '#f6f8fa' : '#0d1117');
+    })();
+  </script>
 </head>
 <body>
   <div id="decomp-tool">
     <header>
       <h1>🧪 Chemical Decomposition Kinetics Modeler</h1>
       <p>First-order competing-pathway degradation &middot; Arrhenius temperature dependence &middot; [A]<sub>t</sub> = [A]<sub>0</sub>&thinsp;e<sup>&minus;kt</sup></p>
+      <button id="themeBtn" class="theme-btn" type="button" title="Switch colour theme">☀️ Light theme</button>
     </header>
 
     <div class="layout">
@@ -215,6 +288,10 @@
     'use strict';
     const R = 8.314; // J/(mol·K)
     const TYPE_COLORS = { Hydrolysis: '#6bcb77', Oxidation: '#ffd93d', Photolysis: '#ff6bff', Thermal: '#ff9f45' };
+    // The same four identities, deepened for a white plot: the dark set is too pale
+    // to trace on light and too dark for its own chips to keep their ink. Selected at
+    // draw time, so TYPE_COLORS above still paints the dark theme exactly as before.
+    const TYPE_COLORS_LIGHT = { Hydrolysis: '#15803d', Oxidation: '#8a6100', Photolysis: '#a531bd', Thermal: '#c2410c' };
     const SUP = { '-': '\u207B', '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3', '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077', '8': '\u2078', '9': '\u2079' };
     const sup = n => String(n).split('').map(c => SUP[c] || c).join('');
     const fmtExp = x => (!isFinite(x) || x === 0) ? '0' : (() => { const e = Math.floor(Math.log10(Math.abs(x))); return (x / Math.pow(10, e)).toFixed(2) + '\u00D710' + sup(e); })();
@@ -299,16 +376,83 @@
       },
     });
 
+    // ── Theme ──
+    const THEME_KEY = 'mol3d.theme';
+    const elTheme = $('themeBtn');
+    const themeMode = () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+
+    // The chart is painted on a canvas, so CSS variables cannot reach it through the
+    // stylesheet: the palette is resolved from the live theme at draw time. Every
+    // fallback is the literal the chart config above already passes on day one, so a
+    // page whose stylesheet has not loaded still looks exactly like the dark theme.
+    function chartPalette() {
+      const light = themeMode() === 'light';
+      const cs = window.getComputedStyle($('decomp-tool') || document.documentElement);
+      const v = (name, fb) => { const x = cs.getPropertyValue(name); return (x && x.trim()) || fb; };
+      const accent = v('--accent', light ? '#0b5fce' : '#4d96ff');
+      return {
+        light: light,
+        tick: v('--muted', light ? '#55637e' : '#8a93b5'),
+        legend: v('--chart-legend', '#aab4d4'),
+        grid: v('--chart-grid', 'rgba(255,255,255,.06)'),
+        accent: accent,
+        reactant: v('--danger', light ? '#cf222e' : '#ff6b6b'),
+        reactantFill: light ? 'rgba(207,34,46,.12)' : 'rgba(255,107,107,.12)',
+        type: t => (light ? TYPE_COLORS_LIGHT : TYPE_COLORS)[t] || accent
+      };
+    }
+
+    // Axis, legend and gridline colours are read once, when Chart is constructed, and
+    // never re-read by render(): they have to be written back into options and the
+    // chart told to redraw, or a theme flip leaves the plot wearing dark colours.
+    function applyChartPalette(P) {
+      chart.options.plugins.legend.labels.color = P.legend;
+      ['x', 'y'].forEach(k => {
+        const s = chart.options.scales[k];
+        s.title.color = P.tick;
+        s.ticks.color = P.tick;
+        s.grid.color = P.grid;
+      });
+    }
+
+    function syncThemeUI() {
+      const light = themeMode() === 'light';
+      elTheme.textContent = light ? '\uD83C\uDF19 Dark theme' : '\u2600\uFE0F Light theme';
+      elTheme.setAttribute('aria-pressed', String(light));
+      const cs = document.querySelector('meta[name="color-scheme"]');
+      if (cs) cs.setAttribute('content', light ? 'light' : 'dark');
+      const tc = document.querySelector('meta[name="theme-color"]');
+      if (tc) tc.setAttribute('content', light ? '#f6f8fa' : '#0d1117');
+    }
+
+    // Badges bake their type colour into an inline --c, so the pathway rows are
+    // rebuilt as well as redrawn; their input values are read back from state.
+    function repaintTheme() {
+      applyChartPalette(chartPalette());
+      chart.update();
+      buildPathwayRows();
+      render();
+    }
+
+    function setTheme(mode) {
+      const m = mode === 'light' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = m;
+      try { localStorage.setItem(THEME_KEY, m); } catch (e) { /* private mode */ }
+      syncThemeUI();
+      window.dispatchEvent(new CustomEvent('mol3d:theme', { detail: { mode: m } }));
+    }
+
     // ── Pathway input rows (rebuilt only on preset change) ──
     function buildPathwayRows() {
       elPathways.innerHTML = '';
+      const P = chartPalette();
       state.pathways.forEach((p, i) => {
         const row = document.createElement('div');
         row.className = 'pw-row' + (p.on ? '' : ' pw-off');
         row.innerHTML =
           '<div class="pw-head">' +
             '<input type="checkbox" ' + (p.on ? 'checked' : '') + ' aria-label="Enable pathway">' +
-            '<span class="badge" style="--c:' + (TYPE_COLORS[p.type] || '#4d96ff') + '">' + esc(p.type) + '</span>' +
+            '<span class="badge" style="--c:' + P.type(p.type) + '">' + esc(p.type) + '</span>' +
             '<span class="pw-k" data-k="' + i + '"></span>' +
           '</div>' +
           '<div class="pw-grid">' +
@@ -330,6 +474,7 @@
 
     // ── Main render ──
     function render() {
+      const P = chartPalette();
       const Tk = state.T + 273.15;
       elTempK.textContent = Tk.toFixed(2) + ' K';
 
@@ -394,10 +539,10 @@
 
       chart.data.labels = labels;
       chart.data.datasets = [
-        { label: 'Reactant [A]', data: sA, borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,.12)', borderWidth: 2.5, pointRadius: 0, tension: 0.25, fill: true },
+        { label: 'Reactant [A]', data: sA, borderColor: P.reactant, backgroundColor: P.reactantFill, borderWidth: 2.5, pointRadius: 0, tension: 0.25, fill: true },
         ...active.map((p, pi) => ({
           label: p.type + ': ' + p.products[0] + (p.products.length > 1 ? ' +\u2026' : ''),
-          data: sP[pi], borderColor: TYPE_COLORS[p.type] || '#4d96ff', backgroundColor: 'transparent',
+          data: sP[pi], borderColor: P.type(p.type), backgroundColor: 'transparent',
           borderWidth: 2, pointRadius: 0, tension: 0.25, borderDash: [6, 3],
         })),
       ];
@@ -411,7 +556,7 @@
       elProducts.innerHTML = active.map(p => {
         const share = p.k / kT;
         return '<div class="pcard">' +
-          '<div class="phead"><span class="badge" style="--c:' + (TYPE_COLORS[p.type] || '#4d96ff') + '">' + esc(p.type) + '</span>' +
+          '<div class="phead"><span class="badge" style="--c:' + P.type(p.type) + '">' + esc(p.type) + '</span>' +
           '<span class="pshare">k = ' + fmtExp(p.k) + ' s\u207B\u00B9 \u00B7 yield ' + (share * 100).toFixed(1) + '%</span></div>' +
           '<ul class="plist">' + p.products.map(pr =>
             '<li><b>' + esc(pr) + '</b><span class="pc">[P]\u221E \u2248 ' + concFmt(share * c0) + ' mg/L</span></li>').join('') +
@@ -472,6 +617,17 @@
     elLogY.addEventListener('change', render);
     $('resetBtn').addEventListener('click', () => loadPreset(state.key));
 
+    // The label names the mode the button switches TO. mol3d:theme covers a flip made
+    // in this document; storage covers one made in another tab, where no event fires.
+    elTheme.addEventListener('click', () => setTheme(themeMode() === 'light' ? 'dark' : 'light'));
+    window.addEventListener('mol3d:theme', repaintTheme);
+    window.addEventListener('storage', e => {
+      if (e.key !== THEME_KEY) return;
+      document.documentElement.dataset.theme = e.newValue === 'light' ? 'light' : 'dark';
+      syncThemeUI();
+      repaintTheme();
+    });
+
     $('csvBtn').addEventListener('click', () => {
       const Tk = state.T + 273.15;
       const active = state.pathways.map(p => ({ ...p, k: p.on ? arrhenius(p.a, p.ea * 1000, Tk) : 0 })).filter(p => p.k > 0);
@@ -494,6 +650,8 @@
     });
 
     // ── Init ──
+    syncThemeUI();
+    applyChartPalette(chartPalette());
     setTemp(25);
     loadPreset('aspirin');
   })();

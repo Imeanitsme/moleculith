@@ -37,8 +37,8 @@
         grade: 'Stars per grade',
         grades: 'Grades per rank',
         lastRank: 'The final rank never ends',
-        freeEls: 'Elements you always own',
-        elementTier: 'Element pack',
+        atomPrice: 'Price of one atom',
+        atomNote: 'The spread inside a period is the chemical family: nonmetals, metalloids and halogens pay the base, reactive metals double it, transition metals and noble gases triple it, lanthanides and actinides quadruple it.',
         feature: 'Feature',
         dynTitle: 'Percent pricing',
         dynEach: 'each item now costs a share of your balance',
@@ -76,8 +76,8 @@
         ],
         shop: [
           'Pull the cord (or press the ? button next to it) to open the shop; the panel slides down from the rope.',
-          'Elements are sold in packs by atomic number. Anything up to Z = 20 is free forever, and each pack opens the range above it.',
-          'Features are sold individually: X-ray vision, the proton gun, time control, time stop and Mayhem reactions.',
+          'Elements are sold atom by atom: the price is the period base multiplied by the chemical family, and the atoms you buy wait in the crate until you place them.',
+          'Features are sold individually: X-Ray Vision, the Neutron & Proton Gun, Time Acceleration, Time Stop and Mayhem Reactions.',
           'Above 2000 stars, prices stop being fixed and become a share of your balance, so stars keep a use late in the game.'
         ],
         modes: [
@@ -136,8 +136,8 @@
         grade: 'Sao mỗi bậc',
         grades: 'Số bậc mỗi hạng',
         lastRank: 'Hạng cuối không có điểm dừng',
-        freeEls: 'Nguyên tố luôn thuộc về bạn',
-        elementTier: 'Gói nguyên tố',
+        atomPrice: 'Giá một nguyên tử',
+        atomNote: 'Khoảng cách trong một chu kỳ là do họ nguyên tố: phi kim, á kim và halogen trả giá nền; kim loại hoạt động gấp đôi; kim loại chuyển tiếp và khí hiếm gấp ba; lantanoid và actinoid gấp bốn.',
         feature: 'Tính năng',
         dynTitle: 'Giá theo phần trăm',
         dynEach: 'mỗi món giờ tốn một phần số dư của bạn',
@@ -175,8 +175,8 @@
         ],
         shop: [
           'Kéo sợi dây (hoặc bấm nút ? cạnh dây) để mở cửa hàng; bảng sẽ trượt xuống theo dây.',
-          'Nguyên tố bán theo gói tính theo số hiệu nguyên tử. Mọi thứ tới Z = 20 miễn phí vĩnh viễn, mỗi gói mở thêm dải phía trên.',
-          'Tính năng bán lẻ: Tia X, Súng proton, Tăng tốc thời gian, Đóng băng thời gian và Phản ứng hỗn loạn.',
+          'Nguyên tố bán từng nguyên tử một: giá là nền chu kỳ nhân với họ nguyên tố, và nguyên tử đã mua nằm trong kho tới khi bạn đặt chúng ra thế giới.',
+          'Tính năng bán lẻ: Tia X, Súng neutron & proton, Tăng tốc thời gian, Đóng băng thời gian và Phản ứng hỗn loạn.',
           'Trên 2000 sao, giá không còn cố định mà trở thành một phần số dư của bạn, để sao vẫn có đất dùng về cuối game.'
         ],
         modes: [
@@ -287,36 +287,24 @@
       '<div class="htp-table">' + rows + '</div>' + bulletList(s.bullets.stars);
   }
 
-  // Names mirror the shop's own labels so the guide and the price list never read
-  // differently; the shop does not publish them through its API.
-  var FEAT_NAMES = {
-    en: {
-      xray: 'X-Ray Vision', proton: 'Proton Gun', timeSpeed: 'Time Acceleration',
-      timeStop: 'Time Stop', mayhem: 'Mayhem Reactions'
-    },
-    vi: {
-      xray: 'Tia X', proton: 'Súng proton', timeSpeed: 'Tăng tốc thời gian',
-      timeStop: 'Đóng băng thời gian', mayhem: 'Phản ứng hỗn loạn'
-    }
-  };
-
+  // Feature labels come from the shop itself so the guide and the price list can
+  // never read differently.
   function sectionShop() {
     var s = S();
     var sh = shop();
     if (!sh || !sh.catalogue) return '<p class="htp-lead">' + esc(s.lead.shop) + '</p>';
     var cat = sh.catalogue;
-    var names = FEAT_NAMES[lang()];
-    var rows = row(s.rows.freeEls, 'Z 1–' + cat.freeMaxZ, 'htp-own');
-    rows += '<div class="htp-sep"></div>';
-    rows += '<div class="htp-group">' + esc(s.rows.elementTier) + '</div>';
-    cat.tiers.slice(1).forEach(function (t, i) {
-      rows += row('Z ' + (cat.tiers[i].maxZ + 1) + '–' + t.maxZ, sh.priceOf(t.price) + ' ★');
+    var rows = '<div class="htp-group">' + esc(s.rows.atomPrice) + '</div>';
+    (cat.ladder || []).forEach(function (t) {
+      var price = t.min === t.max ? String(t.min) : t.min + '–' + t.max;
+      rows += row('Z ' + t.minZ + '–' + t.maxZ, price + ' ★');
     });
+    rows += '<div class="htp-note">' + esc(s.rows.atomNote) + '</div>';
     rows += '<div class="htp-sep"></div>';
     rows += '<div class="htp-group">' + esc(s.rows.feature) + '</div>';
     cat.features.forEach(function (f) {
       var owned = sh.ownsFeature(f.id);
-      var label = names[f.id] || f.id;
+      var label = sh.featureName(f.id);
       rows += row(label, owned ? esc(s.rows.owned) : sh.priceOf(f.price, f.min) + ' ★', owned ? 'htp-own' : '');
     });
     if (sh.isDynamic()) {
@@ -436,7 +424,7 @@
       '#shop-rig.open #htp-btn,#shop-rig.dragging #htp-btn{opacity:0;pointer-events:none;}',
       '@media (max-width:640px){#htp-btn{width:26px;height:26px;font-size:13px;top:8px;}}',
       '#htp-overlay{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;',
-      '  padding:18px;background:rgba(4,8,18,.62);backdrop-filter:blur(4px);',
+      '  padding:18px;background:var(--overlay-faint,rgba(4,8,18,.62));backdrop-filter:blur(4px);',
       '  opacity:0;visibility:hidden;transition:opacity .24s,visibility 0s linear .24s;}',
       '#htp-overlay.show{opacity:1;visibility:visible;transition:opacity .24s,visibility 0s;}',
       '.htp-card{width:min(720px,96vw);max-height:min(86vh,760px);display:flex;flex-direction:column;',
@@ -476,7 +464,7 @@
       '.htp-own b{color:var(--ok);}',
       '.htp-sep{height:1px;background:var(--border);margin:6px 0;}',
       '.htp-group{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);opacity:.8;}',
-      '.htp-note{font-size:10px;font-weight:600;color:#ffcf5c;}',
+      '.htp-note{font-size:10px;font-weight:600;color:var(--warn,#ffcf5c);}',
       '.htp-ladder{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:4px;}',
       '.htp-pip{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--text);',
       '  border:1px solid var(--border);border-radius:8px;padding:3px 7px;background:var(--panel);}',

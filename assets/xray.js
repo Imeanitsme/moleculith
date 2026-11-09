@@ -99,6 +99,15 @@
   var NUCLIDE_TEX_MAX = 128;
   var nuclideTextures = new Map();
 
+  // The tag is a texture on a sprite, so it sits directly on whatever the scene's
+  // background is: dark halo + warm ink over the night sky, light halo + dark warm
+  // ink over the daylight sky. Resolved per paint, never baked at load.
+  function nuclideInk() {
+    return document.documentElement.dataset.theme === 'light'
+      ? { edge: 'rgba(255,255,255,0.92)', fill: '#8a4b12' }
+      : { edge: 'rgba(8,12,18,0.9)', fill: '#ffd9a8' };
+  }
+
   function nuclideTexture(label, THREE) {
     var cached = nuclideTextures.get(label);
     if (cached) return cached;
@@ -112,11 +121,12 @@
     g.textBaseline = 'middle';
     g.lineWidth = 8;
     g.lineJoin = 'round';
-    g.strokeStyle = 'rgba(8,12,18,0.9)';
+    var ink = nuclideInk();
+    g.strokeStyle = ink.edge;
     g.strokeText(label, 96, 34);
     // Warm rather than the symbol's white: this line belongs to the nucleus, and
     // the element label floating on the same atom already uses white.
-    g.fillStyle = '#ffd9a8';
+    g.fillStyle = ink.fill;
     g.fillText(label, 96, 34);
     var tex = new THREE.CanvasTexture(canvas);
     if (nuclideTextures.size >= NUCLIDE_TEX_MAX) {
@@ -490,6 +500,19 @@
         var tag = document.activeElement && document.activeElement.tagName;
         if (tag !== 'INPUT' && tag !== 'TEXTAREA' && btn) { e.preventDefault(); btn.click(); }
       }
+    });
+
+    // The nuclide tags are cached textures, so a theme flip has to throw the cache
+    // away and repaint. The old images are handed to the next frame for disposal:
+    // every sprite that shared them is rebuilt first, so nothing is disposed while
+    // it is still on screen.
+    window.addEventListener('mol3d:theme', function() {
+      var stale = nuclideTextures;
+      nuclideTextures = new Map();
+      if (active) buildAllShells();
+      window.setTimeout(function() {
+        for (var tex of stale.values()) { if (tex && tex.dispose) tex.dispose(); }
+      }, 0);
     });
 
     // Hook into atom creation/deletion to update shells

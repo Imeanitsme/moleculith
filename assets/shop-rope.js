@@ -22,16 +22,27 @@
   var SAVE_KEY = 'mol3d.shop.v3';
   var LEGACY_SAVE_KEYS = ['mol3d.shop.v2', 'mol3d.shop.v1'];
 
-  // One unit price per period. The boundaries are the periods themselves
-  // (2, 8, 8, 18, 18, 32, 32 elements), so no element is priced by hand and the
-  // ladder keeps the rungs the old tier table had: 25 / 55 / 110 / 180 / 280 for
-  // periods 3-7, with H at 2 and C at 10 that a molecule price has to be built from.
+  // One atom costs its period base times a rarity factor for its chemical
+  // family. The period boundaries are the shells themselves (2, 8, 8, 18, 18, 32,
+  // 32 elements), so nothing is priced by hand; the family factor is what the old
+  // flat-per-period ladder had wrong - it charged sodium and gold the same, and
+  // made the CHNOPS elements that every real molecule is built from pay the same
+  // as a lump of iron. Reading the registry's own `cat` field keeps the table
+  // short and covers all 118 elements plus anything the gun creates.
   var PERIOD_MAX_Z = [2, 10, 18, 36, 54, 86, 118];
-  var PERIOD_PRICE = [2, 10, 25, 55, 110, 180, 280];
-  // A new species pays a fraction of what its atoms cost on the shelf, and the
-  // fraction stays under one for every rung: discovering is income, buying is a
-  // cost, and the two must never cancel out into a farm.
-  var PERIOD_STARS = [1, 5, 12, 28, 55, 90, 140];
+  var PERIOD_BASE = [2, 3, 4, 6, 9, 13, 20];
+  var CAT_FACTOR = {
+    nonmetal: 1, metalloid: 1, halogen: 1,
+    alkali: 2, alkaline: 2, post: 2,
+    transition: 3, noble: 3,
+    lanthanide: 4, actinide: 4
+  };
+  var DEFAULT_CAT_FACTOR = 2;
+  // A new species pays under half of what its atoms cost on the shelf, for every
+  // element individually: discovering is income, buying is a cost, and the two
+  // must never cancel out into a farm. starsOf() clamps to that ceiling itself,
+  // so this ladder can be retuned without re-checking 118 pairs by hand.
+  var PERIOD_STARS = [1, 2, 3, 5, 8, 11, 16];
 
   var AMMO_PRICE = 1;
   var AMMO = [
@@ -89,6 +100,7 @@
       stockOf: 'in crate',
       crateTotal: '{n} atoms in the crate · worth {stars} ★',
       allUnlocked: 'Every element is open for trade — you buy the atoms, not the unlock.',
+      priceRule: 'One atom = period base × family: nonmetal, metalloid, halogen ×1 · alkali, alkaline earth, post-transition ×2 · transition metal, noble gas ×3 · lanthanide, actinide ×4.',
       ammoHint: 'Each shot of the neutron & proton gun spends one particle from here.',
       ammoName: { proton: 'Proton', neutron: 'Neutron' },
       f: {
@@ -130,6 +142,7 @@
       stockOf: 'trong kho',
       crateTotal: '{n} nguyên tử trong kho · giá trị {stars} ★',
       allUnlocked: 'Mọi nguyên tố đều được mở bán — bạn mua nguyên tử, không mua quyền mở khoá.',
+      priceRule: 'Một nguyên tử = nền chu kỳ × họ: phi kim, á kim, halogen ×1 · kim loại kiềm, kiềm thổ, sau chuyển tiếp ×2 · kim loại chuyển tiếp, khí hiếm ×3 · lantanoid, actinoid ×4.',
       ammoHint: 'Mỗi phát của súng neutron & proton tiêu một hạt trong kho này.',
       ammoName: { proton: 'Proton', neutron: 'Neutron' },
       f: {
@@ -198,18 +211,30 @@
     if (el) { el.textContent = msg; el.className = kind || 'info'; }
   }
 
-  // Period 1-7 straight off the shell boundaries; the same table prices the atom.
+  // Period 1-7 straight off the shell boundaries; the base is the price of the
+  // cheapest family in that period.
   function periodOf(z) {
     for (var i = 0; i < PERIOD_MAX_Z.length; i++) if (z <= PERIOD_MAX_Z[i]) return i + 1;
     return PERIOD_MAX_Z.length;
   }
+  function catFactor(z) {
+    var el = elementByZ(z);
+    if (!el || !el.cat) return DEFAULT_CAT_FACTOR;
+    var f = CAT_FACTOR[el.cat];
+    return typeof f === 'number' && isFinite(f) ? f : DEFAULT_CAT_FACTOR;
+  }
   function unitPrice(z) {
     if (!(z > 0)) return 0;
-    return PERIOD_PRICE[periodOf(z) - 1];
+    var base = PERIOD_BASE[periodOf(z) - 1];
+    return Math.max(1, Math.round(base * catFactor(z)));
   }
   function starsOf(z) {
     if (!(z > 0)) return 0;
-    return PERIOD_STARS[periodOf(z) - 1];
+    // Clamped against the atom's own shelf price, not just the period's cheapest
+    // element: an actinide pays its own rung, and no discovery ever refunds what
+    // buying the same atom costs.
+    var cap = Math.max(1, Math.floor(unitPrice(z) / 2));
+    return Math.min(PERIOD_STARS[periodOf(z) - 1], cap);
   }
   // Accepts a z, a symbol, an element record or an atom from the scene.
   function zOf(atom) {
@@ -229,12 +254,8 @@
     return 0;
   }
   function elementBySym(sym) {
-    var list = (api && api.ELEMENTS) || [];
+    var list = registry();
     for (var i = 0; i < list.length; i++) if (list[i].sym === sym) return list[i];
-    try {
-      var more = (window.__mol3d && window.__mol3d.customElements) || [];
-      for (var j = 0; j < more.length; j++) if (more[j].sym === sym) return more[j];
-    } catch (e) {}
     return null;
   }
   // The price of anything made of atoms: the sum of its parts, always the same
@@ -257,6 +278,24 @@
   function featureById(id) {
     for (var i = 0; i < FEATURES.length; i++) if (FEATURES[i].id === id) return FEATURES[i];
     return null;
+  }
+  // One row per period: the Z range it covers and the cheapest and dearest atom
+  // inside it. The guide and the gun render the rule from here instead of
+  // copying numbers, so a rebalance cannot leave a stale price in the help text.
+  function priceLadder() {
+    var rows = [];
+    for (var p = 0; p < PERIOD_MAX_Z.length; p++) {
+      var lo = p === 0 ? 1 : PERIOD_MAX_Z[p - 1] + 1;
+      var hi = PERIOD_MAX_Z[p];
+      var min = Infinity, max = 0;
+      for (var z = lo; z <= hi; z++) {
+        var v = unitPrice(z);
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      rows.push({ period: p + 1, minZ: lo, maxZ: hi, min: min, max: max });
+    }
+    return rows;
   }
 
   function rankMgr() {
@@ -616,8 +655,16 @@
     } catch (e) {}
     return el.name || el.sym;
   }
+  function registry() {
+    var list = ((api && api.ELEMENTS) || []).slice();
+    try {
+      var more = (window.__mol3d && window.__mol3d.customElements) || [];
+      for (var i = 0; i < more.length; i++) list.push(more[i]);
+    } catch (e) {}
+    return list;
+  }
   function elementByZ(z) {
-    var list = (api && api.ELEMENTS) || [];
+    var list = registry();
     for (var i = 0; i < list.length; i++) if (list[i].z === z) return list[i];
     return null;
   }
@@ -780,6 +827,10 @@
     note.className = 'shop-note';
     note.textContent = S('allUnlocked');
     out.appendChild(note);
+    var rule = document.createElement('div');
+    rule.className = 'shop-note shop-note-rule';
+    rule.textContent = S('priceRule');
+    out.appendChild(rule);
     var wrap = document.createElement('div');
     wrap.className = 'shop-grid';
     var q = filterText;
@@ -1014,7 +1065,7 @@
       '@keyframes ropeSwing{0%,100%{transform:rotate(-1.1deg);}50%{transform:rotate(1.1deg);}}',
       '#shop-hint{position:absolute;top:calc(var(--rope-h) - 6px);left:50%;transform:translateX(-50%);',
       '  white-space:nowrap;font-size:10px;color:var(--muted);pointer-events:none;opacity:0;',
-      '  transition:opacity .35s;background:rgba(8,14,30,.72);padding:2px 8px;border-radius:8px;}',
+      '  transition:opacity .35s;background:var(--overlay-soft,rgba(8,14,30,.72));padding:2px 8px;border-radius:8px;}',
       '#shop-rig.hint #shop-hint{opacity:1;}',
       '#shop-panel{width:100%;pointer-events:none;visibility:hidden;background:var(--panel);border:1px solid var(--border);',
       '  border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.5);backdrop-filter:blur(14px);',
@@ -1037,8 +1088,8 @@
       '.shop-tab{flex:1;padding:6px 8px;border-radius:10px 10px 0 0;border:1px solid var(--border);',
       '  border-bottom:none;background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;}',
       '.shop-tab.on{color:var(--text);background:var(--panel-2);}',
-      '.shop-dyn{display:block;padding:6px 12px;font-size:10px;font-weight:600;color:#ffcf5c;',
-      '  background:rgba(255,207,92,.10);border-bottom:1px solid var(--border);}',
+      '.shop-dyn{display:block;padding:6px 12px;font-size:10px;font-weight:600;color:var(--warn,#ffcf5c);',
+      '  background:var(--warn-soft,rgba(255,207,92,.10));border-bottom:1px solid var(--border);}',
       '.shop-dyn[hidden]{display:none;}',
       '.shop-body{max-height:min(46vh,380px);overflow-y:auto;padding:10px 12px 12px;',
       '  touch-action:pan-y;-webkit-overflow-scrolling:touch;}',
@@ -1053,7 +1104,7 @@
       '.shop-card-sym{font-weight:800;font-size:15px;color:var(--accent);}',
       '.shop-card-name{font-size:10px;color:var(--muted);max-width:100%;overflow:hidden;',
       '  text-overflow:ellipsis;white-space:nowrap;}',
-      '.shop-card-stars{font-size:9px;color:#ffcf5c;letter-spacing:1px;line-height:1;}',
+      '.shop-card-stars{font-size:9px;color:var(--warn,#ffcf5c);letter-spacing:1px;line-height:1;}',
       '.shop-card-price{font-size:10px;font-weight:700;margin-top:auto;}',
       '.shop-row-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;}',
       '.shop-row-title{font-size:12px;font-weight:700;}',
@@ -1066,9 +1117,9 @@
       '.shop-card.is-owned .shop-card-price,.shop-row.is-owned .shop-card-price{color:var(--ok);}',
       '.shop-card.is-poor,.shop-row.is-poor{opacity:.55;}',
       '.shop-card-stock{position:absolute;top:6px;right:6px;font-size:9px;font-weight:800;line-height:1;',
-      '  padding:2px 5px;border-radius:7px;background:rgba(255,255,255,.09);color:var(--muted);}',
+      '  padding:2px 5px;border-radius:7px;background:var(--border,rgba(255,255,255,.09));color:var(--muted);}',
       '.shop-card.is-stocked .shop-card-stock{background:var(--accent-soft);color:var(--accent);}',
-      '.shop-card.is-stocked{border-color:rgba(255,207,92,.45);}',
+      '.shop-card.is-stocked{border-color:var(--warn,rgba(255,207,92,.45));}',
       '.shop-qty{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;}',
       '.shop-qty-label{font-size:10px;font-weight:700;color:var(--muted);}',
       '.shop-qty-btn{padding:3px 9px;border-radius:9px;border:1px solid var(--border);background:transparent;',
@@ -1080,11 +1131,11 @@
       '.shop-search:focus{border-color:var(--accent);}',
       '#shop-rig.flash #shop-rope{animation:ropeFlash 1.5s ease-out;}',
       '@keyframes ropeFlash{0%,100%{filter:drop-shadow(0 6px 14px rgba(0,0,0,.45));}',
-      '25%,75%{filter:drop-shadow(0 0 18px rgba(255,207,92,.95));}}',
+      '25%,75%{filter:drop-shadow(0 0 18px var(--warn,rgba(255,207,92,.95)));}}',
       '.shop-note{grid-column:1/-1;font-size:10px;color:var(--muted);padding-top:4px;}',
       '.shop-ledger-note{color:var(--accent);opacity:.85;line-height:1.4;}',
       '.shop-pop{position:fixed;z-index:10005;pointer-events:none;transform:translate(-50%,-50%);',
-      '  font-weight:800;font-size:20px;color:#ffcf5c;text-shadow:0 0 14px rgba(255,207,92,.75);',
+      '  font-weight:800;font-size:20px;color:var(--warn,#ffcf5c);text-shadow:0 0 14px var(--warn,rgba(255,207,92,.75));',
       '  animation:shopPop .7s ease-out forwards;}',
       '@keyframes shopPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:0;}',
       '30%{transform:translate(-50%,-60%) scale(1.25);opacity:1;}',
@@ -1201,8 +1252,16 @@
       buyFeature: buyFeature,
       priceOf: priceOf,
       isDynamic: isDynamic,
+      // The shop owns the only copy of the feature labels; the How-to-Play guide
+      // reads them from here so the two can never drift apart.
+      featureName: function (id) { return sf(id); },
+      featureDesc: function (id) { return sf(id + '_d'); },
       dynamicPricing: { threshold: PCT_THRESHOLD, rate: PCT_RATE },
-      catalogue: { features: FEATURES, ammo: AMMO, ammoPrice: AMMO_PRICE, periods: PERIOD_MAX_Z, unitPrices: PERIOD_PRICE },
+      catalogue: {
+        features: FEATURES, ammo: AMMO, ammoPrice: AMMO_PRICE,
+        periods: PERIOD_MAX_Z, periodBase: PERIOD_BASE, catFactor: CAT_FACTOR,
+        ladder: priceLadder(), unitPrice: unitPrice, starsOf: starsOf
+      },
       // The crate: what the player owns, what the world currently owes them, and
       // the two ways an atom moves between the crate and the table.
       stockOf: stockOf,

@@ -860,7 +860,9 @@ function s() {
     m("settings-modal");
   }), document.getElementById("settings-theme").addEventListener("click", () => {
     const e = (document.documentElement.getAttribute("data-theme") || "dark") === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", e), localStorage.setItem("theme", e), a();
+    document.documentElement.setAttribute("data-theme", e), localStorage.setItem("mol3d.theme", e);
+    const o = document.querySelector('meta[name="theme-color"]');
+    o && o.setAttribute("content", e === "light" ? "#e8edf5" : "#050810"), a();
   }), document.getElementById("settings-lang").addEventListener("click", () => {
     k(b()), a();
   }), document.getElementById("settings-quality").addEventListener("click", () => {
@@ -873,7 +875,7 @@ function s() {
       m(e.dataset.close);
     });
   });
-  const l = localStorage.getItem("theme");
+  const l = localStorage.getItem("mol3d.theme") || localStorage.getItem("theme");
   l && document.documentElement.setAttribute("data-theme", l);
   const t = localStorage.getItem(u) || localStorage.getItem("lang");
   t ? k(t) : p();

@@ -24,7 +24,7 @@
   // ==========================================================================
   var STR = {
     en: {
-      menuBtn: '📐 Blueprint: 2D structure editor',
+      menuBtn: 'Blueprint: 2D structure editor',
       title: '2D Structure Blueprint',
       close: 'Close',
       minimize: 'Collapse the panel',
@@ -199,7 +199,7 @@
       exportedList: '{n} atoms, {b} bonds'
     },
     vi: {
-      menuBtn: '📐 Bản vẽ cấu tạo: trình vẽ 2D',
+      menuBtn: 'Bản vẽ cấu tạo: trình vẽ 2D',
       title: 'Bản vẽ cấu tạo 2D',
       close: 'Đóng',
       minimize: 'Thu gọn bảng',
@@ -1474,6 +1474,7 @@
     '.bp-chip{padding:2px 6px;border-radius:5px;background:var(--warn-soft,rgba(255,170,0,.12));color:var(--warn,#ffaa00);',
     'border:1px solid var(--warn,rgba(255,170,0,.3));font-size:10px}',
     '.bp-chip.err{background:var(--err-soft,rgba(255,80,110,.14));color:var(--err-text,#ff6b84);border-color:var(--err,rgba(255,80,110,.4))}',
+    '.bp-lc{width:1em;height:1em;vertical-align:-0.18em;margin-right:3px;stroke-width:2.4}',
     /* Small screens and landscape phones: a full-width sheet that docks under the',
        top bar so the pool strip and the action bar keep working. */
     '@media (max-width:780px),(max-height:640px){',
@@ -3397,9 +3398,10 @@
       tx(comps.length > 1 ? 'fragments' : 'fragment') + '</span>');
     var rings = ringCount();
     if (rings) bits.push('<span class="bp-chip">' + rings + ' ' + tx('ringNote') + '</span>');
-    if (over) bits.push('<span class="bp-chip">' + over + ' ⚠</span>');
+    if (over) bits.push('<span class="bp-chip">' + over + ' ' + ic('triangle-alert') + '</span>');
     if (illegal) bits.push('<span class="bp-chip err">' + illegal + ' ' + tx('badBonds') + '</span>');
     els.readout.innerHTML = bits.join(' · ');
+    lucideIn(els.readout);
   }
   function syncHint() {
     var str = null;
@@ -3545,6 +3547,16 @@
   }
   function esc(s) {
     return String(s).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split('"').join('&quot;');
+  }
+  // Lucide icon markup for innerHTML strings; hydrated with lucideIn below.
+  function ic(name) {
+    return '<i data-lucide="' + name + '" class="bp-lc"></i>';
+  }
+  function lucideIn(root) {
+    try {
+      if (window.lucide && typeof window.lucide.createIcons === 'function')
+        window.lucide.createIcons({ nameAttr: 'data-lucide', root: root || document });
+    } catch (e) {}
   }
   var elementsFromRegistry = false;
   function rebuildElementsIfNeeded() {
@@ -5398,7 +5410,8 @@
     var btn = document.createElement('button');
     btn.id = 'btn-blueprint';
     btn.className = 'science-entry';
-    btn.textContent = tx('menuBtn');
+    btn.innerHTML = ic('pencil-ruler') + esc(tx('menuBtn'));
+    lucideIn(btn);
     btn.addEventListener('click', function () { toggle(); });
     return btn;
   }
@@ -5419,7 +5432,11 @@
     if (l === lastLang && !force) return;
     lastLang = l;
     var b = document.getElementById('btn-blueprint');
-    if (b) { b.textContent = tx('menuBtn'); b.title = tx('menuBtn'); }
+    if (b) {
+      b.innerHTML = ic('pencil-ruler') + esc(tx('menuBtn'));
+      b.title = tx('menuBtn');
+      lucideIn(b);
+    }
     rebuildElementsIfNeeded();
     if (elPopOpen) { els.elSearch.value = ''; buildElList(''); }
     if (els.io.classList.contains('open')) {

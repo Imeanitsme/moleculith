@@ -191,13 +191,16 @@ html[data-theme="light"] {
   --panel-2: rgba(230, 236, 245, 0.95);
   --border: rgba(0, 140, 200, 0.2);
   --text: #1a2a40;
-  --muted: #607090;
+  /* Both of these sit under 11px in the new economy surfaces, where AA needs 4.5:1.
+     #607090 measured 4.24 and #9a6700 4.14 on the light panel, so each keeps its hue
+     and loses lightness instead of being swapped for a different colour. */
+  --muted: #54627c;
   --accent: #0088cc;
   --accent-glow: rgba(0, 136, 204, 0.2);
-  --ok: #1a7f37;
+  --ok: #16702f;
   --err: #cf222e;
-  --warn: #9a6700;
-  --amber: #9a6700;
+  --warn: #7d5300;
+  --amber: #7d5300;
   --accent-soft: rgba(0, 136, 204, 0.08);
   --row-alt: rgba(0, 0, 0, 0.02);
   --overlay: rgba(240, 244, 250, 0.95);
@@ -212,9 +215,9 @@ html[data-theme="light"] {
   --top-bar-bg-start: rgba(240, 244, 250, 0.95);
   --top-bar-bg-end: rgba(240, 244, 250, 0.7);
   --on-accent: #ffffff;
-  --warn-soft: rgba(154, 103, 0, 0.1);
+  --warn-soft: rgba(125, 83, 0, 0.1);
   --ok-soft: rgba(26, 127, 55, 0.09);
-  --ok-text: #1a7f37;
+  --ok-text: #16702f;
   --board: #f7fafc;
   --board-line: #33465e;
   --board-grid: rgba(0, 90, 140, 0.07);
@@ -245,7 +248,7 @@ html[data-theme="light"] {
   --mint-10: rgba(11,114,133,0.12);
   --accent-05: rgba(0,90,140,0.06);
   --mayhem-40: rgba(156,39,176,0.45);
-  --warn-08: rgba(154,103,0,0.10);
+  --warn-08: rgba(125,83,0,0.10);
   --blue-20: rgba(11,95,206,0.22);
   --isomer-err-bg: #ffebe9;
   --isomer-err-ink: #a40e25;
@@ -686,6 +689,13 @@ html, body {
 .bottom-left #status-text.info { color: var(--text); font-size: 12px; }
 .bottom-left #status-text.ok { color: var(--ok); }
 .bottom-left #status-text.err { color: var(--err); }
+.bottom-left #status-text.warn { color: var(--amber); }
+.bottom-left #status-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 .bottom-right #keys-hint { color: var(--muted); font-size: 10px; }
 
 .menu-tab-btn {
@@ -3838,137 +3848,6 @@ body.time-stopped #meltdown-overlay.active {
   border-radius: 4px;
   color: var(--text);
   white-space: nowrap;
-}
-
-/* ── Daily Reward Popup ── */
-.daily-reward-popup {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.daily-reward-popup[hidden] { display: none; }
-
-.daily-reward-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  animation: dailyRewardFadeIn 0.3s ease-out;
-}
-
-@keyframes dailyRewardFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.daily-reward-content {
-  position: relative;
-  background: var(--panel);
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  padding: 32px 40px;
-  text-align: center;
-  max-width: 320px;
-  animation: dailyRewardSlideIn 0.4s ease-out;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-
-@keyframes dailyRewardSlideIn {
-  from { transform: translateY(-40px) scale(0.9); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-.daily-reward-close {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  background: none;
-  border: none;
-  color: var(--text);
-  font-size: 24px;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.2s;
-}
-
-.daily-reward-close:hover { opacity: 1; }
-
-.daily-reward-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-  animation: dailyRewardBounce 0.6s ease-out 0.3s both;
-}
-
-@keyframes dailyRewardBounce {
-  0% { transform: scale(0); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.daily-reward-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0 0 12px 0;
-}
-
-.daily-reward-streak {
-  font-size: 14px;
-  color: var(--text-dim);
-  margin-bottom: 16px;
-}
-
-.daily-reward-day {
-  font-weight: 700;
-  color: var(--accent);
-  font-size: 18px;
-}
-
-.daily-reward-stars {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding: 12px;
-  background: var(--panel-2);
-  border-radius: 8px;
-}
-
-.star-count {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--star-gold, #ffd700);
-}
-
-.star-icon {
-  font-size: 32px;
-  color: var(--star-gold, #ffd700);
-}
-
-.daily-reward-claim-btn {
-  width: 100%;
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.daily-reward-claim-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.daily-reward-claim-btn:active {
-  transform: translateY(0);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

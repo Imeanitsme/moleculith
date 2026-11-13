@@ -9,6 +9,41 @@
 
   const NOBLE_GASES = new Set([2, 10, 18, 36, 54, 86, 118]);
 
+  // The nuclides that actually fission on capturing a slow neutron - the fissile
+  // set, keyed Z-A. Everything else heavier than bismuth just grows heavier:
+  // U-238 is fertile, not fissile, and a neutron it catches turns it into U-239
+  // rather than into two fragments. Breeding Pu-239 out of U-238 is the real
+  // reactor route, and the decay engine walks it.
+  const FISSILE = new Set(['92-233', '92-235', '94-239', '94-241', '95-242', '96-249', '96-251', '96-252']);
+  function isFissile(z, a) { return FISSILE.has(Math.round(z) + '-' + Math.round(a)); }
+
+  // Decay-mode glyphs, language-independent on purpose; the sentences around
+  // them are translated, the physics symbols are not.
+  const MODE_GLYPH = { alpha: 'α', betaMinus: 'β⁻', betaPlus: 'β⁺', electronCapture: 'electron capture', fission: 'spontaneous-fission' };
+
+  // Whether a shot neutron splits the nucleus it hits is an energy question, not
+  // only a species question. The gun's neutrons come out at fission speed, about
+  // 2 MeV, because that is what a neutron emitted by a fission is. At that energy
+  // the evaluated cross sections of U-238 read about 0.1 barn for fission against
+  // roughly 0.3 barn for radiative capture - the 1/v capture has fallen a long way
+  // from its 2.7 barn thermal value - so about one interaction in four splits it
+  // and three in four just add a mass unit. A fissile nucleus has no such lottery:
+  // thermal neutrons split it, and a fast one only makes sure of it.
+  const FAST_FISSION_CHANCE = 0.25;
+  // The split itself is prompt (about 1e-14 s after capture). The countdown is not
+  // a physical delay pretending to be one; it is the warning the player gets for a
+  // nucleus they just turned into U-236*.
+  const CRITICAL_SECONDS = 3;
+  // Fast neutrons cross the assembly quickly, and every generation leaves the
+  // pile more dispersed than the last. Real bare masses multiply for a handful of
+  // generations and stop; a scene full of uranium must stop too, or one shot keeps
+  // firing long after the player has let go of the trigger.
+  const CHAIN_RADIUS = 7, MAX_CHAIN_GEN = 4;
+  // Fragment speeds are exact in ratio (momentum is equal and opposite) and scaled
+  // here so the flight reads on screen: the real 5 % of light speed is a number no
+  // camera in this build could follow.
+  const FRAG_SPEED = 150, NEUTRON_MASS_MEV = 931.494;
+
   function showStatus(msg, kind) {
     const el = document.getElementById('status-text');
     if (el) { el.textContent = msg; el.className = kind || 'info'; }
@@ -63,10 +98,30 @@
       chainWhyEc: 'a pure electron-capture nuclide - an orbital electron falling in is not a positron flying out, and this build runs neither',
       chainWhyOther: 'a decay mode other than the beta one counted here',
       chainWhyNone: 'nothing the charts measure for it at all',
-      chainWhyHeavy: 'bismuth or heavier, where the fission countdown owns the nucleus',
+      chainWhyHeavy: 'bismuth or heavier, where the measured decay chain of the proton number owns the nucleus',
       chainWhyLong: 'still decaying, further than this panel prints a chain',
-      heavy: '☢ Every nuclide with Z > 82 is radioactive, and this build does simulate that — a shot at it runs the fission countdown.',
-      pastAll: '⚠ {sym}-{a} lies past every isotope of {sym} ever measured: no nucleus binds this many extra neutrons. That is not simulated here, so the gun only records what it was asked to do.',
+      heavy: '☢ {sym}-{a} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. The charts measure {sym}-{a} as a {mode} emitter with a half-life of {life}, and the decay engine runs that clock.',
+      heavyModel: '☢ {sym}-{a} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. No chart measures this isotope, so the liquid-drop model in this build estimates it as a {mode} emitter with a half-life of {life}, and the decay engine runs that estimate.',
+      heavyNoClock: '☢ {sym}-{a} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. No chart measures a half-life for it, so this build lets it sit.',
+      fissionShot: '☢ {parent} fissioned: {f1} + {f2} and {nu} prompt neutron(s), ≈ {energy} released ({src}). Both fragments are new nuclei — neutron-rich, beta-radioactive, and flying apart.',
+      chainNote: ' · {n} of its neutrons struck another fissile nucleus; the chain runs on.',
+      fragMissing: ' · {f} found no room in the scene, so only one half of the split is in front of you.',
+      fissionDeclined: '☢ {parent} finds no pair of fragments that releases energy, so this build leaves it one nucleus instead of inventing two.',
+      srcMeasured: 'measured',
+      srcModel: 'model estimate',
+      pastAll: '⚠ {sym}-{a} is a long way past the band of stability ({sym}-{max} is the heaviest stable one). The charts do measure isotopes of {sym} this heavy, so the nucleus holds together — anything past the drip line is thrown straight back out instead of kept.',
+      // Prompt nucleon emission: past the drip line the last nucleon is not bound,
+      // so the shot lands and leaves again in the same breath. Both facts belong in
+      // one sentence, or the player reads a captured particle in a nucleus that
+      // gave it back.
+      edgeHeaviest: 'heaviest',
+      edgeLightest: 'lightest',
+      boundMeasured: '{limit} is the {edge} isotope of {sym} ever measured',
+      boundModel: 'no nucleus the liquid-drop model in this build can bind reaches that mass',
+      ejectN: '{n} {kind}(s)',
+      promptEject: '⚠ The {kind} was captured and made {comp}, but {comp} sits past the {line} drip line ({bound}). It cannot hold that: {shot} flew straight back out, and {final} is the nucleus standing in the scene now.',
+      ejectSevered: ' The nucleus left behind is a noble gas, so {n} bond(s) were severed.',
+      shotLost: 'The {kind} flew all the way to a nucleus that has since left the scene, so nothing was captured.',
       vInBand: 'in the band',
       vRich: 'neutron-rich',
       vPast: 'past every measured isotope',
@@ -112,10 +167,26 @@
       chainWhyEc: 'chỉ bắt electron - electron quỹ đạo rơi vào hạt nhân chứ không phải positron bay ra, và bản này không chạy cả hai',
       chainWhyOther: 'một kiểu phân rã khác với kiểu beta được đếm ở đây',
       chainWhyNone: 'không được các bảng đo ghi nhận điều gì',
-      chainWhyHeavy: 'từ bismuth trở lên, nơi đếm ngược phân hạch nắm hạt nhân',
+      chainWhyHeavy: 'từ bismuth trở lên, nơi chuỗi phân rã đo được theo số proton nắm hạt nhân',
       chainWhyLong: 'vẫn đang phân rã, xa hơn mức bảng này in ra một chuỗi',
-      heavy: '☢ Mọi hạt nhân có Z > 82 đều phóng xạ, và bản này có mô phỏng điều đó — bắn vào nó sẽ chạy đếm ngược phân hạch.',
-      pastAll: '⚠ {sym}-{a} vượt quá mọi đồng vị của {sym} từng được đo: không hạt nhân nào giữ nổi nhiều neutron thừa đến thế. Điều đó không được mô phỏng ở đây, nên súng chỉ ghi lại những gì nó đã làm.',
+      heavy: '☢ {sym}-{a} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Các bảng đo ghi {sym}-{a} là chất phát {mode} với thời gian bán rã {life}, và công cụ phân rã chạy đúng chiếc đồng hồ đó.',
+      heavyModel: '☢ {sym}-{a} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Chưa bảng đo nào ghi đúng đồng vị này, nên mô hình giọt chất lỏng trong bản này ước lượng nó là chất phát {mode} với thời gian bán rã {life}, và công cụ phân rã chạy theo đúng ước lượng đó.',
+      heavyNoClock: '☢ {sym}-{a} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Chưa bảng đo nào ghi thời gian bán rã cho nó, nên bản này để nó nằm yên.',
+      fissionShot: '☢ {parent} vừa phân hạch: {f1} + {f2} và {nu} neutron tức thời, năng lượng ≈ {energy} ({src}). Hai mảnh là những hạt nhân mới — giàu neutron, phát beta, và đang bay ra xa nhau.',
+      chainNote: ' · {n} neutron của nó đã vớ một hạt nhân fissile khác; chuỗi dây chuyền tiếp tục.',
+      fragMissing: ' · {f} không còn chỗ trong cảnh, nên chỉ một nửa của vụ tách đôi hiện ra trước mắt bạn.',
+      fissionDeclined: '☢ {parent} không có cặp mảnh nào mà phép tách đôi tỏa năng lượng, nên bản này để nó là một hạt nhân thay vì bịa ra hai.',
+      srcMeasured: 'số đo thật',
+      srcModel: 'ước lượng mô hình',
+      pastAll: '⚠ {sym}-{a} nằm rất xa ngoài dải bền ({sym}-{max} là đồng vị bền nặng nhất của {sym}). Các bảng đo vẫn ghi nhận những đồng vị của {sym} nặng đến thế, nên hạt nhân này còn giữ được — thứ gì vượt quá đường nhỏ giọt sẽ bị bắn ngược ra ngay thay vì bị giữ lại.',
+      edgeHeaviest: 'nặng nhất',
+      edgeLightest: 'nhẹ nhất',
+      boundMeasured: '{limit} là đồng vị {edge} của {sym} từng được đo',
+      boundModel: 'không hạt nhân nào mà mô hình giọt chất lỏng trong bản này liên kết được chạm tới khối lượng đó',
+      ejectN: '{n} hạt {kind}',
+      promptEject: '⚠ Bắt được một {kind} và tạo thành {comp}, nhưng {comp} đã vượt đường nhỏ giọt {line} ({bound}). Hạt nhân không giữ nổi: {shot} bay ngược ra ngay tức khắc, và {final} mới là hạt nhân còn lại trong cảnh.',
+      ejectSevered: ' Hạt nhân còn lại là khí hiếm, nên {n} liên kết đã bị cắt.',
+      shotLost: 'Hạt {kind} đã bay tới một hạt nhân vừa rời khỏi cảnh, nên không có gì được bắt vào.',
       vInBand: 'trong dải bền',
       vRich: 'giàu neutron',
       vPast: 'vượt mọi đồng vị từng đo',
@@ -156,10 +227,11 @@
     return fill(s, params);
   }
 
-  // A transmutation moves the crate's books, not its gate: the unit this atom was
-  // bought as goes back to the shelf, and a unit of the element above is taken only
-  // when the crate holds one. Where a paid-for particle lands is decided by the
-  // nucleus, so an element the player has never bought is still a legal destination.
+  // A transmutation moves the crate's books, not its gate: the loan the atom was
+  // bought under is re-pointed at the element it has become, so the shot neither
+  // restocks the old element nor charges a second unit for the new one. Where a
+  // paid-for particle lands is decided by the nucleus, so an element the player has
+  // never bought is still a legal destination.
   function crateTransmute(atomId, newZ) {
     const c = window.__mol3d && window.__mol3d.crate;
     if (!c || typeof c.transmute !== 'function') return true;
@@ -394,10 +466,10 @@
     205, 208, 209
   ];
   const MAX_STABLE_Z = STABLE_MAX_A.length - 1;
-  // How far past the band an isotope has to sit before it is past every isotope
-  // ever *measured* for that element. Deliberately generous: the real neutron drip
-  // line runs closest for the lightest elements and furthest for the heaviest, and
-  // this wording is only used for the absurd cases, never to refuse a shot.
+  // How far past the band a nucleus has to sit before the status line stops calling
+  // it merely neutron-rich and calls it absurd. This is a wording threshold and not
+  // a physical limit - the physical one is `dripLine` below, which is drawn from
+  // what the charts actually measure. Nothing here refuses a shot.
   const DRIP_GUARD = 14;
 
   function stabilityVerdict(z, a) {
@@ -407,6 +479,176 @@
     if (a <= lim) return { key: 'inBand', verdictKey: 'vInBand', bandMax: lim };
     if (a <= lim + DRIP_GUARD) return { key: 'neutronRich', verdictKey: 'vRich', bandMax: lim };
     return { key: 'pastAll', verdictKey: 'vPast', bandMax: lim };
+  }
+
+  // --- The drip lines --------------------------------------------------------
+  // `stabilityVerdict` answers "will this nucleus decay". This answers the louder
+  // question "can this nucleus be built at all": past the drip line the newest
+  // nucleon is not bound, and the compound nucleus throws it back out in about
+  // 10^-22 s - prompt emission, faster than any clock this build runs. A shot that
+  // lands there has to be answered by a particle flying out again, not by a
+  // quieter status line.
+  //
+  // The line is drawn from data rather than from a formula, because the formula is
+  // not good enough for the job. For a proton number the charts give a span: every
+  // nuclide either measured chart names for it, plus the heaviest primordial
+  // isotope, plus the isotope the element table itself ships - and an isotope no
+  // chart has ever seen at all is treated as unbound. The measured minimum is a
+  // floor rather than the true proton drip line (the dumps are cut off at
+  // beta-stable-ish territory on that side), which is why the light edge only ever
+  // costs a nucleus a proton when it is genuinely far below the band.
+  //
+  // Above Z 82 both charts keep silent on purpose, so the semi-empirical mass
+  // formula takes over and asks the question it is actually good at: is the
+  // separation energy positive? S_n = B(Z,A) - B(Z,A-1) and
+  // S_p = B(Z,A) - B(Z-1,A-1) of zero or less is the model saying the same thing
+  // the charts say by absence.
+  const MAX_MEASURED_Z = 82;
+  // The charts are cut off on the proton-rich side for reasons of detection, not
+  // of existence, so their light edge sits inside the real drip line. A nucleus has
+  // to clear that edge by this much before the build calls it unbound - the mirror
+  // of the neutron side, where the measured maximum really is the line, because a
+  // nuclide that exists for 10^-21 s is still in the dump.
+  const PROTON_GUARD = 3;
+  const dripSpans = new Map();
+
+  function chartKnown(z, a) {
+    const B = window.__mol3dBeta, BP = window.__mol3dBetaPlus;
+    if (B && z <= B.MAX_Z && (B.isBetaRadioactive(z, a) || B.isTabulatedStable(z, a))) return true;
+    if (BP && z <= BP.MAX_Z && (BP.isPositronRadioactive(z, a) || BP.isElectronCaptureOnly(z, a) ||
+      BP.isTabulatedStable(z, a))) return true;
+    return false;
+  }
+
+  // Widest span of mass numbers a nucleus of this proton number is known to occupy.
+  // Null means the charts say nothing about the element at all, which is not a
+  // licence to strip a nucleus down to nothing - it means the model is asked.
+  function measuredSpan(z) {
+    if (dripSpans.has(z)) return dripSpans.get(z);
+    if (!window.__mol3dBeta && !window.__mol3dBetaPlus) return null;
+    let lo = 0, hi = 0;
+    for (let a = z; a <= z + 250; a++) {
+      if (!chartKnown(z, a)) continue;
+      if (!lo) lo = a;
+      hi = a;
+    }
+    const el = findElement(z);
+    if (el) {
+      const base = baseA(el);
+      lo = lo ? Math.min(lo, base) : base;
+      hi = Math.max(hi, base);
+    }
+    const primordial = STABLE_MAX_A[z] || 0;
+    if (primordial > hi) hi = primordial;
+    const span = lo ? { min: lo, max: hi } : null;
+    dripSpans.set(z, span);
+    return span;
+  }
+
+  // Which line this exact nucleus is past, and where that line runs. Null is the
+  // answer for every nucleus that has a chance of existing.
+  function dripLine(z, a) {
+    if (!(z > 0) || !(a >= z)) return null;
+    if (z <= MAX_MEASURED_Z) {
+      const span = measuredSpan(z);
+      if (span) {
+        if (a > span.max) return { kind: 'neutron', limit: span.max, measured: true };
+        if (z > 1 && a < span.min - PROTON_GUARD) return { kind: 'proton', limit: span.min, measured: true };
+        return null;
+      }
+    }
+    const N = window.__nuclear;
+    if (!N || typeof N.binding !== 'function') return null;
+    const b = N.binding(z, a);
+    if (a > z && b - N.binding(z, a - 1) <= 0) return { kind: 'neutron', limit: null, measured: false };
+    if (z > 1 && a - 1 >= z - 1 && b - N.binding(z - 1, a - 1) <= 0) {
+      return { kind: 'proton', limit: null, measured: false };
+    }
+    return null;
+  }
+
+  // Walk the nucleus back inside the line one nucleon at a time and report what has
+  // to leave. Null means the nucleus is already somewhere a nucleus can be, which is
+  // the case for every ordinary shot.
+  function settleNucleus(z, a) {
+    const first = dripLine(z, a);
+    if (!first) return null;
+    let neutrons = 0, protons = 0, cz = z, ca = a;
+    for (let guard = 0; guard < 40; guard++) {
+      const past = dripLine(cz, ca);
+      if (!past) break;
+      if (past.kind === 'neutron') {
+        if (!(ca - 1 >= cz)) break;
+        ca -= 1; neutrons++;
+      } else {
+        if (!(cz > 1 && ca - 1 >= cz - 1)) break;
+        cz -= 1; ca -= 1; protons++;
+      }
+    }
+    if (!neutrons && !protons) return null;
+    return {
+      z: z, a: a, finalZ: cz, finalA: ca,
+      neutrons: neutrons, protons: protons,
+      kind: first.kind, limit: first.limit, measured: first.measured
+    };
+  }
+
+  function nuclideName(z, a) {
+    const el = findElement(z);
+    return (el ? el.sym : 'Z' + z) + '-' + a;
+  }
+
+  // What left the nucleus, in the words of whichever language is showing.
+  function ejectedPhrase(s) {
+    const parts = [];
+    if (s.neutrons) parts.push(L('ejectN', { n: s.neutrons, kind: L('kNeutron') }));
+    if (s.protons) parts.push(L('ejectN', { n: s.protons, kind: L('kProton') }));
+    return parts.join(' + ');
+  }
+
+  function ejectionNote(s, finalZ, finalA) {
+    const bound = s.measured
+      ? L('boundMeasured', {
+        limit: nuclideName(s.z, s.limit),
+        edge: L(s.kind === 'neutron' ? 'edgeHeaviest' : 'edgeLightest'),
+        sym: (findElement(s.z) || { sym: 'Z' + s.z }).sym
+      })
+      : L('boundModel');
+    return L('promptEject', {
+      kind: L(s.kind === 'neutron' ? 'kNeutron' : 'kProton'),
+      line: L(s.kind === 'neutron' ? 'kNeutron' : 'kProton'),
+      comp: nuclideName(s.z, s.a),
+      bound: bound,
+      shot: ejectedPhrase(s),
+      final: nuclideName(finalZ, finalA)
+    });
+  }
+
+  // Put the settled nucleus into the atom: the crate's books first (the element the
+  // player owns follows the nucleus, exactly as it does for a capture), then the
+  // element the engine draws and reacts with, then the mass number the ledger keeps.
+  // That order matters - a record whose Z disagrees with the atom reads as nothing.
+  function applyNucleus(atom, atomId, z, a) {
+    const el = findElement(z);
+    if (!el) return false;
+    crateTransmute(atomId, z);
+    atom.el = el;
+    setNuclide(atomId, z, a);
+    return true;
+  }
+
+  // Every bond the atom carries. The proton shot has always done this when it
+  // landed on a noble gas; now the ejection can land there too, by dropping a
+  // proton out of element 19 rather than adding one to element 17.
+  function severBonds(atomId) {
+    const bonds = window.__mol3d && window.__mol3d.bonds;
+    if (!bonds || typeof bonds.delete !== 'function') return 0;
+    let broken = 0;
+    for (const entry of bonds) {
+      const b = entry[1];
+      if (b.a === atomId || b.b === atomId) { bonds.delete(entry[0]); broken++; }
+    }
+    return broken;
   }
 
   // What the measured charts say about this exact nucleus, worked out once so the
@@ -467,7 +709,10 @@
   // The reason goes in the status line in full: an isotope the player just built
   // is a teaching moment, and hiding the caveat would be the fake part.
   function verdictText(el, iso, v) {
-    const params = { sym: el.sym, a: iso.a, z: iso.z, n: iso.n, max: v.bandMax };
+    const params = {
+      sym: el.sym, a: iso.a, z: iso.z, n: iso.n, max: v.bandMax,
+      p: Math.round(1 / FAST_FISSION_CHANCE)
+    };
     if (v.key !== 'heavy') {
       const b = betaNote(iso.z, iso.a);
       if (b) {
@@ -479,7 +724,23 @@
     }
     if (v.key === 'inBand') return L('inBand', params);
     if (v.key === 'noStable') return L('noStable', params);
-    if (v.key === 'heavy') return L('heavy', params);
+    if (v.key === 'heavy') {
+      // Name the clock this exact nucleus lives by. The decay engine runs the
+      // measured half-life of the isotope the shot just made, so the status can
+      // promise it - and say plainly when no chart measures anything.
+      const N = window.__nuclear;
+      const c = N && typeof N.clock === 'function' ? N.clock(iso.z, iso.a) : null;
+      if (c && c.halfLife > 0) {
+        // The clock the engine runs is measured for some nuclei and modelled for
+        // the rest, and the two deserve different sentences: promising "the charts
+        // measure this" about a nucleus no chart has is the fake part.
+        return L(c.source === 'measured' ? 'heavy' : 'heavyModel', {
+          sym: el.sym, a: iso.a, z: iso.z, n: iso.n, max: v.bandMax, p: params.p,
+          mode: MODE_GLYPH[c.mode] || c.mode, life: N.formatLife(c.halfLife)
+        });
+      }
+      return L('heavyNoClock', params);
+    }
     if (v.key === 'pastAll') return L('pastAll', params);
     return L('neutronRich', params);
   }
@@ -499,19 +760,30 @@
     pruneLedger();
     const el = atom.el;
     const a = massNumberOf(atomId, atom) + 1;
-    const iso = isotopeOf(el, a);
-    const v = stabilityVerdict(el.z, a);
+    const compound = isotopeOf(el, a);
     // Nothing about the atom is touched: same Z, same electrons, same chemistry -
     // which is exactly why the engine needs no reanalyze for this shot either.
+    // Unless the nucleus is past a drip line and gives a nucleon straight back,
+    // which is the one case where the element does move.
     setNuclide(atomId, el.z, a);
+    const shed = settleNucleus(el.z, a);
+    if (shed) {
+      if (shed.finalZ !== el.z) applyNucleus(atom, atomId, shed.finalZ, shed.finalA);
+      else setNuclide(atomId, shed.finalZ, shed.finalA);
+      drawEjection(atom, shed);
+    }
+    const iso = isotopeOfAtom(atomId, atom);
+    const v = stabilityVerdict(iso.z, iso.a);
     // The nucleus changed, so the atom's own label has to say so: the ledger is the
     // only record of A, and a paid-for neutron that only shows while the gun panel
     // happens to be open is not the same nucleus the player is looking at.
     if (window.__mol3d && window.__mol3d.updateAtomLabel) {
       window.__mol3d.updateAtomLabel(atomId, atom.el);
     }
-    showStatus('⚛ ' + L('neutronAdded', { sym: el.sym, a: iso.a, z: iso.z, n: iso.n }) + ' ' +
-      verdictText(el, iso, v) + spendTail(paid, 'neutron'), v.key === 'inBand' ? 'ok' : 'err');
+    showStatus('⚛ ' + (shed
+      ? ejectionNote(shed, iso.z, iso.a)
+      : L('neutronAdded', { sym: el.sym, a: iso.a, z: iso.z, n: iso.n })) + ' ' +
+      verdictText(atom.el, iso, v) + spendTail(paid, 'neutron'), v.key === 'inBand' ? 'ok' : 'err');
     setLastShot(iso, v);
     // The x-ray, unlike the engine, draws the nucleus itself - and that nucleus is
     // another isotope now. One atom is repainted here, exactly the way a proton shot
@@ -519,6 +791,11 @@
     // moment the shot lands instead of at the next rebuild.
     if (window.__xray && window.__xray.isActive && window.__xray.isActive()) {
       window.__xray.updateAtom(atomId, atom);
+    }
+    if (shed) {
+      // A nucleus that left its element behind has to tell the rest of the app.
+      if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
+      if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     }
     paintGun();
   }
@@ -658,8 +935,11 @@
       const s = lastShot.iso;
       isoLine.innerHTML = esc(L('lastShot')) + ': <b>' + esc(s.label) + '</b> · ' +
         esc(L('isotopeLine', { a: s.a, z: s.z, n: s.n })) +
-        (lastShot.warn ? '<div class="ng-flag">⚠ ' + esc(L(lastShot.verdictKey)) + '</div>'
+        (lastShot.warn ? '<div class="ng-flag"><i data-lucide="triangle-alert" class="st-lc"></i>' + esc(L(lastShot.verdictKey)) + '</div>'
                        : '<div>' + esc(L(lastShot.verdictKey)) + '</div>');
+      try {
+        window.lucide && window.lucide.createIcons({ nameAttr: 'data-lucide', root: isoLine });
+      } catch (e) {}
     }
   }
 
@@ -800,36 +1080,42 @@
       g: {
         massTitle: 'Phân bố khối lượng mảnh vỡ — {nu}',
         massNote: 'Hiệu suất độc lập Y(A), % trên mỗi số khối; tổng bằng 200 % vì mỗi phân hạch sinh ra hai mảnh. {src} Vạch đỏ: phép chia đôi mà bạn vừa buộc {nu} thực hiện.',
-        srcEval: 'Đường cong là số liệu đã đo cho U-236*, hạt nhân mà U-235 hóa thành khi bắt một neutron nhiệt.',
+        massNoteReal: 'Hiệu suất độc lập Y(A), % trên mỗi số khối; tổng bằng 200 % vì mỗi phân hạch sinh ra hai mảnh. {src} Vạch đỏ: hai hạt nhân mà {nu} thực sự vỡ thành, {f1} và {f2}.',
+        srcEval: 'Đường cong là mô hình bản này khớp với số liệu đo của U-236*, hai đỉnh ở A = 95 và A = 140.',
         srcModel: 'Đường cong là mô hình bản này tính cho {nu} theo đúng độ dễ phân hạch của nó (Z²/A = {x}); chưa có số liệu đo cho hạt nhân này.',
         mark: 'chia đôi · khoảng {p} % số vụ phân hạch rơi vào đây',
+        markReal: '{f1} + {f2}: khoảng {p} % số vụ phân hạch gửi một mảnh nhẹ qua vạch thứ nhất, {ph} % gửi một mảnh nặng qua vạch thứ hai',
         energyTitle: 'Phân bố năng lượng — {q} MeV cho một phép chia đôi {nu}',
+        energyTitleReal: 'Phân bố năng lượng — {q} MeV cho một vụ phân hạch của {nu}',
         energyNote: 'Tính bằng công thức khối lượng bán thực nghiệm Bethe–Weizsäcker cho đúng cặp mảnh này. Phân hạch thật của {nu} thích hai mảnh không đều: ≈ {qAsym} MeV, còn U-235 với neutron nhiệt đo được {qMeasured} MeV.',
+        energyNoteReal: 'Công thức khối lượng trả lời {qp} MeV cho đúng cặp này, {f1} + {f2}. {srcT} {ke} MeV trong số đó rời đi dưới dạng động năng của hai mảnh, và đó chính là phần làm nóng mọi thứ chúng chạm vào.',
+        srcTotalMeasured: 'Tổng năng lượng in ở đây là số đo nhiệt lượng của {nu}.',
+        srcTotalModel: 'Chưa ai đo tổng năng lượng của {nu}, nên con số in ở đây chính là Q của công thức khối lượng kia.',
         eLab: ['động năng mảnh', 'neutron', 'gamma tức thời', 'beta', 'gamma sản phẩm', 'neutrino'],
-        total: 'Tổng phát ra tức thời',
+        total: 'Tổng năng lượng cho một vụ phân hạch',
         perKg: '1 phân hạch = {j} J · 1 mol {nu} = {kJ} kJ',
         axisA: 'số khối A',
         axisY: 'Y(A) %, đỉnh {peak}',
         lose: 'thoát ra ngoài, không thu hồi được'
       },
       facts: [
-        'Hai mảnh vỡ mang đi ≈ {ke} MeV động năng; cả vụ chia đôi {nu} bạn vừa xem được ≈ {q} MeV ≈ {j} J.',
+        'Hai mảnh vỡ mang đi ≈ {ke} MeV động năng; một vụ phân hạch {nu} tổng cộng ≈ {q} MeV ≈ {j} J.',
         '1 kg {nu} phân hạch hoàn toàn: ≈ {ekg} J ≈ {kt} kiloton TNT — đương lượng của một quả bom trút xuống một thành phố.',
         'Hiroshima, 6-8-1945: quả Little Boy chở 64 kg uranium, chưa tới 1 kg kịp phân hạch; 90.000 – 146.000 người đã chết trước cuối năm đó.',
         'Một liên kết hóa học bạn vừa xây ở đây: ≈ 4 eV. Phân hạch mạnh gấp ≈ {ratio} lần.',
         'Thời gian phân hủy của Pu-239 là 24.100 năm: sau đúng một thời gian phân hủy — 240 thế kỷ — một nửa chất độc vẫn còn đó, lâu hơn mọi nền văn minh trên mặt đất.'
       ],
       dialogue: [
-        { who: 'aria', text: 'Bạn còn ở đó không? Ánh sáng vừa tan, và tôi không còn thấy phân tử nào nữa.' },
-        { who: 'you', text: 'Tôi vẫn ở đây. Thế giới thì không.' },
+        { who: 'aria', text: 'Bạn còn ở đó không? Ánh sáng vừa tan. {nu} không còn nữa, và {f1} với {f2} đang đứng ngay chỗ nó.' },
+        { who: 'you', text: 'Tôi vẫn ở đây. Căn phòng cũng vậy — và tôi không chắc ai trong hai chúng tôi tệ hơn.' },
         { who: 'aria', text: 'Chỉ một hạt nhân vừa tách đôi: {nu} hóa thành {f1} và {f2}. Hai mảnh, ≈ {nubar} neutron, {q} MeV — gấp ≈ {ratioM} triệu lần năng lượng của một liên kết hóa học.' },
-        { who: 'you', text: 'Tất cả những gì tôi xây bao lâu nay… giờ chỉ còn tro.' },
-        { who: 'aria', text: 'Tro là cách nói đẹp. Đó là bụi của những nguyên tử từng là mái nhà, là cửa kính, là cơ thể con người.' },
+        { who: 'you', text: 'Một neutron, một hạt nhân, và không khí ở đây giờ là không khí nhiễm xạ.' },
+        { who: 'aria', text: 'Hai mảnh vỡ mới là phần nhiễm xạ: cả hai đều giàu neutron, cả hai đều phát beta, và công cụ phân rã đang chạy đồng hồ của chúng. Đó là thứ một lò phản ứng phải che chắn, và là thứ một quả bom để lại trên thành phố.' },
         { who: 'you', text: 'Sao tôi không thấy giận? Tôi chỉ thấy trống.' },
         { who: 'aria', text: 'Vì giận là cảm giác của người còn sống. Bạn còn sống — đó không phải tai nạn, đó là trách nhiệm.' },
         { who: 'aria', text: 'Nguyên tử không biết gì về chiến tranh. Proton, neutron, lực hạt nhân mạnh, định luật bảo toàn — chúng chỉ làm đúng điều đó. Khác biệt giữa một lò phản ứng và một thành phố bị xóa sổ không phải vật lý. Là lựa chọn.' },
-        { who: 'you', text: 'Vậy tôi phải làm gì với đống đổ nát này?' },
-        { who: 'aria', text: 'Điều duy nhất một nhà hóa học làm được: xây lại. Từng liên kết một.' },
+        { who: 'you', text: 'Vậy tôi phải làm gì với hai hạt nhân kia?' },
+        { who: 'aria', text: 'Điều duy nhất một nhà hóa học làm được: xây tiếp thứ khác quanh chúng. Từng liên kết một.' },
         { who: 'aria', text: 'Và nhớ rằng mỗi liên kết bạn tạo ra đều có hai tương lai: giữ ấm một thành phố, hoặc đốt cháy nó.' },
         { who: 'aria', text: 'Hòa bình không phải trạng thái mặc định của vật chất. Nó là một phản ứng mà con người phải cân bằng lại mỗi ngày.' }
       ]
@@ -843,36 +1129,42 @@
       g: {
         massTitle: 'Fragment mass yield — {nu}',
         massNote: 'Independent cumulative yield Y(A), % per mass unit; it sums to 200 % because every fission gives two fragments. {src} Red line: the even split you just forced on {nu}.',
-        srcEval: 'The curve is evaluated yield data for U-236*, the nucleus U-235 becomes when it captures a thermal neutron.',
+        massNoteReal: 'Independent cumulative yield Y(A), % per mass unit; it sums to 200 % because every fission gives two fragments. {src} Red lines: the two nuclei {nu} actually broke into, {f1} and {f2}.',
+        srcEval: 'The curve is this build fit to the yields measured for U-236*, peaked at A = 95 and A = 140.',
         srcModel: 'The curve is a model built for {nu} from its own fissility (Z²/A = {x}); no evaluated yield data exists for this nucleus.',
         mark: 'even split · about {p} % of fissions land here',
+        markReal: '{f1} + {f2}: about {p} % of fissions send a light fragment through the first line, {ph} % a heavy one through the second',
         energyTitle: 'Energy release — {q} MeV per even split of {nu}',
+        energyTitleReal: 'Energy release — {q} MeV for one fission of {nu}',
         energyNote: 'Computed with the semi-empirical Bethe–Weizsäcker mass formula for exactly this pair. A real {nu} prefers unequal fragments: ≈ {qAsym} MeV, against the {qMeasured} MeV measured for thermal-neutron U-235.',
+        energyNoteReal: 'The mass formula answers {qp} MeV for exactly this pair, {f1} + {f2}. {srcT} {ke} MeV of it leaves as the kinetic energy of the two fragments, which is the part that heats anything they touch.',
+        srcTotalMeasured: 'The total quoted here is the calorimetric value measured for {nu}.',
+        srcTotalModel: 'No total energy has been measured for {nu}, so the total quoted here is that same mass-formula Q.',
         eLab: ['fragment kinetic', 'neutrons', 'prompt gamma', 'beta', 'product gamma', 'neutrinos'],
-        total: 'Prompt energy released',
+        total: 'Total energy released per fission',
         perKg: 'one fission = {j} J · 1 mol of {nu} = {kJ} kJ',
         axisA: 'mass number A',
         axisY: 'Y(A) %, peak {peak}',
         lose: 'escapes, cannot be recovered'
       },
       facts: [
-        'The two fragments carry away ≈ {ke} MeV of kinetic energy; one even split of {nu} totals ≈ {q} MeV ≈ {j} J.',
+        'The two fragments carry away ≈ {ke} MeV of kinetic energy; one fission of {nu} totals ≈ {q} MeV ≈ {j} J.',
         '1 kg of {nu} fully fissioned: ≈ {ekg} J ≈ {kt} kilotonnes of TNT — the yield of a bomb dropped on a city.',
         'Hiroshima, 6 August 1945: Little Boy carried 64 kg of uranium and less than 1 kg actually fissioned; 90,000 – 146,000 people were dead by the end of that year.',
         'A chemical bond you just built in here: ≈ 4 eV. Fission is ≈ {ratio} times stronger per event.',
         'Pu-239 has a decay time of 24,100 years: after exactly one decay time — 240 centuries — half the poison is still there, longer than every civilisation on this ground.'
       ],
       dialogue: [
-        { who: 'aria', text: 'Are you still there? The light just cleared, and I cannot find a single molecule left.' },
-        { who: 'you', text: 'I am still here. The world is not.' },
+        { who: 'aria', text: 'Are you still there? The light just cleared. {nu} is gone, and {f1} and {f2} are standing where it was.' },
+        { who: 'you', text: 'I am still here. So is the room — and I am not sure which of us is worse off.' },
         { who: 'aria', text: 'One nucleus split: {nu} into {f1} and {f2}. Two fragments, ≈ {nubar} neutrons, {q} MeV — about {ratioM} million times the energy of one chemical bond.' },
-        { who: 'you', text: 'Everything I built… is ash now.' },
-        { who: 'aria', text: 'Ash is the polite word. It is dust from atoms that were roofs, and windows, and people.' },
+        { who: 'you', text: 'One neutron, one nucleus, and the air in here is radioactive now.' },
+        { who: 'aria', text: 'The fragments are the radioactive part: both of them neutron-rich, both of them beta emitters, and the engine is already running their clocks. That is what a reactor has to shield, and what a bomb leaves on a city.' },
         { who: 'you', text: 'Why am I not angry? I only feel empty.' },
         { who: 'aria', text: 'Because anger belongs to the living. You are alive — that is not an accident, it is a responsibility.' },
         { who: 'aria', text: 'Atoms know nothing about war. Protons, neutrons, the strong force, conservation — that is all they do. The difference between a reactor and a city wiped off the map is not physics. It is a choice.' },
-        { who: 'you', text: 'So what do I do with this ruin?' },
-        { who: 'aria', text: 'The only thing a chemist can do: build it back. One bond at a time.' },
+        { who: 'you', text: 'So what do I do with the two of them?' },
+        { who: 'aria', text: 'The only thing a chemist can do: build something else around them. One bond at a time.' },
         { who: 'aria', text: 'And remember that every bond you make has two futures: warming a city, or burning one down.' },
         { who: 'aria', text: 'Peace is not the default state of matter. It is a reaction we have to balance again every single day.' }
       ]
@@ -1174,10 +1466,70 @@
     };
   }
 
+  // The panels describing a fission that really happened. triggerFission hands the
+  // event over, so the masses under the red lines, the neutron count and the energy
+  // are the ones the scene was paid - not a re-imagination of them. Only the yield
+  // curve is still a distribution: it exists to say how likely the draw was.
+  function cineRealEvent(real, z, a, sym, nameOf, NU) {
+    const model = real.model || NU.yieldModel(z, a);
+    const peaks = model.peaks;
+    let lo = Infinity, hi = -Infinity, muLight = 0, muHeavy = 0;
+    for (let i = 0; i < peaks.length; i++) {
+      lo = Math.min(lo, peaks[i].mu - 4 * peaks[i].sigma);
+      hi = Math.max(hi, peaks[i].mu + 4 * peaks[i].sigma);
+      if (!muLight || peaks[i].mu < muLight) muLight = peaks[i].mu;
+      if (peaks[i].mu > muHeavy) muHeavy = peaks[i].mu;
+    }
+    // The fragments have to be inside the window the marks are drawn on, or the
+    // plot would show a curve the event is not on.
+    lo = Math.max(10, Math.min(lo, real.light.a - 3));
+    hi = Math.max(hi, real.heavy.a + 3);
+    const curve = {
+      at: function (mass) { return NU.yieldAt(z, a, mass); },
+      lo: Math.round(lo), hi: Math.round(hi)
+    };
+    let peak = 0;
+    for (let i = 0; i <= 400; i++) {
+      const y = curve.at(curve.lo + ((curve.hi - curve.lo) * i) / 400);
+      if (y > peak) peak = y;
+    }
+    // The six-part partition below is measured for U-236*; for another nucleus it
+    // is that same shape applied to the nucleus' own total, which the panel says.
+    const parts = ENERGY_MEV.map(function (m) { return (m * real.energy) / Q_U236_MEASURED; });
+    return {
+      real: true,
+      z: z, a: a, label: sym + '-' + a, nuName: nameOf(z),
+      nubar: real.nu, a1: real.light.a, a2: real.heavy.a,
+      frag1: nameOf(real.light.z) + '-' + real.light.a,
+      frag2: nameOf(real.heavy.z) + '-' + real.heavy.a,
+      // A +/-3 mass unit band around each fragment, as a share of the 200 % total.
+      evenShare: Math.min(100, (curve.at(real.light.a) * 6 / 200) * 100),
+      heavyShare: Math.min(100, (curve.at(real.heavy.a) * 6 / 200) * 100),
+      al: muLight, ah: muHeavy, mid: model.mid,
+      fissility: model.fissility, measured: !!model.measured,
+      curve: curve, peak: peak, axisMax: peak * 1.08,
+      // The headline number of the panels is the energy the world was paid; the
+      // mass formula's own answer for the exact pair is quoted beside it, labelled.
+      q: real.energy, qPair: real.q, energySource: real.energySource,
+      parts: parts, kinetic: parts[0], qPreferred: real.q,
+      lightEnergy: real.lightEnergy, heavyEnergy: real.heavyEnergy,
+      jPerFission: real.qJ,
+      kjPerMol: real.kjPerMol,
+      jPerKg: real.jPerKg,
+      kilotonnes: real.kilotonnes,
+      bondRatio: (real.energy * 1e6) / BOND_EV
+    };
+  }
+
   function cineEvent(opts) {
     const z = Math.max(2, Math.round(Number(opts.z) || 92));
     const a = Math.max(4, Math.round(Number(opts.a) || z * 2.55));
     const sym = opts.sym || (findElement(z) || { sym: 'Z' + z }).sym;
+    const nameOf = function (zz) { const e = findElement(zz); return e ? (e.name || e.sym) : 'Z' + zz; };
+    const NU = window.__nuclear;
+    if (opts.event && opts.event.light && NU && typeof NU.yieldAt === 'function') {
+      return cineRealEvent(opts.event, z, a, sym, nameOf, NU);
+    }
     const zLight = Math.floor(z / 2), zHeavy = z - zLight;
     const split = evenSplit(z, a);
     const mid = split.massLeft / 2;
@@ -1210,7 +1562,6 @@
     const parts = ENERGY_MEV.map(function (m) { return (m * q) / Q_U236_MEASURED; });
     const jPerFission = q * MEV_IN_J;
     const jPerKg = (1000 / a) * AVOGADRO * jPerFission;
-    const nameOf = function (zz) { const e = findElement(zz); return e ? (e.name || e.sym) : 'Z' + zz; };
     const fragNames = opts.fragNames || [nameOf(zLight), nameOf(zHeavy)];
     return {
       z: z, a: a, label: sym + '-' + a, nuName: nameOf(z),
@@ -1220,6 +1571,8 @@
       curve: curveWindow, peak: peak, axisMax: peak * 1.08,
       // A +/-3 mass unit window around the even split, as a share of the 200 % total.
       evenShare: Math.min(100, (curveWindow.at(mid) * 6 / 200) * 100),
+      heavyShare: Math.min(100, (curveWindow.at(mid) * 6 / 200) * 100),
+      qPair: q, energySource: 'SEMF',
       q: q, parts: parts, kinetic: parts[0], qPreferred: qPreferred,
       jPerFission: jPerFission,
       kjPerMol: (jPerFission * AVOGADRO) / 1000,
@@ -1265,13 +1618,18 @@
       name: ev.nuName,
       x: cineNum(ev.fissility, 1),
       p: cineNum(ev.evenShare, ev.evenShare < 10 ? 1 : 0),
+      ph: cineNum(ev.heavyShare, ev.heavyShare < 10 ? 1 : 0),
       q: cineNum(ev.q, 1),
+      qp: cineNum(ev.qPair, 1),
       ke: cineNum(ev.kinetic, 1),
       qAsym: cineNum(ev.qPreferred, 1),
       qMeasured: cineSci(Q_U236_MEASURED, 1),
       j: cineSci(ev.jPerFission, 2),
       kJ: cineSci(ev.kjPerMol, 2),
       kgJ: cineSci(ev.jPerKg, 1),
+      // The caption prints this one as {ekg}; without it the raw token was reaching
+      // the screen, which is the one failure cineT promises out loud.
+      ekg: cineSci(ev.jPerKg, 1),
       kt: cineNum(ev.kilotonnes, ev.kilotonnes < 100 ? 1 : 0),
       ratio: cineSci(ev.bondRatio, 1),
       ratioM: cineNum(ev.bondRatio / 1e6, 0),
@@ -1291,14 +1649,18 @@
     const P = cineParams(ev);
     const g = S.g;
     P.src = cineT(ev.measured ? g.srcEval : g.srcModel, P);
+    P.srcT = cineT(ev.energySource === 'measured' ? g.srcTotalMeasured : g.srcTotalModel, P);
+    // A fission the engine actually performed gets the panels that describe it;
+    // the even-split wording is only for a nucleus nobody split.
+    const real = !!ev.real;
     return {
       params: P,
       massTitle: cineT(g.massTitle, P),
-      massNote: cineT(g.massNote, P),
-      mark: cineT(g.mark, P),
+      massNote: cineT(real ? g.massNoteReal : g.massNote, P),
+      mark: cineT(real ? g.markReal : g.mark, P),
       axisY: cineT(g.axisY, P),
-      energyTitle: cineT(g.energyTitle, P),
-      energyNote: cineT(g.energyNote, P),
+      energyTitle: cineT(real ? g.energyTitleReal : g.energyTitle, P),
+      energyNote: cineT(real ? g.energyNoteReal : g.energyNote, P),
       perKg: cineT(g.perKg, P),
       facts: S.facts.map(function (f) { return cineT(f, P); }),
       dialogue: S.dialogue.map(function (d) { return { who: d.who, text: cineT(d.text, P) }; })
@@ -1613,6 +1975,185 @@
     return meshes;
   }
 
+  // --- Nucleons you can see --------------------------------------------------
+  // A shot used to be an invisible contract: click, and a nucleus was different.
+  // Both particles now cross the scene as the things they are - a red ball for a
+  // proton, a gray one for a neutron, the same two colors the x-ray view paints the
+  // nucleus with - and the nucleus only answers when the particle lands. What the
+  // drip line refuses is drawn the same way, flying back out.
+  //
+  // The arrival runs on a timer and the flight runs on frames. That is deliberate:
+  // requestAnimationFrame stops dead in a hidden tab, and a transmutation the player
+  // paid a star for must not wait for the tab to come back. The timer applies the
+  // physics even when the frames never came; the frame loop only decides where the
+  // ball is drawn, so a skipped frame costs a stutter and nothing else.
+  const NUC = {
+    proton: { color: 0xff0000, r: 0.09 },
+    neutron: { color: 0x888888, r: 0.09 }
+  };
+  const SHOT_SPEED = 26;         // scene units per second, so a far atom takes longer
+  const EJECT_RANGE = 2.1, EJECT_SPEED = 5.2;
+  const MUZZLE_GAP = 1.4;        // where the ball appears in front of the camera
+  const nucAssets = {};
+  const flying = [];
+  let flyingFrame = 0;
+
+  function nucMesh(kind) {
+    const API = window.__mol3d;
+    if (!API || !API.THREE || !API.scene || !NUC[kind]) return null;
+    const THREE = API.THREE;
+    if (!nucAssets[kind]) {
+      nucAssets[kind] = {
+        geo: new THREE.SphereGeometry(NUC[kind].r, 12, 12),
+        mat: new THREE.MeshBasicMaterial({ color: NUC[kind].color })
+      };
+    }
+    const m = new THREE.Mesh(nucAssets[kind].geo, nucAssets[kind].mat);
+    // Not a target for the gun's own raycast, and not something the label culler
+    // should ever mistake for an atom.
+    m.raycast = function () {};
+    return m;
+  }
+
+  function dropNucleon(i) {
+    const p = flying.splice(i, 1)[0];
+    if (p.timer) clearTimeout(p.timer);
+    if (p.mesh && p.mesh.parent) p.mesh.parent.remove(p.mesh);
+    if (p.onArrive && !p.arrived) { p.arrived = true; p.onArrive(); }
+  }
+
+  function finishNucleon(p) {
+    const i = flying.indexOf(p);
+    if (i >= 0) dropNucleon(i);
+  }
+
+  function driveFlying() {
+    flyingFrame = 0;
+    const now = performance.now();
+    for (let i = flying.length - 1; i >= 0; i--) {
+      const p = flying[i];
+      const t = Math.min(1, (now - p.t0) / p.dur);
+      p.mesh.position.set(
+        p.from.x + (p.to.x - p.from.x) * t,
+        p.from.y + (p.to.y - p.from.y) * t,
+        p.from.z + (p.to.z - p.from.z) * t
+      );
+      // Ejecta shrinks away rather than popping out of existence; a shot keeps its
+      // size to the last frame, because the next thing you see is the nucleus change.
+      if (p.fade) p.mesh.scale.setScalar(Math.max(0.02, 1 - t));
+      if (t >= 1 && !p.onArrive) dropNucleon(i);
+    }
+    const API = window.__mol3d;
+    if (API && API.invalidate) API.invalidate();
+    if (flying.length) flyingFrame = requestAnimationFrame(driveFlying);
+  }
+
+  // The one way a nucleon enters or leaves the scene. False means there is no
+  // renderer to draw on, and the caller applies its physics immediately instead of
+  // scheduling them - a headless console test still shoots.
+  function flyNucleon(kind, from, to, ms, opts) {
+    const API = window.__mol3d;
+    const mesh = nucMesh(kind);
+    if (!mesh || !API) return false;
+    const p = {
+      kind: kind, mesh: mesh, t0: performance.now(), dur: Math.max(60, ms),
+      from: { x: from.x, y: from.y, z: from.z }, to: { x: to.x, y: to.y, z: to.z },
+      fade: !!(opts && opts.fade), onArrive: opts && opts.onArrive ? opts.onArrive : null,
+      arrived: false, timer: null
+    };
+    mesh.position.set(p.from.x, p.from.y, p.from.z);
+    API.scene.add(mesh);
+    flying.push(p);
+    // The end of a nucleon's life is told by the clock, not by the frame loop: a
+    // page that stops painting (a backgrounded tab) still gets the shot applied and
+    // still gets the ball taken back out of the scene.
+    p.timer = setTimeout(function () { p.timer = null; finishNucleon(p); }, p.dur + 20);
+    if (!flyingFrame) flyingFrame = requestAnimationFrame(driveFlying);
+    return true;
+  }
+
+  // Fire the particle the magazine just gave up. It leaves from in front of the
+  // camera along the aiming ray and lands on the nucleus, where the shot is applied.
+  function fireNucleon(kind, ray, target, onArrive) {
+    const d = Math.hypot(target.x - ray.origin.x, target.y - ray.origin.y, target.z - ray.origin.z);
+    const from = {
+      x: ray.origin.x + ray.direction.x * MUZZLE_GAP,
+      y: ray.origin.y + ray.direction.y * MUZZLE_GAP,
+      z: ray.origin.z + ray.direction.z * MUZZLE_GAP
+    };
+    const travel = Math.max(0, d - MUZZLE_GAP);
+    return flyNucleon(kind, from, target, travel / SHOT_SPEED * 1000, { onArrive: onArrive });
+  }
+
+  // The nucleus throwing its surplus back. One ball per nucleon, in directions drawn
+  // afresh each time, because prompt emission has no preferred way out.
+  function drawEjection(atom, shed) {
+    if (!atom || !atom.pos) return;
+    const at = { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z };
+    const ms = EJECT_RANGE / EJECT_SPEED * 1000;
+    for (let i = 0; i < shed.neutrons; i++) {
+      const dir = randomDirection();
+      flyNucleon('neutron', at, {
+        x: at.x + dir.x * EJECT_RANGE, y: at.y + dir.y * EJECT_RANGE, z: at.z + dir.z * EJECT_RANGE
+      }, ms, { fade: true });
+    }
+    for (let i = 0; i < shed.protons; i++) {
+      const dir = randomDirection();
+      flyNucleon('proton', at, {
+        x: at.x + dir.x * EJECT_RANGE, y: at.y + dir.y * EJECT_RANGE, z: at.z + dir.z * EJECT_RANGE
+      }, ms, { fade: true });
+    }
+  }
+
+  // What one landed shot actually does to the nucleus it found. Split out of the
+  // click handler because it now runs a few frames after the trigger, and the atom
+  // it was aimed at may have spent that time leaving the scene.
+  function applyShot(kind, atomId, paid) {
+    const atom = window.__mol3d && window.__mol3d.atoms ? window.__mol3d.atoms.get(atomId) : null;
+    if (!atom) {
+      // The particle was fired, so the magazine already gave it up; a nucleus that
+      // is not there to take it gets the particle back.
+      refundAmmo(kind);
+      showStatus(L('shotLost', { kind: L(kindKey(kind)) }) + refundNote(kind), 'err');
+      paintGun();
+      return;
+    }
+    if (atom.el.z > 82) {
+      if (timerAtomId === atomId && timerInterval) {
+        refundAmmo(kind);
+        showStatus(tt('pg.alreadyCritical') + refundNote(kind));
+        paintGun();
+        return;
+      }
+      // Whether this shot splits the nucleus is a question about the nuclide and
+      // about the neutron, not about the element. A fissile nucleus splits on
+      // capture; a fertile heavy one takes the gamble described above; a proton
+      // shot never splits anything - it moves one place up the table. Fertile
+      // U-238 + n that loses is U-239, and the decay engine carries it the rest of
+      // the way to plutonium-239, which is fissile and splits on the next shot.
+      const N = window.__nuclear;
+      const aNow = massNumberOf(atomId, atom);
+      const compound = aNow + 1;
+      const canSplit = kind === 'neutron' && N &&
+        typeof N.sampleFission === 'function' && N.fissionable(atom.el.z, compound);
+      const splits = !!canSplit &&
+        (isFissile(atom.el.z, aNow) || Math.random() < FAST_FISSION_CHANCE);
+      if (splits) {
+        // The countdown names the compound nucleus that is about to split:
+        // U-235 + n is U-236*, and it is the U-236* that breaks.
+        startCriticalTimer(atom, atomId, compound);
+      } else if (kind === 'neutron') {
+        addNeutron(atom, atomId, paid);
+      } else {
+        addProton(atom, atomId, paid);
+      }
+      paintGun();
+      return;
+    }
+    if (kind === 'neutron') addNeutron(atom, atomId, paid);
+    else addProton(atom, atomId, paid);
+  }
+
   function shootProton(event) {
     if (!active || !window.__mol3d || !window.__mol3d.THREE) return;
     var THREE = window.__mol3d.THREE;
@@ -1641,27 +2182,24 @@
     var atom = window.__mol3d.atoms.get(atomId);
     if (!atom) return;
 
-    if (atom.el.z > 82) {
-      // If already counting down on this atom, don't reset
-      if (timerAtomId === atomId && timerInterval) {
-        showStatus(tt('pg.alreadyCritical'));
-        return;
-      }
-      // A particle that starts a chain reaction is still a particle that was fired,
-      // so the countdown is paid for too - and refused before anything happens if
-      // the magazine is empty.
-      const paidHeavy = spendAmmo(mode);
-      if (!paidHeavy.ok) { refuseForAmmo(mode); return; }
-      startCriticalTimer(atom, atomId);
-      paintGun();
-    } else {
-      // The shop hands over the particle first: a shot that was not paid for does
-      // not exist, and an empty magazine must leave the atom exactly as it was.
-      const paid = spendAmmo(mode);
-      if (!paid.ok) { refuseForAmmo(mode); return; }
-      if (mode === 'neutron') addNeutron(atom, atomId, paid);
-      else addProton(atom, atomId, paid);
+    // Asked before the trigger is pulled, and asked again when the particle lands:
+    // a nucleus that is already splitting cannot take another particle, and the
+    // player must not pay for a shot this build refuses to fire.
+    if (atom.el.z > 82 && timerAtomId === atomId && timerInterval) {
+      showStatus(tt('pg.alreadyCritical'));
+      return;
     }
+
+    // The shop hands over the particle first: a shot that was not paid for does
+    // not exist, and an empty magazine must leave the atom exactly as it was.
+    var paid = spendAmmo(mode);
+    if (!paid.ok) { refuseForAmmo(mode); return; }
+
+    var kind = mode;
+    var target = { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z };
+    var deliver = function () { applyShot(kind, atomId, paid); };
+    if (!fireNucleon(kind, raycaster.ray, target, deliver)) deliver();
+    paintGun();
   }
 
   function addProton(atom, atomId, paid) {
@@ -1683,31 +2221,39 @@
     // and 3H + p is 3He, one of them heavier than the new element's natural average
     // and the other lighter than it. A mass number carries both.
     var aBefore = massNumberOf(atomId, atom);
-    var isNoble = NOBLE_GASES.has(newZ);
     atom.el = newEl;
     setNuclide(atomId, newZ, aBefore + 1);
+
+    var compound = isotopeOfAtom(atomId, atom);
+    var shed = settleNucleus(compound.z, compound.a);
+    if (shed && shed.finalZ !== compound.z) applyNucleus(atom, atomId, shed.finalZ, shed.finalA);
+    else if (shed) setNuclide(atomId, shed.finalZ, shed.finalA);
+
     var after = isotopeOfAtom(atomId, atom);
-    var verdict = stabilityVerdict(newZ, after.a);
+    var verdict = stabilityVerdict(after.z, after.a);
 
     var tail = spendTail(paid, 'proton');
-    if (isNoble) {
-      var bondsBroken = 0;
-      for (var entry of window.__mol3d.bonds) {
-        var b = entry[1];
-        if (b.a === atomId || b.b === atomId) {
-          window.__mol3d.bonds.delete(entry[0]);
-          bondsBroken++;
-        }
-      }
-      showStatus(tt('pg.addedProtonNoble', { from: oldSym, to: newEl.name, z: newZ, n: bondsBroken }) + tail);
+    var head;
+    if (shed) {
+      // The compound nucleus existed for about 10^-22 s and gave a nucleon back.
+      // Saying what is left is the honest part; the capture itself is still true.
+      head = ejectionNote(shed, after.z, after.a);
+      drawEjection(atom, shed);
+      if (NOBLE_GASES.has(after.z)) head += L('ejectSevered', { n: severBonds(atomId) });
+    } else if (NOBLE_GASES.has(newZ)) {
+      head = tt('pg.addedProtonNoble', { from: oldSym, to: newEl.name, z: newZ, n: severBonds(atomId) });
     } else {
-      showStatus(tt('pg.addedProton', { from: oldSym, to: newEl.name, z: newZ }) + tail);
+      head = tt('pg.addedProton', { from: oldSym, to: newEl.name, z: newZ });
     }
+    showStatus(head + ' ' + verdictText(atom.el, after, verdict) + tail,
+      verdict.key === 'inBand' ? 'ok' : 'err');
 
     setLastShot(after, verdict);
 
     if (window.__mol3d.updateAtomLabel) {
-      window.__mol3d.updateAtomLabel(atomId, newEl);
+      // atom.el, not newEl: when the nucleus threw a proton back out the element the
+      // shot aimed at is not the element standing there.
+      window.__mol3d.updateAtomLabel(atomId, atom.el);
     }
 
     if (window.__xray && window.__xray.isActive && window.__xray.isActive()) {
@@ -1723,13 +2269,14 @@
     paintGun();
   }
 
-  function startCriticalTimer(atom, atomId) {
+  function startCriticalTimer(atom, atomId, compoundA, gen) {
     clearCriticalTimer();
     timerAtomId = atomId;
-    var countdown = 60;
+    var countdown = CRITICAL_SECONDS;
     // A shot at a nucleus already counting down is refused, so the isotope armed
     // here is the isotope that splits - and it is the one the countdown names.
-    var isotopeName = atom.el.name + '-' + massNumberOf(atomId, atom);
+    var a = compoundA || massNumberOf(atomId, atom);
+    var isotopeName = atom.el.name + '-' + a;
 
     showStatus(tt('pg.critical', { name: isotopeName, z: atom.el.z, n: countdown }));
     createCriticalOverlay();
@@ -1752,7 +2299,7 @@
 
       if (countdown <= 0) {
         clearCriticalTimer();
-        triggerFission(atomId);
+        triggerFission(atomId, { compoundA: a, gen: gen });
       }
     }, 1000);
   }
@@ -1768,36 +2315,149 @@
     cam.lookAt(0, 0, 0);
   }
 
-  function triggerFission(atomId) {
+  // A unit vector, uniformly over the sphere. The split has no preferred
+  // direction in the lab, so the axis the two fragments fly apart along is drawn
+  // and both of them use the same one.
+  function randomDirection() {
+    const u = Math.random() * 2 - 1;
+    const t = Math.random() * Math.PI * 2;
+    const s = Math.sqrt(Math.max(0, 1 - u * u));
+    return { x: s * Math.cos(t), y: s * Math.sin(t), z: u };
+  }
+
+  function radiusOf(el) {
+    return 0.28 + ((el && el.radius) || 150) / 110;
+  }
+
+  // The two halves of the event, placed and moving. `charge: false` keeps them out
+  // of the crate - the player never bought a caesium nucleus, the universe handed it
+  // to them - and `silent` keeps the engine from selecting one and rewriting the
+  // status line the fission is about to print.
+  function spawnFragment(z, a, at, vel) {
+    const el = findElement(z);
+    const API = window.__mol3d;
+    if (!el || !API || typeof API.spawnAtom !== 'function') return null;
+    const id = API.spawnAtom(el, { x: at.x, y: at.y, z: at.z }, { charge: false, silent: true });
+    if (id === null || id === undefined) return null;
+    // The isotope record has to exist before anything reads the atom: the label is
+    // drawn from it, and so is the decay clock the sweep runs a second later. A
+    // fission product is born neutron-rich, which is exactly why it decays.
+    setNuclide(id, z, a);
+    const atom = API.atoms.get(id);
+    if (atom) atom.vel = { x: vel.x, y: vel.y, z: vel.z };
+    if (API.updateAtomLabel) API.updateAtomLabel(id, el);
+    if (window.__xray && window.__xray.isActive && window.__xray.isActive()) {
+      // updateAtom builds the structure when there is none, which is the case for
+      // both fragments: they were not in the scene a moment ago.
+      window.__xray.updateAtom(id, atom);
+    }
+    return id;
+  }
+
+  // Prompt neutrons are what makes a fission more than the death of one nucleus:
+  // each one leaves the split at about 2 MeV, and a 2 MeV neutron has roughly the
+  // one-in-four chance described above of splitting a heavy nucleus it meets. Only
+  // a fissile nucleus is taken as a certain catch here, because that chance is what
+  // the shot itself already rolled.
+  function releasePromptNeutrons(ev, from, gen, sourceId) {
+    const out = { caught: 0, escaped: ev.nu };
+    const API = window.__mol3d;
+    if (!API || !API.atoms || gen >= MAX_CHAIN_GEN) return out;
+    const targets = [];
+    for (const pair of API.atoms) {
+      const id = pair[0], atom = pair[1];
+      if (!atom || !atom.el) continue;
+      // The nucleus that is splitting cannot catch one of its own neutrons: it is
+      // the source, and counting it would both claim a chain that is not there and
+      // schedule a second detonation of an atom that is about to be deleted.
+      if (id === sourceId) continue;
+      const a = massNumberOf(id, atom);
+      if (!isFissile(atom.el.z, a)) continue;
+      const d = Math.hypot(atom.pos.x - from.x, atom.pos.y - from.y, atom.pos.z - from.z);
+      if (d > CHAIN_RADIUS) continue;
+      targets.push({ id: id, atom: atom, compoundA: a + 1, d: d });
+    }
+    targets.sort(function (p, q) { return p.d - q.d; });
+    const take = Math.min(targets.length, ev.nu);
+    for (let i = 0; i < take; i++) {
+      const t = targets[i];
+      // A generation is not instantaneous: the neutron has to cross the gap, and
+      // staggering them also keeps one frame from detonating a whole uranium bag.
+      // The second generation gets no countdown - the player warned themselves
+      // about the first one, and a prompt chain does not wait for anyone.
+      //
+      // The crossing is the flight of the particle, drawn rather than waited for:
+      // one gray ball per neutron, and the nucleus it lands on answers when it lands.
+      const ms = 300 + i * 400;
+      const onto = { x: t.atom.pos.x, y: t.atom.pos.y, z: t.atom.pos.z };
+      const detonate = function () {
+        if (!window.__mol3d || !window.__mol3d.atoms.has(t.id)) return;
+        triggerFission(t.id, { compoundA: t.compoundA, gen: gen + 1 });
+      };
+      if (!flyNucleon('neutron', from, onto, ms, { onArrive: detonate })) {
+        setTimeout(detonate, ms);
+      }
+      out.caught++;
+    }
+    out.escaped = ev.nu - out.caught;
+    // The neutrons that found no nucleus in time still left the split, and a
+    // 2 MeV neutron does not simply stop existing off the edge of the screen.
+    for (let i = 0; i < out.escaped; i++) {
+      const dir = randomDirection();
+      flyNucleon('neutron', from, {
+        x: from.x + dir.x * 6, y: from.y + dir.y * 6, z: from.z + dir.z * 6
+      }, 900, { fade: true });
+    }
+    return out;
+  }
+
+  // opts.compoundA: the nucleus that actually splits. A captured neutron is part of
+  // it by then, so a shot at U-235 splits U-236; a spontaneous fission has no
+  // capture and splits the nucleus as it stands.
+  function triggerFission(atomId, opts) {
     if (!window.__mol3d || !window.__mol3d.atoms) return;
     var atom = window.__mol3d.atoms.get(atomId);
     if (!atom) return;
+    var N = window.__nuclear;
     var oldZ = atom.el.z;
     var oldName = atom.el.name;
+    var oldSym = atom.el.sym;
     // Read before the ledger record dies with the atom: the cinematic has to quote
     // the isotope the player actually built, not the element it is made of.
-    var oldA = massNumberOf(atomId, atom);
-    var oldSym = atom.el.sym;
+    var oldA = (opts && opts.compoundA) || massNumberOf(atomId, atom);
+    var gen = (opts && opts.gen) || 0;
     var pos = { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z };
     // The bubble has to grow from where the atom actually is on screen, so read it
-    // while the atom still exists; clearAll() later would make it unresolvable.
+    // while the atom still exists; the fragments take its place a moment later.
     var screen = window.__mol3d.screenPosOf ? window.__mol3d.screenPosOf(atomId) : null;
+
+    // The split itself is not invented here. nuclear.js draws the fragment masses
+    // from this nucleus' own yield curve, fixes the complement by conservation,
+    // assigns their charges by unchanged-charge distribution, and only accepts a
+    // pair the mass formula says releases energy.
+    var ev = N && typeof N.sampleFission === 'function' ? N.sampleFission(oldZ, oldA) : null;
+    if (!ev) {
+      // No pair the formula will pay for: the nucleus stays one nucleus, and the
+      // shot that aimed at it has to be told so rather than answered with a show.
+      showStatus(L('fissionDeclined', {
+        parent: oldName + '-' + oldA, sym: oldSym, a: oldA, z: oldZ
+      }));
+      return;
+    }
+    var caught = releasePromptNeutrons(ev, pos, gen, atomId);
 
     if (window.__xray && window.__xray.removeAtom) {
       window.__xray.removeAtom(atomId);
     }
 
-    var split1 = Math.floor(oldZ / 2);
-    var split2 = oldZ - split1;
-    var el1 = findElement(split1);
-    var el2 = findElement(split2);
-    if (!el1 || !el2) return;
-    var fragments = evenSplit(oldZ, oldA);
+    var lightEl = findElement(ev.light.z);
+    var heavyEl = findElement(ev.heavy.z);
+    if (!lightEl || !heavyEl) return;
 
     window.__mol3d.atoms.delete(atomId);
     // The atom is gone, so its isotope record goes with it; the sweep below would
     // catch it a second later, but fission is exactly when the ledger should be
-    // clean because the wasteland reset can reuse ids.
+    // clean because the fragments take over the space it left.
     neutronLedger.delete(atomId);
     saveLedger();
     setLastShot(null, null);
@@ -1805,6 +2465,23 @@
       var b = entry[1];
       if (b.a === atomId || b.b === atomId) window.__mol3d.bonds.delete(entry[0]);
     }
+
+    // Back to back along one axis, touching at the moment of the split, then
+    // apart. Momentum is equal and opposite, so the lighter fragment is the faster
+    // one by exactly the ratio of the masses, and the speeds below carry the
+    // energies the event reports rather than a number picked for the animation.
+    var dir = randomDirection();
+    var gapLight = radiusOf(lightEl) + 0.25;
+    var gapHeavy = radiusOf(heavyEl) + 0.25;
+    var betaLight = Math.sqrt(2 * ev.lightEnergy / (ev.light.a * NEUTRON_MASS_MEV));
+    var betaHeavy = Math.sqrt(2 * ev.heavyEnergy / (ev.heavy.a * NEUTRON_MASS_MEV));
+    var vL = FRAG_SPEED * betaLight, vH = FRAG_SPEED * betaHeavy;
+    var f1 = spawnFragment(ev.light.z, ev.light.a, {
+      x: pos.x + dir.x * gapLight, y: pos.y + dir.y * gapLight, z: pos.z + dir.z * gapLight
+    }, { x: dir.x * vL, y: dir.y * vL, z: dir.z * vL });
+    var f2 = spawnFragment(ev.heavy.z, ev.heavy.a, {
+      x: pos.x - dir.x * gapHeavy, y: pos.y - dir.y * gapHeavy, z: pos.z - dir.z * gapHeavy
+    }, { x: -dir.x * vH, y: -dir.y * vH, z: -dir.z * vH });
 
     if (window.__mol3d.vfx && window.__mol3d.vfx.reactionVFX && window.__mol3d.THREE) {
       window.__mol3d.vfx.reactionVFX.fission(
@@ -1815,27 +2492,39 @@
       window.__mol3d.triggerNuclearVFX();
     }
 
-    showStatus(tt('pg.fission', {
-      name: oldName + '-' + oldA,
-      a: el1.name + '-' + fragments.a1,
-      b: el2.name + '-' + fragments.a2
-    }));
+    var labelLight = N.nuclideLabel(ev.light.z, ev.light.a);
+    var labelHeavy = N.nuclideLabel(ev.heavy.z, ev.heavy.a);
+    var note = L('fissionShot', {
+      parent: oldSym + '-' + oldA,
+      f1: labelLight, f2: labelHeavy,
+      nu: ev.nu, energy: N.formatEnergy(ev.energy),
+      src: L(ev.energySource === 'measured' ? 'srcMeasured' : 'srcModel')
+    });
+    // A fragment that could not be placed is a fact about the scene, not a detail
+    // to smooth over: the split happened, one of its halves is not in front of you.
+    if (f1 === null) note += L('fragMissing', { f: labelLight });
+    if (f2 === null) note += L('fragMissing', { f: labelHeavy });
+    if (caught.caught > 0) note += L('chainNote', { n: caught.caught });
+    showStatus(note);
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();
 
     // White bubble from the fission point -> 10 s whiteout -> irradiated wasteland,
-    // then ARIA walks the player through what just happened.
+    // then ARIA walks the player through the nucleus that actually split.
     playFissionCinematic({
       origin: screen,
       elementName: oldName,
       z: oldZ,
       a: oldA,
       sym: oldSym,
-      fragNames: [el1.name, el2.name],
-      onReveal: function() {
-        if (window.__mol3d.clearAll) window.__mol3d.clearAll();
-        resetCameraToGround();
+      event: ev,
+      fragNames: [lightEl.name, heavyEl.name],
+      // The world is not erased. Two new nuclei are standing where one was, and
+      // they are radioactive: the aftermath is the point.
+      onReveal: function () {
+        if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
+        if (window.__mol3d.invalidate) window.__mol3d.invalidate();
       }
     });
   }
@@ -1921,6 +2610,11 @@
         var iso = this.isotopeOf(atomId);
         return iso ? stabilityVerdict(iso.z, iso.a) : null;
       },
+      // The drip line is a claim about the charts, not about this file's opinion, so
+      // both the span it reads and what a nucleus would settle to are readable here.
+      dripSpanOf: function(z) { return measuredSpan(z); },
+      settleTo: function(z, a) { return settleNucleus(z, a); },
+      nucleonsInFlight: function() { return flying.length; },
       panelOpen: function() { return !!(panel && panel.classList.contains('open')); }
     });
   }

@@ -31,7 +31,6 @@
       },
       rows: {
         discovery: 'Discover a new molecule',
-        daily: 'Daily reward (streak)',
         quest: 'Finish a quest',
         spend: 'Buy anything in the shop',
         grade: 'Stars per grade',
@@ -130,7 +129,6 @@
       },
       rows: {
         discovery: 'Khám phá phân tử mới',
-        daily: 'Phần thưởng hằng ngày (chuỗi ngày)',
         quest: 'Hoàn thành nhiệm vụ',
         spend: 'Mua bất cứ gì trong cửa hàng',
         grade: 'Sao mỗi bậc',
@@ -270,7 +268,6 @@
     var ranks = a && a.progression ? a.progression.ranks() : [];
     var rows = '';
     rows += row(s.rows.discovery, '+1 ★');
-    rows += row(s.rows.daily, '+1…+5 ★');
     rows += row(s.rows.quest, '+1…+5 ★');
     rows += row(s.rows.spend, '−★', 'htp-neg');
     rows += '<div class="htp-sep"></div>';

@@ -71,8 +71,6 @@
     { id: 'mayhem', icon: 'flame', stars: 4, price: 150 }
   ];
 
-  var INCOME = { daily: 20 };
-
   var STR = {
     en: {
       title: 'Supply Shop',
@@ -88,8 +86,6 @@
       bought: 'Purchased {name} for {price} stars',
       boughtAtoms: 'Bought {n} × {name} for {price} stars',
       notEnough: 'Not enough stars for {name} ({price} needed)',
-      earnDiscovery: '+{n} stars · new discovery',
-      earnDaily: '+{n} stars · daily reward',
       hint: 'Drag the rope down to open the shop',
       close: 'Close',
       spendHint: 'Your stars are your rank progress — buying spends them and can downrank you',
@@ -130,8 +126,6 @@
       bought: 'Đã mua {name} với {price} sao',
       boughtAtoms: 'Đã mua {n} × {name} với {price} sao',
       notEnough: 'Không đủ sao cho {name} (cần {price})',
-      earnDiscovery: '+{n} sao · phát hiện mới',
-      earnDaily: '+{n} sao · thưởng hằng ngày',
       hint: 'Kéo dây thừng xuống để mở cửa hàng',
       close: 'Đóng',
       spendHint: 'Sao cũng chính là tiến độ cấp bậc — mua sắm sẽ tiêu sao và có thể hạ cấp bạn',
@@ -163,9 +157,9 @@
   var state = { features: [], seenHint: false };
   var ownedFeatures = new Set();
   // stock[z] = atoms bought and lying in the crate. inScene[z] = atoms bought this
-  // session and currently standing in the world. A delete may only put an atom
-  // back while it is owed, which is what stops a cheap atom from being transmuted
-  // into an expensive one and refunded as the expensive one.
+  // session and currently standing in the world. An atom that leaves the world is
+  // destroyed, not shelved: the delete may only retire a unit the crate actually
+  // owes, and what the world has eaten stays eaten.
   var stock = {};
   var inScene = {};
   // Atoms already out of the crate when this page loaded cannot be re-registered by
@@ -260,10 +254,12 @@
   }
   // The price of anything made of atoms: the sum of its parts, always the same
   // number for the same molecule, in the shop, in the dex and on the tooltip.
+  // The multiplier lands here too, so a BluePrint export and a dex summon are
+  // charged the same adjusted price the shop card shows.
   function priceOfAtoms(list) {
     var total = 0;
     for (var i = 0; i < (list || []).length; i++) total += unitPrice(zOf(list[i]));
-    return total;
+    return listed(total, 0);
   }
   function crateTotal() {
     var n = 0, stars = 0;
@@ -274,6 +270,19 @@
       stars += stock[k] * unitPrice(z);
     }
     return { atoms: n, stars: stars };
+  }
+  // What the crate holds, one row per element, priced the way the shelf prices it.
+  // Read-only: the stock map itself never leaves this module.
+  function crateList() {
+    var out = [];
+    for (var k in stock) {
+      var z = Number(k);
+      if (!(stock[k] > 0)) continue;
+      var el = elementByZ(z);
+      out.push({ z: z, sym: el ? el.sym : 'Z' + z, name: el ? nameOf(el) : 'Z' + z, n: stock[k], unit: unitPrice(z) });
+    }
+    out.sort(function (a, b) { return b.unit * b.n - a.unit * a.n; });
+    return out;
   }
   function featureById(id) {
     for (var i = 0; i < FEATURES.length; i++) if (FEATURES[i].id === id) return FEATURES[i];
@@ -305,7 +314,13 @@
       return null;
     }
   }
+  // The economy core owns the balance once it is mounted: it keeps a sealed
+  // sub-star remainder alongside the integer rank ledger, so a 0.1x price can be
+  // charged exactly. Without it the shop falls back to whole stars.
+  function econ() { return window.__mol3dEcon || null; }
   function balance() {
+    var e = econ();
+    if (e) return e.balance();
     var rm = rankMgr();
     return rm ? Math.max(0, Math.round(rm.totalStars) || 0) : 0;
   }
@@ -324,10 +339,43 @@
   // Deduct from the rank ledger; refuses when the balance cannot cover the price,
   // because removeStars clamps at zero and would otherwise grant the item for less.
   function spend(n) {
+    if (!(n > 0)) return false;
+    var e = econ();
+    if (e) return e.debit(n, 'shop');
     var rm = rankMgr();
-    if (!(n > 0) || !rm) return false;
+    if (!rm) return false;
     if (balance() < n) return false;
     rm.removeStars(n);
+    return true;
+  }
+  // Pack and event rewards arrive already paid for, so they enter the crate
+  // without a charge. Everything else about stock accounting is unchanged.
+  function grantStock(z, n) {
+    var q = Math.max(0, Math.floor(n || 0));
+    if (!(z > 0) || !q) return 0;
+    var got = addStock(z, q);
+    save();
+    notify();
+    return got;
+  }
+  function grantAmmo(kind, n) {
+    if (!ammo.hasOwnProperty(kind)) return 0;
+    var q = Math.max(0, Math.floor(n || 0));
+    if (!q) return 0;
+    var before = ammo[kind] || 0;
+    ammo[kind] = Math.min(MAX_STOCK_PER_ELEMENT, before + q);
+    save();
+    notify();
+    return ammo[kind] - before;
+  }
+  function grantFeature(id) {
+    if (!FEATURES.some(function(f) { return f.id === id; })) return false;
+    if (ownedFeatures.has(id)) return false;
+    ownedFeatures.add(id);
+    state.features = Array.from(ownedFeatures);
+    save();
+    refreshFeatureLocks();
+    notify();
     return true;
   }
 
@@ -420,6 +468,25 @@
     if (rm && typeof rm.payableStars === 'function') return rm.payableStars();
     return Infinity;
   }
+  // One normalisation for both the appraisal and the apply, so the value the
+  // importer budgets against is exactly the value it is about to install.
+  function proposedState(d) {
+    var stockMap = normalizeCountMap(d && d.stock);
+    if (d && Array.isArray(d.elements)) {
+      d.elements.forEach(function(z) {
+        var n = Number(z);
+        if (n > 0) bumpStock(stockMap, n, 1);
+      });
+    }
+    var ammoMap = normalizeAmmo(d && d.ammo);
+    var features = (d && Array.isArray(d.features)) ? d.features.filter(function(x) { return typeof x === 'string'; }) : [];
+    return { stock: stockMap, ammo: ammoMap, features: features };
+  }
+  function appraiseState(d) {
+    if (!d || typeof d !== 'object') return 0;
+    var p = proposedState(d);
+    return inventoryValue(p.stock, p.ammo) + featureValue(p.features);
+  }
   function normalizeAmmo(d) {
     var out = { proton: 0, neutron: 0 };
     if (d && typeof d === 'object') {
@@ -467,26 +534,35 @@
     stock[z] = cur + granted;
     return granted;
   }
-  // Every atom that leaves the scene comes back through here, and only while the
-  // crate says the world still owes it. Reactions, the atmosphere, decay fragments
-  // and other players' atoms were never bought, so deleting them returns nothing.
-  // What comes back is the crate unit that went out, never stars: paid in stars, a
-  // cheap atom could be transmuted and cashed in as an expensive one.
-  function refundAtom(z) {
+  // Oblivion. Every atom that leaves the scene comes back through here, and only
+  // while the crate says the world still owes it: reactions, the atmosphere, decay
+  // fragments and other players' atoms were never bought, so they owe nothing. The
+  // unit itself is not returned to the shelf - placing an atom spends it, and a
+  // deletion destroys it. The only way to get it back is to buy it again.
+  function loseAtom(z) {
     if (!(z > 0)) return false;
     var owed = inScene[z] || 0;
     if (owed <= 0) return false;
     inScene[z] = owed - 1;
     if ((claimed[z] || 0) > inScene[z]) claimed[z] = inScene[z];
-    addStock(z, 1);
     save();
     notify();
     return true;
   }
-  function refundAtoms(zs) {
-    var n = 0;
-    for (var i = 0; i < (zs || []).length; i++) if (refundAtom(zOf(zs[i]))) n++;
-    return n;
+  // A transmutation is the same atom with a different nucleus, so the loan moves
+  // with it instead of being retired and re-bought: nothing is destroyed, nothing
+  // is charged, and the crate can never hand out an element it was never paid for.
+  function moveLoan(fromZ, toZ) {
+    if (!(fromZ > 0) || !(toZ > 0)) return false;
+    if (fromZ === toZ) return true;
+    var owed = inScene[fromZ] || 0;
+    if (owed <= 0) return false;
+    inScene[fromZ] = owed - 1;
+    if ((claimed[fromZ] || 0) > inScene[fromZ]) claimed[fromZ] = inScene[fromZ];
+    inScene[toZ] = (inScene[toZ] || 0) + 1;
+    save();
+    notify();
+    return true;
   }
   // A reload empties the game side's id ledger while the crate still remembers how
   // many atoms of each element it loaned out. Adopting hands out at most that many
@@ -508,12 +584,29 @@
     notify();
     return true;
   }
+  // Shipping units to another player through a gift code is the third thing that
+  // can happen to a unit of stock, alongside placing it and buying more: the
+  // units leave the crate without ever becoming a loan, because they are not
+  // going onto the table. The count that actually left is returned so a failed
+  // upload can hand back exactly what was taken.
+  function shipStock(z, n) {
+    var q = Math.max(0, Math.floor(n || 0));
+    if (!(z > 0) || !q) return 0;
+    var have = stock[z] || 0;
+    var sent = Math.min(have, q);
+    if (sent <= 0) return 0;
+    stock[z] = have - sent;
+    save();
+    notify();
+    return sent;
+  }
   // Buys a mixed bag in one charge: the dex summon and the assistant both price a
   // molecule as the sum of its atoms and take the whole amount off in one go.
   function buyAtoms(list) {
     var cost = priceOfAtoms(list);
     if (cost <= 0) return { ok: true, cost: 0 };
     if (!spend(cost)) return { ok: false, cost: cost };
+    consumeUse();
     for (var i = 0; i < list.length; i++) addStock(zOf(list[i]), 1);
     save();
     notify();
@@ -521,19 +614,20 @@
   }
   function buyElement(z, n) {
     var qty = Math.max(1, Math.floor(n || buyQty));
-    var price = unitPrice(z) * qty;
+    var price = listed(unitPrice(z) * qty, 0);
     var el = elementByZ(z);
     if (!el) return false;
     if (!spend(price)) {
-      status('⚠ ' + fmt(S('notEnough'), { name: nameOf(el), price: price }), 'err');
+      status('⚠ ' + fmt(S('notEnough'), { name: nameOf(el), price: pstr(price) }), 'err');
       shake();
       return false;
     }
+    consumeUse();
     var got = addStock(z, qty);
     save();
     render();
     notify();
-    announce(price, got + ' × ' + nameOf(el));
+    announce(pstr(price), got + ' × ' + nameOf(el));
     pop(el);
     return true;
   }
@@ -543,18 +637,19 @@
   function buyAmmo(kind, n) {
     if (!ammo.hasOwnProperty(kind)) return false;
     var qty = Math.max(1, Math.floor(n || buyQty));
-    var price = AMMO_PRICE * qty;
+    var price = listed(AMMO_PRICE * qty, 0);
     var label = (S('ammoName') || {})[kind] || kind;
     if (!spend(price)) {
-      status('⚠ ' + fmt(S('notEnough'), { name: label, price: price }), 'err');
+      status('⚠ ' + fmt(S('notEnough'), { name: label, price: pstr(price) }), 'err');
       shake();
       return false;
     }
+    consumeUse();
     ammo[kind] = Math.min(MAX_STOCK_PER_ELEMENT, (ammo[kind] || 0) + qty);
     save();
     render();
     notify();
-    announce(price, qty + ' × ' + label);
+    announce(pstr(price), qty + ' × ' + label);
     return true;
   }
   // One particle out of the magazine per shot. The gun asks before it fires, so a
@@ -604,16 +699,6 @@
     var f = featureById(id);
     return '🔒 ' + S('locked') + (f ? ' · ' + sf(id) : '');
   }
-  function earn(kind, amount) {
-    var n = amount != null ? amount : (INCOME[kind] || 0);
-    if (!(n > 0)) return;
-    var rm = rankMgr();
-    if (!rm || typeof rm.addStars !== 'function') return;
-    rm.addStars(n);
-    var label = kind === 'daily' ? S('earnDaily') : S('earnDiscovery');
-    status(fmt(label, { n: n }), 'info');
-  }
-
   function priceOf(base, floor) {
     if (!(base > 0)) return 0;
     var b = balance();
@@ -625,22 +710,48 @@
   function isDynamic() {
     return balance() > PCT_THRESHOLD;
   }
+  // The one price every surface must show and charge. The caller passes the
+  // ordinary listed price (features run it through priceOf first, atoms and
+  // elements are already listed); the economy core applies the active multiplier
+  // or event on top. Cards and the affordability pass both call this, so a chip
+  // can never quote a number the checkout would not take.
+  function listed(base, floor) {
+    var e = econ();
+    if (e) return e.quote(base, { floor: floor || 0 }).final;
+    return Math.max(base, floor || 0);
+  }
+  function priceMarkup(base, floor) {
+    var e = econ();
+    if (!e) return esc(String(base)) + ' ★';
+    return e.priceHtml(base, { floor: floor || 0 });
+  }
+  function pstr(n) {
+    var e = econ();
+    return e ? e.fmt(n) : String(n);
+  }
 
   function buyFeature(id) {
     var f = featureById(id);
     if (!f || ownsFeature(id)) return;
-    var price = priceOf(f.price, f.min);
+    var price = listed(priceOf(f.price, f.min), 0);
     if (balance() < price || !spend(price)) {
-      status('⚠ ' + fmt(S('notEnough'), { name: sf(id), price: price }), 'err');
+      status('⚠ ' + fmt(S('notEnough'), { name: sf(id), price: pstr(price) }), 'err');
       shake();
       return;
     }
+    consumeUse();
     ownedFeatures.add(id);
     save();
     render();
     refreshFeatureLocks();
     announce(price, sf(id));
     pop(null, id);
+  }
+  // One eligible purchase spends one use of the active multiplier. The economy
+  // core resets to 1x on the tenth, and an event discount never spends a use.
+  function consumeUse() {
+    var e = econ();
+    if (e) e.consumeUse();
   }
   // The rank ledger may have moved down as a side effect of the purchase.
   function announce(price, name) {
@@ -699,7 +810,7 @@
   }
 
   function updateBalance() {
-    if (balanceEl) balanceEl.textContent = balance() + ' ★';
+    if (balanceEl) balanceEl.textContent = pstr(balance()) + ' ★';
     var rankEl = document.getElementById('shop-rank');
     if (rankEl) rankEl.textContent = rankLabel();
     updateDynMode();
@@ -708,47 +819,89 @@
   var renderedTab = null;
   var renderedSig = '';
   var filterText = '';
+  // Other modules own whole shop categories (wheel, packs, offers, event shop).
+  // They register a tab here so the panel keeps one set of chrome and one
+  // affordance pass instead of every feature building its own window.
+  var extTabs = [];
+
+  function extById(id) {
+    for (var i = 0; i < extTabs.length; i++) if (extTabs[i].id === id) return extTabs[i];
+    return null;
+  }
+
+  // ext = { id, label(), render() -> HTMLElement, sig()?, order? }
+  // Registering twice replaces the entry, so a hot reload cannot duplicate a tab.
+  function registerTab(ext) {
+    if (!ext || !ext.id || typeof ext.render !== 'function') return false;
+    var existing = extById(ext.id);
+    if (existing) extTabs.splice(extTabs.indexOf(existing), 1);
+    extTabs.push(ext);
+    extTabs.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+    var strip = panel && panel.querySelector('.shop-tabs');
+    if (strip) {
+      var btn = strip.querySelector('.shop-tab[data-tab="' + ext.id + '"]');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'shop-tab';
+        btn.dataset.tab = ext.id;
+      }
+      btn.textContent = ext.label();
+      // Keep the registered order rather than the order modules happened to load.
+      var next = null;
+      extTabs.forEach(function(x) {
+        if (next || x.id === ext.id) return;
+        var after = extTabs.indexOf(x) > extTabs.indexOf(ext);
+        if (after) next = strip.querySelector('.shop-tab[data-tab="' + x.id + '"]');
+      });
+      strip.insertBefore(btn, next);
+    }
+    renderedTab = null;
+    render();
+    return true;
+  }
 
   function stockSig() {
     var n = 0;
     for (var k in stock) n += stock[k];
+    var e = econ();
+    var ext = extById(tab);
     return tab + '|' + lang() + '|' + buyQty + '|' + filterText + '|' + n + '|' +
-      (ammo.proton + ammo.neutron) + '|' + Array.from(ownedFeatures).sort().join(',');
+      (ammo.proton + ammo.neutron) + '|' + Array.from(ownedFeatures).sort().join(',') +
+      '|' + (e ? e.sig() : '') + '|' + (ext && ext.sig ? ext.sig() : '');
   }
 
   // Star changes fire on every discovery; rebuilding 118 cards for that is wasteful,
   // so the cheap path only refreshes the chips and the affordability styling.
-  // The chips must be rewritten too: with dynamic pricing the number depends on balance.
+  // The chips must be rewritten too: dynamic pricing depends on balance, and the
+  // multiplier or an event can change the price without the balance moving.
   function refreshAffordability() {
     if (!panel) return;
     var b = balance();
     panel.querySelectorAll('.shop-card[data-unit], .shop-row[data-base]').forEach(function(node) {
-      var unit = Number(node.dataset.unit);
-      var p = node.dataset.base
+      var base = node.dataset.base
         ? priceOf(Number(node.dataset.base), Number(node.dataset.min))
-        : unit * buyQty;
+        : Number(node.dataset.unit) * buyQty;
+      var p = listed(base, 0);
       node.classList.toggle('is-poor', b < p);
       var chip = node.querySelector('.shop-card-price');
-      if (chip) chip.textContent = p + ' ★';
+      if (chip && !node.classList.contains('is-owned')) chip.innerHTML = priceMarkup(base, 0);
     });
-  }
-
-  function priceChip(owned, price) {
-    return owned ? esc(S('owned')) : esc(String(price)) + ' ★';
   }
 
   function updateDynMode() {
     var el = document.getElementById('shop-dyn');
     if (!el) return;
-    if (!isDynamic()) {
+    if (!isDynamic() || extById(tab)) {
       el.hidden = true;
       return;
     }
     el.hidden = false;
-    el.textContent = '⚡ ' + fmt(S('dynMode'), {
+    el.innerHTML = ic('zap') + esc(fmt(S('dynMode'), {
       pct: Math.round(PCT_RATE * 100),
-      stars: balance()
-    });
+      stars: pstr(balance())
+    }));
+    iconsIn(el);
   }
 
   function render() {
@@ -766,7 +919,9 @@
       return;
     }
     body.innerHTML = '';
-    if (tab === 'elements') body.appendChild(elementGrid());
+    var ext = extById(tab);
+    if (ext) body.appendChild(ext.render());
+    else if (tab === 'elements') body.appendChild(elementGrid());
     else if (tab === 'ammo') body.appendChild(ammoList());
     else body.appendChild(featureList());
     panel.querySelectorAll('.shop-tab').forEach(function(b) {
@@ -799,7 +954,8 @@
     var total = crateTotal();
     var crate = document.createElement('span');
     crate.className = 'shop-qty-crate';
-    crate.textContent = '🧰 ' + fmt(S('crateTotal'), { n: total.atoms, stars: total.stars });
+    crate.innerHTML = ic('package') + esc(fmt(S('crateTotal'), { n: total.atoms, stars: total.stars }));
+    iconsIn(crate);
     bar.appendChild(crate);
     return bar;
   }
@@ -837,7 +993,7 @@
     buyableElements().forEach(function(el) {
       if (q && matchText(el).indexOf(q) < 0) return;
       var have = stockOf(el.z);
-      var price = unitPrice(el.z) * buyQty;
+      var price = listed(unitPrice(el.z) * buyQty, 0);
       var card = document.createElement('button');
       card.type = 'button';
       card.className = 'shop-card' + (have > 0 ? ' is-stocked' : '') + (balance() >= price ? '' : ' is-poor');
@@ -847,9 +1003,9 @@
         '<span class="shop-card-sym">' + esc(el.sym) + '</span>' +
         '<span class="shop-card-name">' + esc(nameOf(el)) + '</span>' +
         '<span class="shop-card-stars">' + starRow(starsOf(el.z), 5) + '</span>' +
-        '<span class="shop-card-price">' + esc(String(price)) + ' ★</span>' +
+        '<span class="shop-card-price">' + priceMarkup(unitPrice(el.z) * buyQty, 0) + '</span>' +
         '<span class="shop-card-stock">' + esc(String(have)) + ' ' + esc(S('stockOf')) + '</span>';
-      card.title = fmt(S('unitPrice'), { n: unitPrice(el.z) });
+      card.title = fmt(S('unitPrice'), { n: pstr(listed(unitPrice(el.z), 0)) });
       card.addEventListener('click', function() { buyElement(el.z, buyQty); });
       wrap.appendChild(card);
     });
@@ -869,7 +1025,7 @@
     wrap.className = 'shop-list';
     AMMO.forEach(function(a) {
       var have = ammoOf(a.id);
-      var price = AMMO_PRICE * buyQty;
+      var price = listed(AMMO_PRICE * buyQty, 0);
       var row = document.createElement('button');
       row.type = 'button';
       row.className = 'shop-row' + (have > 0 ? ' is-stocked' : '') + (balance() >= price ? '' : ' is-poor');
@@ -883,7 +1039,7 @@
         '</span>' +
         '<span class="shop-row-right">' +
           '<span class="shop-card-stars">' + starRow(a.stars, 5) + '</span>' +
-          '<span class="shop-card-price">' + esc(String(price)) + ' ★</span>' +
+          '<span class="shop-card-price">' + priceMarkup(AMMO_PRICE * buyQty, 0) + '</span>' +
         '</span>';
       row.addEventListener('click', function() { buyAmmo(a.id, buyQty); });
       wrap.appendChild(row);
@@ -907,7 +1063,7 @@
       var owned = ownsFeature(f.id);
       var row = document.createElement('button');
       row.type = 'button';
-      var price = priceOf(f.price, f.min);
+      var price = listed(priceOf(f.price, f.min), 0);
       row.className = 'shop-row' + (owned ? ' is-owned' : '') + (balance() >= price ? '' : ' is-poor');
       row.dataset.feature = f.id;
       row.dataset.base = String(f.price);
@@ -920,7 +1076,7 @@
         '</span>' +
         '<span class="shop-row-right">' +
           '<span class="shop-card-stars">' + starRow(f.stars, 5) + '</span>' +
-          '<span class="shop-card-price">' + priceChip(owned, price) + '</span>' +
+          '<span class="shop-card-price">' + (owned ? esc(S('owned')) : priceMarkup(priceOf(f.price, f.min), 0)) + '</span>' +
         '</span>';
       row.addEventListener('click', function() { buyFeature(f.id); });
       wrap.appendChild(row);
@@ -939,6 +1095,17 @@
     try {
       if (typeof window.lucide !== 'undefined' && window.lucide.createIcons) window.lucide.createIcons();
     } catch (e) {}
+  }
+
+  // Scoped hydration + markup helper for the two inline icons below.
+  function iconsIn(root) {
+    try {
+      if (typeof window.lucide !== 'undefined' && window.lucide.createIcons)
+        window.lucide.createIcons({ nameAttr: 'data-lucide', root: root });
+    } catch (e) {}
+  }
+  function ic(name) {
+    return '<i data-lucide="' + name + '" class="st-lc"></i>';
   }
 
   function shake() {
@@ -1069,7 +1236,7 @@
       '#shop-rig.hint #shop-hint{opacity:1;}',
       '#shop-panel{width:100%;pointer-events:none;visibility:hidden;background:var(--panel);border:1px solid var(--border);',
       '  border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.5);backdrop-filter:blur(14px);',
-      '  overflow:hidden;transform:translateY(-112%);opacity:0;',
+      '  display:flex;flex-direction:column;overflow:hidden;transform:translateY(-112%);opacity:0;',
       '  transition:transform .52s cubic-bezier(.2,.9,.28,1.06),opacity .3s,visibility 0s linear .52s;}',
       '#shop-rig.open #shop-panel,#shop-rig.dragging #shop-panel{transform:none;opacity:1;pointer-events:auto;visibility:visible;',
       '  transition:transform .52s cubic-bezier(.2,.9,.28,1.06),opacity .3s,visibility 0s;}',
@@ -1084,15 +1251,18 @@
       '.shop-close{width:24px;height:24px;border-radius:8px;border:1px solid var(--border);background:transparent;',
       '  color:var(--muted);cursor:pointer;font-size:13px;line-height:1;}',
       '.shop-close:hover{color:var(--text);border-color:var(--accent);}',
-      '.shop-tabs{display:flex;gap:6px;padding:8px 12px 0;}',
-      '.shop-tab{flex:1;padding:6px 8px;border-radius:10px 10px 0 0;border:1px solid var(--border);',
+      '.shop-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 0;}',
+      '.shop-tab{flex:1 1 auto;min-width:72px;padding:6px 8px;border-radius:10px 10px 0 0;border:1px solid var(--border);',
       '  border-bottom:none;background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-weight:600;}',
       '.shop-tab.on{color:var(--text);background:var(--panel-2);}',
       '.shop-dyn{display:block;padding:6px 12px;font-size:10px;font-weight:600;color:var(--warn,#ffcf5c);',
       '  background:var(--warn-soft,rgba(255,207,92,.10));border-bottom:1px solid var(--border);}',
       '.shop-dyn[hidden]{display:none;}',
       '.shop-body{max-height:min(46vh,380px);overflow-y:auto;padding:10px 12px 12px;',
-      '  touch-action:pan-y;-webkit-overflow-scrolling:touch;}',
+      '  flex:1 1 auto;min-height:0;touch-action:pan-y;-webkit-overflow-scrolling:touch;}',
+      // The responsive shell caps the panel's height; without these the body would
+      // overflow this box and the last rows would be clipped instead of scrolled.
+      '.shop-head,.shop-tabs,.shop-dyn{flex:none;}',
       '.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;}',
       '.shop-list{display:flex;flex-direction:column;gap:6px;}',
       '.shop-card,.shop-row{position:relative;display:flex;background:var(--panel-2);border:1px solid var(--border);',
@@ -1140,6 +1310,13 @@
       '@keyframes shopPop{0%{transform:translate(-50%,-50%) scale(.4);opacity:0;}',
       '30%{transform:translate(-50%,-60%) scale(1.25);opacity:1;}',
       '100%{transform:translate(-50%,-150%) scale(1);opacity:0;}}',
+      /* Light shell: the brand cyan of the balance chip measures 3.2:1 at 12px on a
+         light panel, and the floating star popup's neon gold nearly disappears over
+         the light scene. --rz-ink is that cyan deepened for light only, so the accent
+         identity survives without retuning the app-wide token. */
+      'html[data-theme=light] .shop-balance{color:var(--rz-ink,#0369a1)}',
+      'html[data-theme=light] .shop-ledger-note{color:var(--rz-ink,#0369a1);opacity:1}',
+      'html[data-theme=light] .shop-pop{color:#7d5300;text-shadow:0 0 14px rgba(125,83,0,.45);}',
       'body.mobile #shop-rig{right:10px;width:min(360px,94vw);--rope-w:104px;--rope-img-h:102px;}',
       '@media (max-width:640px){',
       '  #shop-rig{right:10px;width:min(360px,94vw);--rope-w:104px;--rope-img-h:102px;}',
@@ -1241,7 +1418,6 @@
       ownsFeature: ownsFeature,
       blocksFeature: blocksFeature,
       lockedMessage: lockedMessage,
-      earn: earn,
       open: open,
       close: close,
       toggle: toggle,
@@ -1252,6 +1428,16 @@
       buyFeature: buyFeature,
       priceOf: priceOf,
       isDynamic: isDynamic,
+      // The economy hook and the category registry: every new shop surface goes
+      // through these so pricing and chrome stay in one place.
+      listed: listed,
+      priceMarkup: priceMarkup,
+      registerTab: registerTab,
+      showTab: function(id) { tab = id; open(); render(); icons(); },
+      rerender: function() { renderedTab = null; render(); icons(); },
+      grantStock: grantStock,
+      grantAmmo: grantAmmo,
+      grantFeature: grantFeature,
       // The shop owns the only copy of the feature labels; the How-to-Play guide
       // reads them from here so the two can never drift apart.
       featureName: function (id) { return sf(id); },
@@ -1263,13 +1449,16 @@
         ladder: priceLadder(), unitPrice: unitPrice, starsOf: starsOf
       },
       // The crate: what the player owns, what the world currently owes them, and
-      // the two ways an atom moves between the crate and the table.
+      // the way an atom moves from the crate to the table. The trip back does not
+      // exist - a lost atom is retired, a transmuted one only changes name.
       stockOf: stockOf,
       owedOf: owedOf,
       crateTotal: crateTotal,
+      crateList: crateList,
       takeAtom: takeAtom,
-      refundAtom: refundAtom,
-      refundAtoms: refundAtoms,
+      shipStock: shipStock,
+      loseAtom: loseAtom,
+      moveLoan: moveLoan,
       claimOwed: claimOwed,
       starsOf: starsOf,
       valueOfAtoms: priceOfAtoms,
@@ -1295,25 +1484,22 @@
           features: Array.from(ownedFeatures)
         };
       },
-      importState: function(d) {
+      appraiseState: appraiseState,
+      importState: function(d, budget) {
         if (!d || typeof d !== 'object') return false;
-        var nextStock = normalizeCountMap(d.stock);
-        if (Array.isArray(d.elements)) {
-          // A pre-stock save: every unlock it recorded comes back as one atom.
-          d.elements.forEach(function(z) {
-            var n = Number(z);
-            if (n > 0) bumpStock(nextStock, n, 1);
-          });
-        }
-        var nextAmmo = normalizeAmmo(d.ammo);
-        var nextFeatures = Array.isArray(d.features) ? d.features.filter(function(x) { return typeof x === 'string'; }) : [];
+        var prop = proposedState(d);
+        var nextStock = prop.stock;
+        var nextAmmo = prop.ammo;
+        var nextFeatures = prop.features;
         // Crate units, gun particles and features are all bought with stars, so a
         // file can only bring in what this browser's ledger says it paid for.
-        // Anything the ledger cannot cover comes back empty rather than free.
+        // The budget is lifetime earnings minus the balance being restored: the
+        // crate was bought out of stars already recorded as spent, so holding it
+        // against the remaining balance would drop a legitimate backup's crate.
         var want = inventoryValue(nextStock, nextAmmo) + featureValue(nextFeatures);
-        var cap = payableStarCap();
+        var cap = Number.isFinite(Number(budget)) ? Math.max(0, Number(budget)) : payableStarCap();
         if (want > cap) {
-          console.warn('[shop] import: stock, ammo and features worth ' + want + ' star exceed the ' + cap + ' star ledger; all three dropped');
+          console.warn('[shop] import: stock, ammo and features worth ' + want + ' star exceed the ' + cap + ' star budget; all three dropped');
           nextStock = {};
           nextAmmo = { proton: 0, neutron: 0 };
           nextFeatures = [];
@@ -1361,6 +1547,8 @@
       var close = panel.querySelector('.shop-close');
       if (close) close.setAttribute('aria-label', S('close'));
       panel.querySelectorAll('.shop-tab').forEach(function(b) {
+        var ext = extById(b.dataset.tab);
+        if (ext) { b.textContent = ext.label(); return; }
         b.textContent = b.dataset.tab === 'elements' ? S('tabElements')
           : b.dataset.tab === 'ammo' ? S('tabAmmo') : S('tabFeatures');
       });

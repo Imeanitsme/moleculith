@@ -44174,7 +44174,6 @@ const UI = {
     "btn.tutorial": "Tutorial",
     "btn.returnLobby": "Return to Lobby",
     "btn.credits": "Credits",
-    "btn.claim": "Claim",
     "btn.import": "Import",
     "btn.export": "Export Progress",
     "btn.importProgress": "Import Progress",
@@ -44353,6 +44352,21 @@ const UI = {
     "status.imported": "Progress imported — {atoms} atoms, {discoveries} discoveries restored.",
     "status.importFailed": "Import failed: {error}",
     "status.importLocked": "Progress can only be imported once per browser — clear the site data to import again",
+    "status.importedDetail": "Imported — {atoms} atoms in scene, {discoveries} discoveries, {stars} ★, {crate} crate atoms worth {worth} ★.",
+    "status.importNothing": "Nothing was restored, so your one import was not used up.",
+    "status.importLedger": "Ledger restored from this browser's own backup.",
+    "status.importClamped": "{dropped} ★ exceeded this browser's ledger and were not restored.",
+    "status.importCrateDropped": "The crate ({crate} ★) exceeded the {budget} ★ budget and was not restored.",
+    "status.importOldRank": "The rank block predates schema 2, so stars were left alone.",
+    "status.importStarRange": "Stars were outside the safe range and were left alone.",
+    "status.importGrant": "Owner grant verified — {stars} ★ funded.",
+    "status.importGrantBad": "Owner grant rejected ({reason}); stars limited to this browser's ledger.",
+    "status.grantReason.absent": "no grant block",
+    "status.grantReason.range": "amount out of range",
+    "status.grantReason.unsigned": "not signed",
+    "status.grantReason.bad": "signature does not match",
+    "status.grantReason.insecure": "needs https or localhost",
+    "status.grantReason.error": "could not be checked",
     "status.healthLow": "Warning: Health critical! Move away from radioactive elements.",
     "status.healthZero": "You have been irradiated! Health depleted.",
     "status.respawned": "Respawned with full health.",
@@ -44395,10 +44409,6 @@ const UI = {
     "rank.elementLocked": "This element is locked. Buy it in the Rope Shop — drag the cord at the top right.",
     "rank.featureLocked": "This feature is locked. Buy it in the Rope Shop for {price} ★ — drag the cord at the top right!",
     "rank.discStarCap": "Cascade guard: the discovery tap is full this second — the species keeps its place in the dex and is paid next tick.",
-    "rank.dailyReward": "Daily Reward",
-    "rank.dailyClaimed": "Daily reward claimed! +{stars} stars",
-    "rank.dailyStreak": "Day {day} streak!",
-    "rank.dayLabel": "Day",
     "kinetics.title": "Kinetics",
     "kinetics.empty": "Select a molecule to view kinetics.",
     "kinetics.temp": "Temperature",
@@ -44566,7 +44576,10 @@ const UI = {
     "top.leaveConfirm": "Leave the room?",
     "top.linkCopied": "Room link copied to clipboard!",
     "top.copyLink": "Copy this link:",
-    "top.rosterSoon": "Channel roster feature coming soon!",
+    "top.rosterYou": "You",
+    "top.rosterHost": "Host",
+    "top.rosterPeer": "Connected",
+    "top.rosterOffline": "Singleplayer — no channel yet. Join or host a room to see the roster.",
     "top.roomLabel": "Room: {name}",
     "net.needUser": "Please enter a username",
     "net.needCode": "Please enter a room code",
@@ -44677,8 +44690,7 @@ const UI = {
     "pg.noAbove": "No element above Z={z}",
     "pg.addedProton": "Added proton: {from} → {to} (Z={z})",
     "pg.addedProtonNoble": "Added proton: {from} → {to} (Z={z}) — noble gas, {n} bond(s) severed!",
-    "pg.fission": "💥 {name} underwent fission: {a} + {b}",
-    "pg.restored": "Ground state restored after {name} fission",
+    "pg.restored": "The light has cleared. {name} left two radioactive nuclei where it stood",
     "pg.on": "Proton gun activated — Click atoms!",
     "pg.off": "Proton gun deactivated",
     "pg.toFission": "TO FISSION",
@@ -44726,7 +44738,6 @@ const UI = {
     "btn.tutorial": "Hướng dẫn",
     "btn.returnLobby": "Về sảnh",
     "btn.credits": "Credit",
-    "btn.claim": "Nhận",
     "btn.import": "Nhập",
     "btn.export": "Xuất tiến độ",
     "btn.importProgress": "Nhập tiến độ",
@@ -44896,6 +44907,21 @@ const UI = {
     "status.imported": "Đã nhập tiến độ — {atoms} nguyên tử, {discoveries} khám phá được khôi phục.",
     "status.importFailed": "Nhập thất bại: {error}",
     "status.importLocked": "Chỉ có thể nhập tiến độ một lần trên mỗi trình duyệt — hãy xóa dữ liệu trang để nhập lại",
+    "status.importedDetail": "Đã nhập — {atoms} nguyên tử trong cảnh, {discoveries} khám phá, {stars} ★, {crate} nguyên tử trong kho trị giá {worth} ★.",
+    "status.importNothing": "Không có gì được khôi phục, nên lượt nhập duy nhất của bạn vẫn còn.",
+    "status.importLedger": "Đã khôi phục sổ sao từ bản sao lưu của chính trình duyệt này.",
+    "status.importClamped": "{dropped} ★ vượt quá sổ sao của trình duyệt này nên không được khôi phục.",
+    "status.importCrateDropped": "Kho ({crate} ★) vượt quá hạn mức {budget} ★ nên không được khôi phục.",
+    "status.importOldRank": "Khối thứ hạng cũ hơn schema 2, nên số sao được giữ nguyên.",
+    "status.importStarRange": "Số sao nằm ngoài khoảng an toàn nên được giữ nguyên.",
+    "status.importGrant": "Đã xác minh cấp quyền của chủ sở hữu — {stars} ★ được cấp.",
+    "status.importGrantBad": "Cấp quyền bị từ chối ({reason}); số sao bị giới hạn theo sổ của trình duyệt này.",
+    "status.grantReason.absent": "không có khối cấp quyền",
+    "status.grantReason.range": "số lượng ngoài khoảng cho phép",
+    "status.grantReason.unsigned": "chưa được ký",
+    "status.grantReason.bad": "chữ ký không khớp",
+    "status.grantReason.insecure": "cần https hoặc localhost",
+    "status.grantReason.error": "không kiểm tra được",
     "status.healthLow": "Cảnh báo: Sức khỏe nguy kịch! Tránh xa nguyên tố phóng xạ.",
     "status.healthZero": "Bạn đã bị nhiễm xạ! Sức khỏe đã cạn kiệt.",
     "status.respawned": "Đã hồi sinh với sức khỏe tối đa.",
@@ -44938,10 +44964,6 @@ const UI = {
     "rank.elementLocked": "Nguyên tố này đang khóa. Hãy mua ở Cửa hàng Dây thừng — kéo sợi dây ở góc trên bên phải.",
     "rank.featureLocked": "Tính năng này đang khóa. Hãy mua tại Cửa hàng Dây thừng với giá {price} ★ — kéo sợi dây ở góc trên bên phải!",
     "rank.discStarCap": "Chốt chắn dây chuyền: ngân sách sao mỗi giây đã dùng hết — loài của bạn vẫn trong sổ và sẽ được trả ở giây tiếp theo.",
-    "rank.dailyReward": "Phần thưởng hàng ngày",
-    "rank.dailyClaimed": "Đã nhận phần thưởng hàng ngày! +{stars} sao",
-    "rank.dailyStreak": "Ngày {day} liên tiếp!",
-    "rank.dayLabel": "Ngày",
     "kinetics.title": "Động học",
     "kinetics.empty": "Chọn phân tử để xem động học.",
     "kinetics.temp": "Nhiệt độ",
@@ -45106,7 +45128,10 @@ const UI = {
     "top.leaveConfirm": "Rời khỏi phòng?",
     "top.linkCopied": "Đã sao chép liên kết phòng vào clipboard!",
     "top.copyLink": "Sao chép liên kết này:",
-    "top.rosterSoon": "Tính năng danh sách kênh sẽ sớm ra mắt!",
+    "top.rosterYou": "Bạn",
+    "top.rosterHost": "Chủ phòng",
+    "top.rosterPeer": "Đã kết nối",
+    "top.rosterOffline": "Một người chơi — chưa có kênh. Vào hoặc tạo phòng để xem danh sách.",
     "top.roomLabel": "Phòng: {name}",
     "net.needUser": "Vui lòng nhập tên người dùng",
     "net.needCode": "Vui lòng nhập mã phòng",
@@ -45217,8 +45242,7 @@ const UI = {
     "pg.noAbove": "Không có nguyên tố nào trên Z={z}",
     "pg.addedProton": "Đã thêm proton: {from} → {to} (Z={z})",
     "pg.addedProtonNoble": "Đã thêm proton: {from} → {to} (Z={z}) — khí hiếm, đã cắt {n} liên kết!",
-    "pg.fission": "💥 {name} đã phân hạch: {a} + {b}",
-    "pg.restored": "Đã khôi phục trạng thái cơ bản sau vụ phân hạch {name}",
+    "pg.restored": "Ánh sáng đã tan. {name} để lại hai hạt nhân nhiễm xạ ngay chỗ nó đứng",
     "pg.on": "Súng proton đã kích hoạt — Hãy bấm vào các nguyên tử!",
     "pg.off": "Súng proton đã tắt",
     "pg.toFission": "TRƯỚC KHI PHÂN HẠCH",
@@ -45437,7 +45461,10 @@ function t(key, params) {
 function trReason(r) {
   if (!r) return "";
   if (typeof r === "string") return r;
-  return t(r.key, r.p);
+  const original = t(r.key, r.p);
+  return window.__mol3dLearning && window.__mol3dLearning.mode() === "guided"
+    ? window.__mol3dLearning.explain(r, original, getLang() === "vi" ? "liên kết / điện tích" : "bonding / charge")
+    : original;
 }
 function elName(el) {
   if (lang === "vi") {
@@ -52739,36 +52766,48 @@ const H_PLANCK = 662607015e-42;
 const N_AVOGADRO = 602214076e15;
 class ThermodynamicSystem {
   constructor() {
-    this.dHfTable = /* @__PURE__ */ new Map([
-      ["H2", 0],
-      ["O2", 0],
-      ["N2", 0],
-      ["F2", 0],
-      ["Cl2", 0],
-      ["H2O", -285.83],
-      ["CO2", -393.51],
-      ["CH4", -74.81],
-      ["NH3", -46.11],
-      ["HCl", -92.31],
-      ["NaCl", -411.12],
-      ["H2O2", -187.78],
-      ["O3", 142.67],
-      ["NO", 90.25],
-      ["NO2", 33.18],
-      ["SO2", -296.83],
-      ["SO3", -395.72]
+    // Standard-state data at 298.15 K: h = ΔfH° (kJ/mol of the species as listed),
+    // s = S° (J/mol·K). Gas phase unless the key ends in "(s)" or "(l)" suffix tags below.
+    this.species = /* @__PURE__ */ new Map([
+      ["H2", { h: 0, s: 130.68 }], ["O2", { h: 0, s: 205.15 }], ["N2", { h: 0, s: 191.61 }],
+      ["F2", { h: 0, s: 203.34 }], ["Cl2", { h: 0, s: 223.08 }], ["Br2(l)", { h: 30.91, s: 152.23 }],
+      ["I2(s)", { h: 0, s: 116.14 }], ["C", { h: 0, s: 5.74 }],
+      ["CO", { h: -110.53, s: 197.66 }], ["CO2", { h: -393.52, s: 213.79 }],
+      ["CH4", { h: -74.81, s: 186.25 }], ["C2H2", { h: 226.73, s: 200.93 }],
+      ["C2H4", { h: 52.4, s: 219.32 }], ["C2H6", { h: -84.68, s: 229.2 }],
+      ["C3H8", { h: -104.7, s: 269.9 }], ["CH3OH", { h: -201, s: 239.81 }],
+      ["C2H6O", { h: -234.8, s: 282.7 }], ["C6H6", { h: 82.93, s: 269.31 }],
+      ["C6H12O6(s)", { h: -1273.3, s: 212.1 }],
+      ["H2O", { h: -241.83, s: 188.84 }], ["H2O2", { h: -136.31, s: 232.7 }],
+      ["NH3", { h: -45.94, s: 192.77 }], ["N2O", { h: 82.05, s: 219.85 }],
+      ["N2O4", { h: 9.16, s: 304.38 }], ["N2H4", { h: 50.63, s: 238.66 }],
+      ["NO", { h: 90.25, s: 210.76 }], ["NO2", { h: 33.18, s: 240.06 }],
+      ["HF", { h: -273.3, s: 173.78 }], ["HCl", { h: -92.31, s: 186.9 }],
+      ["HBr", { h: -36.3, s: 198.7 }], ["HI", { h: 26.5, s: 206.5 }],
+      ["H2S", { h: -20.63, s: 205.79 }], ["SO2", { h: -296.84, s: 248.22 }],
+      ["SO3", { h: -395.72, s: 256.76 }], ["O3", { h: 142.67, s: 238.92 }],
+      ["NaCl", { h: -181.42, s: 229.79 }],
+      ["NaOH(s)", { h: -425.61, s: 64.46 }], ["Na2CO3(s)", { h: -1130.7, s: 135 }],
+      ["NaHCO3(s)", { h: -947.66, s: 102.09 }], ["NaNO3(s)", { h: -467.9, s: 116.3 }],
+      ["KCl(s)", { h: -436.5, s: 82.6 }], ["AgCl(s)", { h: -127.01, s: 96.25 }],
+      ["AgNO3(s)", { h: -101.7, s: 140.9 }],
+      ["ZnO(s)", { h: -348, s: 43.7 }], ["ZnCl2(s)", { h: -415.1, s: 111.5 }],
+      ["CaO(s)", { h: -635.09, s: 39.75 }], ["Ca(OH)2(s)", { h: -986.09, s: 83.39 }],
+      ["CaCO3(s)", { h: -1207.13, s: 92.9 }], ["MgO(s)", { h: -601.6, s: 26.9 }],
+      ["Al2O3(s)", { h: -1675.7, s: 50.9 }], ["SiO2(s)", { h: -910.94, s: 41.5 }],
+      ["Fe2O3(s)", { h: -824.2, s: 87.4 }], ["Fe3O4(s)", { h: -1118.4, s: 146.4 }],
+      ["CuO(s)", { h: -157.3, s: 42.6 }]
     ]);
-    this.sTable = /* @__PURE__ */ new Map([
-      ["H2", 130.68],
-      ["O2", 205.14],
-      ["N2", 191.61],
-      ["H2O", 69.91],
-      ["CO2", 213.74],
-      ["CH4", 186.26],
-      ["NH3", 192.45],
-      ["HCl", 186.9],
-      ["NaCl", 72.11]
+    // Molar entropy of one mole of atoms in the element's reference state, J/mol·K.
+    this.refS = /* @__PURE__ */ new Map([
+      ["H", 65.34], ["C", 5.74], ["N", 95.81], ["O", 102.58], ["F", 101.67],
+      ["Cl", 111.54], ["Br", 76.12], ["I", 58.07], ["S", 31.8], ["P", 41.09],
+      ["Na", 51.21], ["K", 64.67], ["Li", 20.14], ["Ca", 41.6], ["Mg", 32.68],
+      ["Al", 28.33], ["Zn", 41.63], ["Fe", 27.28], ["Cu", 33.15], ["Ag", 42.55],
+      ["Si", 18.83], ["Ba", 62.5]
     ]);
+    this.speciesCan = /* @__PURE__ */ new Map();
+    for (const [key, val] of this.species) this.speciesCan.set(this.canonFormula(key), val);
     this.energyCache = /* @__PURE__ */ new Map();
   }
   /**
@@ -52792,14 +52831,63 @@ class ThermodynamicSystem {
     this.energyCache.set(cacheKey, ePotential);
     return ePotential;
   }
+  /** Canonical atom-count string ("Ca1H2O2") of a formula key or display formula; strips (s)/(l)/(g)/(aq) tags. */
+  canonFormula(formula) {
+    const src = String(formula).replace(/\((?:s|l|g|aq)\)$/, "").replace(/\s+/g, "");
+    const counts = /* @__PURE__ */ new Map();
+    const re = /([A-Z][a-z]?)(\d*)|\(([^)]*)\)(\d*)/g;
+    let m;
+    while ((m = re.exec(src))) {
+      if (m[3] !== undefined) {
+        const mult = +m[4] || 1;
+        const re2 = /([A-Z][a-z]?)(\d*)/g;
+        let inner;
+        while ((inner = re2.exec(m[3]))) counts.set(inner[1], (counts.get(inner[1]) || 0) + (+inner[2] || 1) * mult);
+      } else {
+        counts.set(m[1], (counts.get(m[1]) || 0) + (+m[2] || 1));
+      }
+    }
+    if (!counts.size) return src;
+    return [...counts.keys()].sort().map((k) => k + counts.get(k)).join("");
+  }
+  /** Hill-order molecular formula from scene atoms, with a state tag if the species table keys it that way. */
+  formulaOf(atoms2) {
+    const list = atoms2 instanceof Map ? Array.from(atoms2.values()) : atoms2;
+    const counts = /* @__PURE__ */ new Map();
+    for (const a of list) {
+      if (a && a.el) counts.set(a.el.sym, (counts.get(a.el.sym) || 0) + 1);
+    }
+    const syms = [...counts.keys()].sort();
+    const order = counts.has("C") ? ["C", ...(counts.has("H") ? ["H"] : []), ...syms.filter((x) => x !== "C" && x !== "H")] : syms;
+    return order.map((sym) => sym + (counts.get(sym) > 1 ? counts.get(sym) : "")).join("");
+  }
+  /** Standard-state Gibbs energy of formation from measured ΔfH° and S° tables; null when a species is not measured. */
+  standardStateGibbs(atoms2, temperature = T_STANDARD) {
+    const formula = this.formulaOf(atoms2);
+    const sp = this.speciesCan.get(this.canonFormula(formula));
+    if (!sp) return null;
+    const list = atoms2 instanceof Map ? Array.from(atoms2.values()) : atoms2;
+    let refEntropy = 0;
+    for (const a of list) {
+      const r = a && a.el && this.refS.get(a.el.sym);
+      if (r == null) return null;
+      refEntropy += r;
+    }
+    const dSf = sp.s - refEntropy;
+    return { formula, dHf: sp.h, dSf, dG: sp.h - temperature * (dSf / 1e3), method: "formation" };
+  }
   /**
-   * Calculate Gibbs free energy change: ΔG = ΔH - TΔS
+   * Calculate Gibbs free energy change: ΔG = ΔH - TΔS.
+   * Uses measured formation data when the species is in the table, otherwise the
+   * bond-energy estimate (kept for uncovered molecules; method reports which ran).
    */
   calculateFreeEnergy(atoms2, bonds2, temperature = T_STANDARD) {
+    const s = this.standardStateGibbs(atoms2, temperature);
+    if (s) return { dG: s.dG, dH: s.dHf, dS: s.dSf, temperature, method: s.method };
     const dH = this.calculateEnthalpyChange(atoms2, bonds2);
     const dS = this.calculateEntropyChange(atoms2, bonds2);
     const dG = dH - temperature * (dS / 1e3);
-    return { dG, dH, dS, temperature };
+    return { dG, dH, dS, temperature, method: "bond-energy" };
   }
   /**
    * Check if molecule is thermodynamically unstable
@@ -53982,6 +54070,7 @@ class QuestManager {
       // the tally made every quest in the game a reward that never arrived.
       this.stars += quest.reward.stars;
       rankManager.addStars(QUEST_STAR_UNIT * quest.reward.stars);
+      window.dispatchEvent(new CustomEvent("mol3d:gameplay-stars", { detail: { value: QUEST_STAR_UNIT * quest.reward.stars, source: "quest" } }));
     }
     this.emit("questCompleted", { quest, rewards: quest.reward });
     this.updateQuestAvailability();
@@ -54081,12 +54170,16 @@ class QuestManager {
   }
 }
 const questManager = new QuestManager();
+// Each rank carries its own ladder: `grades` is how many grades the rank has and
+// `starsPerGrade` is what a grade costs inside it, so difficulty can steepen per
+// rung instead of being one global constant. Ranks below Further Beyond keep the
+// base 5-star grade; the top rank charges 50 for every one of its unlimited grades.
 const RANKS = [
   {
     id: "new_creation",
     name: "New Creation",
     vi: "Tạo Mới",
-    grades: 5,
+    grades: 10,
     image: "./rank/NewCreation.png",
     textColor: "#1a5c2e"
   },
@@ -54094,7 +54187,7 @@ const RANKS = [
     id: "talented",
     name: "Talented",
     vi: "Có Tài",
-    grades: 5,
+    grades: 10,
     image: "./rank/Talented.png",
     textColor: "#1a4a6e"
   },
@@ -54102,7 +54195,7 @@ const RANKS = [
     id: "low_intermediate",
     name: "Low Intermediate",
     vi: "Trung Cấp Thấp",
-    grades: 5,
+    grades: 10,
     image: "./rank/LowInter.png",
     textColor: "#ffffff"
   },
@@ -54110,7 +54203,7 @@ const RANKS = [
     id: "experienced",
     name: "Experienced",
     vi: "Dạn Dày Kinh Nghiệm",
-    grades: 5,
+    grades: 50,
     image: "./rank/Experienced.png",
     textColor: "#ffffff"
   },
@@ -54118,7 +54211,7 @@ const RANKS = [
     id: "researcher",
     name: "Researcher",
     vi: "Nhà Nghiên Cứu",
-    grades: 5,
+    grades: 50,
     image: "./rank/Researcher.png",
     textColor: "#ffffff"
   },
@@ -54127,6 +54220,7 @@ const RANKS = [
     name: "Further Beyond",
     vi: "Vượt Ra Xa Hơn",
     grades: Infinity,
+    starsPerGrade: 50,
     image: "./rank/FurtherBeyond.png",
     textColor: "#ffd700",
     sparkle: true
@@ -54136,6 +54230,14 @@ function rankName(r) {
   return r ? isVi() && r.vi ? r.vi : r.name : "";
 }
 const STARS_PER_GRADE = 5;
+function starsPerGradeOf(rank) {
+  const n = rank && rank.starsPerGrade;
+  return Number.isFinite(n) && n > 0 ? n : STARS_PER_GRADE;
+}
+// Total stars a whole rank costs, and therefore the entry point of the next one.
+function rankSpan(rank) {
+  return rank.grades * starsPerGradeOf(rank);
+}
 const ROMAN_NUMERALS = [
   "0",
   "I",
@@ -54179,10 +54281,11 @@ function getRankFromStars(totalStars) {
   let remaining = totalStars;
   for (let r = 0; r < RANKS.length; r++) {
     const rank = RANKS[r];
-    const rankStars = rank.grades * STARS_PER_GRADE;
+    const perGrade = starsPerGradeOf(rank);
+    const rankStars = rankSpan(rank);
     if (remaining < rankStars || r === RANKS.length - 1) {
-      const grade = Math.floor(remaining / STARS_PER_GRADE) + 1;
-      const starsInGrade = remaining % STARS_PER_GRADE;
+      const grade = Math.floor(remaining / perGrade) + 1;
+      const starsInGrade = remaining % perGrade;
       const maxGrade = rank.grades === Infinity ? grade : rank.grades;
       return {
         rank,
@@ -54190,8 +54293,9 @@ function getRankFromStars(totalStars) {
         grade: Math.min(grade, maxGrade),
         gradeRoman: toRoman(Math.min(grade, maxGrade)),
         starsInGrade,
+        starsPerGrade: perGrade,
         totalStars,
-        nextGradeStars: STARS_PER_GRADE - starsInGrade,
+        nextGradeStars: perGrade - starsInGrade,
         isMaxGrade: rank.grades !== Infinity && grade >= rank.grades
       };
     }
@@ -54203,6 +54307,7 @@ function getRankFromStars(totalStars) {
     grade: 1,
     gradeRoman: "I",
     starsInGrade: 0,
+    starsPerGrade: STARS_PER_GRADE,
     totalStars,
     nextGradeStars: STARS_PER_GRADE,
     isMaxGrade: false
@@ -54303,6 +54408,62 @@ function recordStars(kind, delta) {
   if (!(delta > 0)) return;
   starLedger[kind] += Math.floor(delta);
   if (starLedger.spent > starLedger.earned) starLedger.spent = starLedger.earned;
+  saveStarLedger();
+}
+const OWNER_PUBKEY_SPKI = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEgBv++Ki5jinjY0Xt92faxtwEA9AXwg0pn5EyZdEl9y0ULWBRgp5Ls1f2EjphTMBb/5GcSqtmN0YTXMjK9s+yw==";
+function ledgerSnapshot() {
+  return {
+    earned: starLedger.earned,
+    spent: starLedger.spent,
+    seq: starLedger.seq,
+    seal: sealLedger(ledgerSalt(), starLedger.earned, starLedger.spent, starLedger.seq)
+  };
+}
+function ledgerEarned() {
+  return starLedger.earned;
+}
+function restoreLedgerBlock(d) {
+  if (!d || typeof d !== "object") return false;
+  const earned = Math.floor(Number(d.earned));
+  const spent = Math.floor(Number(d.spent));
+  const seq = Math.floor(Number(d.seq)) || 0;
+  if (!Number.isFinite(earned) || earned < 0 || earned > 1e9) return false;
+  if (!Number.isFinite(spent) || spent < 0 || spent > earned) return false;
+  if (typeof d.seal !== "string" || d.seal !== sealLedger(ledgerSalt(), earned, spent, seq)) return false;
+  starLedger.earned = earned;
+  starLedger.spent = spent;
+  starLedger.seq = seq;
+  saveStarLedger();
+  return true;
+}
+function grantMessage(g) {
+  return "mol3d.grant.v1|" + Math.floor(Number(g.stars)) + "|" + Math.floor(Number(g.crate)) + "|" + String(g.issuedAt);
+}
+async function verifyOwnerGrant(g) {
+  if (!g || typeof g !== "object") return { ok: false, reason: "absent" };
+  const stars = Math.floor(Number(g.stars));
+  const crate = Math.floor(Number(g.crate));
+  if (!Number.isFinite(stars) || stars < 0 || stars > 1e6) return { ok: false, reason: "range" };
+  if (!Number.isFinite(crate) || crate < 0 || crate > 1e8) return { ok: false, reason: "range" };
+  if (typeof g.sig !== "string" || !g.sig) return { ok: false, reason: "unsigned" };
+  if (typeof crypto === "undefined" || !crypto.subtle || typeof crypto.subtle.verify !== "function") {
+    return { ok: false, reason: "insecure" };
+  }
+  try {
+    const der = Uint8Array.from(atob(OWNER_PUBKEY_SPKI), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey("spki", der, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    const sig = Uint8Array.from(atob(g.sig), (c) => c.charCodeAt(0));
+    const msg = new TextEncoder().encode(grantMessage(g));
+    const ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, sig, msg);
+    return ok ? { ok: true, stars, crate } : { ok: false, reason: "bad" };
+  } catch (err) {
+    return { ok: false, reason: "error", error: String(err && err.message || err) };
+  }
+}
+function fundGrant(stars, crate) {
+  const spent = Math.max(starLedger.spent, crate);
+  starLedger.spent = spent;
+  starLedger.earned = Math.min(1e9, Math.max(starLedger.earned, spent + stars));
   saveStarLedger();
 }
 class RankManager {
@@ -54460,17 +54621,17 @@ function shopPriceOf(feature) {
 }
 // THE CRATE. Elements are no longer unlocked once and then placed for free: every
 // atom the player puts on the table is one unit out of a stock bought in the shop,
-// and every atom that leaves the table goes back into it. Three rules make that
-// hold without a hole:
+// and that unit is spent the moment it is placed. Three rules make that hold
+// without a hole:
 //   1. only a placement the player asked for pays. Reactions, decay, the
 //      atmosphere, fission fragments and other players' atoms are consequences of
 //      chemistry, not purchases, and the shop would have to price a bug.
-//   2. a refund is only owed while the crate says the world still holds the atom,
-//      so Ne bought at 2 stars, shot into Na and deleted cannot return 25.
-//   3. the return trip is read off the live scene, not off a list of call sites.
-//      cratePaid maps an atom id to the z it was bought as; the sweep in the
-//      animation loop refunds whatever id has stopped existing. A path that forgets
-//      to say so can then lose the player a refund, never print a new atom.
+//   2. a deletion goes to oblivion. The atom is destroyed and the crate unit with
+//      it - the shelf is refilled by buying, never by clearing the table.
+//   3. the trip into oblivion is read off the live scene, not off a list of call
+//      sites. cratePaid maps an atom id to the z it was bought as; the sweep in the
+//      animation loop retires whatever id has stopped existing. A path that forgets
+//      to say so can then leave a loan open, never print a new atom.
 const cratePaid = /* @__PURE__ */ new Map();
 let crateDropShown = 0;
 function crateShop() {
@@ -54550,24 +54711,21 @@ function crateRegister(id, el) {
   cratePaid.set(id, el.z);
 }
 
-// The proton gun pushes a nucleus up one element, and ownership is not a gate on
-// where a paid-for particle lands. The crate still keeps its books straight: the
-// unit this atom was bought as goes back to the shelf, and a unit of the element
-// above is taken only when the crate holds one. An element the crate has never
-// stocked leaves the new nucleus unregistered, so it reads as a consequence of the
-// shot - it cost nothing, and deleting it later refunds nothing.
+// The proton gun pushes a nucleus up one element. The atom is the same piece of
+// matter, so the crate moves its loan onto the new element rather than retiring the
+// old one and charging for a fresh unit: a shot would otherwise cost two atoms for
+// one. An atom the crate never paid for (a fragment, an atmosphere atom, another
+// player's) has no loan to move and stays unregistered.
 function crateTransmute(id, newZ) {
   const s = crateShop();
   if (!s || crateFreePlays()) return true;
   if (!(newZ > 0)) return false;
-  const stocked = s.takeAtom(newZ) === true;
   const oldZ = cratePaid.get(id);
-  if (oldZ !== void 0) {
-    cratePaid.delete(id);
-    s.refundAtom(oldZ);
+  if (oldZ === void 0) return true;
+  if (s.moveLoan(oldZ, newZ)) {
+    cratePaid.set(id, newZ);
+    rebuildCrateBadges();
   }
-  if (stocked) cratePaid.set(id, newZ);
-  rebuildCrateBadges();
   return true;
 }
 // Buys a whole molecule's atoms into the crate. The dex summon and the assistant
@@ -54626,30 +54784,32 @@ function crateTakeList(elList, quiet) {
   rebuildCrateBadges();
   return true;
 }
-// An isomer swap is the same atoms in a different order, so the crate bill moves
-// across with them: what leaves is refunded and what arrives is taken straight back
-// out, in one step, so a player who owns nothing but the molecule on the table can
-// still rearrange it without paying twice or getting a free extra.
+// An isomer swap is the same atoms in a different order, so the crate loans move
+// across with them: the new ids inherit the paid units of the old ones instead of
+// being bought again, and a rearrangement can neither cost twice nor print an extra
+// atom. A loan no new atom claims really did leave the world, so it is retired.
 function crateTransfer(outIds, inIds) {
   const s = crateShop();
-  const leaving = [];
+  const unclaimed = [];
   for (const id of outIds || []) {
     const z = cratePaid.get(id);
     if (z === void 0) continue;
-    leaving.push(z);
     cratePaid.delete(id);
+    unclaimed.push(z);
   }
   if (!s || crateFreePlays()) return;
-  for (const z of leaving) s.refundAtom(z);
   let moved = 0;
   for (const id of inIds || []) {
+    if (cratePaid.has(id)) continue;
     const at = atoms.get(id);
     if (!at || !at.el || !at.el.z) continue;
-    if (s.takeAtom(at.el.z)) {
-      crateRegister(id, at.el);
-      moved++;
-    }
+    const i = unclaimed.indexOf(at.el.z);
+    if (i < 0) continue;
+    unclaimed.splice(i, 1);
+    cratePaid.set(id, at.el.z);
+    moved++;
   }
+  for (const z of unclaimed) s.loseAtom(z);
   if (moved) rebuildCrateBadges();
 }
 // Runs against the live scene every physics tick. Cost is one map iteration over
@@ -54657,13 +54817,13 @@ function crateTransfer(outIds, inIds) {
 function crateSweep() {
   const s = crateShop();
   if (!s || cratePaid.size === 0) return;
-  let returned = 0;
+  let lost = 0;
   for (const [id, z] of Array.from(cratePaid)) {
     if (atoms.has(id)) continue;
     cratePaid.delete(id);
-    if (s.refundAtom(z)) returned++;
+    if (s.loseAtom(z)) lost++;
   }
-  if (returned) rebuildCrateBadges();
+  if (lost) rebuildCrateBadges();
 }
 // Atoms a snapshot puts back on the table were taken out of the crate when they
 // were first placed, so undo pays for them again; if the crate cannot cover it the
@@ -54678,8 +54838,9 @@ function crateRecover(list) {
   rebuildCrateBadges();
 }
 // A reload keeps the crate but empties the id ledger, so the atoms already on the
-// table would stop refunding when deleted. The shop hands out one owed slot per
-// scene atom, which is exactly the number the crate gave away last session.
+// table would stop being retired when they are destroyed. The shop hands out one
+// owed slot per scene atom, which is exactly the number the crate gave away last
+// session.
 function crateAdoptScene() {
   const s = crateShop();
   if (!s || crateFreePlays() || typeof s.claimOwed !== "function") return;
@@ -54717,52 +54878,6 @@ function rebuildCrateBadges() {
   try {
     if (typeof updatePoolStock === "function") updatePoolStock();
   } catch (e) {
-  }
-}
-const DAILY_REWARD_KEY = "mol3d.dailyReward";
-// A day's pay is a base plus a streak bonus. The base is the same number the
-// rope shop advertises for a daily claim, so popup and shop cannot drift.
-const DAILY_BASE_STARS = 20;
-const DAILY_STREAK_BONUS = 10;
-const DAILY_MAX_STARS = 120;
-const DAILY_STREAK_KEY = "mol3d.dailyStreak";
-function checkDailyReward() {
-  const today = (/* @__PURE__ */ new Date()).toDateString();
-  let lastClaim = null;
-  let streak = 0;
-  try {
-    const data = JSON.parse(localStorage.getItem(DAILY_REWARD_KEY));
-    if (data) lastClaim = data.lastClaim;
-    streak = parseInt(localStorage.getItem(DAILY_STREAK_KEY)) || 0;
-  } catch {
-  }
-  if (lastClaim === today) return null;
-  const yesterday = new Date(Date.now() - 864e5).toDateString();
-  if (lastClaim === yesterday) {
-    streak++;
-  } else {
-    streak = 1;
-  }
-  const stars = Math.min(DAILY_BASE_STARS + DAILY_STREAK_BONUS * Math.max(0, streak - 1), DAILY_MAX_STARS);
-  return { streak, stars };
-}
-function claimDailyReward() {
-  const today = (/* @__PURE__ */ new Date()).toDateString();
-  const reward = checkDailyReward();
-  if (!reward) return null;
-  try {
-    localStorage.setItem(DAILY_REWARD_KEY, JSON.stringify({ lastClaim: today }));
-    localStorage.setItem(DAILY_STREAK_KEY, reward.streak.toString());
-  } catch {
-  }
-  rankManager.addStars(reward.stars);
-  return reward;
-}
-function getDailyStreak() {
-  try {
-    return parseInt(localStorage.getItem(DAILY_STREAK_KEY)) || 0;
-  } catch {
-    return 0;
   }
 }
 const POOL_SIZE = 300;
@@ -56693,10 +56808,67 @@ function initTopBar(mode) {
     });
   }
   if (topBtnRoster) {
-    topBtnRoster.addEventListener("click", () => {
-      alert(t("top.rosterSoon"));
+    topBtnRoster.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      toggleRosterPanel(topBtnRoster);
     });
   }
+}
+let rosterPanelEl = null;
+let rosterRefreshTimer = null;
+function rosterTagHtml(text, color, bg) {
+  return '<span style="font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;white-space:nowrap;background:' + (bg || "rgba(94,234,212,.15)") + ";color:" + (color || "#5eead4") + '">' + escHtml(text) + "</span>";
+}
+function rosterRowHtml(name, tags) {
+  return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border-bottom:1px solid rgba(148,163,184,.12)"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(name) + "</span><span style='display:flex'>" + tags.join("") + "</span></div>";
+}
+function renderRosterPanel() {
+  if (!rosterPanelEl) return;
+  const mp = lastTopMode === "multiplayer" && !!network.peer;
+  const parts = ['<div style="padding:8px 10px 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.7">' + escHtml(t("top.channelRoster")) + "</div>"];
+  if (!mp) {
+    parts.push('<div style="padding:10px;line-height:1.4;opacity:.85">' + escHtml(t("top.rosterOffline")) + "</div>");
+  } else {
+    const selfTags = [rosterTagHtml(t("top.rosterYou"))];
+    if (network.isHost) selfTags.push(rosterTagHtml(t("top.rosterHost"), "#ffb35c", "rgba(255,138,31,.18)"));
+    parts.push(rosterRowHtml(username || "Player", selfTags));
+    network.players.forEach((p) => {
+      parts.push(rosterRowHtml(p.username || "Player", [rosterTagHtml(t("top.rosterPeer"))]));
+    });
+  }
+  rosterPanelEl.innerHTML = parts.join("");
+  const countEl = document.getElementById("top-roster-count");
+  if (countEl) countEl.textContent = mp ? 1 + network.players.size : 0;
+}
+function closeRosterPanel() {
+  if (rosterRefreshTimer) {
+    clearInterval(rosterRefreshTimer);
+    rosterRefreshTimer = null;
+  }
+  if (rosterPanelEl) {
+    if (rosterPanelEl._docHandler) document.removeEventListener("click", rosterPanelEl._docHandler);
+    rosterPanelEl.remove();
+    rosterPanelEl = null;
+  }
+}
+function toggleRosterPanel(btn) {
+  if (rosterPanelEl) {
+    closeRosterPanel();
+    return;
+  }
+  rosterPanelEl = document.createElement("div");
+  rosterPanelEl.style.cssText = "position:fixed;z-index:1200;min-width:220px;max-width:300px;background:rgba(9,20,28,.97);border:1px solid rgba(94,234,212,.25);border-radius:10px;color:#e2e8f0;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.45)";
+  document.body.appendChild(rosterPanelEl);
+  const rect = btn.getBoundingClientRect();
+  rosterPanelEl.style.top = rect.bottom + 8 + "px";
+  rosterPanelEl.style.right = Math.max(8, window.innerWidth - rect.right) + "px";
+  renderRosterPanel();
+  rosterRefreshTimer = setInterval(renderRosterPanel, 1e3);
+  const docHandler = (ev) => {
+    if (rosterPanelEl && !rosterPanelEl.contains(ev.target) && !btn.contains(ev.target)) closeRosterPanel();
+  };
+  rosterPanelEl._docHandler = docHandler;
+  document.addEventListener("click", docHandler);
 }
 function updateTopBarRoomInfo(roomName, playerCount) {
   const topRoomName = document.getElementById("top-room-name");
@@ -57607,14 +57779,10 @@ const voiceChat = new VoiceChatManager();
 function elementBySym(sym) {
   return elementBySym$1(sym) || getMayhemElement(sym) || customElements.find((e) => e.sym === sym);
 }
-const REF_W = 1920;
-const REF_H = 1080;
 let uiZoom = 1;
 function calcZoom() {
-  const wRatio = window.innerWidth / REF_W;
-  const hRatio = window.innerHeight / REF_H;
-  uiZoom = Math.max(1, Math.min(wRatio, hRatio));
-  document.documentElement.style.setProperty("--ui-zoom", uiZoom.toFixed(3));
+  uiZoom = 1;
+  document.documentElement.style.setProperty("--ui-zoom", "1");
 }
 calcZoom();
 window.addEventListener("resize", calcZoom);
@@ -57787,7 +57955,8 @@ function resumeTime() {
   const btn = document.getElementById("btn-modal-freeze");
   if (btn) {
     btn.classList.remove("frozen");
-    btn.textContent = "❄️";
+    btn.innerHTML = '<i data-lucide="snowflake" class="st-lc"></i>';
+    hydrateIcons(btn);
   }
   lastRealTime = performance.now();
   if (gameMode === "survival") {
@@ -57837,7 +58006,8 @@ function toggleFreeze() {
   const btn = document.getElementById("btn-modal-freeze");
   if (btn) {
     btn.classList.toggle("frozen", timeFrozen);
-    btn.textContent = timeFrozen ? "▶️" : "❄️";
+    btn.innerHTML = timeFrozen ? '<i data-lucide="play" class="st-lc"></i>' : '<i data-lucide="snowflake" class="st-lc"></i>';
+    hydrateIcons(btn);
   }
   if (!timeFrozen) {
     lastRealTime = performance.now();
@@ -59066,7 +59236,8 @@ const camera = new PerspectiveCamera(50, sceneWrap.clientWidth / sceneWrap.clien
 camera.position.set(0, 4.2, 10.5);
 function updateRendererSize() {
   const cssW = sceneWrap.clientWidth;
-  const cssH = sceneWrap.clientHeight;
+  const topH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--top-h")) || 0;
+  const cssH = Math.max(1, sceneWrap.clientHeight - topH);
   renderer.domElement.style.width = `${cssW}px`;
   renderer.domElement.style.height = `${cssH}px`;
   renderer.setSize(cssW * uiZoom, cssH * uiZoom, false);
@@ -59096,7 +59267,8 @@ network.onMessage = (peerId, msgType, payload) => {
       const btn = document.getElementById("btn-modal-freeze");
       if (btn) {
         btn.classList.add("frozen");
-        btn.textContent = "▶️";
+        btn.innerHTML = '<i data-lucide="play" class="st-lc"></i>';
+        hydrateIcons(btn);
       }
       if (gameMode === "survival") {
         startWorldTimer();
@@ -59112,7 +59284,8 @@ network.onMessage = (peerId, msgType, payload) => {
       const btn = document.getElementById("btn-modal-freeze");
       if (btn) {
         btn.classList.remove("frozen");
-        btn.textContent = "❄️";
+        btn.innerHTML = '<i data-lucide="snowflake" class="st-lc"></i>';
+        hydrateIcons(btn);
       }
       lastRealTime = performance.now();
       if (worldTimerInterval) {
@@ -59249,6 +59422,12 @@ if (window.ResizeObserver) {
   });
   sceneResizeObserver.observe(sceneWrap);
 }
+// The shell publishes the measured top-bar height; the canvas box depends on it
+// even when the scene wrapper itself has not changed size.
+window.addEventListener("mol3d:shell", () => {
+  updateRendererSize();
+  invalidate();
+});
 const reactionVFX = new ReactionVFXManager(scene, camera);
 const catalystFX = new CatalystFX(scene);
 const electricityFX = new ElectricityFX(scene);
@@ -60054,6 +60233,7 @@ function payDiscoveryStar(key, now) {
   saveDiscStarLedger();
   discStarWindowPaid += value;
   rankManager.addStars(value);
+  window.dispatchEvent(new CustomEvent("mol3d:gameplay-stars", { detail: { value, source: "discovery" } }));
   updateRankWidget();
   return true;
 }
@@ -60278,7 +60458,8 @@ function updateDiscList() {
     });
     const delBtn = document.createElement("button");
     delBtn.className = "d-btn d-del";
-    delBtn.textContent = "✕";
+    delBtn.innerHTML = '<i data-lucide="x" class="st-lc"></i>';
+    hydrateIcons(delBtn);
     delBtn.title = t("dex.deleteTitle");
     delBtn.setAttribute("aria-label", `${t("dex.deleteTitle")} ${d.name || d.formula}`);
     delBtn.addEventListener("click", (e) => {
@@ -61196,6 +61377,10 @@ function executeReaction(rx) {
   }
   status(t("status.reactionDone", { cond: condLabel(rx.condition), eq: prettyEq(rx.equation) }), "ok");
   verifyReactionProducts(rx, newCompKeys, consumedIds.length);
+  window.dispatchEvent(new CustomEvent("mol3d:reaction-completed", { detail: {
+    equation: rx.equation, condition: rx.condition, reactants: formulas,
+    productIds: newCompKeys.flatMap(({ key }) => key.split(",").map(Number))
+  } }));
   showRxnOverlay(rx);
   if (rx.condition === "spark" || rx.condition === "heat") {
     reactionVFX.explode(cen, 0.8, new Color(16737792));
@@ -61836,7 +62021,7 @@ function buildPeriodicTable() {
     b.dataset.sym = el.sym;
     b.dataset.z = z;
     b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
-    b.innerHTML = unlocked ? `<span class="z">${z}</span><span class="s">${el.sym}</span><span class="el-qty"></span>` : `<span class="lock">🔒</span><span class="s">${el.sym}</span><span class="el-qty"></span>`;
+    b.innerHTML = unlocked ? `<span class="z">${z}</span><span class="s">${el.sym}</span><span class="el-qty"></span>` : `<span class="lock"><i data-lucide="lock" class="st-lc"></i></span><span class="s">${el.sym}</span><span class="el-qty"></span>`;
     b.addEventListener("click", () => {
       if (!isElementUnlocked(z)) {
         status(`🔒 ${t("rank.elementLocked")}`, "err");
@@ -61852,6 +62037,9 @@ function buildPeriodicTable() {
   ph.style.gridRow = "8";
   ph.textContent = t("ptable.ph");
   wrap.appendChild(ph);
+  try {
+    window.lucide && window.lucide.createIcons({ nameAttr: "data-lucide", root: wrap });
+  } catch (e) {}
 }
 function buildLegend() {
   const legend = document.getElementById("legend");
@@ -61910,7 +62098,8 @@ function buildPool() {
     if (!unlocked) {
       const lock = document.createElement("span");
       lock.className = "el-lock";
-      lock.textContent = "🔒";
+      lock.innerHTML = '<i data-lucide="lock" class="st-lc"></i>';
+      hydrateIcons(lock);
       b.appendChild(lock);
     }
     const isCustom = customElements.includes(el);
@@ -62073,35 +62262,59 @@ function updateInspector() {
     }
   }
   const groupLabels = {
-    [GROUP_TYPES.ALCOHOL]: "🧪 Alcohol (-OH)",
-    [GROUP_TYPES.PHENOL]: "🧪 Phenol (Ar-OH)",
-    [GROUP_TYPES.ALDEHYDE]: "🧪 Aldehyde (-CHO)",
-    [GROUP_TYPES.KETONE]: "🧪 Ketone (C=O)",
-    [GROUP_TYPES.CARBOXYL]: "🧪 Carboxyl (-COOH)",
-    [GROUP_TYPES.ESTER]: "🧪 Ester (-COO-)",
-    [GROUP_TYPES.ETHER]: "🧪 Ether (-O-)",
-    [GROUP_TYPES.AMINE_PRIMARY]: "🧪 Primary Amine (-NH₂)",
-    [GROUP_TYPES.AMINE_SECONDARY]: "🧪 Secondary Amine (-NH-)",
-    [GROUP_TYPES.AMINE_TERTIARY]: "🧪 Tertiary Amine (-N<)",
-    [GROUP_TYPES.AMIDE]: "🧪 Amide (-CONH-)",
-    [GROUP_TYPES.ALKENE]: "🧪 Alkene (C=C)",
-    [GROUP_TYPES.ALKYNE]: "🧪 Alkyne (C≡C)",
-    [GROUP_TYPES.ARYL]: "🧪 Aryl (aromatic ring)",
-    [GROUP_TYPES.HALIDE]: "🧪 Halide (C-X)",
-    [GROUP_TYPES.NITRILE]: "🧪 Nitrile (-C≡N)",
-    [GROUP_TYPES.NITRO]: "🧪 Nitro (-NO₂)",
-    [GROUP_TYPES.THIOL]: "🧪 Thiol (-SH)",
-    [GROUP_TYPES.EPOXIDE]: "🧪 Epoxide (cyclic ether)"
+    [GROUP_TYPES.ALCOHOL]: "Alcohol (-OH)",
+    [GROUP_TYPES.PHENOL]: "Phenol (Ar-OH)",
+    [GROUP_TYPES.ALDEHYDE]: "Aldehyde (-CHO)",
+    [GROUP_TYPES.KETONE]: "Ketone (C=O)",
+    [GROUP_TYPES.CARBOXYL]: "Carboxyl (-COOH)",
+    [GROUP_TYPES.ESTER]: "Ester (-COO-)",
+    [GROUP_TYPES.ETHER]: "Ether (-O-)",
+    [GROUP_TYPES.AMINE_PRIMARY]: "Primary Amine (-NH₂)",
+    [GROUP_TYPES.AMINE_SECONDARY]: "Secondary Amine (-NH-)",
+    [GROUP_TYPES.AMINE_TERTIARY]: "Tertiary Amine (-N<)",
+    [GROUP_TYPES.AMIDE]: "Amide (-CONH-)",
+    [GROUP_TYPES.ALKENE]: "Alkene (C=C)",
+    [GROUP_TYPES.ALKYNE]: "Alkyne (C≡C)",
+    [GROUP_TYPES.ARYL]: "Aryl (aromatic ring)",
+    [GROUP_TYPES.HALIDE]: "Halide (C-X)",
+    [GROUP_TYPES.NITRILE]: "Nitrile (-C≡N)",
+    [GROUP_TYPES.NITRO]: "Nitro (-NO₂)",
+    [GROUP_TYPES.THIOL]: "Thiol (-SH)",
+    [GROUP_TYPES.EPOXIDE]: "Epoxide (cyclic ether)"
+  };
+  const groupIcons = {
+    [GROUP_TYPES.ALCOHOL]: "droplets",
+    [GROUP_TYPES.PHENOL]: "leaf",
+    [GROUP_TYPES.ALDEHYDE]: "zap",
+    [GROUP_TYPES.KETONE]: "zap",
+    [GROUP_TYPES.CARBOXYL]: "flask-conical",
+    [GROUP_TYPES.ESTER]: "sparkles",
+    [GROUP_TYPES.ETHER]: "wind",
+    [GROUP_TYPES.AMINE_PRIMARY]: "atom",
+    [GROUP_TYPES.AMINE_SECONDARY]: "atom",
+    [GROUP_TYPES.AMINE_TERTIARY]: "atom",
+    [GROUP_TYPES.AMIDE]: "link",
+    [GROUP_TYPES.ALKENE]: "equal",
+    [GROUP_TYPES.ALKYNE]: "waypoints",
+    [GROUP_TYPES.ARYL]: "hexagon",
+    [GROUP_TYPES.HALIDE]: "zap",
+    [GROUP_TYPES.NITRILE]: "test-tube",
+    [GROUP_TYPES.NITRO]: "flame",
+    [GROUP_TYPES.THIOL]: "droplets",
+    [GROUP_TYPES.EPOXIDE]: "circle"
   };
   let groupHtml = "";
   if (groups.length > 0) {
     const uniqueGroups = [...new Set(groups.map((g) => g.group))];
     groupHtml = `<div class="mol-groups">${uniqueGroups.map(
-      (g) => `<span class="group-tag">${groupLabels[g] || g}</span>`
+      (g) => `<span class="group-tag"><i data-lucide="${groupIcons[g] || "test-tube"}" class="st-lc"></i>${groupLabels[g] || g}</span>`
     ).join("")}</div>`;
   }
   mol.innerHTML = `<div class="mol-formula">${fHtml}</div><div id="mol-name">${name || t("mol.unnamed")}<span class="mol-type">${refinedType.label}</span></div>
     <span class="muted">${t("mol.stats", { a: comp.atoms.length, b: comp.bonds.length })}</span>${groupHtml}`;
+  try {
+    window.lucide && window.lucide.createIcons({ nameAttr: "data-lucide", root: mol });
+  } catch (e) {}
   if (!an.feasible) {
     warn.style.display = "block";
     warn.textContent = trReason(an.reason) || t("chem.lewis.charge");
@@ -63641,25 +63854,100 @@ function checkChallenges() {
   }
 }
 let statusTimer = null;
-function status(msg, cls = "info") {
+const STATUS_ICONS = {
+  "⚠️": "triangle-alert", "⚠": "triangle-alert",
+  "☢️": "radiation", "☢": "radiation",
+  "💥": "sparkles",
+  "🌡️": "thermometer", "🌡": "thermometer",
+  "🕰️": "clock", "🕰": "clock",
+  "⏱️": "clock", "⏱": "clock", "⏩": "fast-forward", "⏪": "rewind", "▶️": "play",
+  "🔑": "key",
+  "🧊": "snowflake", "❄️": "snowflake", "❄": "snowflake",
+  "🔐": "lock-keyhole", "🔒": "lock",
+  "✅": "check", "✓": "check", "❌": "x",
+  "🧪": "test-tube",
+  "📦": "package",
+  "⭐": "star", "★": "star",
+  "⚡": "zap",
+  "🌍": "globe",
+  "🔥": "flame",
+  "☮": "heart", "☹️": "frown", "☹": "frown",
+  "🎯": "target"
+};
+const STATUS_ICON_KEYS = Object.keys(STATUS_ICONS).sort((a, b) => b.length - a.length);
+let statusCssInjected = false;
+function injectStatusCss() {
+  if (statusCssInjected || typeof document === "undefined") return;
+  statusCssInjected = true;
+  try {
+    const st = document.createElement("style");
+    st.textContent = ".st-lc{width:1em;height:1em;vertical-align:-0.18em;margin-right:3px;stroke-width:2.4}";
+    document.head.appendChild(st);
+  } catch (e) {}
+}
+injectStatusCss();
+function escStatusText(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function iconify(msg) {
+  if (typeof msg !== "string" || !msg) return null;
+  let out = "", buf = "", found = false, i = 0;
+  outer: while (i < msg.length) {
+    for (const key of STATUS_ICON_KEYS) {
+      if (msg.startsWith(key, i)) {
+        if (buf) {
+          out += escStatusText(buf);
+          buf = "";
+        }
+        out += '<i data-lucide="' + STATUS_ICONS[key] + '" class="st-lc"></i>';
+        found = true;
+        i += key.length;
+        continue outer;
+      }
+    }
+    buf += msg[i];
+    i++;
+  }
+  if (!found) return null;
+  if (buf) out += escStatusText(buf);
+  return out;
+}
+function renderStatusMsg(el, msg) {
+  var h = iconify(msg);
+  if (h) {
+    el.innerHTML = h;
+    hydrateIcons(el);
+  } else {
+    el.textContent = msg;
+  }
+}
+function hydrateIcons(root) {
+  try {
+    window.lucide && window.lucide.createIcons({ nameAttr: "data-lucide", root });
+  } catch (e) {}
+}
+function status(msg, cls = "info", ms = 6e3) {
   const el = document.getElementById("status-text");
-  el.textContent = msg;
+  renderStatusMsg(el, msg);
+  el.title = msg;
   el.className = cls;
   clearTimeout(statusTimer);
   statusTimer = setTimeout(() => {
     el.textContent = "";
-  }, 6e3);
+    el.title = "";
+  }, ms);
 }
 let toastTimer = null;
 function toast(msg) {
   const el = document.getElementById("toast");
-  el.textContent = msg;
+  renderStatusMsg(el, msg);
   el.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
 }
 function selectAtom(id) {
   selectedId = id;
+  window.dispatchEvent(new CustomEvent("mol3d:atom-selected", { detail: { id } }));
   updateInspector();
   updateMoleculeList();
   updateDeleteBtn();
@@ -63942,8 +64230,12 @@ document.getElementById("btn-export").addEventListener("click", () => {
       overrides: [...overrides],
       isoSel: [...isoSel],
       rank: { version: RANK_SCHEMA, stars: rankManager.totalStars, currentRank: rankManager.getCurrentRank() },
-      // The ledger is deliberately not exported: it is sealed with this browser's
-      // salt, so a copy of it is worthless anywhere else and honest to leave out.
+      // The ledger travels with the backup so restoring on the machine that wrote
+      // it is lossless. Its seal only reproduces under that browser's salt, so the
+      // same block proves nothing anywhere else and is simply ignored there.
+      ledger: ledgerSnapshot(),
+      learning: window.__mol3dLearning?.exportState() || null,
+      econ: window.__mol3dEcon && typeof window.__mol3dEcon.exportState === "function" ? window.__mol3dEcon.exportState() : null,
       shop: window.__mol3dShop && typeof window.__mol3dShop.exportState === "function" ? window.__mol3dShop.exportState() : null,
       quests: { stars: questManager.getStars(), completed: [...questManager.completedQuests] },
       player: {
@@ -64006,13 +64298,47 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
     return;
   }
   const reader = new FileReader();
-  reader.onload = (event) => {
+  reader.onload = async (event) => {
     try {
       const data = JSON.parse(event.target.result);
       if (!data.version || !data.scene || !Array.isArray(data.scene.atoms)) {
         throw new Error("Invalid file format");
       }
+      const shopApi = window.__mol3dShop;
+      const crateWorth = shopApi && typeof shopApi.appraiseState === "function" ? shopApi.appraiseState(data.shop) : 0;
+      const wantStars = data.rank && data.rank.version === RANK_SCHEMA ? Math.floor(Number(data.rank.stars)) : NaN;
+      // Language is applied before any report text is built, or the notes would be
+      // written in the old language and the headline in the file's new one.
+      if (data.settings) {
+        if (data.settings.theme) {
+          themeMode = data.settings.theme;
+          applyTheme(themeMode);
+          try {
+            localStorage.setItem(THEME_KEY, themeMode);
+          } catch {
+          }
+        }
+        if (data.settings.lang) setLang(data.settings.lang);
+        if (QUALITY_MODES.includes(data.settings.quality)) applyMode(data.settings.quality);
+      }
+      const notes = [];
+      let problems = 0;
+      let grant = null;
+      if (data.grant) {
+        grant = await verifyOwnerGrant(data.grant);
+        if (grant.ok) {
+          fundGrant(grant.stars, Math.max(grant.crate, crateWorth));
+          notes.push(t("status.importGrant", { stars: grant.stars }));
+        } else {
+          problems++;
+          notes.push(t("status.importGrantBad", { reason: t("status.grantReason." + grant.reason) }));
+        }
+      }
+      const ledgerRestored = restoreLedgerBlock(data.ledger);
       clearAll();
+      // Only what the file itself contributes counts as a delivery, so an empty
+      // file cannot spend the one-shot import on state that was already there.
+      let gotAtoms = 0, gotDisc = 0, gotStars = 0, gotCrate = 0;
       for (const a of data.scene.atoms) {
         if (!a || !Number.isInteger(a.id) || !a.pos) continue;
         const el = ELEMENTS.find((e2) => e2.z === a.z);
@@ -64029,6 +64355,7 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
             z: Number.isFinite(+a.pos.z) ? +a.pos.z : 0
           }
         });
+        gotAtoms++;
       }
       for (const b of Array.isArray(data.scene.bonds) ? data.scene.bonds : []) {
         if (b && Number.isInteger(b.id) && atoms.has(b.a) && atoms.has(b.b)) {
@@ -64041,6 +64368,7 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
         for (const d of data.discoveries) {
           discoveries.push({ ...d });
         }
+        gotDisc = discoveries.length;
       }
       if (Array.isArray(data.completed)) {
         completed.clear();
@@ -64058,34 +64386,56 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
           if (typeof k === "string" && typeof v === "string") isoSel.set(k, v);
         }
       }
+      let restoredStars = rankManager.totalStars;
+      let crateDropped = false;
       if (data.rank) {
         // Rank only comes back from a schema-2 block; a pre-reset file restores its
         // scene but never its stars, so an old backup cannot undo the reset.
-        const stars = data.rank.version === RANK_SCHEMA ? data.rank.stars : void 0;
         if (data.rank.version !== RANK_SCHEMA) {
-          console.warn("Import: rank block is pre-schema-2, stars left at", rankManager.totalStars);
-        } else if (typeof stars === "number" && Number.isFinite(stars) && stars >= 0 && stars <= 1e6) {
-          // The ledger stays on the browser that wrote it. A file carries numbers,
-          // not proof: those numbers are held against the seal this machine holds,
-          // so a hand-written million-star backup buys nothing the browser never
-          // earned, and a copy from another machine buys nothing at all.
+          problems++;
+          notes.push(t("status.importOldRank"));
+        } else if (Number.isFinite(wantStars) && wantStars >= 0 && wantStars <= 1e6) {
+          // A verified owner grant has already funded the ledger, and a backup
+          // carrying this browser's own seal has restored it. Anything else is
+          // held against what this machine can prove it earned, so a hand-written
+          // million-star file still buys nothing.
           const cap = rankManager.payableStars();
-          const granted = Math.min(Math.floor(stars), cap);
-          if (granted !== Math.floor(stars))
-            console.warn(`Import: ${Math.floor(stars) - granted} star(s) beyond this browser's ledger dropped`);
+          const granted = Math.min(wantStars, cap);
+          if (granted !== wantStars) {
+            problems++;
+            notes.push(t("status.importClamped", { dropped: wantStars - granted }));
+          }
           rankManager.totalStars = granted;
           rankManager.saveProgress();
           rankManager.emit("starsChanged", { totalStars: rankManager.totalStars, rank: rankManager.getCurrentRank() });
           updateRankWidget();
           rebuildPool();
-        } else if (typeof stars === "number") {
-          console.warn("Import rejected: stars out of safe range", stars);
+          restoredStars = granted;
+          gotStars = granted;
+        } else if (typeof data.rank.stars === "number") {
+          problems++;
+          notes.push(t("status.importStarRange"));
         }
       }
-      if (data.shop && window.__mol3dShop && typeof window.__mol3dShop.importState === "function") {
-        window.__mol3dShop.importState(data.shop);
+      if (data.shop && shopApi && typeof shopApi.importState === "function") {
+        // The crate was paid for out of stars already recorded as spent, so its
+        // budget is lifetime earnings minus the balance just restored — not the
+        // balance itself, which would drop a legitimate backup's whole crate.
+        const budget = Math.max(0, ledgerEarned() - restoredStars);
+        crateDropped = crateWorth > budget;
+        shopApi.importState(data.shop, budget);
+        if (crateDropped) {
+          problems++;
+          notes.push(t("status.importCrateDropped", { crate: crateWorth, budget }));
+        } else {
+          gotCrate = shopApi.crateTotal().atoms;
+        }
         rebuildPool();
       }
+      if (data.econ && window.__mol3dEcon && typeof window.__mol3dEcon.importState === "function") {
+        window.__mol3dEcon.importState(data.econ);
+      }
+      if (data.learning) window.__mol3dLearning?.importState(data.learning);
       if (data.quests) {
         if (typeof data.quests.stars === "number" && Number.isFinite(data.quests.stars) && data.quests.stars >= 0) {
           questManager.stars = Math.floor(data.quests.stars);
@@ -64110,22 +64460,27 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
           controls.target.fromArray(data.player.cameraTarget);
         }
       }
-      if (data.settings) {
-        if (data.settings.theme) {
-          themeMode = data.settings.theme;
-          applyTheme(themeMode);
-          try {
-            localStorage.setItem(THEME_KEY, themeMode);
-          } catch {
-          }
-        }
-        if (data.settings.lang) setLang(data.settings.lang);
-        if (QUALITY_MODES.includes(data.settings.quality)) applyMode(data.settings.quality);
-      }
       reanalyze();
       save(true);
+      const crate = shopApi && typeof shopApi.crateTotal === "function" ? shopApi.crateTotal() : { atoms: 0, stars: 0 };
+      if (!(gotAtoms + gotDisc + gotStars + gotCrate)) {
+        const why = t("status.importNothing") + (notes.length ? " " + notes.join(" ") : "");
+        console.warn("[import]", why);
+        status(why, "err", 14e3);
+        return;
+      }
       markImportUsed();
-      status(t("status.imported", { atoms: atoms.size, discoveries: discoveries.length }), "ok");
+      const head = t("status.importedDetail", {
+        atoms: atoms.size,
+        discoveries: discoveries.length,
+        stars: restoredStars,
+        crate: crate.atoms,
+        worth: crate.stars
+      });
+      const tail = (ledgerRestored ? " " + t("status.importLedger") : "") + (notes.length ? " " + notes.join(" ") : "");
+      console.info("[import]", head + tail);
+      if (problems) toast(notes[0]);
+      status(head + tail, problems ? "warn" : "ok", 14e3);
     } catch (err) {
       console.error("Import failed:", err);
       status(t("status.importFailed", { error: err.message }), "err");
@@ -65061,7 +65416,7 @@ function closeMobileSheets() {
 }
 {
   const tabs = document.getElementById("mtabs");
-  const mq = window.matchMedia("(max-width: 640px)");
+  const mq = window.matchMedia("(max-width: 820px), (max-height: 560px)");
   const sync = () => {
     document.body.classList.toggle("mobile", mq.matches);
     if (!mq.matches) closeMobileSheets();
@@ -65465,6 +65820,7 @@ window.__mol3d = {
   comps: () => lastComps,
   spawnAtom,
   spawnAtomFromScreen,
+  spawnMolecule: spawnFormulaMolecule,
   status,
   i18n: { t, getLang, elName },
   // Bond legality belongs to the game, not to the tool that draws it. BluePrint
@@ -65512,14 +65868,15 @@ window.__mol3d = {
   // The crate, opened to the tools that build whole structures at once (BluePrint
   // export, the dex summon). bill() pays for a bag of atoms, take() moves the atoms
   // the builder actually handed back out of the crate and onto the table, which is
-  // what makes deleting them return them. Both are no-ops in free-play mode.
+  // what makes destroying them a loss the player paid for. Both are no-ops in
+  // free-play mode.
   crate: {
     free: () => crateFreePlays(),
     price: (list) => crateBillPrice(list),
     bill: (list) => crateBuy(list, true),
     take: (ids) => crateMarkTaken(ids ? Array.from(ids) : []),
     // One nucleus, one element up. Ownership never refuses it; the crate only
-    // moves stock it actually holds.
+    // re-points a loan it actually holds.
     transmute: (id, newZ) => crateTransmute(id, newZ)
   },
   triggerDeath: triggerPlayerDeath,
@@ -66029,7 +66386,7 @@ function triggerRankUpAnimation(rankInfo) {
   }, 3e3);
 }
 rankManager.on("gradeUp", (data) => {
-  triggerRankUpAnimation(data.newRank);
+  triggerRankUpAnimation(Object.assign({}, data.newRank, { isRankUp: data.isRankUp }));
   updateRankWidget();
   const poolWrap = document.getElementById("pool-list");
   if (poolWrap) {
@@ -66106,33 +66463,6 @@ function triggerRankDownAnimation(rankInfo, starsLost, isRankDown) {
   }
 }
 updateRankWidget();
-{
-  const reward = checkDailyReward();
-  if (reward) {
-    const popup = document.getElementById("daily-reward-popup");
-    const dayEl = document.getElementById("daily-reward-day");
-    const starsEl = document.getElementById("daily-reward-stars");
-    const closeBtn = document.getElementById("daily-reward-close");
-    const claimBtn = document.getElementById("daily-reward-claim");
-    if (popup && dayEl && starsEl) {
-      dayEl.textContent = reward.streak;
-      starsEl.textContent = reward.stars;
-      popup.hidden = false;
-      const closePopup = () => {
-        popup.hidden = true;
-      };
-      closeBtn?.addEventListener("click", closePopup);
-      claimBtn?.addEventListener("click", () => {
-        const result = claimDailyReward();
-        if (result) {
-          status(t("rank.dailyClaimed", { stars: result.stars }), "ok");
-          updateRankWidget();
-        }
-        closePopup();
-      });
-    }
-  }
-}
 if (void 0) {
   (void 0).dispose(() => {
     controls.dispose();

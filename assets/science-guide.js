@@ -18,12 +18,16 @@
     return pair[l] !== undefined ? pair[l] : pair.en;
   }
 
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function ic(name, cls) { return '<i data-lucide="' + name + '" class="sg-lc' + (cls ? ' ' + cls : '') + '"></i>'; }
+  function lucideIn(root) { if (root && window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons({ nameAttr: 'data-lucide', root }); } catch (e) {} } }
+
   const UI = {
-    guideTitle: L('🔬 Science Guide', '🔬 Cẩm nang khoa học'),
+    guideTitle: L('Science Guide', 'Cẩm nang khoa học'),
     welcomeH: L('Welcome to the Science Guide!', 'Chào mừng đến với Cẩm nang khoa học!'),
     welcomeP1: L('Select a topic from the menu to learn about the chemistry and physics happening in the lab.', 'Chọn một chủ đề trong danh mục để tìm hiểu về hóa học và vật lý đang diễn ra trong phòng thí nghiệm.'),
     welcomeP2: L('Every phenomenon is simulated with real scientific principles!', 'Mọi hiện tượng đều được mô phỏng theo các nguyên lý khoa học thực tế!'),
-    menuBtn: L('🔬 Science Guide', '🔬 Cẩm nang khoa học'),
+    menuBtn: L('Science Guide', 'Cẩm nang khoa học'),
     navPrev: L('Previous topics', 'Chủ đề trước'),
     navNext: L('Next topics', 'Chủ đề tiếp'),
     panelTitle: L('Science', 'Khoa học')
@@ -31,7 +35,7 @@
 
   const GUIDES = {
     reactions: {
-      icon: '⚗️',
+      icon: 'flask-round',
       title: L('Chemical Reactions', 'Phản ứng hóa học'),
       sections: [
         {
@@ -54,7 +58,7 @@
     },
 
     kinetics: {
-      icon: '⏱️',
+      icon: 'timer',
       title: L('Chemical Kinetics', 'Động hóa học'),
       sections: [
         {
@@ -77,7 +81,7 @@
     },
 
     stability: {
-      icon: '⚖️',
+      icon: 'scale',
       title: L('Molecular Stability', 'Độ bền phân tử'),
       sections: [
         {
@@ -100,7 +104,7 @@
     },
 
     nuclear: {
-      icon: '☢️',
+      icon: 'radiation',
       title: L('Nuclear Physics', 'Vật lý hạt nhân'),
       sections: [
         {
@@ -123,7 +127,7 @@
     },
 
     phases: {
-      icon: '🌡️',
+      icon: 'thermometer',
       title: L('Phase Transitions', 'Chuyển pha'),
       sections: [
         {
@@ -146,7 +150,7 @@
     },
 
     decomposition: {
-      icon: '💥',
+      icon: 'sparkles',
       title: L('Decomposition Kinetics', 'Động học phân hủy'),
       sections: [
         {
@@ -168,7 +172,7 @@
       ]
     },
     redox: {
-      icon: '⚡',
+      icon: 'zap',
       title: L('Redox Chemistry', 'Hóa học oxi hóa - khử'),
       sections: [
         {
@@ -191,7 +195,7 @@
     },
 
     environment: {
-      icon: '🌍',
+      icon: 'globe',
       title: L('Environmental Effects', 'Hiệu ứng môi trường'),
       sections: [
         {
@@ -214,7 +218,7 @@
     },
 
     organic: {
-      icon: '🧬',
+      icon: 'hexagon',
       title: L('Organic Chemistry', 'Hóa học hữu cơ'),
       sections: [
         {
@@ -237,7 +241,7 @@
     },
 
     thermodynamics: {
-      icon: '🔥',
+      icon: 'flame',
       title: L('Thermodynamics', 'Nhiệt động lực học'),
       sections: [
         {
@@ -260,7 +264,7 @@
     },
 
     quantum: {
-      icon: '🌀',
+      icon: 'atom',
       title: L('Quantum Mechanics', 'Cơ học lượng tử'),
       sections: [
         {
@@ -283,7 +287,7 @@
     },
 
     equilibrium: {
-      icon: '🔄',
+      icon: 'arrow-left-right',
       title: L('Chemical Equilibrium', 'Cân bằng hóa học'),
       sections: [
         {
@@ -306,7 +310,7 @@
     },
 
     photochem: {
-      icon: '🔆',
+      icon: 'sun',
       title: L('Photochemistry', 'Quang hóa học'),
       sections: [
         {
@@ -328,7 +332,7 @@
       ]
     },
     surface: {
-      icon: '🪨',
+      icon: 'layers',
       title: L('Surface Chemistry', 'Hóa học bề mặt'),
       sections: [
         {
@@ -351,7 +355,7 @@
     },
 
     analytical: {
-      icon: '📊',
+      icon: 'gauge',
       title: L('Analytical Chemistry', 'Hóa phân tích'),
       sections: [
         {
@@ -374,7 +378,7 @@
     },
 
     green: {
-      icon: '♻️',
+      icon: 'recycle',
       title: L('Green Chemistry', 'Hóa học xanh'),
       sections: [
         {
@@ -397,7 +401,7 @@
     },
 
     biochem: {
-      icon: '🧫',
+      icon: 'test-tubes',
       title: L('Biochemistry', 'Hóa sinh'),
       sections: [
         {
@@ -433,8 +437,8 @@
     guidePanel.innerHTML = `
       <div class="guide-card">
         <div class="guide-header">
-          <div class="guide-title">${tx(UI.guideTitle)}</div>
-          <button class="guide-close" id="guide-close-btn">✕</button>
+          <div class="guide-title">${ic("microscope")}${esc(tx(UI.guideTitle))}</div>
+          <button class="guide-close" id="guide-close-btn" aria-label="close">${ic("x")}</button>
         </div>
         <div class="guide-nav-bar">
           <button class="guide-nav-arrow" id="guide-nav-prev" type="button">&#8249;</button>
@@ -452,6 +456,7 @@
     `;
 
     document.body.appendChild(guidePanel);
+    lucideIn(guidePanel);
 
     const closeBtn = guidePanel.querySelector('#guide-close-btn');
     closeBtn.addEventListener('click', closeGuide);
@@ -536,11 +541,12 @@
       const btn = document.createElement('button');
       btn.className = 'guide-nav-btn';
       btn.dataset.guide = key;
-      btn.textContent = `${guide.icon} ${tx(guide.title)}`;
+      btn.innerHTML = ic(guide.icon) + esc(tx(guide.title));
       if (key === currentGuide) btn.classList.add('active');
       btn.addEventListener('click', () => showGuide(key));
       nav.appendChild(btn);
     }
+    lucideIn(nav);
     updateNavArrows();
     centerActiveTab();
   }
@@ -574,7 +580,7 @@
     nav.forEach(btn => btn.classList.toggle('active', btn.dataset.guide === key));
 
     const content = guidePanel.querySelector('#guide-content');
-    let html = `<h2>${guide.icon} ${tx(guide.title)}</h2>`;
+    let html = `<h2>${ic(guide.icon)}${esc(tx(guide.title))}</h2>`;
 
     for (const section of guide.sections) {
       html += `
@@ -586,6 +592,7 @@
     }
 
     content.innerHTML = html;
+    lucideIn(content);
     content.scrollTop = 0;
     updateNavArrows();
     centerActiveTab();
@@ -615,7 +622,7 @@
     if (l === lastLang || !guidePanel) return;
     lastLang = l;
     const title = guidePanel.querySelector('.guide-title');
-    if (title) title.textContent = tx(UI.guideTitle);
+    if (title) { title.innerHTML = ic('microscope') + esc(tx(UI.guideTitle)); lucideIn(title); }
     labelNavArrows();
     if (!currentGuide) {
       const welcome = guidePanel.querySelector('.guide-welcome');
@@ -636,7 +643,7 @@
     const heading = document.getElementById('science-panel-title');
     if (heading) heading.textContent = tx(UI.panelTitle);
     const btn = document.getElementById('btn-science-guide');
-    if (btn) btn.textContent = tx(UI.menuBtn);
+    if (btn) { btn.innerHTML = ic('microscope') + esc(tx(UI.menuBtn)); lucideIn(btn); }
   }
 
   // The feature entries belong to the INFO sidebar tab, never to the app menu.
@@ -667,7 +674,8 @@
     const btn = document.createElement('button');
     btn.id = 'btn-science-guide';
     btn.className = 'science-entry';
-    btn.textContent = tx(UI.menuBtn);
+    btn.innerHTML = ic('microscope') + esc(tx(UI.menuBtn));
+    lucideIn(btn);
     btn.addEventListener('click', () => {
       openGuide();
     });
@@ -679,6 +687,8 @@
   function injectStyles() {
     const style = document.createElement('style');
     style.textContent = `
+      .sg-lc{width:1em;height:1em;vertical-align:-0.18em;margin-right:5px;stroke-width:2.2}
+      .guide-close .sg-lc,.guide-close svg{width:1.1em;height:1.1em;margin:0}
       #science-entries {
         display: flex;
         flex-direction: column;

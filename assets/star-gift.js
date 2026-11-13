@@ -1,4 +1,12 @@
-// Star gifting — turn stars into a gift code, and a code back into stars.
+// Star gifting — turn stars, elements and titles into a gift code, and a code
+// back into the same three things.
+//
+// What a code holds: a star amount and a list of contents. Elements are units of
+// the sender's own crate stock and titles are copies taken out of the sender's
+// collection, so a gift can only ever give away what somebody already paid for.
+// The units leave the sending side the moment the code is made — not to the
+// table, never to the table, straight to the other player — and come back if the
+// upload fails, exactly as the stars do.
 //
 // Why the game needs a host at all: it is a static bundle with no server of its
 // own, so a gift has to be held somewhere a second player can reach, and a fetch
@@ -60,11 +68,22 @@
 
   var APP_ID = 'moleculith';
   var KIND = 'star-gift';
-  var VERSION = 3;
+  // Version 4 adds contents to what had always been a star-only payload. A v3
+  // code is still honoured, because one that is sitting in a chat window right
+  // now is a real gift somebody paid for; anything older is refused as unreadable.
+  var VERSION = 4;
+  var OLDEST_READABLE = 3;
   var SEAL_KEY = 'moleculith.star-gift.v1';
 
   var MIN_GIFT = 200;
   var MAX_GIFT = 100000;
+  // Contents are bounded the same way the star amount is: a code is a gift, not a
+  // way to move a warehouse, and every extra row is bytes a stranger's browser has
+  // to decrypt before it can say no.
+  var MAX_ROWS = 12;
+  var MAX_ATOMS = 999;
+  var MAX_TITLES = 5;
+  var MAX_EL_Z = 118;
   // A code born already dead is a lost gift, and a code that lives a year is one
   // someone can sit on. Both ends are clamped.
   var MIN_LIFE_MS = 60 * 1000;
@@ -136,6 +155,22 @@
     return balance() - before;
   }
 
+  // The crate and the collection are where a gift's contents come from. Either
+  // can be missing on a page that has not mounted it yet, and then the only
+  // thing this dialog can offer is stars — which is what it offered before.
+  function shop() { try { return window.__mol3dShop || null; } catch (e) { return null; } }
+  function econ() { try { return window.__mol3dEcon || null; } catch (e) { return null; } }
+
+  // Repaint whatever the contents moved through: the crate chips and the
+  // economy HUD read these numbers live, so a gift that is not announced leaves
+  // the shop showing a stock count that is no longer true.
+  function repaintEconomy() {
+    var sh = shop();
+    try { if (sh && typeof sh.rerender === 'function') sh.rerender(); } catch (e) { }
+    var ec = econ();
+    try { if (ec && typeof ec.refresh === 'function') ec.refresh(); } catch (e) { }
+  }
+
   // `starsChanged` has no listener inside the bundle, so a gift that does not
   // cross a grade boundary would leave the widget showing the old number. The
   // rank-up/down events repaint everything themselves; this is the same line the
@@ -167,16 +202,28 @@
 
   var STR = {
     en: {
-      secGift: 'Star gifting',
+      secGift: 'Gifting',
       secCodes: 'Gift codes',
-      btnGift: 'Gifting',
+      btnGift: 'Gift',
       btnCodes: 'Codes',
-      btnGiftTitle: 'Turn stars into a gift code',
-      btnCodesTitle: 'Add the stars behind a gift code to your balance',
-      giftTitle: 'Send a star gift',
-      giftIntro: 'Stars leave your balance the moment the code is made. The gift is encrypted in this browser and held by PrivateBin, and the code dies the first time anyone opens it — or at the expiry you pick, whichever comes first.',
+      btnGiftTitle: 'Turn stars, elements and titles into a gift code',
+      btnCodesTitle: 'Open a gift code and take what it holds',
+      giftTitle: 'Send a gift',
+      giftIntro: 'Stars, elements and titles leave your side the moment the code is made — the crate ships the atoms and the collection gives up the title, and neither is put back if you change your mind later. The gift is encrypted in this browser and held by PrivateBin, and the code dies the first time anyone opens it — or at the expiry you pick, whichever comes first.',
       amount: 'Star amount',
-      amountHint: 'Minimum {min} ★ · maximum {max} ★',
+      amountHint: 'Minimum {min} ★ · maximum {max} ★ · or 0 with something below in the gift',
+      contents: 'What is inside',
+      elements: 'Elements from your crate',
+      elPh: 'Symbol or name — H, O, Au…',
+      elQty: 'How many',
+      elAdd: 'Add',
+      elNone: 'Your crate holds no elements yet, so there is nothing to put in a gift.',
+      elHave: 'crate holds {n}',
+      eElement: 'That is not an element your crate can give.',
+      titles: 'Titles from your collection',
+      titlesNone: 'No titles collected yet — Lab Crates are where they come from.',
+      contentsValue: 'Worth about {n} ★ to whoever opens it',
+      contentsEmpty: 'Nothing added yet.',
       balanceRow: 'Your balance',
       afterRow: 'After this gift',
       expiry: 'Expiry date',
@@ -193,7 +240,7 @@
       stAt: 'at {when}',
       downWarn: 'PrivateBin looks unreachable right now.',
       giftAnyway: 'Gift anyway',
-      stepDebit: 'Debiting stars…',
+      stepDebit: 'Taking the gift out of your crate…',
       stepUpload: 'Uploading to PrivateBin…',
       stepVerify: 'Confirming the code…',
       stepLive: 'Code is live',
@@ -225,9 +272,19 @@
       credited: '+{n} ★ added to your balance',
       creditedNote: 'Code {code} · {stars} ★ · expires {when}',
       capWarn: 'Only {n} of {stars} ★ fitted under the {cap} ★ balance cap.',
+      codeContents: 'The code holds',
+      gotAtom: '{n} × {sym}',
+      gotTitle: '{name}',
+      partialWarn: 'Only {got} of {want} could be delivered — a full shelf takes no more.',
+      nothingWarn: 'Nothing could be delivered, so this code paid nothing.',
       p5m: '5 minutes', p10m: '10 minutes',
       p1h: '1 hour', p1d: '1 day', p7d: '7 days', p30d: '30 days',
-      eAmount: 'Enter a whole number of stars between {min} and {max}.',
+      eAmount: 'Stars must be 0, or a whole number between {min} and {max}.',
+      eTooMany: 'A gift can hold at most {max} lines.',
+      eNoCrate: 'The crate is not on this page, so elements cannot go in a gift.',
+      eNoCollection: 'The collection is not on this page, so titles cannot go in a gift.',
+      eStockShort: 'Your crate only holds {have} × {sym}.',
+      eTitleShort: 'Only {n} of that title are left in your collection.',
       eBalance: 'Not enough stars — your balance is {n} ★.',
       eExpiryPast: 'The expiry has to be in the future.',
       eExpiryFar: 'A code can live for at most {days} days.',
@@ -245,19 +302,32 @@
       eHostMsg: 'PrivateBin refused the gift: {message}',
       eServer: 'PrivateBin refused the request ({status}).',
       eBadReply: 'PrivateBin returned an unreadable answer.',
-      refunded: 'Your stars were put back.'
+      refunded: 'Your stars were put back.',
+      refundedContents: 'Your elements and titles went back into your crate and collection.'
     },
     vi: {
-      secGift: 'Tặng sao',
+      secGift: 'Tặng quà',
       secCodes: 'Mã quà tặng',
-      btnGift: 'Tặng sao',
+      btnGift: 'Tặng quà',
       btnCodes: 'Nhập mã',
-      btnGiftTitle: 'Biến sao thành mã quà tặng',
-      btnCodesTitle: 'Cộng sao của mã quà tặng vào số dư của bạn',
-      giftTitle: 'Gửi quà bằng sao',
-      giftIntro: 'Sao bị trừ ngay khi tạo mã. Quà được mã hóa ngay trên máy này rồi PrivateBin giữ hộ; mã mất ngay khi có người mở lần đầu — hoặc khi hết hạn theo lúc bạn chọn, tùy điều nào đến trước.',
+      btnGiftTitle: 'Biến sao, nguyên tố và danh hiệu thành mã quà tặng',
+      btnCodesTitle: 'Mở mã quà tặng và nhận những gì bên trong',
+      giftTitle: 'Gửi quà tặng',
+      giftIntro: 'Sao, nguyên tố và danh hiệu rời khỏi bạn ngay khi tạo mã — kho gửi nguyên tố đi còn bộ sưu tập nhường lại danh hiệu, và không thứ nào tự quay về nếu bạn đổi ý sau đó. Quà được mã hóa ngay trên máy này rồi PrivateBin giữ hộ; mã mất ngay khi có người mở lần đầu — hoặc khi hết hạn theo lúc bạn chọn, tùy điều nào đến trước.',
       amount: 'Số sao',
-      amountHint: 'Tối thiểu {min} ★ · tối đa {max} ★',
+      amountHint: 'Tối thiểu {min} ★ · tối đa {max} ★ · hoặc 0 kèm quà bên dưới',
+      contents: 'Bên trong có gì',
+      elements: 'Nguyên tố trong kho của bạn',
+      elPh: 'Kí hiệu hoặc tên — H, O, Au…',
+      elQty: 'Số lượng',
+      elAdd: 'Thêm',
+      elNone: 'Kho của bạn chưa có nguyên tố nào nên chưa có gì để tặng.',
+      elHave: 'kho có {n}',
+      eElement: 'Đó không phải nguyên tố kho của bạn tặng được.',
+      titles: 'Danh hiệu trong bộ sưu tập',
+      titlesNone: 'Chưa sưu tầm danh hiệu nào — mở Thùng thí nghiệm để có.',
+      contentsValue: 'Người mở quà nhận giá trị khoảng {n} ★',
+      contentsEmpty: 'Chưa thêm gì.',
       balanceRow: 'Số dư của bạn',
       afterRow: 'Sau khi tặng',
       expiry: 'Ngày hết hạn',
@@ -274,7 +344,7 @@
       stAt: 'lúc {when}',
       downWarn: 'PrivateBin có vẻ không tiếp cận được ngay lúc này.',
       giftAnyway: 'Cứ tặng',
-      stepDebit: 'Đang trừ sao…',
+      stepDebit: 'Đang lấy quà ra khỏi kho và bộ sưu tập…',
       stepUpload: 'Đang tải lên PrivateBin…',
       stepVerify: 'Đang xác nhận mã…',
       stepLive: 'Mã đã có hiệu lực',
@@ -306,9 +376,19 @@
       credited: '+{n} ★ đã được cộng vào số dư của bạn',
       creditedNote: 'Mã {code} · {stars} ★ · hết hạn {when}',
       capWarn: 'Chỉ {n} trong {stars} ★ vừa với trần số dư {cap} ★.',
+      codeContents: 'Mã chứa',
+      gotAtom: '{n} × {sym}',
+      gotTitle: '{name}',
+      partialWarn: 'Chỉ giao được {got} trên {want} — kệ đã đầy nên nhận thêm không được nữa.',
+      nothingWarn: 'Không giao được gì, nên mã này không trả phần quà nào.',
       p5m: '5 phút', p10m: '10 phút',
       p1h: '1 giờ', p1d: '1 ngày', p7d: '7 ngày', p30d: '30 ngày',
-      eAmount: 'Hãy nhập số sao nguyên từ {min} đến {max}.',
+      eAmount: 'Số sao phải là 0, hoặc số nguyên từ {min} đến {max}.',
+      eTooMany: 'Một món quà chứa tối đa {max} dòng.',
+      eNoCrate: 'Trang này không có kho nên không cho nguyên tố vào quà được.',
+      eNoCollection: 'Trang này không có bộ sưu tập nên không cho danh hiệu vào quà được.',
+      eStockShort: 'Kho của bạn chỉ còn {have} × {sym}.',
+      eTitleShort: 'Bộ sưu tập của bạn chỉ còn {n} danh hiệu đó.',
       eBalance: 'Không đủ sao — số dư của bạn là {n} ★.',
       eExpiryPast: 'Ngày hết hạn phải ở tương lai.',
       eExpiryFar: 'Mã chỉ sống tối đa {days} ngày.',
@@ -326,7 +406,8 @@
       eHostMsg: 'PrivateBin từ chối món quà: {message}',
       eServer: 'PrivateBin từ chối yêu cầu ({status}).',
       eBadReply: 'PrivateBin trả về dữ liệu không đọc được.',
-      refunded: 'Sao của bạn đã được hoàn lại.'
+      refunded: 'Sao của bạn đã được hoàn lại.',
+      refundedContents: 'Nguyên tố và danh hiệu đã trở về kho và bộ sưu tập của bạn.'
     }
   };
 
@@ -385,8 +466,12 @@
   // The same double-hash the star ledger uses. It is not a secret — anything the
   // client holds ships in the client — it only stops a hand-typed or edited code
   // from paying, so casual forgeries fail loudly instead of quietly succeeding.
-  function seal(stars, exp, giftId) {
-    var s = SEAL_KEY + '|' + stars + '|' + exp + '|' + giftId;
+  // The contents digest joins the hash from version 4 on: an edited element count
+  // in a code is exactly the forgery worth stopping, and a v3 code — which has no
+  // contents — keeps hashing the string it was sealed with, so codes that are
+  // already sitting in somebody's chat window still pay.
+  function seal(stars, exp, giftId, digest) {
+    var s = SEAL_KEY + '|' + stars + '|' + exp + '|' + giftId + (digest ? '|' + digest : '');
     var h1 = 2166136261 >>> 0, h2 = 3432345061 >>> 0;
     for (var i = 0; i < s.length; i++) {
       var c = s.charCodeAt(i);
@@ -406,6 +491,226 @@
   }
 
   function randomId() { return randomHex(8); }
+
+  // ------------------------------------------------------------- gift contents
+  // A content row is one of two things: units of an element out of the crate, or
+  // a title out of the collection. The rows are what the code carries, what the
+  // sender is charged for and what the receiver is handed, so they are built
+  // once, checked once, and then read by every surface that shows the gift.
+  // Names travel in both languages because the code is opened by a stranger, in
+  // their language, on a machine the sender will never see again.
+
+  function elements() {
+    var g = game();
+    return (g && g.ELEMENTS) || [];
+  }
+
+  function elementByZ(z) {
+    var list = elements();
+    for (var i = 0; i < list.length; i++) if (list[i].z === z) return list[i];
+    return null;
+  }
+
+  function elLabel(el) {
+    if (!el) return '?';
+    var g = game();
+    try {
+      if (g && g.i18n && typeof g.i18n.elName === 'function') return g.i18n.elName(el);
+    } catch (e) { }
+    return el.sym || String(el.z);
+  }
+
+  // The pack pool is the title catalogue: it is where a title's bilingual name,
+  // rarity and icon are defined, and a gifted title must render exactly like the
+  // one the receiver would have rolled. Falling back to the sender's own stored
+  // string keeps titles minted by any other surface giftable too; the pair then
+  // carries that one text in both slots, which is all anybody can honestly say.
+  function titleCatalog() {
+    var out = {};
+    var p = null;
+    try { p = window.__mol3dPacks || null; } catch (e) { return out; }
+    var pool = p && p.pool;
+    if (!pool) return out;
+    Object.keys(pool).forEach(function (rar) {
+      (pool[rar] || []).forEach(function (it) {
+        if (it && it.kind === 'title') out[it.id] = it;
+      });
+    });
+    return out;
+  }
+
+  function namePair(rec, cat) {
+    var src = cat || rec || {};
+    var n = src.name, d = src.desc;
+    if (n && typeof n === 'object') {
+      return { name: { en: String(n.en || n.vi || ''), vi: String(n.vi || n.en || '') },
+        desc: d && typeof d === 'object'
+          ? { en: String(d.en || d.vi || ''), vi: String(d.vi || d.en || '') }
+          : { en: String(d || ''), vi: String(d || '') } };
+    }
+    var s = String(n || rec.id || '');
+    var sd = String((d && d[lang()] || d) || '');
+    return { name: { en: s, vi: s }, desc: { en: sd, vi: sd } };
+  }
+
+  // What the sender may put in a gift, read from the two systems that hold it.
+  function ownedAtoms() {
+    var sh = shop();
+    if (!sh || typeof sh.stockOf !== 'function') return [];
+    return elements().filter(function (el) {
+      try { return sh.stockOf(el.z) > 0; } catch (e) { return false; }
+    }).map(function (el) {
+      return { z: el.z, sym: el.sym, name: el.name, label: elLabel(el), have: sh.stockOf(el.z), unit: sh.unitPrice ? sh.unitPrice(el.z) : 0 };
+    });
+  }
+
+  function ownedTitles() {
+    var ec = econ();
+    if (!ec || typeof ec.inventory !== 'function') return [];
+    var cat = titleCatalog();
+    return ec.inventory().filter(function (x) {
+      return x.kind === 'title' && x.id;
+    }).map(function (x) {
+      var c = cat[x.id];
+      var pair = namePair(x, c);
+      return {
+        id: x.id, have: Math.max(1, Math.floor(x.n || 1)),
+        name: pair.name, desc: pair.desc,
+        rarity: (c && c.rarity) || x.rarity || 'common',
+        icon: (c && c.icon) || x.icon || 'award',
+        value: (c && c.value) || x.value || 0
+      };
+    });
+  }
+
+  // Anything arriving from a code is untrusted text, including a code this game
+  // made that somebody edited on the way. Every row is rebuilt from scratch here,
+  // so a payload cannot smuggle a negative count or a field a later screen
+  // would paste into the page.
+  function sanitizeItems(raw) {
+    if (raw === undefined || raw === null || raw === '') return { ok: true, items: [] };
+    if (!Array.isArray(raw)) return { ok: false, error: 'ePayload' };
+    if (raw.length > MAX_ROWS) return { ok: false, error: 'eTooMany' };
+    var cat = titleCatalog();
+    var items = [];
+    for (var i = 0; i < raw.length; i++) {
+      var r = raw[i];
+      if (!r || typeof r !== 'object') return { ok: false, error: 'ePayload' };
+      var n = Math.floor(Number(r.n));
+      if (!Number.isFinite(n) || n < 1) return { ok: false, error: 'ePayload' };
+      if (r.k === 'atom') {
+        var z = Math.floor(Number(r.z));
+        if (!(z >= 1 && z <= MAX_EL_Z)) return { ok: false, error: 'ePayload' };
+        if (n > MAX_ATOMS) return { ok: false, error: 'ePayload' };
+        if (!elementByZ(z)) return { ok: false, error: 'ePayload' };
+        items.push({ k: 'atom', z: z, n: n });
+      } else if (r.k === 'title') {
+        var id = String(r.id || '');
+        if (!/^[A-Za-z0-9_-]{1,48}$/.test(id)) return { ok: false, error: 'ePayload' };
+        if (n > MAX_TITLES) return { ok: false, error: 'ePayload' };
+        var c = cat[id];
+        var pair = namePair(c || { id: id, name: r.name, desc: r.desc }, c);
+        items.push({
+          k: 'title', id: id, n: n, name: pair.name, desc: pair.desc,
+          rarity: String(r.rarity || (c && c.rarity) || 'common').slice(0, 16),
+          icon: String(r.icon || (c && c.icon) || 'award').slice(0, 24),
+          value: Math.max(0, Math.floor(Number(r.value || (c && c.value) || 0)) || 0)
+        });
+      } else {
+        return { ok: false, error: 'ePayload' };
+      }
+    }
+    return { ok: true, items: items };
+  }
+
+  // The row text the digest is taken over, and the same text a list of contents
+  // shows: counts first, then what they are made of.
+  function digestOf(items) {
+    return (items || []).map(function (it) {
+      return it.k === 'atom' ? 'a' + it.z + 'x' + it.n
+        : 't' + it.id + 'x' + it.n + '#' + it.rarity + '#' + it.value;
+    }).join(';');
+  }
+
+  function contentsValue(items) {
+    var sh = shop();
+    var v = 0;
+    (items || []).forEach(function (it) {
+      if (it.k === 'atom') v += (sh && sh.unitPrice ? sh.unitPrice(it.z) : 0) * it.n;
+      else v += (it.value || 0) * it.n;
+    });
+    return v;
+  }
+
+  // Charging the sender is the same three-step dance as the stars: move only
+  // what is really there, remember exactly what moved, and hand every bit of it
+  // back if the upload fails. `sent` is what left, so a refund can never give
+  // back a unit that was never taken.
+  function chargeContents(items) {
+    var sent = [];
+    var sh = shop(), ec = econ();
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (it.k === 'atom') {
+        if (!sh || typeof sh.shipStock !== 'function') {
+          return { ok: false, error: 'eNoCrate', sent: sent };
+        }
+        var got = sh.shipStock(it.z, it.n);
+        if (got !== it.n) {
+          return {
+            ok: false, error: 'eStockShort', sent: sent,
+            params: { sym: (elementByZ(it.z) || { sym: it.z }).sym, have: got, want: it.n }
+          };
+        }
+        sent.push(it);
+      } else {
+        if (!ec || typeof ec.takeCollectible !== 'function') {
+          return { ok: false, error: 'eNoCollection', sent: sent };
+        }
+        var r = ec.takeCollectible(it.id, it.n);
+        if (!r.ok || r.removed !== it.n) {
+          return { ok: false, error: 'eTitleShort', sent: sent, params: { n: r.removed || 0 } };
+        }
+        sent.push(it);
+      }
+    }
+    repaintEconomy();
+    return { ok: true, sent: sent };
+  }
+
+  function refundContents(sent) {
+    var sh = shop(), ec = econ();
+    (sent || []).forEach(function (it) {
+      if (it.k === 'atom') { if (sh && sh.grantStock) sh.grantStock(it.z, it.n); }
+      else if (ec && ec.giveCollectible) ec.giveCollectible(it, it.n);
+    });
+    repaintEconomy();
+  }
+
+  // Paying the receiver: the same rows, delivered by the systems that own them.
+  // Each row reports what actually landed, because a crate shelf that is already
+  // full and a stranger who has changed their mind are different outcomes, and
+  // the player is told which one they got.
+  function deliverContents(items) {
+    var sh = shop(), ec = econ();
+    var out = [];
+    (items || []).forEach(function (it) {
+      var row = { k: it.k, n: it.n, want: it.n, got: 0 };
+      if (it.k === 'atom') {
+        row.z = it.z;
+        row.sym = (elementByZ(it.z) || { sym: '?' + it.z }).sym;
+        row.got = sh && sh.grantStock ? sh.grantStock(it.z, it.n) : 0;
+      } else {
+        row.id = it.id;
+        row.name = it.name; row.desc = it.desc;
+        row.rarity = it.rarity; row.icon = it.icon; row.value = it.value;
+        row.got = ec && ec.giveCollectible ? ec.giveCollectible(it, it.n) : 0;
+      }
+      out.push(row);
+    });
+    repaintEconomy();
+    return out;
+  }
 
   // ------------------------------------------------------------ PrivateBin wire
   // PrivateBin's FormatV2, measured against the live instance: the ciphertext is
@@ -499,12 +804,14 @@
     }
   }
 
-  function buildPayload(stars, expMs) {
+  function buildPayload(stars, expMs, items) {
     var exp = toUtcStamp(new Date(expMs));
     var giftId = randomId();
+    var list = items || [];
     return {
       app: APP_ID, kind: KIND, v: VERSION,
-      stars: stars, exp: exp, giftId: giftId, sig: seal(stars, exp, giftId)
+      stars: stars, exp: exp, giftId: giftId,
+      items: list, sig: seal(stars, exp, giftId, digestOf(list))
     };
   }
 
@@ -513,17 +820,26 @@
     try { p = JSON.parse(text); } catch (e) { return { ok: false, error: 'ePayload' }; }
     if (!p || typeof p !== 'object') return { ok: false, error: 'ePayload' };
     if (p.app !== APP_ID || p.kind !== KIND) return { ok: false, error: 'ePayload' };
-    if (p.v !== VERSION) return { ok: false, error: 'ePayload' };
+    var modern = p.v === VERSION;
+    if (!modern && p.v !== OLDEST_READABLE) return { ok: false, error: 'ePayload' };
     var stars = Math.floor(Number(p.stars));
-    if (!Number.isFinite(stars) || stars < MIN_GIFT || stars > MAX_GIFT) return { ok: false, error: 'ePayload' };
+    if (!Number.isFinite(stars) || stars < 0 || stars > MAX_GIFT) return { ok: false, error: 'ePayload' };
     var expMs = fromUtcStamp(p.exp);
     if (!Number.isFinite(expMs)) return { ok: false, error: 'ePayload' };
     if (expMs <= Date.now()) return { ok: false, error: 'eExpired' };
     if (typeof p.giftId !== 'string' || !p.giftId || typeof p.sig !== 'string') {
       return { ok: false, error: 'ePayload' };
     }
-    if (p.sig !== seal(stars, p.exp, p.giftId)) return { ok: false, error: 'ePayload' };
-    return { ok: true, stars: stars, expMs: expMs, giftId: p.giftId };
+    var clean = modern ? sanitizeItems(p.items) : { ok: true, items: [] };
+    if (!clean.ok) return { ok: false, error: clean.error };
+    // Stars alone used to have to clear MIN_GIFT; a code that carries a present
+    // is allowed to carry no stars at all, and one that carries neither is not a
+    // gift, so it is refused rather than opened for nothing.
+    if (!clean.items.length && stars < MIN_GIFT) return { ok: false, error: 'ePayload' };
+    if (p.sig !== seal(stars, p.exp, p.giftId, digestOf(clean.items))) {
+      return { ok: false, error: 'ePayload' };
+    }
+    return { ok: true, stars: stars, expMs: expMs, giftId: p.giftId, items: clean.items };
   }
 
   // --------------------------------------------------------- local registry
@@ -578,8 +894,11 @@
     return Number.isFinite(n) ? n : null;
   }
 
-  function validateGift(n, expMs, bal) {
-    if (n === null || n < MIN_GIFT || n > MAX_GIFT) {
+  function validateGift(n, expMs, bal, items) {
+    var has = items && items.length;
+    // 0 stars is only a valid amount when the gift carries something else;
+    // below the minimum but not zero is a typo, and it is reported as one.
+    if (n === null || n < 0 || (n > 0 && (n < MIN_GIFT || n > MAX_GIFT)) || (!has && n < MIN_GIFT)) {
       return { error: 'eAmount', params: { min: MIN_GIFT, max: MAX_GIFT } };
     }
     if (!Number.isFinite(expMs)) return { error: 'eExpiryPast' };
@@ -589,6 +908,7 @@
       return { error: 'eExpiryFar', params: { days: Math.round(MAX_LIFE_MS / 86400000) } };
     }
     if (n > bal) return { error: 'eBalance', params: { n: bal } };
+    if (items && items.length > MAX_ROWS) return { error: 'eTooMany', params: { max: MAX_ROWS } };
     return null;
   }
 
@@ -663,44 +983,67 @@
     };
   }
 
-  async function createGift(stars, expMs, onStep) {
+  async function createGift(stars, expMs, items, onStep) {
     if (busy) return { ok: false, error: 'eBusy' };
     var n = wholeStars(stars);
-    var bad = validateGift(n, expMs, balance());
+    // The rows the dialog assembled are rebuilt through the same sanitizer the
+    // receiving side uses, so what gets sealed, what gets charged and what gets
+    // paid out are provably the same list.
+    var clean = sanitizeItems(items || []);
+    if (!clean.ok) return { ok: false, error: clean.error, params: { max: MAX_ROWS } };
+    var bad = validateGift(n, expMs, balance(), clean.items);
     if (bad) return { ok: false, error: bad.error, params: bad.params };
     if (expMs - Date.now() < MIN_LIFE_MS) expMs = Date.now() + MIN_LIFE_MS;
     var tier = tierFor(expMs);
     expMs = Date.now() + tier.ms;
 
-    var payload = buildPayload(n, expMs);
-    if (!spendStars(n)) return { ok: false, error: 'eBalance', params: { n: balance() } };
+    var payload = buildPayload(n, expMs, clean.items);
+    if (n > 0 && !spendStars(n)) {
+      if (n > 0) giveStars(n);
+      return { ok: false, error: 'eBalance', params: { n: balance() } };
+    }
+    var charged = chargeContents(clean.items);
+    if (!charged.ok) {
+      if (n > 0) giveStars(n);
+      refundContents(charged.sent);
+      return {
+        ok: false, error: charged.error, params: charged.params,
+        refunded: true, refundedStars: n > 0, refundedContents: charged.sent.length > 0
+      };
+    }
     if (onStep) onStep('debit');
 
     busy = true;
     try {
       if (onStep) onStep('upload');
       var made = await uploadPrivatebin(payload, tier.token);
-      if (!made.ok) return fail(n, made.error, made.params);
+      if (!made.ok) return fail(n, charged.sent, made.error, made.params);
       if (onStep) onStep('verify');
       var st = readState();
-      st.sent[made.code] = { stars: n, at: Date.now(), exp: expMs };
+      st.sent[made.code] = { stars: n, at: Date.now(), exp: expMs, items: clean.items };
       writeState(st);
       // The upload is itself the proof the service is reachable, so the status
       // row says that and no round-trip time it did not measure. The next real
       // probe — dialog reopen, or the player pressing Check — replaces it.
       lastProbe = { state: 'online', status: 200, ms: null, at: Date.now() };
       if (onStep) onStep('live');
-      return { ok: true, code: made.code, url: made.url, stars: n, expMs: expMs };
+      return { ok: true, code: made.code, url: made.url, stars: n, expMs: expMs, items: clean.items };
     } catch (e) {
-      return fail(n, 'eNetwork');
+      return fail(n, charged.sent, 'eNetwork');
     } finally {
       busy = false;
     }
   }
 
-  function fail(n, error, params) {
+  // Nothing was delivered, so nothing may stay charged: the stars go back the way
+  // they left and every shipped unit of stock and taken title comes back too.
+  function fail(n, sent, error, params) {
     giveStars(n);
-    return { ok: false, error: error, params: params, refunded: true };
+    refundContents(sent);
+    return {
+      ok: false, error: error, params: params, refunded: true,
+      refundedStars: n > 0, refundedContents: (sent || []).length > 0
+    };
   }
 
   // The read URL is also the only way to ask the service what it holds — and for
@@ -747,12 +1090,15 @@
       // gifts, and a half-finished payout is worse than a refused one.
       st = readState();
       if (st.redeemed[c.code]) return { ok: false, error: 'eUsed', code: c.code };
-      st.redeemed[c.code] = { stars: v.stars, at: Date.now(), exp: v.expMs };
+      st.redeemed[c.code] = { stars: v.stars, at: Date.now(), exp: v.expMs, items: v.items };
       writeState(st);
       var got = giveStars(v.stars);
+      var delivered = deliverContents(v.items);
+      repaintEconomy();
       return {
         ok: true, code: c.code, stars: v.stars, credited: got,
-        expMs: v.expMs, balance: balance(), truncated: got < v.stars
+        expMs: v.expMs, balance: balance(), truncated: got < v.stars,
+        items: v.items, delivered: delivered
       };
     } catch (e) {
       return { ok: false, error: 'eNetwork', code: c.code };
@@ -899,6 +1245,32 @@
     '  border:1px solid var(--border);border-radius:6px;padding:3px 7px;cursor:pointer;}',
     '.sg-mini:hover{border-color:var(--accent);color:var(--text);}',
     '.sg-mini:disabled{opacity:.45;cursor:not-allowed;}',
+    // The contents picker: a typed element, a count, and the staged rows shown as
+    // removable chips. It is deliberately the same visual family as the quick
+    // star buttons so the dialog reads as one feature rather than two.
+    '.sg-pick{display:flex;gap:6px;align-items:stretch;}',
+    '.sg-pick .sg-input{flex:1;min-width:0;}',
+    '.sg-pick .sg-input.num{flex:0 0 72px;}',
+    '.sg-pick .sg-mini{align-self:center;}',
+    '.sg-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}',
+    '.sg-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;',
+    '  border:1px solid var(--accent);border-radius:8px;padding:4px 6px;',
+    '  background:var(--accent-soft);color:var(--text);}',
+    '.sg-chip button{border:0;background:transparent;color:var(--sg-sub);cursor:pointer;',
+    '  font:inherit;font-size:14px;line-height:1;padding:0 1px;}',
+    '.sg-chip button:hover{color:var(--err);}',
+    '.sg-empty{font-size:10px;line-height:1.45;color:var(--sg-sub);margin:6px 0 0;}',
+    '.sg-empty[hidden]{display:none;}',
+    '.sg-sum{display:flex;align-items:baseline;justify-content:space-between;gap:10px;',
+    '  font-size:10px;color:var(--sg-sub);margin-top:8px;}',
+    '.sg-sum b{font-size:11px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;',
+    '  text-align:right;}',
+    '.sg-list{display:flex;flex-direction:column;gap:4px;margin-top:2px;}',
+    '.sg-list div{display:flex;align-items:baseline;justify-content:space-between;gap:10px;',
+    '  font-size:11px;color:var(--sg-sub);}',
+    '.sg-list b{font-size:11.5px;font-weight:800;color:var(--text);text-align:right;',
+    '  font-variant-numeric:tabular-nums;}',
+    '.sg-sec[hidden]{display:none;}',
     // An explicit display beats the UA [hidden] rule, so the step line needs its
     // own off state or it stays visible with no text.
     '.sg-step{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--sg-sub);',
@@ -910,8 +1282,9 @@
     '  .sg-btn{font-size:11.5px;min-height:31px;padding:7px 9px;}.sg-row{font-size:10px;}',
     '  .sg-row b{font-size:11px;}.sg-note,.sg-hint{font-size:9.5px;}',
     '  .sg-mini{font-size:9px;padding:3px 6px;}.sg-step{font-size:10px;}',
+    '  .sg-pick .sg-input.num{flex:0 0 58px;}.sg-chip{font-size:10px;}.sg-list div{font-size:10px;}',
     // iOS zooms the page when a focused field is under 16px; these are the typed ones.
-    '  #sg-amount,#sg-code-in{font-size:16px;padding:9px 10px;}}'
+    '  #sg-amount,#sg-el-in,#sg-el-n,#sg-code-in{font-size:16px;padding:9px 10px;}}'
   ].join('\n');
 
   function ensureStyles() {
@@ -985,6 +1358,180 @@
 
   // --------------------------------------------------------------- gift dialog
 
+  // ---------------------------------------------------------- contents picker
+  // The staged rows live in here rather than in the DOM, because the dialog is
+  // rebuilt whenever the language or the theme changes while the gift the player
+  // is assembling has to survive that. Nothing is taken from the crate or the
+  // collection at this point — staging is only a list of intentions, and the
+  // charge happens once, inside createGift, immediately before the upload.
+  var staged = [];
+
+  function stagedIndex(kind, key) {
+    for (var i = 0; i < staged.length; i++) {
+      if (staged[i].k !== kind) continue;
+      if (kind === 'atom' ? staged[i].z === key : staged[i].id === key) return i;
+    }
+    return -1;
+  }
+
+  function titleText(row) {
+    var pair = row && row.name;
+    if (!pair) return row ? String(row.id || '') : '';
+    return String(pair[lang()] || pair.en || pair.vi || '');
+  }
+
+  // A typed element is matched by symbol first, because that is what the field
+  // asks for, then by the exact name in either language, then by a name prefix so
+  // the datalist and typing "oxi" both land on Oxygen. Only what the crate
+  // actually holds can be found: an element the player has none of is not a gift.
+  function findOwned(text) {
+    var s = String(text || '').trim().toLowerCase();
+    if (!s) return null;
+    var owned = ownedAtoms(), i;
+    for (i = 0; i < owned.length; i++) if (String(owned[i].sym).toLowerCase() === s) return owned[i];
+    for (i = 0; i < owned.length; i++) {
+      if (String(owned[i].label || '').toLowerCase() === s) return owned[i];
+      if (String(owned[i].name || '').toLowerCase() === s) return owned[i];
+    }
+    for (i = 0; i < owned.length; i++) {
+      var nm = String(owned[i].name || '').toLowerCase();
+      if (nm.length > s.length && nm.indexOf(s) === 0) return owned[i];
+    }
+    return null;
+  }
+
+  function addAtomRow(text, want) {
+    var own = findOwned(text);
+    if (!own) return { error: 'eElement' };
+    var n = Math.floor(Number(want));
+    if (!Number.isFinite(n) || n < 1) n = 1;
+    var at = stagedIndex('atom', own.z);
+    var total = (at < 0 ? 0 : staged[at].n) + n;
+    // The same element asked for twice is one bigger row, not two rows: MAX_ROWS
+    // is there to keep a code small, and repeating a line would waste it.
+    var cap = Math.min(own.have, MAX_ATOMS);
+    if (total > cap) {
+      return { error: 'eStockShort', params: { have: cap, sym: own.sym } };
+    }
+    if (at < 0) {
+      if (staged.length >= MAX_ROWS) return { error: 'eTooMany', params: { max: MAX_ROWS } };
+      staged.push({ k: 'atom', z: own.z, n: total });
+    } else {
+      staged[at].n = total;
+    }
+    return { ok: true };
+  }
+
+  function dropRow(index) {
+    if (!(index >= 0 && index < staged.length)) return;
+    staged.splice(index, 1);
+  }
+
+  // A title is a one-of-a-kind thing in a collection, so clicking it stages it and
+  // clicking it again takes it back. The count a row can carry is checked here
+  // even though the picker only ever asks for one, because the same rule has to
+  // hold for a code somebody builds by hand.
+  function addTitleRow(id) {
+    var at = stagedIndex('title', id);
+    if (at >= 0) { staged.splice(at, 1); return { ok: true }; }
+    var rec = null;
+    ownedTitles().forEach(function (t) { if (t.id === id) rec = t; });
+    if (!rec) return { error: 'eTitleShort', params: { n: 0 } };
+    if (staged.length >= MAX_ROWS) return { error: 'eTooMany', params: { max: MAX_ROWS } };
+    staged.push({
+      k: 'title', id: rec.id, n: 1, name: rec.name, desc: rec.desc,
+      rarity: rec.rarity, icon: rec.icon, value: rec.value
+    });
+    return { ok: true };
+  }
+
+  function renderContents() {
+    if (!refs || !refs.gift) return;
+    var card = refs.gift.card;
+    var owned = ownedAtoms();
+    var dl = q(card, '#sg-el-dl');
+    dl.innerHTML = '';
+    owned.forEach(function (o) {
+      var opt = make('option');
+      opt.value = o.sym;
+      opt.label = o.label + ' · ' + L('elHave', { n: o.have });
+      dl.appendChild(opt);
+    });
+    q(card, '#sg-el-none').hidden = owned.length > 0;
+
+    var titles = ownedTitles();
+    var tbox = q(card, '#sg-title-list');
+    tbox.innerHTML = '';
+    titles.forEach(function (t) {
+      var b = make('button', null, esc(titleText(t)));
+      b.type = 'button';
+      b.dataset.title = t.id;
+      if (stagedIndex('title', t.id) >= 0) b.classList.add('sel');
+      tbox.appendChild(b);
+    });
+    q(card, '#sg-title-none').hidden = titles.length > 0;
+
+    var chips = q(card, '#sg-chips');
+    chips.innerHTML = '';
+    staged.forEach(function (row, i) {
+      var chip = make('span', 'sg-chip');
+      chip.appendChild(make('span', null, esc(rowLabel(row))));
+      var x = make('button', null, '&times;');
+      x.type = 'button';
+      x.dataset.drop = String(i);
+      chip.appendChild(x);
+      chips.appendChild(chip);
+    });
+    q(card, '#sg-contents-empty').hidden = staged.length > 0;
+    var v = contentsValue(staged);
+    q(card, '#sg-contents-val').textContent = staged.length && v > 0 ? L('contentsValue', { n: v }) : '';
+  }
+
+  // One line per staged/gifted row, in the language of the screen showing it.
+  // Both the sender's code dialog and the receiver's result use this, so the two
+  // sides of one gift cannot drift into describing it differently.
+  function rowLabel(row) {
+    if (row.k === 'atom') {
+      var el = elementByZ(row.z) || {};
+      return L('gotAtom', { n: row.n, sym: row.sym || el.sym || row.z });
+    }
+    var name = titleText(row);
+    return L('gotTitle', { name: name }) + (row.n > 1 ? ' ×' + row.n : '');
+  }
+
+  function fillList(box, rows) {
+    box.innerHTML = '';
+    (rows || []).forEach(function (text) {
+      var div = make('div');
+      div.appendChild(make('span', null, esc(text)));
+      box.appendChild(div);
+    });
+  }
+
+  // One place decides what happens after a row is staged or dropped: a rejection
+  // is said out loud, a success clears the message and repaints everything that
+  // reads the staged list.
+  function stageResult(res) {
+    var card = refs.gift.card;
+    if (res && res.error) {
+      say(q(card, '#sg-gift-msg'), 'err', L(res.error, res.params));
+      return false;
+    }
+    quiet(q(card, '#sg-gift-msg'));
+    syncGift();
+    return true;
+  }
+
+  function addFromForm() {
+    var card = refs.gift.card;
+    var field = q(card, '#sg-el-in');
+    var qty = q(card, '#sg-el-n');
+    if (!stageResult(addAtomRow(field.value, qty.value))) return;
+    field.value = '';
+    qty.value = '1';
+    field.focus();
+  }
+
   function buildGift() {
     var m = dialog('sg-gift-modal');
     m.card.innerHTML =
@@ -993,11 +1540,28 @@
       '<p class="sg-intro" data-t="giftIntro"></p>' +
       '<label class="sg-label" for="sg-amount" data-t="amount"></label>' +
       '<div class="sg-field">' +
-      '  <input class="sg-input" id="sg-amount" type="number" min="' + MIN_GIFT + '" max="' + MAX_GIFT + '" step="50" inputmode="numeric" value="' + MIN_GIFT + '" />' +
+      '  <input class="sg-input" id="sg-amount" type="number" min="0" max="' + MAX_GIFT + '" step="50" inputmode="numeric" value="' + MIN_GIFT + '" />' +
       '  <span class="sg-unit">★</span>' +
       '</div>' +
       '<div class="sg-quick" id="sg-quick"></div>' +
       '<p class="sg-hint" data-t="amountHint"></p>' +
+      '<div class="sg-sec">' +
+      '  <div class="sg-sec-title" data-t="contents"></div>' +
+      '  <label class="sg-label" for="sg-el-in" data-t="elements"></label>' +
+      '  <div class="sg-pick">' +
+      '    <input class="sg-input" id="sg-el-in" type="text" autocomplete="off" spellcheck="false" list="sg-el-dl" />' +
+      '    <input class="sg-input num" id="sg-el-n" type="number" min="1" step="1" inputmode="numeric" value="1" />' +
+      '    <button class="sg-mini" type="button" id="sg-el-add" data-t="elAdd"></button>' +
+      '    <datalist id="sg-el-dl"></datalist>' +
+      '  </div>' +
+      '  <p class="sg-empty" id="sg-el-none" data-t="elNone" hidden></p>' +
+      '  <label class="sg-label" data-t="titles"></label>' +
+      '  <div class="sg-quick" id="sg-title-list"></div>' +
+      '  <p class="sg-empty" id="sg-title-none" data-t="titlesNone" hidden></p>' +
+      '  <div class="sg-chips" id="sg-chips"></div>' +
+      '  <div class="sg-sum"><span id="sg-contents-empty" data-t="contentsEmpty"></span>' +
+      '  <b id="sg-contents-val"></b></div>' +
+      '</div>' +
       '<div class="sg-row"><span data-t="statusRow"></span><b class="sg-live">' +
       '  <i class="sg-dot" id="sg-dot"></i><span id="sg-status-txt"></span></b>' +
       '  <button class="sg-mini" type="button" id="sg-probe" data-t="check"></button>' +
@@ -1032,6 +1596,26 @@
     q(m.card, '#sg-amount').addEventListener('input', function () { armed = false; syncGift(); });
     q(m.card, '#sg-probe').addEventListener('click', function () { refreshProbe(true); });
     sel.addEventListener('change', syncGift);
+    q(m.card, '#sg-el-add').addEventListener('click', addFromForm);
+    ['#sg-el-in', '#sg-el-n'].forEach(function (id) {
+      q(m.card, id).addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        e.stopPropagation();
+        addFromForm();
+      });
+    });
+    q(m.card, '#sg-title-list').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-title]') : null;
+      if (!b) return;
+      stageResult(addTitleRow(b.dataset.title));
+    });
+    q(m.card, '#sg-chips').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-drop]') : null;
+      if (!b) return;
+      dropRow(Number(b.dataset.drop));
+      stageResult({ ok: true });
+    });
     wireClose(m);
     return m;
   }
@@ -1100,6 +1684,7 @@
   function syncGift() {
     if (!refs) return;
     var card = refs.gift.card;
+    renderContents();
     var n = wholeStars(q(card, '#sg-amount').value) || 0;
     var bal = balance();
     q(card, '#sg-balance-row').textContent = bal + ' ★';
@@ -1123,7 +1708,7 @@
     quiet(box);
     var amount = wholeStars(q(card, '#sg-amount').value);
     var exp = chosenExpiry();
-    var bad = validateGift(amount, exp, balance());
+    var bad = validateGift(amount, exp, balance(), staged);
     if (bad) { say(box, 'err', L(bad.error, bad.params)); return; }
 
     // A probe that could not reach the service is worth saying out loud before
@@ -1140,7 +1725,7 @@
 
     btn.disabled = true;
     btn.textContent = L('creating');
-    var r = await createGift(amount, exp, stepLine);
+    var r = await createGift(amount, exp, staged, stepLine);
     btn.disabled = false;
     btn.textContent = L('create');
     stepLine(null);
@@ -1148,11 +1733,18 @@
       // syncGift repaints the refunded balance and clears the message box, so it
       // has to run first or the reason for the failure is erased as it appears.
       syncGift();
-      say(box, 'err', L(r.error, r.params), r.refunded ? L('refunded') : '');
+      var back = [];
+      if (r.refundedStars) back.push(L('refunded'));
+      if (r.refundedContents) back.push(L('refundedContents'));
+      say(box, 'err', L(r.error, r.params), back.join('\n'));
       refreshProbe(false);
       return;
     }
     hide(refs.gift.root);
+    // The rows the code actually carries are the sanitized ones createGift
+    // returns, not the ones the picker staged: after this point the two must not
+    // be able to differ.
+    staged = [];
     showCode(r);
     syncGift();
   }
@@ -1172,6 +1764,10 @@
       '</div>' +
       '<div class="sg-url" id="sg-code-url"></div>' +
       '<div class="sg-row"><span data-t="amount"></span><b id="sg-code-stars">0 ★</b></div>' +
+      '<div class="sg-sec" id="sg-code-contents" hidden>' +
+      '  <div class="sg-sec-title" data-t="codeContents"></div>' +
+      '  <div class="sg-list" id="sg-code-list"></div>' +
+      '</div>' +
       '<div class="sg-row"><span data-t="expiresAt"></span><b id="sg-code-exp">—</b></div>' +
       '<div class="sg-row"><span data-t="liveRow"></span><b class="sg-live">' +
       '  <i class="sg-dot" id="sg-live-dot"></i><span id="sg-live-txt">…</span></b>' +
@@ -1196,6 +1792,11 @@
     q(card, '#sg-code-url').textContent = r.url;
     q(card, '#sg-code-stars').textContent = r.stars + ' ★';
     q(card, '#sg-code-exp').textContent = humanDate(r.expMs);
+    var items = r.items || [];
+    var v = contentsValue(items);
+    fillList(q(card, '#sg-code-list'), items.map(rowLabel).concat(
+      v > 0 ? [L('contentsValue', { n: v })] : []));
+    q(card, '#sg-code-contents').hidden = items.length === 0;
     show(refs.code.root);
     checkLive(false);
   }
@@ -1289,6 +1890,21 @@
     return m;
   }
 
+  // The receipt is written from what landed, not from what the code promised: a
+  // shelf that was already full gives back fewer atoms than were sent, and the
+  // player is told that number rather than the sender's.
+  function deliveredLines(rows) {
+    var out = [];
+    (rows || []).forEach(function (d) {
+      var label = d.k === 'atom'
+        ? L('gotAtom', { n: d.got, sym: d.sym })
+        : L('gotTitle', { name: titleText(d) }) + (d.got > 1 ? ' ×' + d.got : '');
+      if (d.got < d.want) label += '\n  ' + L('partialWarn', { got: d.got, want: d.want });
+      out.push(label);
+    });
+    return out;
+  }
+
   async function submitRedeem() {
     var card = refs.redeem.card;
     var box = q(card, '#sg-redeem-msg');
@@ -1315,11 +1931,26 @@
       return;
     }
     input.value = '';
+    var items = r.items || [];
+    var lines = deliveredLines(r.delivered);
+    var empty = items.length > 0 && (r.delivered || []).every(function (d) {
+      return !(d.got > 0);
+    });
+    var headline = r.credited > 0 ? L('credited', { n: r.credited }) : L('codeContents');
     var note = L('creditedNote', { code: r.code, stars: r.stars, when: humanDate(r.expMs) });
-    note += '\n' + L('burnByRead');
     if (r.truncated) note += '\n' + L('capWarn', { n: r.credited, stars: r.stars, cap: BALANCE_CAP });
-    say(box, 'ok', L('credited', { n: r.credited }), note);
-    toast(L('credited', { n: r.credited }));
+    if (lines.length) note += '\n' + lines.join('\n');
+    if (empty) note += '\n' + L('nothingWarn');
+    note += '\n' + L('burnByRead');
+    say(box, 'ok', headline, note);
+    toast(headline);
+    // The opening animation is decoration on top of a payout that has already
+    // happened, so it is called through a hook that may be absent and must never
+    // be able to fail the redeem.
+    var cine = window.__mol3dGiftPack;
+    if (typeof cine === 'function') {
+      try { cine({ stars: r.credited, items: items, delivered: r.delivered }); } catch (e) { }
+    }
   }
 
   function toast(text) {
@@ -1358,6 +1989,12 @@
       });
       var codeIn = q(m.card, '#sg-code-in');
       if (codeIn) codeIn.placeholder = L('redeemPh');
+      // The two fields of the element picker have no room for captions next to
+      // them, so the text they need lives in the field itself and in its name.
+      var elIn = q(m.card, '#sg-el-in');
+      if (elIn) elIn.placeholder = L('elPh');
+      var elN = q(m.card, '#sg-el-n');
+      if (elN) { elN.setAttribute('aria-label', L('elQty')); elN.title = L('elQty'); }
       var sel = q(m.card, '#sg-expiry');
       if (sel) {
         Array.prototype.forEach.call(sel.options, function (o, i) {
@@ -1471,6 +2108,17 @@
     balance: balance,
     createGift: createGift,
     redeemCode: redeemCode,
+    contents: {
+      ownedAtoms: ownedAtoms,
+      ownedTitles: ownedTitles,
+      sanitize: sanitizeItems,
+      value: contentsValue,
+      label: rowLabel,
+      staged: function () { return staged.slice(); },
+      clear: function () { staged = []; },
+      addAtom: addAtomRow,
+      addTitle: addTitleRow
+    },
     parseCode: parseCode,
     statusOf: statusOf,
     probe: probeStatus,

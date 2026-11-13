@@ -4855,7 +4855,7 @@
   }
 
   var STR = {
-    menuBtn: LS('⚛ Molecular Physics Lab', '⚛ Phòng thí nghiệm Vật lý Phân tử'),
+    menuBtn: LS('Molecular Physics Lab', 'Phòng thí nghiệm Vật lý Phân tử'),
     title: LS('Molecular Physics Lab', 'Phòng thí nghiệm Vật lý Phân tử'),
     subtitle: LS('SI-unit classical mechanics, EEM electrostatics and Hückel π theory on the atoms you built',
       'Cơ học cổ điển đơn vị SI, điện tích EEM và thuyết π Hückel trên các nguyên tử bạn đã dựng'),
@@ -5201,6 +5201,16 @@
     return String(s === null || s === undefined ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+  // Lucide icon markup for the innerHTML strings below; hydrated with lucideIn.
+  function ic(name) {
+    return '<i data-lucide="' + name + '" class="mpe-lc"></i>';
+  }
+  function lucideIn(root) {
+    try {
+      if (window.lucide && typeof window.lucide.createIcons === 'function')
+        window.lucide.createIcons({ nameAttr: 'data-lucide', root: root || document });
+    } catch (e) {}
+  }
   // A calculated number that is smaller than the last printed digit is still a
   // result. Printing "0.0" (or "-0.0") would say "no force here", so widen the
   // precision until the value shows, and only then fall back to exponential.
@@ -5234,7 +5244,9 @@
     }).join('') + '</div>';
   }
   function box(title, body, cls) {
-    return '<div class="mpe-box ' + (cls || '') + '"><h4>' + esc(title) + '</h4>' + body + '</div>';
+    // Titles that open with our own ic() markup keep that markup; plain text is escaped as before.
+    var t = String(title).indexOf('<i data-lucide="') === 0 ? String(title) : esc(title);
+    return '<div class="mpe-box ' + (cls || '') + '"><h4>' + t + '</h4>' + body + '</div>';
   }
   function listBlock(items) {
     if (!items.length) return '<div class="mpe-ok">—</div>';
@@ -5257,6 +5269,7 @@
       '.mpe-tabs button{background:var(--panel-2,#18233b);color:var(--muted,#a9bdda);border:1px solid var(--border,#2c3a5a);border-radius:16px;padding:3px 10px;font-size:12px;cursor:pointer}' +
       '.mpe-tabs button.on{background:var(--accent,#2f6df0);color:var(--on-accent,#fff);border-color:var(--accent,#5b8cff)}' +
       '.mpe-body{padding:10px 11px;overflow:auto;flex:1}' +
+      '.mpe-lc{width:1em;height:1em;vertical-align:-0.18em;margin-right:3px;stroke-width:2.4}' +
       '.mpe-box{border:1px solid var(--border,#2b3a5c);border-radius:9px;padding:8px 9px;margin:0 0 9px;background:var(--panel-2,rgba(20,28,46,.7))}' +
       '.mpe-box.warn{border-color:var(--warn,#8a6a22);background:var(--warn-soft,rgba(64,48,12,.55))}' +
       '.mpe-box.bad{border-color:var(--err,#8a2f2f);background:var(--err-soft,rgba(64,18,18,.55))}' +
@@ -5296,10 +5309,11 @@
       el.innerHTML =
         '<div class="mpe-hd"><b id="mpe-title"></b>' +
         '<button id="mpe-lang"></button>' +
-        '<button id="mpe-close">✕</button></div>' +
+        '<button id="mpe-close"><i data-lucide="x" class="mpe-lc"></i></button></div>' +
         '<div class="mpe-tabs" id="mpe-tabs"></div>' +
         '<div class="mpe-body" id="mpe-body"></div>';
       document.body.appendChild(el);
+      lucideIn(el);
       el.querySelector('#mpe-close').addEventListener('click', hide);
       el.querySelector('#mpe-lang').addEventListener('click', function() {
         var next = curLang() === 'vi' ? 'en' : 'vi';
@@ -5408,7 +5422,7 @@
         esc(gloss(sys.unitNote || '')) + ' · ' + esc(TXT(STR.chargeSource)) + ': ' +
         esc(gloss(sys.chargeSource || '')) + '</div>';
       if (sys.problems.length) {
-        html += box('⚠ ' + TXT(STR.logTitle), listBlock(sys.problems.map(gloss)), 'warn');
+        html += box(ic('triangle-alert') + TXT(STR.logTitle), listBlock(sys.problems.map(gloss)), 'warn');
       }
       return html;
     }
@@ -5563,7 +5577,7 @@
       if (dyn.unstable) {
         // The banner is the engine's own sentence, so on the Vietnamese page it is
         // rewritten like every other engine sentence; the note says where it stopped.
-        html += box('⛔ ' + esc(gloss(dyn.unstable.message)), '<div class="mpe-note">' +
+        html += box(ic('ban') + esc(gloss(dyn.unstable.message)), '<div class="mpe-note">' +
           dyn.unstable.step + ' / ' + fs(dyn.unstable.time) + '</div>', 'bad');
       }
 
@@ -5803,7 +5817,7 @@
         '<div class="mpe-row"><button data-act="tests">▶ ' + esc(TXT(STR.testsRun)) + '</button>' +
         '<span class="mpe-pill">' + pass + ' / ' + t.results.length + ' · ' + num(t.elapsedMs, 0) + ' ms</span></div>' +
         table([TXT(STR.test), TXT(STR.result), TXT(STR.kMeasured)], t.results.map(function(r) {
-          return ['<span class="' + (r.ok ? 'mpe-ok' : 'mpe-err') + '">' + (r.ok ? '✓' : '✗') + '</span> ' +
+          return ['<span class="' + (r.ok ? 'mpe-ok' : 'mpe-err') + '">' + (r.ok ? ic('check') : ic('x')) + '</span> ' +
             esc(TXT(r.name)) + '<div class="mpe-note">' + esc(gloss(r.detail || r.reason || '')) + '</div>',
             r.ok ? esc(TXT(STR.pass)) : esc(TXT(STR.fail)), esc(gloss(r.value || ''))];
         })), t.failed ? 'warn' : 'good');
@@ -5832,6 +5846,7 @@
         else body += viewQuantum(built);
       }
       el.querySelector('#mpe-body').innerHTML = body;
+      lucideIn(el.querySelector('#mpe-body'));
       var sel = el.querySelector('#mpe-sel');
       if (sel) sel.addEventListener('change', function() { Engine.select(+sel.value); render(); });
       [['sel-dt', 'set-dt'], ['sel-ens', 'set-ens']].forEach(function(p) {
@@ -6087,7 +6102,8 @@
     var btn = document.createElement('button');
     btn.id = 'btn-molecular-physics';
     btn.className = 'science-entry';
-    btn.textContent = txt;
+    btn.innerHTML = ic('atom') + esc(txt);
+    lucideIn(btn);
     btn.addEventListener('click', function() { Panel.toggle(); });
     return btn;
   }
@@ -6115,7 +6131,7 @@
     }, 400);
     var relabel = function() {
       var b = document.querySelector('#btn-molecular-physics');
-      if (b) b.textContent = TXT(STR.menuBtn);
+      if (b) { b.innerHTML = ic('atom') + esc(TXT(STR.menuBtn)); lucideIn(b); }
       Panel.refresh();
     };
     window.addEventListener('mol3d:lang', relabel);

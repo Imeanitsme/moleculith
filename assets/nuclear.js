@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
   var LN2 = Math.LN2;
   var MEV_IN_J = 1.602176634e-13;
   var AVOGADRO = 6.02214076e23;
@@ -158,6 +158,10 @@
     HEAVY_BETA_MINUS[z * 1000 + a] = { t: t, shed: shed || 0, q: typeof q === 'number' ? q : null };
   }
   putB(90, 231, 25.52 * 3600, 0, 0.3915);
+  // Thorium-233 is what a neutron shot at thorium-232 actually makes, and it is the
+  // first step of the thorium fuel cycle: 21.83 minutes of beta-minus to protactinium-233,
+  // not the alpha door the liquid drop would have picked for it.
+  putB(90, 233, 21.83 * 60, 0, 1.3740);
   putB(90, 234, 24.10 * DAY_S, 0, 0.2741);
   putB(91, 233, 26.967 * DAY_S, 0, 0.5708);
   putB(91, 234, 6.70 * 3600, 0, 2.2740);

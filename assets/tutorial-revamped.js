@@ -4,6 +4,13 @@
   'use strict';
 
   var TUTORIAL_KEY = 'mol3d.tutorial.completed.v6';
+  var PROGRESS_KEY = 'mol3d.tutorial.progress.v1';
+  var completed = false;
+  var skipped = false;
+  var spawnBaseline = null;
+  var highlightTimer = null;
+  var autoStartTimer = null;
+  var retiringContainer = null;
   var USER_NAME_KEY = 'mol3d.user.name';
 
   var tutorialActive = false;
@@ -325,11 +332,11 @@
           "action": "next"
         },
         {
-          "text": "Shoot a proton into an element with Z > 82 and you'll trigger nuclear fission!",
+          "text": "Only a nucleus from protactinium (Z 91) upward can split: a fissile isotope fissions for sure, any other heavy one gets a one-in-four fast-fission chance.",
           "action": "next"
         },
         {
-          "text": "Fission creates a massive white explosion, breaks all nearby bonds, and splits the atom into lighter elements.",
+          "text": "Fission creates a massive white explosion, breaks all nearby bonds, and splits the atom into two lighter nuclei plus free neutrons.",
           "action": "next"
         },
         {
@@ -352,15 +359,15 @@
           "action": "next"
         },
         {
-          "text": "Every 5 stars = 1 grade up. 5 grades = 1 rank up. There are 6 ranks total.",
+          "text": "Stars build grades and grades build ranks: 5 stars per grade, 10 grades in each of the first three ranks, then 50 grades in Experienced and Researcher.",
           "action": "next"
         },
         {
-          "text": "Higher ranks unlock more elements. New Creation gets H through Ca; Further Beyond gets all 118!",
+          "text": "Elements come from the Shop, not from ranks: hydrogen through calcium are free, everything heavier is bought with stars.",
           "action": "next"
         },
         {
-          "text": "The final rank, Further Beyond, has unlimited grades. Keep exploring to climb higher!",
+          "text": "The final rank, Further Beyond, has unlimited grades and charges 50 stars for every one of them. Keep exploring to climb higher!",
           "action": "next"
         },
         {
@@ -571,14 +578,14 @@
     "Press X as a shortcut to toggle X-Ray mode anytime!": "Nhấn X làm phím tắt để bật/tắt chế độ Tia X bất cứ lúc nào!",
     "The Proton Gun lets you shoot protons into atoms, transmuting them into heavier elements!": "Súng Proton cho phép bắn proton vào nguyên tử, biến đổi chúng thành nguyên tố nặng hơn!",
     "Aim at any atom and click to add a proton. Hydrogen becomes Helium, Carbon becomes Nitrogen, etc.": "Nhắm vào bất kỳ nguyên tử nào và nhấn để thêm proton. H thành He, C thành N, v.v.",
-    "Shoot a proton into an element with Z > 82 and you'll trigger nuclear fission!": "Bắn proton vào nguyên tố có Z > 82 và bạn sẽ kích hoạt phân hạch nhân!",
-    "Fission creates a massive white explosion, breaks all nearby bonds, and splits the atom into lighter elements.": "Phân hạch tạo vụ nổ trắng lớn, phá mọi liên kết gần và tách nguyên tử thành các nguyên tử nhẹ hơn.",
+    "Only a nucleus from protactinium (Z 91) upward can split: a fissile isotope fissions for sure, any other heavy one gets a one-in-four fast-fission chance.": "Chỉ hạt nhân từ protactinium (Z 91) trở lên mới vỡ được: đồng vị phân hạch chắc chắn phân hạch, hạt nhân nặng khác có một phần tư cơ hội phân hạch nhanh.",
+    "Fission creates a massive white explosion, breaks all nearby bonds, and splits the atom into two lighter nuclei plus free neutrons.": "Phân hạch tạo vụ nổ trắng lớn, phá mọi liên kết gần và tách nguyên tử thành hai hạt nhân nhẹ hơn kèm các neutron tự do.",
     "The damage follows real inverse-square physics — distance is your best friend during fission!": "Sát thương theo vật lý nghịch đảo bình phương thực — khoảng cách là bạn tốt nhất khi phân hạch!",
-    "Switch to the DEX tab to see your rank widget. You start as New Creation with0 sao.": "Chuyển sang tab DEX để thấy hệm xếp hạng. Bạn bắt đầu là Tạo Mới với 0 sao.",
+    "Switch to the DEX tab to see your rank widget. You start as New Creation with 0 stars.": "Chuyển sang tab DEX để thấy hệm xếp hạng. Bạn bắt đầu là Tạo Mới với 0 sao.",
     "Earn stars by discovering new molecules. Each discovery awards stars based on complexity!": "Kiếm sao bằng cách khám phá phân tử mới. Mỗi khám phá thưởng sao theo độ phức tạp!",
-    "Every 5 stars = 1 grade up. 5 grades = 1 rank up. There are 6 ranks total.": "Mỗi 5 sao = 1 hạng lên. 5 hạng = 1 cấp lên. Tổng cộng có 6 cấp.",
-    "Higher ranks unlock more elements. New Creation gets H through Ca; Further Beyond gets all 118!": "Cấp cao hơn mở khóa nhiều nguyên tố hơn. Tạo Mới được H đến Ca; Vượt Xa Hơn được tất cả 118!",
-    "The final rank, Further Beyond, has unlimited grades. Keep exploring to climb higher!": "Cấp cuối, Vượt Xa Hơn, có hạng không giới hạn. Hãy khám phá để leo cao hơn!",
+    "Stars build grades and grades build ranks: 5 stars per grade, 10 grades in each of the first three ranks, then 50 grades in Experienced and Researcher.": "Sao dựng nên bậc, bậc dựng nên hạng: 5 sao mỗi bậc, 10 bậc ở mỗi hạng trong ba hạng đầu, rồi 50 bậc ở hạng Dạn Dày Kinh Nghiệm và Nhà Nghiên Cứu.",
+    "Elements come from the Shop, not from ranks: hydrogen through calcium are free, everything heavier is bought with stars.": "Nguyên tố đến từ Cửa hàng chứ không từ thứ hạng: hydro đến canxi miễn phí, mọi thứ nặng hơn phải mua bằng sao.",
+    "The final rank, Further Beyond, has unlimited grades and charges 50 stars for every one of them. Keep exploring to climb higher!": "Hạng cuối, Vượt Ra Xa Hơn, có số bậc không giới hạn và thu 50 sao cho mỗi bậc. Hãy khám phá để leo cao hơn!",
     "Pull the rope on the left side to open the Shop. Spend stars to buy elements and features.": "Kéo dây thừng bên trái để mở Cửa hàng. Dùng sao để mua nguyên tố và tính năng.",
     "Be careful — spending stars can downgrade your rank if you fall below the threshold!": "Cẩn thận — tiêu sao có thể hạ cấp nếu bạn xuống dưới ngưỡng!",
     "The Format panel controls formal charges and the atom grid outline.": "Bảng Định dạng điều khiển điện tích hình thức và viền lười nguyên tử.",
@@ -637,7 +644,7 @@
   }
 
   function fmt(text) {
-    return L(text).replace(/\{assistant\}/g, assistantName).replace(/\{user\}/g, userName);
+    return L(text).replace(/\{assistant\}/g, function() { return assistantName; }).replace(/\{user\}/g, function() { return userName; });
   }
 
   function clearWait() {
@@ -648,7 +655,36 @@
     if (typeInterval) { clearInterval(typeInterval); typeInterval = null; }
   }
 
-  function shouldShow() { return !localStorage.getItem(TUTORIAL_KEY); }
+  function progress() {
+    return { phase: phase, step: step, completed: completed, skipped: skipped };
+  }
+
+  function persistProgress() {
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress())); } catch (e) {}
+  }
+
+  function importProgress(saved) {
+    if (!saved || !Number.isInteger(saved.phase) || saved.phase < 0 || saved.phase >= PHASES.length ||
+        !Number.isInteger(saved.step) || saved.step < 0 || saved.step >= PHASES[saved.phase].steps.length ||
+        typeof saved.completed !== 'boolean' || typeof saved.skipped !== 'boolean' ||
+        (saved.completed && saved.skipped)) return false;
+    if (tutorialActive) pause();
+    phase = saved.phase;
+    step = saved.step;
+    completed = saved.completed;
+    skipped = saved.skipped;
+    persistProgress();
+    return true;
+  }
+
+  function restoreProgress() {
+    try { importProgress(JSON.parse(localStorage.getItem(PROGRESS_KEY))); } catch (e) {}
+  }
+
+  function shouldShow() {
+    if (completed || skipped) return false;
+    try { return !localStorage.getItem(TUTORIAL_KEY); } catch (e) { return true; }
+  }
 
   function createUI() {
     container = document.createElement('div');
@@ -668,14 +704,15 @@
     document.body.appendChild(container);
 
     assistantEl.addEventListener('pointerdown', function() {
-      longPressTimer = setTimeout(function() { complete(); }, 600);
+      longPressTimer = setTimeout(skip, 600);
     });
     assistantEl.addEventListener('pointerup', function() { clearTimeout(longPressTimer); });
     assistantEl.addEventListener('pointerleave', function() { clearTimeout(longPressTimer); });
 
+    var created = container;
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
-        container.classList.remove('tut-no-transition');
+        if (container === created) created.classList.remove('tut-no-transition');
       });
     });
   }
@@ -684,8 +721,12 @@
     clearType();
     clearWait();
     clearTimeout(longPressTimer);
+    clearTimeout(highlightTimer);
+    spawnBaseline = null;
     hideHighlight();
     var dying = container;
+    if (retiringContainer) retiringContainer.remove();
+    retiringContainer = dying;
     if (dying && dying.parentNode) {
       dying.classList.remove('tut-visible');
       dying.classList.add('tut-fade-out');
@@ -712,8 +753,11 @@
     var vh = window.innerHeight;
     container.style.visibility = 'hidden';
     container.style.display = 'flex';
-    var cw = container.offsetWidth;
-    var ch = container.offsetHeight;
+    // offsetWidth/Height ignore transforms and can understate the rendered
+    // box; measure the real rect or the dialog lands a few px over targets.
+    var box = container.getBoundingClientRect();
+    var cw = box.width;
+    var ch = box.height;
     var assistantH = assistantEl ? (assistantEl.offsetHeight || 56) : 56;
     container.style.visibility = '';
     if (targetSelector) {
@@ -721,38 +765,109 @@
       if (target) {
         var rect = target.getBoundingClientRect();
         var gap = 12;
-        var spaceAbove = rect.top;
-        var spaceBelow = vh - rect.bottom;
         var targetCX = rect.left + rect.width / 2;
-        if (spaceAbove >= ch + gap + 10 || spaceAbove >= spaceBelow) {
-          var topPos = Math.max(8, rect.top - gap - ch);
-          container.style.top = topPos + 'px';
-        } else {
-          var topPos2 = rect.bottom + gap;
-          if (topPos2 + ch > vh - 8) topPos2 = Math.max(8, vh - ch - 8);
-          container.style.top = topPos2 + 'px';
+        var targetCY = rect.top + rect.height / 2;
+        // The dialog must never sit over the button the player has to press,
+        // nor over the panels (top bar / right sidebar / pool bar) whose other
+        // controls stay live during the guide.
+        var zones = [{ l: rect.left - 8, t: rect.top - 8, r: rect.right + 8, b: rect.bottom + 8 }];
+        ['.top-bar', '.right-sidebar', '#pool-bar'].forEach(function (sel) {
+          var p = document.querySelector(sel);
+          if (!p || p.offsetParent === null || p.contains(target)) return;
+          var pr = p.getBoundingClientRect();
+          zones.push({ l: pr.left, t: pr.top, r: pr.right, b: pr.bottom });
+        });
+        function fits(r) {
+          return r.l >= 6 && r.t >= 6 && r.l + cw <= vw - 6 && r.t + ch <= vh - 6 &&
+            !zones.some(function (z) { return r.l < z.r && r.l + cw > z.l && r.t < z.b && r.t + ch > z.t; });
         }
-        var leftPos = Math.max(8, Math.min(targetCX - cw / 2, vw - cw - 8));
-        container.style.left = leftPos + 'px';
+        function clamp(r) {
+          r.l = Math.max(8, Math.min(r.l, vw - cw - 8));
+          r.t = Math.max(8, Math.min(r.t, vh - ch - 8));
+          return r;
+        }
+        var left = { l: rect.left - gap - cw, t: targetCY - ch / 2 };
+        var right = { l: rect.right + gap, t: targetCY - ch / 2 };
+        var above = { l: targetCX - cw / 2, t: rect.top - gap - ch };
+        var below = { l: targetCX - cw / 2, t: rect.bottom + gap };
+        var inSide = target.closest && target.closest('.right-sidebar');
+        var inTopBar = target.closest && target.closest('.top-bar');
+        var order = inSide ? [left, right, above, below] : inTopBar ? [below, above, left, right] : [above, below, left, right];
+        var chosen = null;
+        for (var qi = 0; qi < order.length && !chosen; qi++) {
+          var c = clamp({ l: order[qi].l, t: order[qi].t });
+          if (fits(c)) chosen = c;
+        }
+        if (!chosen) {
+          // Nothing clears every panel (small screens): still never cover the target itself.
+          var targetZone = zones[0];
+          for (var qi2 = 0; qi2 < order.length && !chosen; qi2++) {
+            var c2 = clamp({ l: order[qi2].l, t: order[qi2].t });
+            if (!(c2.l < targetZone.r && c2.l + cw > targetZone.l && c2.t < targetZone.b && c2.t + ch > targetZone.t)) chosen = c2;
+          }
+        }
+        if (!chosen) chosen = clamp({ l: targetCX - cw / 2, t: Math.max(8, rect.top - gap - ch) });
+        container.style.top = chosen.t + 'px';
+        container.style.left = chosen.l + 'px';
         return;
       }
     }
+    // No highlighted target: still keep the dialog off the panels whose
+    // buttons stay live during the guide; slide along the cheaper axis.
+    var freeZones = [];
+    ['.top-bar', '.right-sidebar', '#pool-bar'].forEach(function (sel) {
+      var p = document.querySelector(sel);
+      if (!p || p.offsetParent === null) return;
+      var pr = p.getBoundingClientRect();
+      freeZones.push({ l: pr.left, t: pr.top, r: pr.right, b: pr.bottom });
+    });
+    function inZone(z) {
+      return pos.l < z.r && pos.l + cw > z.l && pos.t < z.b && pos.t + ch > z.t;
+    }
     var assistantCenterY = vh * 0.62;
-    var topCenter = Math.max(8, Math.min(assistantCenterY - assistantH - (ch - assistantH) / 2, vh - ch - 8));
-    container.style.top = topCenter + 'px';
-    var leftCenter = Math.max(8, Math.min((vw - cw) / 2, vw - cw - 8));
-    container.style.left = leftCenter + 'px';
+    var pos = {
+      l: Math.max(8, Math.min((vw - cw) / 2, vw - cw - 8)),
+      t: Math.max(8, Math.min(assistantCenterY - assistantH - (ch - assistantH) / 2, vh - ch - 8))
+    };
+    freeZones.forEach(function (z) {
+      if (!inZone(z)) return;
+      var moves = [];
+      if (pos.l + cw - z.l + 12 >= 0 && pos.l - (pos.l + cw - z.l + 12) >= 8)
+        moves.push({ l: pos.l - (pos.l + cw - z.l + 12), t: pos.t });
+      if (z.r - pos.l + 12 > 0 && pos.l + (z.r - pos.l + 12) + cw <= vw - 8)
+        moves.push({ l: pos.l + (z.r - pos.l + 12), t: pos.t });
+      if (pos.t + ch - z.t + 12 >= 0 && pos.t - (pos.t + ch - z.t + 12) >= 8)
+        moves.push({ l: pos.l, t: pos.t - (pos.t + ch - z.t + 12) });
+      if (z.b - pos.t + 12 > 0 && pos.t + (z.b - pos.t + 12) + ch <= vh - 8)
+        moves.push({ l: pos.l, t: pos.t + (z.b - pos.t + 12) });
+      if (!moves.length) return;
+      moves.sort(function (a, b) {
+        return (Math.abs(a.l - pos.l) + Math.abs(a.t - pos.t)) - (Math.abs(b.l - pos.l) + Math.abs(b.t - pos.t));
+      });
+      pos = moves[0];
+    });
+    container.style.top = Math.max(8, Math.min(pos.t, vh - ch - 8)) + 'px';
+    container.style.left = Math.max(8, Math.min(pos.l, vw - cw - 8)) + 'px';
   }
+
+  // The typewriter grows the dialog over seconds; positionContainer must run
+  // again each time the box changes size, not only when typing ends.
+  var activeTargetSelector = null;
 
   function typewriterWrite(element, text, speed, callback) {
     clearType();
     currentFullText = text;
     currentCharIndex = 0;
     element.textContent = '';
+    var lastH = container ? container.offsetHeight : 0;
     typeInterval = setInterval(function() {
       if (currentCharIndex < currentFullText.length) {
         element.textContent += currentFullText.charAt(currentCharIndex);
         currentCharIndex++;
+        if (container && container.offsetHeight !== lastH) {
+          lastH = container.offsetHeight;
+          positionContainer(activeTargetSelector);
+        }
       } else {
         clearType();
         if (callback) callback();
@@ -846,89 +961,86 @@
 
   function wireSkipBtn() {
     var btn = document.getElementById('tut-skip-btn');
-    if (btn) btn.addEventListener('click', complete);
+    if (btn) btn.addEventListener('click', skip);
   }
 
   function renderStep() {
+    if (!tutorialActive) return;
+    clearWait();
+    clearTimeout(highlightTimer);
     if (phase >= PHASES.length) { complete(); return; }
     var p = PHASES[phase];
     var s = p.steps[step];
     if (!s) { nextPhase(); return; }
     var text = fmt(s.text);
+    activeTargetSelector = s.target || null;
     var isWaiting = s.action === 'waitForSpawn';
     var isComplete = s.action === 'complete';
     var isNameInput = s.action === 'nameInput';
+    if (isWaiting && spawnBaseline === null) {
+      spawnBaseline = window.__mol3d && window.__mol3d.atoms ? window.__mol3d.atoms.size : 0;
+    }
     setBodyText(text);
+    hideHighlight();
     if (s.target) {
-      setTimeout(function() { highlightTarget(s.target); }, 50);
-    } else {
-      hideHighlight();
+      highlightTimer = setTimeout(function() { highlightTarget(s.target); }, 50);
     }
     positionContainer(s.target || null);
     container.classList.add('tut-visible');
     var bodyEl = dialogEl.querySelector('#tut-body-text');
-    var actionsEl = dialogEl.querySelector('#tut-actions');
-    if (isNameInput) {
-      typewriterWrite(bodyEl, text, 20, function() {
-        setActions('<input type="text" class="tut-name-input" id="tut-name-input" placeholder="' + L('Enter your name') + '" value="' + userName + '" /><button class="tut-btn" id="tut-continue-btn">' + L('Continue') + '</button>');
+    setActions(buildActionsHTML('<span></span>'));
+    wireSkipBtn();
+    function showActions() {
+      // The dialog grows as the typewriter fills the text; measure and place it
+      // again now that its final size is known, or it can end up over the target.
+      function settle() { positionContainer(s.target || null); }
+      if (isNameInput) {
+        setActions(buildActionsHTML('<input type="text" class="tut-name-input" id="tut-name-input" placeholder="' + L('Enter your name') + '" /><button class="tut-btn" id="tut-continue-btn">' + L('Continue') + '</button>'));
         var input = document.getElementById('tut-name-input');
         var contBtn = document.getElementById('tut-continue-btn');
-        if (input) input.focus();
+        if (input) { input.value = userName; input.focus(); }
         if (contBtn) {
           contBtn.addEventListener('click', function() {
             if (input && input.value.trim()) {
               userName = input.value.trim();
-              localStorage.setItem(USER_NAME_KEY, userName);
+              try { localStorage.setItem(USER_NAME_KEY, userName); } catch (e) {}
             }
             advance();
           });
         }
         if (input) {
           input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') contBtn.click();
+            if (e.key === 'Enter' && contBtn) contBtn.click();
           });
         }
-      });
-    } else if (isWaiting) {
-      typewriterWrite(bodyEl, text, 20, function() {
-        setActions('<button class="tut-btn tut-btn-wait" id="tut-next-btn" disabled>' + L('Waiting...') + '</button>');
-        waitForAction(s.threshold);
-      });
-    } else if (isComplete) {
-      typewriterWrite(bodyEl, text, 20, function() {
-        setActions('<button class="tut-btn tut-btn-finish" id="tut-next-btn">' + L('Finish') + '</button>');
+      } else if (isWaiting) {
+        setActions(buildActionsHTML('<button class="tut-btn tut-btn-wait" id="tut-next-btn" disabled>' + L('Waiting...') + '</button>'));
+        waitForAction(spawnBaseline);
+      } else if (isComplete) {
+        setActions(buildActionsHTML('<button class="tut-btn tut-btn-finish" id="tut-next-btn">' + L('Finish') + '</button>'));
         document.getElementById('tut-next-btn').addEventListener('click', complete);
-      });
-    } else {
-      typewriterWrite(bodyEl, text, 20, function() {
+      } else {
         setActions(buildActionsHTML());
         wireNextBtn(s);
-        wireSkipBtn();
-      });
+      }
+      wireSkipBtn();
+      settle();
     }
+    typewriterWrite(bodyEl, text, 20, showActions);
     dialogEl.onclick = function(e) {
       if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
       if (typeInterval) {
         skipTypewriter(bodyEl);
-        if (!isNameInput && !isWaiting && !isComplete) {
-          if (!actionsEl.querySelector('#tut-next-btn')) {
-            setActions(buildActionsHTML());
-            wireNextBtn(s);
-            wireSkipBtn();
-          }
-        } else if (isComplete && !actionsEl.querySelector('#tut-next-btn')) {
-          setActions('<button class="tut-btn tut-btn-finish" id="tut-next-btn">' + L('Finish') + '</button>');
-          document.getElementById('tut-next-btn').addEventListener('click', complete);
-        }
+        showActions();
       }
     };
+    persistProgress();
   }
 
-  function waitForAction(threshold) {
+  function waitForAction(baseline) {
     clearWait();
-    var needed = threshold || 1;
     waitInterval = setInterval(function() {
-      if (window.__mol3d && window.__mol3d.atoms && window.__mol3d.atoms.size >= needed) {
+      if (tutorialActive && window.__mol3d && window.__mol3d.atoms && window.__mol3d.atoms.size > baseline) {
         clearWait();
         var btn = document.getElementById('tut-next-btn');
         if (btn) {
@@ -942,6 +1054,8 @@
   }
 
   function advance() {
+    if (!tutorialActive) return;
+    spawnBaseline = null;
     step++;
     if (step >= PHASES[phase].steps.length) nextPhase();
     else renderStep();
@@ -955,29 +1069,48 @@
   }
 
   function complete() {
-    localStorage.setItem(TUTORIAL_KEY, 'true');
-    tutorialActive = false;
-    destroyUI();
+    if (!tutorialActive) return;
+    phase = PHASES.length - 1;
+    step = PHASES[phase].steps.length - 1;
+    completed = true;
+    skipped = false;
+    try { localStorage.setItem(TUTORIAL_KEY, 'true'); } catch (e) {}
+    pause();
     showStatus(L('Tutorial complete! Welcome to the lab,') + ' ' + userName + '!');
   }
 
+  function pause() {
+    clearTimeout(autoStartTimer);
+    tutorialActive = false;
+    persistProgress();
+    destroyUI();
+  }
+
+  function skip() {
+    completed = false;
+    skipped = true;
+    try { localStorage.setItem(TUTORIAL_KEY, 'true'); } catch (e) {}
+    pause();
+  }
+
   function start() {
-    if (tutorialActive) return;
+    clearTimeout(autoStartTimer);
+    if (tutorialActive || completed) return;
     tutorialActive = true;
-    phase = 0;
-    step = 0;
+    skipped = false;
+    if (retiringContainer) { retiringContainer.remove(); retiringContainer = null; }
     createUI();
     renderStep();
   }
 
   function replay() {
-    localStorage.removeItem(TUTORIAL_KEY);
-    clearWait();
-    if (container && container.parentNode) container.remove();
-    container = assistantEl = dialogEl = null;
-    tutorialActive = false;
+    pause();
+    try { localStorage.removeItem(TUTORIAL_KEY); } catch (e) {}
     phase = 0;
     step = 0;
+    completed = false;
+    skipped = false;
+    persistProgress();
     start();
   }
 
@@ -1118,6 +1251,7 @@
   }
 
   function init() {
+    restoreProgress();
     injectStyles();
     var tutorialBtn = document.getElementById('btn-tutorial');
     if (tutorialBtn) {
@@ -1134,10 +1268,16 @@
     window.__tutorial = {
       start: start,
       replay: replay,
+      pause: pause,
+      skip: skip,
+      progress: progress,
+      importProgress: importProgress,
       isActive: function() { return tutorialActive; },
       shouldShow: shouldShow
     };
-    setTimeout(function() { if (shouldShow()) start(); }, 2000);
+    autoStartTimer = setTimeout(function() {
+      if (!window.__mol3dLearning && shouldShow()) start();
+    }, 2000);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

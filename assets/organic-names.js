@@ -1751,6 +1751,75 @@
 
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+  // ── PHASE 1/2 VALIDITY GATES (structure ⇄ formula consistency) ──────────────
+  // These turn "I picked a parent and printed a name" into "I proved the name can
+  // describe THIS molecule". A candidate is refused (nameGraph returns null, the
+  // bundle then falls back to its safe canonical string) unless every gate holds.
+
+  // Maximum covalence per element (neutral closed-shell). Nitrogen carries 5 for
+  // nitro-N-oxide style, sulfur 6 for sulfones; anything over the cap is hypervalent
+  // for this namer and cannot be named honestly.
+  var VALENCE_CAP = { C: 4, N: 5, O: 3, S: 6, F: 1, Cl: 1, Br: 1, I: 1 };
+
+  // Index of hydrogen deficiency straight from the molecular formula:
+  //   IHD = (2C + 2 + N − H − X) / 2   (O and S are ignored: they do not change it).
+  function formulaIHD(counts) {
+    var C = counts.C || 0;
+    var N = counts.N || 0;
+    var mono = (counts.H || 0) + (counts.F || 0) + (counts.Cl || 0) + (counts.Br || 0) + (counts.I || 0);
+    return (2 * C + 2 + N - mono) / 2;
+  }
+
+  // Rings + π-bonds implied by the BOND GRAPH: rings = cyclomatic number of the
+  // heavy-atom skeleton, π = Σ(order − 1) (so a Kekulé/aromatic 1.5 contact counts
+  // as half a double bond). Must match formulaIHD or the drawn bonds contradict the
+  // atom counts (the "1-methylcycloprop-2-yne" class of bug).
+  function graphUnsat(G) {
+    var edges = 0, pi = 0, seen = new Set();
+    for (var a = 0; a < G.heavy.length; a++) {
+      var u = G.heavy[a], nb = G.adj[u];
+      for (var q = 0; q < nb.length; q++) {
+        var v = nb[q].to;
+        var key = u < v ? u + ':' + v : v + ':' + u;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges++;
+        var o = nb[q].order;
+        if (o > 1) pi += o - 1;
+      }
+    }
+    // connected heavy skeleton assumed (buildGraph already enforces one fragment).
+    var rings = edges - G.heavy.length + 1;
+    return { rings: rings, pi: pi, total: rings + pi };
+  }
+
+  // A triple bond cannot sit inside a ring smaller than eight atoms (the linear
+  // sp carbon cannot span the geometry), and a ring's π must respect valence caps.
+  function smallRingTripleBond(G, rings) {
+    for (var r = 0; r < rings.length; r++) {
+      var ring = rings[r];
+      if (ring.length >= 8) continue;
+      for (var m = 0; m < ring.length; m++) {
+        var x = ring[m], y = ring[(m + 1) % ring.length];
+        if (G.order(x, y) >= 2.6) return true;
+      }
+    }
+    return false;
+  }
+
+  // Every heavy atom's summed bond order (hydrogens count 1 each) must stay within
+  // its valence cap; a carbon with five bonds or an oxygen with three is rejected.
+  function hypervalent(G) {
+    for (var i = 0; i < G.heavy.length; i++) {
+      var at = G.heavy[i], c = VALENCE_CAP[G.sym[at]];
+      if (c === undefined) continue;
+      var sum = G.hCount[at], nb = G.adj[at];
+      for (var q = 0; q < nb.length; q++) sum += nb[q].order;
+      if (sum > c + 0.001) return true;
+    }
+    return false;
+  }
+
   // ---------------------------------------------------------------------------
   // Top-level naming
   // ---------------------------------------------------------------------------
@@ -1806,6 +1875,15 @@
 
     var ctx = buildContext(G);
     if (!ctx) return null;
+
+    // PHASE 1 — valence: reject hypervalent / impossible atoms before naming.
+    if (hypervalent(G)) return null;
+    // PHASE 2 — IHD gate: the bonds in the graph must account for exactly the
+    // degree of unsaturation the formula demands, and no impossible cycloalkyne.
+    var wantIHD = formulaIHD(counts);
+    var have = graphUnsat(G);
+    if (Math.abs(have.total - wantIHD) > 0.001) return null;
+    if (smallRingTripleBond(G, ctx.rings)) return null;
 
     var suffixKind = chooseSuffixKind(ctx.groups);
     var suffixGroups = suffixKind

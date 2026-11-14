@@ -45618,6 +45618,32 @@ const BASE_EN = ["meth", "eth", "prop", "but", "pent", "hex", "hept", "oct", "no
 function prefix(n) {
   return PREFIX[n - 1] || `${n}`;
 }
+// Systematic name for a pure hydrocarbon CnHm from its formula alone. Used only
+// as a last resort: when a C-H species reaches the covalent namer's formula path
+// the connectivity-based organic namer has already declined it, so the scene's
+// bond orders cannot be trusted and we reconstruct an acyclic parent from the
+// index of hydrogen deficiency. Triple bonds are placed first at the lowest
+// conjugated locants (1,3,5...), giving e.g. C4H2 -> buta-1,3-diyne.
+function hydrocarbonName(n, h) {
+  if (n < 1 || n > 10 || h < 0 || h > 2 * n + 2) return null;
+  const deficit = 2 * n + 2 - h;
+  if (deficit % 2 !== 0) return null;
+  const ihd = deficit / 2;
+  const base = BASE_EN[n - 1];
+  if (ihd === 0) return base + "ane";
+  const tri = Math.floor(ihd / 2);
+  const dbl = ihd - 2 * tri;
+  if (tri + dbl > n - 1) return null;
+  const mwp = (c) => (c <= 1 ? "" : prefix(c));
+  const ynLoc = [], enLoc = [];
+  for (let i = 0; i < tri; i++) ynLoc.push(2 * i + 1);
+  for (let i = 0; i < dbl; i++) enLoc.push(2 * (tri + i) + 1);
+  const stem = tri >= 2 || dbl >= 2 ? base + "a" : base;
+  const chunks = [];
+  if (dbl >= 1) chunks.push([enLoc, mwp(dbl) + (tri >= 1 ? "en" : "ene")]);
+  if (tri >= 1) chunks.push([ynLoc, mwp(tri) + "yne"]);
+  return stem + "-" + chunks.map(([loc, txt]) => loc.join(",") + "-" + txt).join("-");
+}
 function isonitrileStem(rest) {
   if (!rest.length) return null;
   if (rest.length === 1 && rest[0].el.sym === "H") return "hydrogen";
@@ -45682,6 +45708,8 @@ function nameCovalent(atoms2, charge, bonds2) {
         return cap(base + "ene");
       }
       if (h === 2 * n - 2) return cap(bonds2.some((b) => b.order === 3) ? base + "yne" : base + "diene");
+      const generic = hydrocarbonName(n, h);
+      if (generic) return cap(generic);
     }
   }
   if (charge === 0) {
@@ -52380,8 +52408,38 @@ function limitingAnalysis(rx, molesByFormula) {
     leftovers
   };
 }
+// Scientific notation as "a×10ᵇ" with real Unicode superscript digits (no caret
+// and no "e+"). Every user-facing large/small number goes through this so the
+// readout matches how an exponent is written mathematically.
+const SUP_DIGITS = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
+function sciSup(x, sig) {
+  if (typeof x !== "number" || !isFinite(x)) return "—";
+  if (x === 0) return "0";
+  const digits = sig === undefined ? undefined : Math.max(sig - 1, 0);
+  const s = x.toExponential(digits);
+  const ei = s.indexOf("e");
+  let mant = s.slice(0, ei);
+  const exp = parseInt(s.slice(ei + 1), 10);
+  if (mant.indexOf(".") >= 0) mant = mant.replace(/0+$/, "").replace(/\.$/, "");
+  const sup = String(exp).split("").map((c) => SUP_DIGITS[c] || c).join("");
+  return mant + "×10" + sup;
+}
+// Standalone INFO/teacher scripts render numbers too; share this one formatter.
+if (typeof window !== "undefined") window.__sciSup = sciSup;
 function fmtAmount(x, sig = 4) {
   if (typeof x !== "number" || !isFinite(x)) return "—";
+  if (x === 0) return "0";
+  const a = Math.abs(x);
+  if (a >= 1e6 || a < 1e-4) {
+    return sciSup(x, sig);
+  }
+  const d = Math.max(0, sig - 1 - Math.floor(Math.log10(a)));
+  return x.toFixed(Math.min(d, 6)).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+}
+// Same shape as fmtAmount but keeps the plain "e+xx" exponent, so a value placed
+// into an editable <input> can still be parseFloat()-ed back by the panel.
+function fmtAmountInput(x, sig = 4) {
+  if (typeof x !== "number" || !isFinite(x)) return "";
   if (x === 0) return "0";
   const a = Math.abs(x);
   if (a >= 1e6 || a < 1e-4) {
@@ -52390,7 +52448,6 @@ function fmtAmount(x, sig = 4) {
   const d = Math.max(0, sig - 1 - Math.floor(Math.log10(a)));
   return x.toFixed(Math.min(d, 6)).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 }
-const R_GAS$2 = 8.314;
 const DEFAULT_TEMPERATURE = 298.15;
 function arrheniusK(A, Ea, T2) {
   return A * Math.exp(-Ea / (R_GAS$2 * T2));
@@ -62394,10 +62451,10 @@ function updateKineticsPanel(comp, an) {
   const decompProb = kin.decompositionProbability;
   kineticTempEl.textContent = `${temp.toFixed(1)} K`;
   kineticEaEl.textContent = `${ea.toFixed(1)} kJ/mol`;
-  kineticRateEl.textContent = rateConstant ? `${rateConstant.toExponential(2)} s¹` : "—";
+  kineticRateEl.textContent = rateConstant ? `${sciSup(rateConstant, 3)} s¹` : "—";
   kineticHalflifeEl.textContent = halfLife ? formatTime(halfLife) : "—";
   const pct = decompProb * 100;
-  kineticDecompEl.textContent = pct > 0 && pct < 0.05 ? `${pct.toExponential(2)}%` : `${pct.toFixed(1)}%`;
+  kineticDecompEl.textContent = pct > 0 && pct < 0.05 ? `${sciSup(pct, 3)}%` : `${pct.toFixed(1)}%`;
   const energy = (v) => typeof v === "number" && isFinite(v) ? `${v.toFixed(1)} kJ/mol` : "—";
   kineticDhEl.textContent = energy(kin.deltaH);
   kineticDgEl.textContent = energy(kin.deltaG);
@@ -62415,7 +62472,7 @@ function formatTime(seconds) {
   if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} h`;
   if (seconds < 3156e4) return `${(seconds / 86400).toFixed(1)} d`;
   const y = seconds / 3156e4;
-  return y < 1e4 ? `${y.toFixed(1)} y` : `${y.toExponential(1)} y`;
+  return y < 1e4 ? `${y.toFixed(1)} y` : `${sciSup(y, 2)} y`;
 }
 function drawKineticsGraph(rateConstant) {
   if (!kineticsCanvas) return;
@@ -62596,8 +62653,8 @@ function updateStoichPanel() {
   stoichNoteEl.textContent = note;
   if (changed && M !== null) {
     stoichMol.value = "1";
-    stoichG.value = fmtAmount(M);
-    stoichN.value = fmtAmount(AVOGADRO);
+    stoichG.value = fmtAmountInput(M);
+    stoichN.value = fmtAmountInput(AVOGADRO);
   }
 }
 function initStoichPanel() {
@@ -62609,24 +62666,24 @@ function initStoichPanel() {
     const M = molarMass(stoichFormula);
     const mol = num(stoichMol);
     if (M === null || mol === null) return;
-    stoichG.value = fmtAmount(mol * M);
-    stoichN.value = fmtAmount(mol * AVOGADRO);
+    stoichG.value = fmtAmountInput(mol * M);
+    stoichN.value = fmtAmountInput(mol * AVOGADRO);
   });
   stoichG.addEventListener("input", () => {
     const M = molarMass(stoichFormula);
     const g = num(stoichG);
     if (M === null || g === null) return;
     const mol = g / M;
-    stoichMol.value = fmtAmount(mol);
-    stoichN.value = fmtAmount(mol * AVOGADRO);
+    stoichMol.value = fmtAmountInput(mol);
+    stoichN.value = fmtAmountInput(mol * AVOGADRO);
   });
   stoichN.addEventListener("input", () => {
     const M = molarMass(stoichFormula);
     const n = num(stoichN);
     if (M === null || n === null) return;
     const mol = n / AVOGADRO;
-    stoichMol.value = fmtAmount(mol);
-    stoichG.value = fmtAmount(mol * M);
+    stoichMol.value = fmtAmountInput(mol);
+    stoichG.value = fmtAmountInput(mol * M);
   });
 }
 const SHELL_NAMES = ["K", "L", "M", "N", "O", "P", "Q"];
@@ -64880,7 +64937,7 @@ function formatEnvTemperature(k) {
 function formatEnvPressure(atm) {
   if (atm >= 100) return Math.round(atm) + "atm";
   if (atm >= 0.01) return Math.round(atm * 100) / 100 + "atm";
-  return atm.toExponential(1) + "atm";
+  return sciSup(atm, 2) + "atm";
 }
 function updateEnvironmentReadouts() {
   const tempEl = document.getElementById("env-temp-display");
@@ -65889,6 +65946,11 @@ window.__mol3d = {
     }
   },
   refreshInspector: updateInspector,
+  // Selected-molecule accessor for the standalone INFO-graph panel: returns
+  // { comp:{atoms:[id],bonds:[{a,b,order}]}, an:{formula,molarMass,charge,…} } or
+  // null when nothing is selected. Additive hook — the bundle still calls
+  // currentComp() directly everywhere else.
+  selected: () => currentComp(),
   closeMobileSheets,
   stabilize: (ids) => stabilizeStrays(Array.isArray(ids) ? ids : [ids], performance.now()),
   // The crate, opened to the tools that build whole structures at once (BluePrint

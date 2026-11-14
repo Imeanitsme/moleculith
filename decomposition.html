@@ -295,7 +295,7 @@
     const SUP = { '-': '\u207B', '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3', '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077', '8': '\u2078', '9': '\u2079' };
     const sup = n => String(n).split('').map(c => SUP[c] || c).join('');
     const fmtExp = x => (!isFinite(x) || x === 0) ? '0' : (() => { const e = Math.floor(Math.log10(Math.abs(x))); return (x / Math.pow(10, e)).toFixed(2) + '\u00D710' + sup(e); })();
-    const concFmt = v => v === 0 ? '0' : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v >= 0.01 ? v.toFixed(3) : v.toExponential(2);
+    const concFmt = v => v === 0 ? '0' : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v >= 0.01 ? v.toFixed(3) : fmtExp(v);
     const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
     // ── Presets: literature-style Arrhenius parameters (illustrative) ──

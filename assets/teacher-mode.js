@@ -2,6 +2,20 @@
 (function() {
   'use strict';
 
+  // Scientific notation as "a×10ᵇ" with Unicode superscript exponent (no caret,
+  // no "e+"). Matches the main app's number style on canvas labels.
+  function sciSup(x, sig) {
+    if (typeof x !== 'number' || !isFinite(x)) return '—';
+    if (x === 0) return '0';
+    const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+    const s = x.toExponential(sig == null ? undefined : Math.max(sig - 1, 0));
+    const ei = s.indexOf('e');
+    let mant = s.slice(0, ei);
+    const exp = parseInt(s.slice(ei + 1), 10);
+    if (mant.indexOf('.') >= 0) mant = mant.replace(/0+$/, '').replace(/\.$/, '');
+    return mant + '×10' + String(exp).split('').map((c) => SUP[c] || c).join('');
+  }
+
   // ---------- Internationalization ----------
   const I18N = {
     en: {
@@ -2778,7 +2792,7 @@
     ctx.stroke();
     label('Ea = ' + Ea + ' kJ/mol', bx + 6, by + bh + 14, C.text, 11);
     label('T = ' + T + ' K', bx + 6, by - 12, C.text, 11);
-    label('k = ' + rate.toExponential(2) + ' s⁻¹', 14, ctx.H - 60, C.yellow, 12);
+    label('k = ' + sciSup(rate, 3) + ' s⁻¹', 14, ctx.H - 60, C.yellow, 12);
   }
 
   function drawSolutionPrep(ctx, p) {

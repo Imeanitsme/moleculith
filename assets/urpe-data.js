@@ -2,6 +2,9 @@
   'use strict';
   const C=root.URPECore;
   function record(formula,symbols,edges,data){return {formula,graph:symbols?C.normalize({atoms:symbols.split(' ').map((sym,i)=>({id:String(i),sym})),bonds:edges.map(([a,b,order])=>({a:String(a),b:String(b),order}))}):null,data:{referenceTemperature:298.15,pStandard:1,cStandard:1,phase:'g',provenance:'measured',...data}};}
+  // Provenance vocabulary comes from URPENumerics.provenance: measured, calculated,
+  // empirical. Anything else is treated as unknown and the solver refuses to use the
+  // row, so 'measured' is reserved for values a cited table actually reports.
   const JANAF='NIST-JANAF Thermochemical Tables (Chase 1998) via NIST SRD 69';
   const CODATA='CODATA Key Values for Thermodynamics (Cox, Wagman, Medvedev 1989)';
   const WB='NIST Chemistry WebBook SRD 69 (constant-pressure heat capacity at 298.15 K)';
@@ -58,4 +61,107 @@
     record('AgCl',null,null,{phase:'s',hf:-127.01,s:96.25,cp:50.5,source:CODATA+'; chlorargyrite'}),
     record('C6H12O6',null,null,{phase:'s',hf:-1273.3,s:212.1,source:'NIST SRD 69; α-D-glucose solid'})
   ];
+  // --- Coverage added for the reaction panel ---------------------------------
+  // The double-click panel prices whatever equation the matching engine produces,
+  // so the table has to cover the species that engine can actually name. Every row
+  // below is a standard-state value at 298.15 K, 1 bar; elements in their reference
+  // state carry hf = 0 by convention, which is a definition rather than a
+  // measurement. Where only some of a species' numbers are known, the rest are
+  // left out rather than filled in: ΔH° then reports and ΔG° says what is missing.
+  // De-duplicate against the table above by formula key only; urpe-game.js builds
+  // its own canonical-atom map from whatever ends up here.
+  const seenFormulas = new Set(root.URPEReferenceData.map(r => r.formula));
+  const add = rows => { for (const r of rows) { if (!seenFormulas.has(r.formula)) { seenFormulas.add(r.formula); root.URPEReferenceData.push(r); } } };
+  const el = (f, phase, s, cp, note) => record(f, null, null, { phase, hf: 0, s, cp, source: CODATA + '; ' + note + ' (element in its reference state, formation enthalpy zero by convention)' });
+  add([
+    // — elements the game spawns as reductants —
+    el('Li', 's', 29.10, 24.8, 'lithium metal'),
+    el('Na', 's', 51.21, 28.24, 'sodium metal'),
+    el('K', 's', 64.67, 29.30, 'potassium metal'),
+    el('Mg', 's', 32.68, 24.87, 'magnesium metal'),
+    el('Al', 's', 28.33, 24.20, 'aluminium metal'),
+    el('Ca', 's', 41.40, 25.99, 'calcium metal'),
+    el('Ti', 's', 30.72, 25.06, 'titanium metal'),
+    el('Cr', 's', 23.77, 23.25, 'chromium metal'),
+    el('Mn', 's', 32.01, 26.32, 'manganese metal'),
+    el('Fe', 's', 27.28, 25.10, 'alpha-iron metal'),
+    el('Ni', 's', 29.79, 26.07, 'nickel metal'),
+    el('Cu', 's', 33.15, 24.44, 'copper metal'),
+    el('Zn', 's', 41.63, 25.20, 'zinc metal'),
+    el('Ba', 's', 62.50, 28.10, 'barium metal'),
+    el('Pb', 's', 64.80, 26.40, 'lead metal'),
+    el('Ag', 's', 42.55, 25.35, 'silver metal'),
+    el('Pt', 's', 41.46, 25.86, 'platinum metal'),
+    el('Au', 's', 25.42, 25.42, 'gold metal'),
+    el('Hg', 'l', 75.90, 27.98, 'mercury liquid'),
+    el('S', 's', 31.80, 22.75, 'rhombic sulfur'),
+    el('P', 's', 41.09, 23.30, 'white phosphorus'),
+    el('Br2', 'l', 152.23, 75.69, 'bromine liquid'),
+    el('I2', 's', 116.14, 54.44, 'iodine solid'),
+    el('F2', 'g', 202.78, 31.30, 'fluorine gas'),
+    // — oxides, hydroxides —
+    record('TiO2', null, null, { phase: 's', hf: -944.7, s: 50.33, cp: 55.6, source: CODATA + '; rutile' }),
+    record('FeO', null, null, { phase: 's', hf: -272.0, s: 60.75, cp: 44.9, source: 'NIST SRD 69 / Wustite (FeO, wustite non-stoichiometry ignored)' }),
+    record('MnO', null, null, { phase: 's', hf: -385.2, s: 59.7, source: JANAF + '; manganese(II) oxide' }),
+    record('NiO', null, null, { phase: 's', hf: -239.7, s: 37.95, source: CODATA + '; nickel(II) oxide' }),
+    record('Cu2O', null, null, { phase: 's', hf: -168.6, s: 93.14, cp: 74.0, source: CODATA + '; cuprite' }),
+    record('MnO2', null, null, { phase: 's', hf: -520.0, s: 53.07, source: CODATA + '; pyrolusite' }),
+    record('PbO', null, null, { phase: 's', hf: -217.3, s: 66.5, source: CODATA + '; massicot' }),
+    record('SnO2', null, null, { phase: 's', hf: -580.7, s: 52.3, source: CODATA + '; cassiterite' }),
+    record('Cr2O3', null, null, { phase: 's', hf: -1139.7, s: 81.2, source: CODATA + '; eskolaite' }),
+    record('UO2', null, null, { phase: 's', hf: -1084.9, s: 75.31, source: JANAF + '; uranium dioxide' }),
+    record('Mg(OH)2', null, null, { phase: 's', hf: -924.54, s: 63.18, cp: 79.5, source: CODATA + '; brucite' }),
+    record('KOH', null, null, { phase: 's', hf: -424.76, s: 78.9, source: CODATA + '; potassium hydroxide solid' }),
+    record('Fe(OH)3', null, null, { phase: 's', hf: -823.0, s: 106.7, source: 'NIST SRD 69; iron(III) hydroxide' }),
+    record('Al(OH)3', null, null, { phase: 's', hf: -1276.0, source: CODATA + '; gibbsite (third-law entropy not tabulated here)' }),
+    // — salts —
+    record('LiCl', null, null, { phase: 's', hf: -408.27, s: 59.25, cp: 47.9, source: CODATA + '; lithium chloride' }),
+    record('MgCl2', null, null, { phase: 's', hf: -641.32, s: 89.69, cp: 71.1, source: CODATA + '; magnesium chloride' }),
+    record('CaCl2', null, null, { phase: 's', hf: -795.80, s: 104.62, cp: 76.1, source: CODATA + '; calcium chloride' }),
+    record('FeCl2', null, null, { phase: 's', hf: -341.8, s: 118.0, source: CODATA + '; iron(II) chloride' }),
+    record('FeCl3', null, null, { phase: 's', hf: -399.5, s: 142.3, source: CODATA + '; iron(III) chloride' }),
+    record('AlCl3', null, null, { phase: 's', hf: -704.2, s: 109.3, source: CODATA + '; aluminium chloride' }),
+    record('CuCl2', null, null, { phase: 's', hf: -220.1, s: 107.7, source: 'NIST SRD 69; copper(II) chloride' }),
+    record('MgCO3', null, null, { phase: 's', hf: -1095.8, s: 65.7, cp: 75.8, source: CODATA + '; magnesite' }),
+    record('BaCO3', null, null, { phase: 's', hf: -1216.3, s: 112.1, source: CODATA + '; witherite' }),
+    record('K2CO3', null, null, { phase: 's', hf: -1150.5, s: 155.5, source: CODATA + '; potassium carbonate' }),
+    record('CaSO4', null, null, { phase: 's', hf: -1434.11, s: 106.7, source: CODATA + '; anhydrite' }),
+    record('BaSO4', null, null, { phase: 's', hf: -1473.2, s: 132.2, source: CODATA + '; barite' }),
+    record('Na2SO4', null, null, { phase: 's', hf: -1387.06, s: 149.5, source: CODATA + '; sodium sulfate' }),
+    record('K2SO4', null, null, { phase: 's', hf: -1433.68, s: 175.2, source: CODATA + '; potassium sulfate' }),
+    record('MgSO4', null, null, { phase: 's', hf: -1284.9, s: 93.7, source: 'NIST SRD 69; magnesium sulfate' }),
+    record('ZnSO4', null, null, { phase: 's', hf: -982.8, s: 110.3, source: 'NIST SRD 69; zinc sulfate' }),
+    record('CuSO4', null, null, { phase: 's', hf: -771.4, s: 109.0, source: 'NIST SRD 69; copper(II) sulfate' }),
+    record('NaNO3', null, null, { phase: 's', hf: -467.9, s: 116.3, source: CODATA + '; sodium nitrate' }),
+    record('KNO3', null, null, { phase: 's', hf: -466.7, s: 133.1, source: CODATA + '; nitre' }),
+    record('AgNO3', null, null, { phase: 's', hf: -124.39, s: 140.9, source: CODATA + '; silver nitrate' }),
+    record('NH4Cl', null, null, { phase: 's', hf: -314.43, s: 94.85, source: CODATA + '; ammonium chloride' }),
+    record('NH4NO3', null, null, { phase: 's', hf: -365.56, s: 151.1, source: 'NIST SRD 69; ammonium nitrate' }),
+    record('(NH4)2SO4', null, null, { phase: 's', hf: -1180.84, s: 202.1, source: CODATA + '; ammonium sulfate' }),
+    // — sulfides —
+    record('FeS', null, null, { phase: 's', hf: -100.4, s: 60.3, source: CODATA + '; troilite' }),
+    record('ZnS', null, null, { phase: 's', hf: -206.0, s: 57.7, source: CODATA + '; sphalerite' }),
+    record('PbS', null, null, { phase: 's', hf: -98.3, s: 91.3, source: CODATA + '; galena' }),
+    record('Cu2S', null, null, { phase: 's', hf: -79.5, s: 120.9, source: CODATA + '; chalcocite' }),
+    // — acids and peroxides —
+    record('H2SO4', null, null, { phase: 'l', hf: -813.99, s: 156.90, cp: 138.9, source: CODATA + '; pure sulfuric acid liquid' }),
+    record('HNO3', null, null, { phase: 'l', hf: -174.10, source: CODATA + '; pure nitric acid liquid (third-law entropy not tabulated here)' }),
+    record('H3PO4', null, null, { phase: 's', hf: -1277.0, source: CODATA + '; pure phosphoric acid solid (third-law entropy not tabulated here)' }),
+    record('MnCl2', null, null, { phase: 's', hf: -480.8, s: 133.6, source: CODATA + '; manganese(II) chloride' }),
+    record('Cu(NO3)2', null, null, { phase: 's', hf: -302.9, s: 285.0, source: CODATA + '; copper(II) nitrate' }),
+    // Aqueous ions. The panel can price ΔH°, ΔS° and ΔG° from these but not ΔG,
+    // because the scene does not track a solution volume to convert amount into
+    // mol/L; the solver reports the missing activity rather than assuming one.
+    record('NH4+', null, null, { phase: 'aq', hf: -132.51, s: 113.4, source: CODATA + '; ammonium ion, aqueous standard state 1 mol/L' }),
+    record('Cl-', null, null, { phase: 'aq', hf: -167.16, s: 56.5, source: CODATA + '; chloride ion, aqueous standard state 1 mol/L' }),
+    record('H+', null, null, { phase: 'aq', hf: 0, s: 0, source: CODATA + '; hydrogen ion; ΔfH° and S° are zero by thermodynamic convention, not measured' })
+  ]);
+  // — remaining gases the organic reaction patterns name —
+  add([
+    record('C2H2', null, null, { hf: 226.73, s: 200.93, cp: 44.0, source: 'NIST SRD 69 / Chase 1998; ethyne gas' }),
+    record('C4H10', null, null, { hf: -125.6, s: 310.0, cp: 97.5, source: 'NIST SRD 69 / Chase 1998; butane gas' }),
+    record('C3H6', null, null, { hf: 20.4, s: 266.6, cp: 63.9, source: 'NIST SRD 69; propene gas' }),
+    record('CH3COOH', null, null, { hf: -432.8, s: 282.8, source: 'NIST SRD 69; ethanoic (acetic) acid gas' }),
+    record('HCN', null, null, { hf: 135.1, s: 199.5, source: 'NIST SRD 69 / Chase 1998; hydrogen cyanide gas' })
+  ]);
 })(globalThis);

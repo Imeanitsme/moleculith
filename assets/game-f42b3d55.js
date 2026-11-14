@@ -61045,6 +61045,29 @@ function buildRxnStoichBlock(rx) {
   yieldInp.value = "100";
   yieldRow.append(yieldLbl, yieldInp);
   block.appendChild(yieldRow);
+  const gibbsBox = document.createElement("div");
+  gibbsBox.className = "rxn-gibbs-mount";
+  block.appendChild(gibbsBox);
+  const paintGibbs = (moles) => {
+    if (!window.URPEGame || !window.URPEGame.panelHtml) return;
+    try {
+      gibbsBox.innerHTML = window.URPEGame.panelHtml(rx, moles) || "";
+    } catch (e) {
+      gibbsBox.innerHTML = "";
+    }
+  };
+  // The prediction reads the environment, so a temperature or pressure change has
+  // to repaint it. The listener drops itself once this block leaves the document.
+  let envTick = 0;
+  const onEnvironment = () => {
+    if (!block.isConnected) {
+      window.removeEventListener("mol3d:environment", onEnvironment);
+      return;
+    }
+    clearTimeout(envTick);
+    envTick = setTimeout(recalc, 150);
+  };
+  window.addEventListener("mol3d:environment", onEnvironment);
   const num = (el) => {
     const v = parseFloat(el.value);
     return isFinite(v) && v >= 0 ? v : null;
@@ -61065,6 +61088,7 @@ function buildRxnStoichBlock(rx) {
         any = true;
       }
     }
+    paintGibbs(moles);
     if (!any) {
       out.textContent = "";
       return;
@@ -61092,6 +61116,7 @@ function buildRxnStoichBlock(rx) {
   };
   for (const r of inputs) r.inp.addEventListener("input", recalc);
   yieldInp.addEventListener("input", recalc);
+  paintGibbs(/* @__PURE__ */ new Map());
   return block;
 }
 function selectedFormulas() {
@@ -64870,6 +64895,7 @@ function applyEnvironment() {
   reanalyze();
   invalidate();
   updatePhaseState(0);
+  window.dispatchEvent(new CustomEvent("mol3d:environment", { detail: { temperatureK: environment.temperatureK, pressureAtm: environment.pressureAtm } }));
 }
 const MatterState = Object.freeze({
   Standard: "standard",

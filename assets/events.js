@@ -1,5 +1,5 @@
 /* Random global events. A check runs every five minutes of wall-clock time with a
-   20% trigger chance; the next check time is persisted, so a reload or a closed
+   35% trigger chance; the next check time is persisted, so a reload or a closed
    tab resumes on the same schedule. Everything is client-side: the schedule, the
    dice and the payouts live in this browser and are tamper-evident at best, not
    server-verified. Every payout goes through the economy's transaction log with a
@@ -10,7 +10,7 @@
 
   var KEY = 'mol3d.events.v1';
   var CHECK_MS = 5 * 60 * 1000;
-  var CHANCE = 0.2;
+  var CHANCE = 0.35;
   var MAX_CATCHUP = 48;
   var MIN = 60 * 1000;
 
@@ -50,7 +50,7 @@
   var STR = {
     en: {
       status: 'EVENT STATUS', none: 'No event is active', next: 'Next event check in',
-      chance: 'Every 5 minutes there is a 20% chance that one event starts.',
+      chance: 'Every 5 minutes there is a 35% chance that one event starts.',
       left: 'Time left', progress: 'Your progress', started: 'EVENT STARTED', ended: 'EVENT ENDED',
       endedMsg: 'Normal prices and gameplay are back. Everything you earned is kept.',
       resumed: 'Event in progress', close: 'Close', open: 'Open',
@@ -79,7 +79,7 @@
     },
     vi: {
       status: 'TRẠNG THÁI SỰ KIỆN', none: 'Không có sự kiện nào', next: 'Lần kiểm tra sự kiện tới sau',
-      chance: 'Cứ 5 phút có 20% khả năng một sự kiện bắt đầu.',
+      chance: 'Cứ 5 phút có 35% khả năng một sự kiện bắt đầu.',
       left: 'Thời gian còn lại', progress: 'Tiến độ của bạn', started: 'SỰ KIỆN BẮT ĐẦU', ended: 'SỰ KIỆN KẾT THÚC',
       endedMsg: 'Giá và lối chơi đã trở lại bình thường. Mọi phần thưởng bạn kiếm được vẫn giữ nguyên.',
       resumed: 'Sự kiện đang diễn ra', close: 'Đóng', open: 'Mở',
@@ -326,7 +326,7 @@
       // 40% red wash over a light panel turns to mud under a gold heading. The stops
       // are the colours the old alphas composited to on the dark shell.
       '.ev-king{display:flex;flex-direction:column;gap:6px;border:1px solid #e01b24;border-radius:10px;padding:8px;',
-      ' background:linear-gradient(160deg,#3d1418,#150103 78%);}',
+      ' color:var(--text);background:linear-gradient(160deg,#3d1418,#150103 78%);}',
       '.ev-king-h{font-weight:900;letter-spacing:1.5px;color:#ffd23f;}',
       '.ev-king-note{font-size:calc(11px * var(--ui-scale,1));opacity:.92;}',
       '.ev-rf-list{display:flex;flex-direction:column;gap:4px;max-height:min(44vh,320px);overflow:auto;}',
@@ -340,7 +340,7 @@
       // His crate, sold only here: the black market card's shape in the King's own
       // red and gold, so it reads as an event offer rather than shop stock.
       '.ev-kpack{display:flex;flex-direction:column;gap:6px;border:1px solid #ffd23f;border-radius:10px;padding:8px;',
-      ' background:linear-gradient(150deg,#550f17,#3c1621 46%,#42331f);}',
+      ' color:var(--text);background:linear-gradient(150deg,#550f17,#3c1621 46%,#42331f);}',
       '.ev-kpack-h{display:flex;align-items:center;gap:6px;font-weight:900;letter-spacing:1.5px;color:#ffd23f;}',
       '.ev-kpack-h svg.lucide{width:1em;height:1em;margin:0;}',
       '.ev-kpack-note{font-size:calc(11px * var(--ui-scale,1));opacity:.85;font-style:italic;}',

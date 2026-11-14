@@ -120,6 +120,15 @@
       boundModel: 'no nucleus the liquid-drop model in this build can bind reaches that mass',
       ejectN: '{n} {kind}(s)',
       promptEject: '⚠ The {kind} was captured and made {comp}, but {comp} sits past the {line} drip line ({bound}). It cannot hold that: {shot} flew straight back out, and {final} is the nucleus standing in the scene now.',
+      // The energy the same ejection carries away. Every number here is computed
+      // from the semi-empirical mass formula, so the sentence is only printed when
+      // the model can actually price the nucleus - and it says so when it cannot.
+      ejectEnergy: '{q} of binding energy was released over {n} ejected nucleon(s); the fastest of them left at about {v} — one crossing of the nucleus in {t}, which is the "prompt" in prompt emission.',
+      ejectBoundAnyway: 'The charts refuse this nucleus by weight, but the liquid-drop model in this build still binds that nucleon (S = {s} MeV), so no ejection energy can be quoted — the refusal is measured, the binding is modelled.',
+      ejectNoModel: 'No mass model in this build can price that nucleus, so the ejection is reported without an energy.',
+      ejectLight: 'That nucleus is too light for the liquid-drop model to price (it needs A ≥ {min}, this one has A = {a}), so the ejection is reported without an energy.',
+      ejectImplausible: 'The liquid-drop model returns Q = {q} MeV for that ejection, above the {max} MeV where a one-nucleon separation energy stops being believable, so the number is dropped rather than shown.',
+      ejectPartial: ' {n} of the ejected nucleon(s) fell outside the range the model can price, so that energy covers only the steps it can stand behind.',
       ejectSevered: ' The nucleus left behind is a noble gas, so {n} bond(s) were severed.',
       shotLost: 'The {kind} flew all the way to a nucleus that has since left the scene, so nothing was captured.',
       vInBand: 'in the band',
@@ -185,6 +194,12 @@
       boundModel: 'không hạt nhân nào mà mô hình giọt chất lỏng trong bản này liên kết được chạm tới khối lượng đó',
       ejectN: '{n} hạt {kind}',
       promptEject: '⚠ Bắt được một {kind} và tạo thành {comp}, nhưng {comp} đã vượt đường nhỏ giọt {line} ({bound}). Hạt nhân không giữ nổi: {shot} bay ngược ra ngay tức khắc, và {final} mới là hạt nhân còn lại trong cảnh.',
+      ejectEnergy: '{q} năng lượng liên kết được giải phóng qua {n} hạt nucleon bị đẩy ra; hạt nhanh nhất rời đi với tốc độ khoảng {v} — bằng một lần băng qua hạt nhân trong {t}, đó chính là nghĩa của "tức thời".',
+      ejectBoundAnyway: 'Các bảng đo từ chối hạt nhân này theo khối lượng, nhưng mô hình giọt chất lỏng trong bản này vẫn liên kết hạt nucleon đó (S = {s} MeV), nên không thể trích ra năng lượng đẩy ra nào — sự từ chối là số đo, còn độ liên kết là mô hình.',
+      ejectNoModel: 'Không có mô hình khối lượng nào trong bản này định giá được hạt nhân đó, nên vụ đẩy nucleon được báo cáo mà không kèm năng lượng.',
+      ejectLight: 'Hạt nhân đó quá nhẹ để mô hình giọt chất lỏng định giá (cần A ≥ {min}, hạt nhân này chỉ có A = {a}), nên vụ đẩy nucleon được báo cáo mà không kèm năng lượng.',
+      ejectImplausible: 'Mô hình giọt chất lỏng trả về Q = {q} MeV cho vụ đẩy đó, vượt quá {max} MeV là ngưỡng mà năng lượng tách một nucleon không còn đáng tin, nên con số bị bỏ đi thay vì hiển thị.',
+      ejectPartial: ' {n} nucleon bị đẩy ra nằm ngoài phạm vi mô hình có thể định giá, nên năng lượng trên chỉ bao gồm các bước mà mô hình chắc chắn.',
       ejectSevered: ' Hạt nhân còn lại là khí hiếm, nên {n} liên kết đã bị cắt.',
       shotLost: 'Hạt {kind} đã bay tới một hạt nhân vừa rời khỏi cảnh, nên không có gì được bắt vào.',
       vInBand: 'trong dải bền',
@@ -567,16 +582,100 @@
     return null;
   }
 
+  // --- What the ejection actually carries ------------------------------------
+  // The line above answers "can this nucleon stay". The semi-empirical mass
+  // formula answers the next question, which is a number rather than a yes/no:
+  // by how much is it unbound? S_n = B(Z,A) - B(Z,A-1) and
+  // S_p = B(Z,A) - B(Z-1,A-1); a negative separation energy is an unbound
+  // nucleon, and the exit is exothermic by Q = -S. That Q is not a footnote - it
+  // is the kinetic energy the particle leaves with, so the same model that
+  // throws the nucleon back out also says how fast it goes.
+  //
+  // Everything here is computed from the model, never tabulated per case. The
+  // masses of the fragments come from the binding energies themselves, so the
+  // two-body sharing of Q is momentum conservation rather than a guess.
+  const M_N_C2 = 939.565;   // neutron rest energy, MeV
+  const M_P_C2 = 938.272;   // proton rest energy, MeV
+  const AMU_C2 = 931.494;   // 1 u in MeV, for the residue
+  const C_LIGHT = 299792458; // m/s
+  const R_NUCLEAR_FM = 1.2; // radius constant of R = r0 A^(1/3), femtometres
+
+  function separationEnergy(z, a, kind) {
+    const N = window.__nuclear;
+    if (!N || typeof N.binding !== 'function' || !(z > 0) || !(a >= z)) return null;
+    if (kind === 'neutron') {
+      if (!(a - 1 >= z)) return null;
+      return N.binding(z, a) - N.binding(z, a - 1);
+    }
+    if (!(z > 1 && a - 1 >= z - 1)) return null;
+    return N.binding(z, a) - N.binding(z - 1, a - 1);
+  }
+
+  // Relativistic speed from a kinetic energy: v = c sqrt(1 - 1/(1 + K/mc^2)^2).
+  // A drip-line nucleon leaves with a few MeV, which is ~2% of c, so the
+  // non-relativistic sqrt(2K/m) would be within a percent - but this is exact
+  // and costs nothing, so nothing has to be excused later.
+  function speedFromKinetic(keMeV, restMeV) {
+    if (!(keMeV > 0) || !(restMeV > 0)) return 0;
+    const g = 1 + keMeV / restMeV;
+    return C_LIGHT * Math.sqrt(Math.max(0, 1 - 1 / (g * g)));
+  }
+
+  // One nucleon leaving one nucleus. Q is shared by momentum conservation:
+  // the particle takes the residue's share of the mass ratio, because the two
+  // fly apart with equal and opposite momentum.
+  //
+  // The liquid drop is fitted to medium and heavy nuclei, and below about
+  // A = 20 it is not a description of anything: it prices 4H as if it were a
+  // droplet and returns a 20 MeV separation energy for a nucleus that real
+  // charts put within a couple of MeV of falling apart. So a step is only
+  // quotable inside the model's own domain, and outside it the ejection is
+  // still reported - just without an energy the model never earned.
+  const SEMF_MIN_A = 20;
+  // No measured one-nucleon separation energy reaches 20 MeV, and a nucleus
+  // past the drip line gives its nucleon back over a few. Past this ceiling the
+  // number is the model failing, not the nucleus talking.
+  const Q_PLAUSIBLE_MAX = 12;
+
+  function ejectaStep(z, a, kind) {
+    const s = separationEnergy(z, a, kind);
+    if (s === null) return null;
+    const q = -s;                      // MeV released; <= 0 means the model binds it
+    let usable = q > 0, why = usable ? 'ok' : 'bound';
+    if (usable && a < SEMF_MIN_A) { usable = false; why = 'light'; }
+    if (usable && q > Q_PLAUSIBLE_MAX) { usable = false; why = 'large'; }
+    const residueA = a - 1;
+    const restParticle = kind === 'neutron' ? M_N_C2 : M_P_C2;
+    const restResidue = Math.max(1, residueA) * AMU_C2;
+    const keParticle = usable ? q * restResidue / (restResidue + restParticle) : 0;
+    const keResidue = usable ? q - keParticle : 0;
+    const v = usable ? speedFromKinetic(keParticle, restParticle) : 0;
+    // The clock prompt emission runs on: one crossing of the nucleus at that
+    // speed, R = r0 A^(1/3). This is where the "about 10^-22 s" in the comment
+    // above comes from - it is measured off the geometry, not asserted.
+    const radiusM = R_NUCLEAR_FM * Math.pow(Math.max(1, a), 1 / 3) * 1e-15;
+    return {
+      kind: kind, z: z, a: a, s: s, q: q, usable: usable, why: why,
+      keParticle: keParticle, keResidue: keResidue, speed: v,
+      transitS: v > 0 ? radiusM / v : null
+    };
+  }
+
   // Walk the nucleus back inside the line one nucleon at a time and report what has
-  // to leave. Null means the nucleus is already somewhere a nucleus can be, which is
-  // the case for every ordinary shot.
+  // to leave, step by step with the energy of each step. Null means the nucleus is
+  // already somewhere a nucleus can be, which is the case for every ordinary shot.
   function settleNucleus(z, a) {
     const first = dripLine(z, a);
     if (!first) return null;
-    let neutrons = 0, protons = 0, cz = z, ca = a;
+    let neutrons = 0, protons = 0, cz = z, ca = a, qTotal = 0, steps = [], priced = false;
     for (let guard = 0; guard < 40; guard++) {
       const past = dripLine(cz, ca);
       if (!past) break;
+      const step = ejectaStep(cz, ca, past.kind);
+      if (step) {
+        steps.push(step);
+        if (step.usable) { qTotal += step.q; priced = true; }
+      }
       if (past.kind === 'neutron') {
         if (!(ca - 1 >= cz)) break;
         ca -= 1; neutrons++;
@@ -586,10 +685,25 @@
       }
     }
     if (!neutrons && !protons) return null;
+    const quotable = steps.filter(x => x.usable);
+    const fast = quotable.length ? quotable.reduce((m, x) => (x.speed > m.speed ? x : m), quotable[0]) : null;
     return {
       z: z, a: a, finalZ: cz, finalA: ca,
       neutrons: neutrons, protons: protons,
-      kind: first.kind, limit: first.limit, measured: first.measured
+      kind: first.kind, limit: first.limit, measured: first.measured,
+      steps: steps, qTotal: priced ? qTotal : null,
+      // How many of those steps the model would actually price a particle for:
+      // a cascade can mix priceable steps with ones the guards reject, and the
+      // energy sentence must count only the nucleons it is really talking about.
+      pricedSteps: quotable.length,
+      speed: fast ? fast.speed : null,
+      transitS: fast ? fast.transitS : null,
+      // Which excuse the first unquotable step gives, so the note can name the
+      // reason the model cannot price this ejection instead of printing a zero.
+      why: steps.length ? (priced ? 'ok' : steps[0].why) : 'none',
+      // True when a step was computed but the model binds that nucleon: the
+      // refusal came from the measured charts, so the energy line must say so.
+      boundDespiteEjection: steps.some(x => x.why === 'bound')
     };
   }
 
@@ -604,6 +718,45 @@
     if (s.neutrons) parts.push(L('ejectN', { n: s.neutrons, kind: L('kNeutron') }));
     if (s.protons) parts.push(L('ejectN', { n: s.protons, kind: L('kProton') }));
     return parts.join(' + ');
+  }
+
+  // MeV to the units the rest of this build quotes energy in, so an ejection and
+  // a fission can be compared by eye rather than by arithmetic.
+  function ejectaEnergyPhrase(q) {
+    const N = window.__nuclear;
+    if (N && typeof N.formatEnergy === 'function') {
+      // fissionEnergy reports MeV per fission the same way; keep the same shape.
+      const mev = N.formatEnergy(q);
+      if (mev && mev !== '—') return mev;
+    }
+    return q.toFixed(2) + ' MeV';
+  }
+
+  function speedPhrase(v) {
+    if (!(v > 0)) return '';
+    const frac = v / C_LIGHT;
+    return (frac * 100).toFixed(1) + '% c (' + Math.round(v / 1000).toLocaleString('en-US') + ' km/s)';
+  }
+
+  // The energy sentence that follows the ejection. Every number in it comes from
+  // the mass formula; when the mass formula has nothing to say - no model at all,
+  // a nucleus too light for the liquid drop, or a model that disagrees with the
+  // charts - the line names that reason instead of printing a made-up zero.
+  function ejectaEnergyNote(s) {
+    if (!s.steps || !s.steps.length) return L('ejectNoModel');
+    if (s.qTotal === null) {
+      if (s.why === 'bound') return L('ejectBoundAnyway', { s: s.steps[0].s.toFixed(2) });
+      if (s.why === 'light') return L('ejectLight', { min: SEMF_MIN_A, a: s.steps[0].a });
+      if (s.why === 'large') return L('ejectImplausible', { q: s.steps[0].q.toFixed(1), max: Q_PLAUSIBLE_MAX });
+      return L('ejectNoModel');
+    }
+    return L('ejectEnergy', {
+      q: ejectaEnergyPhrase(s.qTotal),
+      n: s.pricedSteps,
+      v: s.speed ? speedPhrase(s.speed) : '?',
+      t: s.transitS ? s.transitS.toExponential(1) + ' s' : '?'
+    }) + (s.pricedSteps < s.steps.length
+      ? L('ejectPartial', { n: s.steps.length - s.pricedSteps }) : '');
   }
 
   function ejectionNote(s, finalZ, finalA) {
@@ -621,7 +774,7 @@
       bound: bound,
       shot: ejectedPhrase(s),
       final: nuclideName(finalZ, finalA)
-    });
+    }) + ' ' + ejectaEnergyNote(s);
   }
 
   // Put the settled nucleus into the atom: the crate's books first (the element the
@@ -2086,23 +2239,37 @@
   }
 
   // The nucleus throwing its surplus back. One ball per nucleon, in directions drawn
-  // afresh each time, because prompt emission has no preferred way out.
+  // afresh each time, because prompt emission has no preferred way out — and each
+  // ball travels at the speed its own step computed, so a nucleon that leaves with
+  // 5 MeV visibly outruns one that leaves with 0.2 MeV. The scene cannot run at
+  // 0.03 c, so the real speeds are mapped onto EJECT_SPEED through one reference
+  // particle; the ordering and the ratios are the physics, the scale is the scene.
+  const EJECT_REF_SPEED = speedFromKinetic(2, M_N_C2);
+  function ejectaMs(speed) {
+    const ratio = speed > 0 ? speed / EJECT_REF_SPEED : 1;
+    const clamped = Math.max(0.35, Math.min(3, ratio));
+    return EJECT_RANGE / (EJECT_SPEED * clamped) * 1000;
+  }
+
   function drawEjection(atom, shed) {
     if (!atom || !atom.pos) return;
     const at = { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z };
-    const ms = EJECT_RANGE / EJECT_SPEED * 1000;
-    for (let i = 0; i < shed.neutrons; i++) {
+    const ms = ejectaMs(shed && shed.speed);
+    const fly = function (kind) {
       const dir = randomDirection();
-      flyNucleon('neutron', at, {
+      return flyNucleon(kind, at, {
         x: at.x + dir.x * EJECT_RANGE, y: at.y + dir.y * EJECT_RANGE, z: at.z + dir.z * EJECT_RANGE
       }, ms, { fade: true });
+    };
+    if (shed && shed.steps && shed.steps.length) {
+      // One ball per emitted nucleon, each with its own step energy. The walk
+      // inside settleNucleus is sequential, and the balls are drawn together,
+      // because the whole cascade finishes long before a frame does.
+      for (const st of shed.steps) fly(st.kind);
+      return;
     }
-    for (let i = 0; i < shed.protons; i++) {
-      const dir = randomDirection();
-      flyNucleon('proton', at, {
-        x: at.x + dir.x * EJECT_RANGE, y: at.y + dir.y * EJECT_RANGE, z: at.z + dir.z * EJECT_RANGE
-      }, ms, { fade: true });
-    }
+    for (let i = 0; i < (shed ? shed.neutrons : 0); i++) fly('neutron');
+    for (let i = 0; i < (shed ? shed.protons : 0); i++) fly('proton');
   }
 
   // What one landed shot actually does to the nucleus it found. Split out of the
@@ -2614,6 +2781,12 @@
       // both the span it reads and what a nucleus would settle to are readable here.
       dripSpanOf: function(z) { return measuredSpan(z); },
       settleTo: function(z, a) { return settleNucleus(z, a); },
+      // The full priced ejection: which line, how many nucleons, the separation
+      // energy of each step, the Q it releases and the speed the particle leaves
+      // with. Nothing here is tabulated per nuclide — it all comes from the mass
+      // formula, so any nucleus in the scene can be asked.
+      ejectionOf: function(z, a) { return settleNucleus(z, a); },
+      separationOf: function(z, a, kind) { return separationEnergy(z, a, kind); },
       nucleonsInFlight: function() { return flying.length; },
       panelOpen: function() { return !!(panel && panel.classList.contains('open')); }
     });

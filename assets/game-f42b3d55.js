@@ -42960,6 +42960,13 @@ function orderCapacityOf(el) {
   const base = Math.max(1, el.maxBonds || 1);
   const V = el.valenceElectrons;
   if (!Number.isFinite(V) || el.z > 10) return base;
+  // A halogen is the most electronegative partner in any bond it forms, so it is
+  // never the charge-expanded centre: the +1 widening is for an electropositive
+  // hub (the central oxygen of ozone, the nitrogen of ammonium), not for terminal
+  // fluorine. Without this guard the widening lifts F's capacity to 2, so two
+  // fluorines weld together and the oxygen bolts onto one of them (F-F-O for OF2)
+  // instead of the real bent F-O-F.
+  if (el.cat === "halogen") return base;
   let best = base;
   for (const q of [0, 1]) {
     for (let s = Math.min(4, 8 - V + q, V - q); s >= 1; s--) {
@@ -66192,44 +66199,241 @@ function initBackgroundMusic() {
   const questClose = document.getElementById("quest-close");
   if (!btnQuest || !questPanel) return;
   const questHistory = [];
-  btnQuest.addEventListener("click", async () => {
-    if (typeof puter === "undefined" || !puter.auth) {
-      addQuestMessage("system", t("quest.puterMissing"));
-      questPanel.hidden = false;
-      btnQuest.classList.add("active");
-      return;
-    }
-    const isSignedIn = await puter.auth.isSignedIn();
-    if (!isSignedIn) {
-      questPanel.hidden = false;
-      btnQuest.classList.add("active");
-      questMessages.innerHTML = "";
-      addQuestMessage("system", t("quest.signinRequired"));
-      addQuestMessage("system", t("quest.signinHint"));
-      const signInBtn = document.createElement("button");
-      signInBtn.className = "quest-signin-btn";
-      signInBtn.textContent = t("auth.puter");
-      signInBtn.style.cssText = "background: var(--accent); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; margin: 16px auto; display: block;";
-      signInBtn.onclick = async () => {
-        try {
-          await puter.auth.signIn();
-          const nowSignedIn = await puter.auth.isSignedIn();
-          if (nowSignedIn) {
-            questMessages.innerHTML = "";
-            addQuestMessage("system", t("quest.signedIn"));
-            addQuestMessage("system", t("quest.signedInTip"));
-          }
-        } catch (error) {
-          addQuestMessage("system", t("quest.signinFailed", { error: error.message || t("quest.unknownError") }));
-        }
+  // ── Guest API-key transport (Token Harbor, OpenAI-compatible) ──
+  // SECURITY WARNING: this is a STATIC site with no backend, so a key used by
+  // guests must ship in this public file and is therefore readable by anyone and
+  // only rate-limited in the browser. Rotate via window.__QUEST_API = {key,...}
+  // (or localStorage "mol3d.questApi") at deploy time; a small proxy/server.js is
+  // the secure path for production. Do not commit if you intend the key to stay secret.
+  const GUEST = Object.assign({
+    base: "https://tokenharbor.ai/v1",
+    key: "thk_live_fMbZYtHtJRrpNDbOUhWKqCyw98_mzyB0jcf8sMHfXz0zEXkUGle3NYg6zVIiAEDk",
+    model: "mimo-v2.6-flash:free",
+    cooldownMs: 10000,
+  }, (typeof window !== "undefined" && window.__QUEST_API) || {});
+  let qMode = null;
+  let lastGuestAt = 0;
+  let guestTimer = null;
+  try { qMode = localStorage.getItem("mol3d.questMode") || null; } catch {}
+  // Allow the guest key/base/model to be supplied at runtime (config page, console)
+  // without hardcoding the secret into the shipped bundle.
+  try {
+    const saved = JSON.parse(localStorage.getItem("mol3d.questApi") || "null");
+    if (saved && typeof saved === "object") Object.assign(GUEST, saved);
+  } catch {}
+  const qt = (en, vi) => (isVi() ? vi : en);
+  const REASON_TEXT = {
+    "chem.lewis.charge": "no valid electron count / formal charge for this arrangement",
+    "chem.lewis.radical": "odd number of electrons (unstable radical)",
+    "chem.lewis.electrons": "too many bonding electrons for the available valence",
+  };
+
+  // Read the ENTIRE scene with real attributes so the teacher can explain every mishap.
+  function buildSceneSnapshot() {
+    const snap = {
+      totalAtoms: atoms.size,
+      totalBonds: bonds.size,
+      stars: questManager.getStars ? questManager.getStars() : 0,
+      completedQuests: questManager.completedQuests ? questManager.completedQuests.size : 0,
+      molecules: [],
+    };
+    for (let i = 0; i < lastComps.length; i++) {
+      const comp = lastComps[i];
+      const an = analyses[i];
+      if (!comp || !an) continue;
+      const per = an.per || new Map();
+      const mol = {
+        formula: an.formula || "?",
+        charge: an.charge || 0,
+        feasible: an.feasible !== false,
+        atoms: comp.atoms.map((id) => {
+          const at = atoms.get(id); if (!at) return null;
+          const p = per.get(id) || {};
+          return {
+            sym: at.el.sym, z: at.el.z, formalCharge: p.fc || 0, lonePairs: p.lp || 0,
+            bonds: p.sigma || 0, octetCap: p.cap, bonded: !!p.bonded, metal: !!p.isMetal,
+          };
+        }).filter(Boolean),
+        bonds: comp.bonds.map((b) => {
+          const a = atoms.get(b.a), c = atoms.get(b.b);
+          return { pair: [a && a.el.sym, c && c.el.sym], order: b.order, ionic: !!b.ionic };
+        }),
       };
-      questMessages.appendChild(signInBtn);
-      return;
+      if (!mol.feasible && an.reason) mol.issue = REASON_TEXT[an.reason.key] || an.reason.key || "unstable";
+      snap.molecules.push(mol);
     }
-    questPanel.hidden = !questPanel.hidden;
-    btnQuest.classList.toggle("active", !questPanel.hidden);
-    if (!questPanel.hidden && questMessages.children.length === 0) {
-      addQuestMessage("system", t("quest.activated"));
+    return snap;
+  }
+
+  function questSystemPrompt(snap) {
+    const scene = "[SCENE SNAPSHOT]\n" + JSON.stringify(snap) + "\n[/SCENE SNAPSHOT]";
+    const actions = "[ACTION:spawnMolecule:formula=H2O], [ACTION:spawnAtom:element=O], [ACTION:clearScene]";
+    if (isVi()) {
+      return `Bạn là Aria, gia sư hóa học AI của PHÂN TỬ SỐ (ứng dụng dựng phân tử 3D).
+Hãy ĐỌC TOÀN BỘ cảnh của người chơi từ SCENE SNAPSHOT bên dưới: từng nguyên tử (nguyên tố, điện tích hình thức fc, cặp electron tự do lp, số liên kết, khả năng octet, đã liên kết chưa), từng liên kết (bậc, ion), cùng công thức, điện tích tổng và tính khả thi Lewis của mỗi phân tử.
+Như một giáo viên thật: (1) chỉ ra các lỗi người chơi mắc phải — nguyên tử siêu hóa trị, điện tích hình thức sai, thiếu liên kết hoặc nguyên tử chưa liên kết, gốc tự do, điện tích tổng không khép kín, tỉ lệ nguyên tử không tạo được phân tử bền; (2) hướng dẫn từng bước với MỘT hành động tiếp theo cụ thể và câu hỏi gợi mở, không đưa sẵn đáp án; (3) liên hệ hóa học thật (quy tắc octet, liên kết, hình học VSEPR, danh pháp); (4) chính xác về mặt khoa học.
+Định dạng: công thức dùng chỉ số dưới thường (H₂O, CH₄); ký hiệu khoa học dạng a×10ᵇ, không dùng e+, ^ hay caret; không dùng header markdown. Trả lời bằng TIẾNG VIỆT, dưới 5 câu.
+Bạn có thể sửa cảnh khi được yêu cầu; chèn hành động nội dòng — ${actions}. Chỉ dùng hành động bạn thực sự thực hiện, rồi giải thích.
+
+${scene}`;
+    }
+    return `You are Aria, an AI chemistry teacher inside MOLECULITH, a 3D molecule builder.
+Read the player's ENTIRE scene from the SCENE SNAPSHOT below: every atom (element, formal charge, lone pairs, bond count, octet capacity, bonded?), every bond (order, ionic), and each molecule's formula, net charge, and Lewis feasibility.
+Like a real teacher: (1) point out the mistakes the player made — hypervalent atoms, wrong formal charges, missing or unbonded atoms, radicals, a net charge that will not close, atom ratios that cannot form a stable molecule; (2) guide with one concrete next step and leading questions instead of handing over the finished answer; (3) connect it to real chemistry (octet rule, bonding, VSEPR shape, naming); (4) be scientifically correct.
+Formatting: plain subscripts only (H₂O, CH₄); scientific notation as a×10ᵇ, never e+, ^ or caret; no markdown headers. Reply in English, under 5 sentences.
+You may edit the scene when asked; emit actions inline — ${actions}. Use only the actions you actually perform, then explain what you did.
+
+${scene}`;
+  }
+
+  // Both transports stream. onDelta receives the full text accumulated so far
+  // each time a token arrives, so the caller can paint a live reply instead of
+  // waiting for the whole answer.
+  async function callAccount(messages, onDelta) {
+    const model = "prism-ml/ternary-bonsai-27b";
+    const emit = t => { if (typeof t === "string" && t) { acc += t; if (onDelta) onDelta(acc); } };
+    let acc = "";
+    try {
+      const resp = await puter.ai.chat(messages, { model, stream: true });
+      if (resp && typeof resp[Symbol.asyncIterator] === "function") {
+        for await (const part of resp) {
+          emit(part?.text ?? part?.message?.content ?? "");
+        }
+        return acc;
+      }
+      // Older/simpler shape: a single object with the full message.
+      return resp?.message?.content || resp?.toString?.() || "";
+    } catch (e) {
+      if (acc) return acc; // partial stream then a drop — keep what we got
+      const response = await puter.ai.chat(messages, { model }); // non-stream retry
+      return response?.message?.content || response?.toString?.() || "";
+    }
+  }
+
+  async function callGuest(messages, onDelta) {
+    const url = GUEST.base.replace(/\/$/, "") + "/chat/completions";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + GUEST.key },
+      body: JSON.stringify({ model: GUEST.model, messages, temperature: 0.4, stream: true }),
+    });
+    if (!res.ok) {
+      let data; try { data = await res.json(); } catch { data = {}; }
+      const type = data?.error?.type || data?.type || ("http_" + res.status);
+      const msg = data?.error?.message || data?.message || type;
+      throw new Error("api:" + type + ":" + msg);
+    }
+    if (!res.body || typeof res.body.getReader !== "function") {
+      const data = await res.json().catch(() => ({}));
+      return data?.choices?.[0]?.message?.content || "";
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let lineBuf = "", full = "";
+    const handleLine = (raw) => {
+      const line = raw.trim();
+      if (!line.startsWith("data:")) return;
+      const payload = line.slice(5).trim();
+      if (payload === "[DONE]") return;
+      let obj; try { obj = JSON.parse(payload); } catch { return; }
+      const delta = obj?.choices?.[0]?.delta?.content
+        ?? obj?.choices?.[0]?.text ?? "";
+      if (typeof delta === "string" && delta) {
+        full += delta;
+        if (onDelta) onDelta(full);
+      }
+    };
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      lineBuf += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = lineBuf.indexOf("\n")) >= 0) {
+        handleLine(lineBuf.slice(0, nl));
+        lineBuf = lineBuf.slice(nl + 1);
+      }
+    }
+    if (lineBuf) handleLine(lineBuf);
+    return full;
+  }
+
+  function startGuestCooldown() {
+    if (!questSend.dataset.label) questSend.dataset.label = questSend.textContent;
+    clearInterval(guestTimer);
+    const tick = () => {
+      const rem = GUEST.cooldownMs - (Date.now() - lastGuestAt);
+      if (rem <= 0) {
+        clearInterval(guestTimer); guestTimer = null;
+        questSend.disabled = false; questSend.textContent = questSend.dataset.label;
+        return;
+      }
+      questSend.disabled = true;
+      questSend.textContent = "⏳ " + Math.ceil(rem / 1000) + "s";
+    };
+    tick();
+    guestTimer = setInterval(tick, 200);
+  }
+
+  function handleQuestError(err) {
+    const raw = String((err && err.message) || err);
+    if (raw.startsWith("api:")) {
+      const parts = raw.split(":");
+      const type = parts[1] || "error";
+      const detail = parts.slice(2).join(":") || type;
+      let hint = detail;
+      if (type === "free_models_disabled") hint = qt("Free models are OFF for this Token Harbor account. Enable them in your dashboard, or set window.__QUEST_API.model to a paid model.", "Model miễn phí đang TẮT với tài khoản Token Harbor này. Bật trong dashboard, hoặc đặt window.__QUEST_API.model sang bản trả phí.");
+      else if (type === "balance_zero" || type === "insufficient_balance") hint = qt("This API key has no balance. Top up at tokenharbor.ai/dashboard.", "API key này không còn số dư. Nạp thêm tại tokenharbor.ai/dashboard.");
+      addQuestMessage("system", "⚠ " + qt("Guest API (" + type + "): ", "API khách (" + type + "): ") + hint);
+    } else if (raw === "missing_key") {
+      addQuestMessage("system", qt("⚠ No guest API key set. Provide window.__QUEST_API.key, or use Sign-in mode.", "⚠ Chưa có API key cho chế độ khách. Cung cấp window.__QUEST_API.key, hoặc dùng chế độ Đăng nhập."));
+    } else {
+      addQuestMessage("system", "❌ " + (raw || qt("Could not reach the AI service.", "Không kết nối được dịch vụ AI.")));
+    }
+  }
+
+  function setQuestMode(m) {
+    if (m === "guest" && !GUEST.key) { handleQuestError(new Error("missing_key")); return; }
+    qMode = m;
+    try { localStorage.setItem("mol3d.questMode", m); } catch {}
+    if (m === "guest") {
+      addQuestMessage("system", qt("⚡ Guest mode active (" + GUEST.model + "). " + GUEST.cooldownMs / 1000 + "s between messages.", "⚡ Chế độ khách đang bật (" + GUEST.model + "). Cách nhau " + GUEST.cooldownMs / 1000 + "s mỗi tin nhắn."));
+    } else {
+      addQuestMessage("system", qt("✅ Connected to your account — unlimited. Ask me to read your scene or build a molecule.", "✅ Đã kết nối tài khoản — không giới hạn. Hãy hỏi tôi đọc cảnh hoặc dựng phân tử."));
+    }
+  }
+
+  function showQuestModeChooser() {
+    questMessages.innerHTML = "";
+    addQuestMessage("system", qt("🧪 AI Quest Guide — how would you like to connect?", "🧪 Hướng dẫn AI Quest — bạn muốn kết nối thế nào?"));
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:14px 0";
+    const mk = (label, onclick) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.style.cssText = "background:var(--accent);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px";
+      b.onclick = onclick;
+      wrap.appendChild(b);
+    };
+    mk(qt("🔑 Sign in · free & unlimited", "🔑 Đăng nhập · miễn phí & không giới hạn"), async () => {
+      if (typeof puter === "undefined" || !puter.auth) { addQuestMessage("system", t("quest.puterMissing")); return; }
+      try {
+        const signed = await puter.auth.isSignedIn();
+        if (!signed) await puter.auth.signIn();
+        setQuestMode("account");
+      } catch (e) { addQuestMessage("system", t("quest.signinFailed", { error: e.message || t("quest.unknownError") })); }
+    });
+    mk(qt("⚡ Guest API · 1 msg / 10s", "⚡ API khách · 1 tin / 10s"), () => setQuestMode("guest"));
+    questMessages.appendChild(wrap);
+    addQuestMessage("system", qt("Sign-in is unlimited. Guest uses the app\u2019s API key with a 10-second cooldown between messages.", "Đăng nhập không giới hạn. Chế độ khách dùng API key của ứng dụng với thời gian chờ 10 giây giữa mỗi tin nhắn."));
+  }
+
+  btnQuest.addEventListener("click", () => {
+    const opening = questPanel.hidden;
+    questPanel.hidden = !opening;
+    btnQuest.classList.toggle("active", opening);
+    if (opening && questMessages.children.length === 0) {
+      if (!qMode) showQuestModeChooser();
+      else addQuestMessage("system", qt("🧪 AI Quest Guide ready. Ask me to read your scene or build a molecule.", "🧪 Hướng dẫn AI đã sẵn sàng. Hãy hỏi tôi đọc cảnh của em hoặc dựng phân tử."));
     }
   });
   questClose.addEventListener("click", () => {
@@ -66255,22 +66459,6 @@ function initBackgroundMusic() {
     questMessages.appendChild(msgDiv);
     questMessages.scrollTop = questMessages.scrollHeight;
     return msgDiv;
-  }
-  function getSceneContext() {
-    const context = {
-      totalAtoms: atoms.size,
-      totalBonds: bonds.size,
-      discoveries: discoveries.length,
-      recentDiscoveries: discoveries.slice(-5).map((d) => d.formula || d.name)
-    };
-    if (discoveries.length > 0) {
-      context.currentMolecules = discoveries.slice(-3).map((d) => ({
-        formula: d.formula,
-        name: d.name,
-        charge: d.charge || 0
-      }));
-    }
-    return context;
   }
   function executeAIAction(action) {
     try {
@@ -66318,87 +66506,62 @@ function initBackgroundMusic() {
   async function sendQuestMessage() {
     const text = questInput.value.trim();
     if (!text) return;
+    if (!qMode) { showQuestModeChooser(); return; }
+    if (qMode === "guest" && !GUEST.key) { handleQuestError(new Error("missing_key")); return; }
+    if (qMode === "guest") {
+      const rem = GUEST.cooldownMs - (Date.now() - lastGuestAt);
+      if (rem > 0) { addQuestMessage("system", qt("⏳ Guest cooldown: wait " + Math.ceil(rem / 1000) + "s before the next message.", "⏳ Thời gian chờ: hãy đợi " + Math.ceil(rem / 1000) + "s trước tin nhắn tiếp theo.")); return; }
+    }
     questInput.value = "";
     addQuestMessage("user", text);
     questHistory.push({ role: "user", content: text });
     const typingMsg = addQuestMessage("typing", t("quest.thinking"));
     questSend.disabled = true;
-    try {
-      const context = getSceneContext();
-      const systemPrompt = isVi()
-        ? `Bạn là hướng dẫn hóa học AI của PHÂN TỬ SỐ, ứng dụng xây dựng phân tử 3D. Bạn có thể TRẢ LỜI câu hỏi VÀ thực hiện hành động để xây dựng phân tử.
-
-Cảnh hiện tại:
-- Nguyên tử: ${context.totalAtoms}
-- Liên kết: ${context.totalBonds}
-- Khám phá: ${context.discoveries}
-${context.currentMolecules ? `- Phân tử: ${context.currentMolecules.map((m) => m.formula).join(", ")}` : ""}
-
-HÀNH ĐỘNG CÓ SẴN (khi người dùng yêu cầu xây dựng/tạo):
-- [ACTION:spawnMolecule:formula=H2O] - Xây dựng phân tử hoàn chỉnh
-- [ACTION:spawnAtom:element=O] - Thêm một nguyên tử đơn
-- [ACTION:clearScene] - Xóa tất cả nguyên tử
-
-QUY TẮC:
-1. Khi được yêu cầu xây dựng/tạo phân tử, sử dụng [ACTION:spawnMolecule:formula=...]
-2. Giải thích những gì bạn đang xây dựng và tại sao
-3. Giữ phản hồi dưới 3 câu
-4. Sử dụng hành động khi thích hợp, nhưng cũng giải thích hóa học
-5. Nếu phân tử vi phạm quy tắc hóa học, hãy cảnh báo người dùng thay vì xây nó
-
-Ví dụ:
-Người dùng: "Tạo nước"
-Bạn: "Tôi sẽ tạo H₂O cho bạn - oxy tạo 2 liên kết với hydro.[ACTION:spawnMolecule:formula=H2O]"
-
-Người dùng: "Metan là gì?"
-Bạn: "Metan (CH₄) là hydrocarbon đơn giản nhất - carbon liên kết với 4 hydro theo hình tứ diện. Bạn có muốn tôi tạo nó không?[ACTION:spawnMolecule:formula=CH4]"`
-        : `You are an AI chemistry guide for MOLECULITH, a 3D molecule builder. You can BOTH answer questions AND take actions to build molecules.
-
-Current scene:
-- Atoms: ${context.totalAtoms}
-- Bonds: ${context.totalBonds}
-- Discoveries: ${context.discoveries}
-${context.currentMolecules ? `- Molecules: ${context.currentMolecules.map((m) => m.formula).join(", ")}` : ""}
-
-AVAILABLE ACTIONS (use when user asks you to build/create something):
-- [ACTION:spawnMolecule:formula=H2O] - Build a complete molecule
-- [ACTION:spawnAtom:element=O] - Add a single atom
-- [ACTION:clearScene] - Clear all atoms
-
-RULES:
-1. When asked to build/create a molecule, use [ACTION:spawnMolecule:formula=...]
-2. Explain what you're building and why
-3. Keep responses under 3 sentences
-4. Use actions when appropriate, but also explain the chemistry
-5. If a molecule violates chemistry rules, warn the user instead of building it
-
-Examples:
-User: "Build water"
-You: "I'll create H₂O for you - oxygen forms 2 bonds with hydrogen.[ACTION:spawnMolecule:formula=H2O]"
-
-User: "What's methane?"
-You: "Methane (CH₄) is the simplest hydrocarbon - carbon bonded to 4 hydrogens in a tetrahedral shape. Want me to build it?[ACTION:spawnMolecule:formula=CH4]"`;
-      const messages = [
-        { role: "system", content: systemPrompt },
-        ...questHistory.slice(-10)
-      ];
-      const response = await puter.ai.chat(messages, { model: "claude-3-5-sonnet" });
-      typingMsg.remove();
-      const aiText = response?.message?.content || response?.toString() || t("quest.error");
-      const actionResults = parseAndExecuteActions(aiText);
-      addQuestMessage("ai", aiText.replace(/\[ACTION:[^\]]+\]/g, "").trim());
-      if (actionResults.length > 0) {
-        actionResults.forEach((result) => {
-          addQuestMessage("system", result);
-        });
+    if (qMode === "guest") { lastGuestAt = Date.now(); startGuestCooldown(); }
+    // Paint the reply into one bubble as tokens arrive. Full [ACTION:...] tags
+    // are stripped for display; a trailing partial tag (still streaming) is held
+    // back so the raw protocol never flashes on screen.
+    let aiMsg = null;
+    let typingRef = typingMsg;
+    const stripForDisplay = s => {
+      let out = s.replace(/\[ACTION:[^\]]*\]/g, "");
+      const open = out.lastIndexOf("[");
+      if (open !== -1 && out.indexOf("]", open) === -1) {
+        const tail = out.slice(open);
+        if (tail.length <= "[ACTION:".length && "[ACTION:".startsWith(tail)) out = out.slice(0, open);
       }
-      questHistory.push({ role: "assistant", content: aiText });
+      return out.replace(/\s+$/, "");
+    };
+    const onDelta = (full) => {
+      if (typingRef) { typingRef.remove(); typingRef = null; }
+      if (!aiMsg) aiMsg = addQuestMessage("ai", "");
+      aiMsg.textContent = stripForDisplay(full);
+      questMessages.scrollTop = questMessages.scrollHeight;
+    };
+    try {
+      const snapshot = buildSceneSnapshot();
+      const messages = [
+        { role: "system", content: questSystemPrompt(snapshot) },
+        ...questHistory.slice(-10),
+      ];
+      const aiText = qMode === "guest" ? await callGuest(messages, onDelta) : await callAccount(messages, onDelta);
+      if (typingRef) { typingRef.remove(); typingRef = null; }
+      const clean = (aiText || "").trim() || t("quest.error");
+      const actionResults = parseAndExecuteActions(clean);
+      const shown = clean.replace(/\[ACTION:[^\]]+\]/g, "").trim();
+      if (!aiMsg) aiMsg = addQuestMessage("ai", "");
+      aiMsg.textContent = shown || clean;
+      if (actionResults.length > 0) {
+        actionResults.forEach((result) => addQuestMessage("system", result));
+      }
+      questHistory.push({ role: "assistant", content: clean });
     } catch (error) {
-      typingMsg.remove();
+      if (typingRef) { typingRef.remove(); typingRef = null; }
+      if (aiMsg) aiMsg.remove();
       console.error("Quest AI error:", error);
-      addQuestMessage("ai", "❌ " + t("quest.connectionError") + ": " + (error.message || ""));
+      handleQuestError(error);
     } finally {
-      questSend.disabled = false;
+      if (!(qMode === "guest" && guestTimer)) questSend.disabled = false;
       questInput.focus();
     }
   }

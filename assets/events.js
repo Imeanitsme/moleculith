@@ -309,7 +309,10 @@
       // red end. His colours stay, but the ink now sits on the dark half only.
       '.hud-chip.hud-event[data-ev="king"]{background:linear-gradient(120deg,#3f0404,#a81219);color:#ffd23f;border-color:#ffd23f;}',
       // z-index 61: over the scene, under the shop (rig 62) and under every dialog.
-      '#ev-king{position:fixed;left:0;right:0;top:var(--top-h,56px);z-index:61;cursor:pointer;text-align:center;',
+      // Full-width would cut across both sidebars (Quest on the right, info/dex on
+      // the left). kingMeasure pins the offsets to the real sidebar widths so the
+      // strip only ever spans the scene column; 0 keeps it edge-to-edge on mobile.
+      '#ev-king{position:fixed;left:var(--ev-king-left,0px);right:var(--ev-king-right,0px);top:var(--top-h,56px);z-index:61;cursor:pointer;text-align:center;',
       ' padding:calc(5px * var(--ui-scale,1)) calc(10px * var(--ui-scale,1));color:#fff2c4;',
       ' background:linear-gradient(90deg,#2b0005,#8f1010 14%,#e01b24 34%,#ff6b1a 47%,#ffd23f 50%,#ff6b1a 53%,#e01b24 66%,#8f1010 86%,#2b0005);',
       ' background-size:220% 100%;animation:evKing 4.5s linear infinite;border-bottom:2px solid #ffd23f;',
@@ -614,6 +617,19 @@
   function kingMeasure() {
     if (!bandEl) return;
     var st = document.documentElement.style;
+    // Desktop keeps the two sidebars (pool/info/dex on the left, action buttons on
+    // the right). Match the strip to the real scene column so it never lays over
+    // those controls; mobile collapses to a single column, so go edge-to-edge.
+    var vw = window.innerWidth || document.documentElement.clientWidth;
+    if (vw > 640) {
+      var ls = document.getElementById('left-sidebar');
+      var rs = document.getElementById('right-sidebar');
+      st.setProperty('--ev-king-left', (ls ? ls.getBoundingClientRect().width : 0) + 'px');
+      st.setProperty('--ev-king-right', (rs ? rs.getBoundingClientRect().width : 0) + 'px');
+    } else {
+      st.setProperty('--ev-king-left', '0px');
+      st.setProperty('--ev-king-right', '0px');
+    }
     st.setProperty('--king-h', bandEl.offsetHeight + 'px');
     // A unitless flag for the shell: the banner is the shop handle while it is
     // up, so the rope retracts instead of hanging across his headline.

@@ -29,26 +29,26 @@
       title: 'Molecular graphs',
       empty: 'Select a molecule to plot its physical-property graphs.',
       g1: 'Maxwell–Boltzmann speed distribution',
-      g1f: 'f(v) = 4π (M / 2πRT)³ᐟ² · v² · e^(−Mv²/2RT)',
+      g1f: 'f(v) = 4π (M / 2πRT)<sup>3/2</sup> · v² · e<sup>−Mv²/2RT</sup>',
       g2: 'Translational energy distribution',
-      g2f: 'g(E) = (2/√π) · √E / (RT)³ᐟ² · e^(−E/RT)',
+      g2f: 'g(E) = (2/√π) · √E / (RT)<sup>3/2</sup> · e<sup>−E/RT</sup>',
       g3: 'Boltzmann population factor',
-      g3f: 'P(E) = e^(−E/RT)',
+      g3f: 'P(E) = e<sup>−E/RT</sup>',
       g4: 'Molecular speeds vs temperature',
-      g4f: 'v_mp=√(2RT/M) · v_mean=√(8RT/πM) · v_rms=√(3RT/M)',
+      g4f: 'v<sub>mp</sub> = √(2RT/M) · v<sub>mean</sub> = √(8RT/πM) · v<sub>rms</sub> = √(3RT/M)',
       T: 'T', mass: 'M', spont: 'most-probable', mean: 'mean', rms: 'rms'
     },
     vi: {
       title: 'Biểu đồ phân tử',
       empty: 'Chọn một phân tử để vẽ biểu đồ tính chất vật lý.',
       g1: 'Phân bố tốc độ Maxwell–Boltzmann',
-      g1f: 'f(v) = 4π (M / 2πRT)³ᐟ² · v² · e^(−Mv²/2RT)',
+      g1f: 'f(v) = 4π (M / 2πRT)<sup>3/2</sup> · v² · e<sup>−Mv²/2RT</sup>',
       g2: 'Phân bố năng lượng dịch chuyển',
-      g2f: 'g(E) = (2/√π) · √E / (RT)³ᐟ² · e^(−E/RT)',
+      g2f: 'g(E) = (2/√π) · √E / (RT)<sup>3/2</sup> · e<sup>−E/RT</sup>',
       g3: 'Hệ số phân bố Boltzmann',
-      g3f: 'P(E) = e^(−E/RT)',
+      g3f: 'P(E) = e<sup>−E/RT</sup>',
       g4: 'Tốc độ phân tử theo nhiệt độ',
-      g4f: 'v_mp=√(2RT/M) · v_mean=√(8RT/πM) · v_rms=√(3RT/M)',
+      g4f: 'v<sub>mp</sub> = √(2RT/M) · v<sub>mean</sub> = √(8RT/πM) · v<sub>rms</sub> = √(3RT/M)',
       T: 'Nhiệt độ', mass: 'KLPT', spont: 'cực đại', mean: 'trung bình', rms: 'hiệu dụng'
     }
   };
@@ -117,9 +117,9 @@
     const norm = pts.map(p => [p[0], peak ? p[1] / peak : 0]);
     const s = plot(ctx, f, norm, f.accent, true);
     // mark characteristic speeds
-    const marks = [['v_mp', SQ(2 * R * T / M)], ['x̄', SQ(8 * R * T / PI / M)], ['v_rms', vr]];
+    const marks = [['v\u2098\u209A', SQ(2 * R * T / M)], ['v\u0304', SQ(8 * R * T / PI / M)], ['v\u1D63\u2098\u209B', vr]];
     ctx.lineWidth = 1; for (const m of marks) { ctx.strokeStyle = css('--border', '#456'); ctx.setLineDash([1, 2]); ctx.beginPath(); ctx.moveTo(s.X(m[1]), f.pad.t); ctx.lineTo(s.X(m[1]), f.pad.t + f.gh); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = f.text; ctx.font = '8px monospace'; ctx.textAlign = 'center'; ctx.fillText(m[0], s.X(m[1]), f.pad.t + 8); }
-    xticks(ctx, f, maxV, 'v (m/s)'); xlabel(ctx, f, W, H, 'v_rms = ' + fmt(vr) + ' m/s');
+    xticks(ctx, f, maxV, 'v (m/s)'); xlabel(ctx, f, W, H, 'v\u1D63\u2098\u209B = ' + fmt(vr) + ' m/s');
   }
   function drawEnergy(ctx, W, H, M, T) {        // per-mole kinetic energy dist
     const f = frame(ctx, W, H);
@@ -128,7 +128,7 @@
     const c = 2 / SQ(PI) / Math.pow(R * T, 1.5);
     for (let i = 1; i <= 160; i++) { const E = maxE * i / 160; const y = c * SQ(E) * EX(-E / (R * T)); if (y > peak) peak = y; pts.push([E, y]); }
     plot(ctx, f, pts.map(p => [p[0] / 1000, peak ? p[1] / peak : 0]), f.accent, true);
-    xticks(ctx, f, maxE / 1000, 'E (kJ/mol)'); xlabel(ctx, f, W, H, 'RT = ' + fmt(R * T / 1000) + ' kJ/mol');
+    xticks(ctx, f, maxE / 1000, 'E (kJ\u00b7mol\u207B\u00B9)'); xlabel(ctx, f, W, H, 'RT = ' + fmt(R * T / 1000) + ' kJ\u00b7mol\u207B\u00B9');
   }
   function drawBoltz(ctx, W, H, M, T) {
     const f = frame(ctx, W, H);
@@ -136,18 +136,18 @@
     const pts = [];
     for (let i = 0; i <= 160; i++) { const E = maxE * i / 160; pts.push([E / 1000, EX(-E / (R * T))]); }
     plot(ctx, f, pts, f.accent, true);
-    xticks(ctx, f, maxE / 1000, 'E (kJ/mol)'); xlabel(ctx, f, W, H, 'P(E)=e^(−E/RT)  @ ' + fmt(T) + ' K');
+    xticks(ctx, f, maxE / 1000, 'E (kJ\u00b7mol\u207B\u00B9)'); xlabel(ctx, f, W, H, 'P(E) = exp(\u2212E/RT)  @ ' + fmt(T) + ' K');
   }
   function drawSpeedVsT(ctx, W, H, M) {
     const f = frame(ctx, W, H);
     const T0 = tempK(), maxT = Math.max(600, Math.ceil((2 * T0) / 100) * 100);
     const mk = (coef) => { const p = []; for (let i = 1; i <= 100; i++) { const t = maxT * i / 100; p.push([t, coef * SQ(R * t / M)]); } return p; };
-    const lines = [['v_mp', mk(SQ(2)), css('--accent', '#4a9eff')], ['v̄', mk(SQ(8 / PI)), css('--good', '#37c98b')], ['v_rms', mk(SQ(3)), css('--warn', '#f5a623')]];
+    const lines = [['v\u2098\u209A', mk(SQ(2)), css('--accent', '#4a9eff')], ['v\u0304', mk(SQ(8 / PI)), css('--good', '#37c98b')], ['v\u1D63\u2098\u209B', mk(SQ(3)), css('--warn', '#f5a623')]];
     let mx = 0; for (const ln of lines) for (const p of ln[1]) if (p[1] > mx) mx = p[1];
     const X = t => f.pad.l + f.gw * (t / maxT), Y = v => f.pad.t + f.gh * (1 - (mx ? v / mx : 0));
     ctx.font = '8px monospace'; ctx.textAlign = 'left';
     lines.forEach((ln, i) => { ctx.strokeStyle = ln[2]; ctx.lineWidth = 1.6; ctx.beginPath(); ln[1].forEach((p, j) => j ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))); ctx.stroke(); ctx.fillStyle = ln[2]; ctx.fillText(ln[0] + ' ' + fmt(ln[1][ln[1].length - 1][1]), f.pad.l + 4, f.pad.t + 10 + i * 11); });
-    xticks(ctx, f, maxT, 'T (K)'); xlabel(ctx, f, W, H, 'M = ' + fmt(M * 1000) + ' g/mol');
+    xticks(ctx, f, maxT, 'T (K)'); xlabel(ctx, f, W, H, 'M = ' + fmt(M * 1000) + ' g\u00b7mol\u207B\u00B9');
   }
 
   // ── Orchestration ──────────────────────────────────────────────────────────

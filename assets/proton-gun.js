@@ -77,7 +77,7 @@
       buyNoteNoPrice: 'priced in the Rope Shop',
       lastShot: 'Last shot',
       none: 'nothing fired yet',
-      isotopeLine: 'A={a} = Z{z} + N{n}',
+      isotopeLine: 'A = Z + N: {a} = {z} + {n}',
       modeSet: 'Firing {kind}s — every shot spends 1 {kind} ({price}★ in the Rope Shop).',
       modeSetNoPrice: 'Firing {kind}s — every shot spends 1 {kind} from the Rope Shop.',
       armedNote: 'Mode: {kind} · {left} left',
@@ -87,29 +87,29 @@
       spentUnknown: '· 1 {kind} spent',
       refunded: 'The {kind} is back in the magazine — that shot was not possible, so nothing was spent.',
       ammoApiMissing: 'The shop exposes no ammo stock, so shots stay free.',
-      neutronAdded: 'Neutron captured: {sym}-{a} (Z={z}, N={n}) — the element and its chemistry are unchanged.',
-      inBand: 'Inside the band of stability: the heaviest stable isotope of {sym} is {sym}-{max}.',
-      neutronRich: '⚠ {sym}-{a} is neutron-rich: the heaviest stable isotope of {sym} is {sym}-{max}. The measured charts list no beta half-life for {sym}-{a}, electron or positron, so this build lets it sit.',
-      noStable: '⚠ {sym} has no stable isotope at all, so every nucleus of it carries a decay time. The measured charts list none for {sym}-{a}, so this build lets it sit.',
-      betaMeasured: '☢ {sym}-{a} is a measured beta-minus emitter: it gives up an electron and becomes {daughter}-{da}, with a half-life of {life}. This build counts that clock down.',
+      neutronAdded: 'Neutron captured: {nu} (Z = {z}, N = {n}) — the element and its chemistry are unchanged.',
+      inBand: 'Inside the band of stability: the heaviest stable isotope of {sym} is {mnu}.',
+      neutronRich: '⚠ {nu} is neutron-rich: the heaviest stable isotope of {sym} is {mnu}. The measured charts list no beta half-life for {nu}, electron or positron, so this build lets it sit.',
+      noStable: '⚠ {sym} has no stable isotope at all, so every nucleus of it carries a decay time. The measured charts list none for {nu}, so this build lets it sit.',
+      betaMeasured: '☢ {nu} is a measured beta-minus emitter: it gives up an electron and becomes {dnu}, with a half-life of {life}. This build counts that clock down.',
       betaChain: 'Its path to stability: {chain}.',
-      betaPlusMeasured: '☢ {sym}-{a} is a measured positron emitter: a proton inside it turns into a neutron, throws out a positron, and the nucleus becomes {daughter}-{da}, with a half-life of {life}. This build counts that clock down.',
+      betaPlusMeasured: '☢ {nu} is a measured positron emitter: a proton inside it turns into a neutron, throws out a positron, and the nucleus becomes {dnu}, with a half-life of {life}. This build counts that clock down.',
       betaChainStop: 'The chain reads: {chain}. It comes to rest on {end}, which the charts list as {why}, so the run stops short of a stable nucleus and this build does not pretend otherwise.',
       chainWhyEc: 'a pure electron-capture nuclide - an orbital electron falling in is not a positron flying out, and this build runs neither',
       chainWhyOther: 'a decay mode other than the beta one counted here',
       chainWhyNone: 'nothing the charts measure for it at all',
       chainWhyHeavy: 'bismuth or heavier, where the measured decay chain of the proton number owns the nucleus',
       chainWhyLong: 'still decaying, further than this panel prints a chain',
-      heavy: '☢ {sym}-{a} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. The charts measure {sym}-{a} as a {mode} emitter with a half-life of {life}, and the decay engine runs that clock.',
-      heavyModel: '☢ {sym}-{a} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. No chart measures this isotope, so the liquid-drop model in this build estimates it as a {mode} emitter with a half-life of {life}, and the decay engine runs that estimate.',
-      heavyNoClock: '☢ {sym}-{a} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. No chart measures a half-life for it, so this build lets it sit.',
+      heavy: '☢ {nu} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. The charts measure {nu} as a {mode} emitter with a half-life of {life}, and the decay engine runs that clock.',
+      heavyModel: '☢ {nu} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. No chart measures this isotope, so the liquid-drop model in this build estimates it as a {mode} emitter with a half-life of {life}, and the decay engine runs that estimate.',
+      heavyNoClock: '☢ {nu} caught the neutron and grew heavier. It is not fissile, so a neutron at fission speed only had about one chance in {p} of splitting it, and this time it lost. No chart measures a half-life for it, so this build lets it sit.',
       fissionShot: '☢ {parent} fissioned: {f1} + {f2} and {nu} prompt neutron(s), ≈ {energy} released ({src}). Both fragments are new nuclei — neutron-rich, beta-radioactive, and flying apart.',
       chainNote: ' · {n} of its neutrons struck another fissile nucleus; the chain runs on.',
       fragMissing: ' · {f} found no room in the scene, so only one half of the split is in front of you.',
       fissionDeclined: '☢ {parent} finds no pair of fragments that releases energy, so this build leaves it one nucleus instead of inventing two.',
       srcMeasured: 'measured',
       srcModel: 'model estimate',
-      pastAll: '⚠ {sym}-{a} is a long way past the band of stability ({sym}-{max} is the heaviest stable one). The charts do measure isotopes of {sym} this heavy, so the nucleus holds together — anything past the drip line is thrown straight back out instead of kept.',
+      pastAll: '⚠ {nu} is a long way past the band of stability ({mnu} is the heaviest stable one). The charts do measure isotopes of {sym} this heavy, so the nucleus holds together — anything past the drip line is thrown straight back out instead of kept.',
       // Prompt nucleon emission: past the drip line the last nucleon is not bound,
       // so the shot lands and leaves again in the same breath. Both facts belong in
       // one sentence, or the player reads a captured particle in a nucleus that
@@ -155,7 +155,7 @@
       buyNoteNoPrice: 'có bán trong Cửa hàng Dây thừng',
       lastShot: 'Lần bắn cuối',
       none: 'chưa bắn phát nào',
-      isotopeLine: 'A={a} = Z{z} + N{n}',
+      isotopeLine: 'A = Z + N: {a} = {z} + {n}',
       modeSet: 'Đang bắn {kind} — mỗi phát tốn 1 {kind} ({price}★ ở Cửa hàng Dây thừng).',
       modeSetNoPrice: 'Đang bắn {kind} — mỗi phát tốn 1 {kind} từ Cửa hàng Dây thừng.',
       armedNote: 'Chế độ: {kind} · còn {left} viên',
@@ -165,29 +165,29 @@
       spentUnknown: '· đã dùng 1 {kind}',
       refunded: 'Hạt {kind} đã được trả lại băng đạn — phát đó không thể thực hiện nên bạn không tốn gì.',
       ammoApiMissing: 'Cửa hàng không cung cấp kho đạn, nên mỗi phát vẫn miễn phí.',
-      neutronAdded: 'Đã bắt một neutron: {sym}-{a} (Z={z}, N={n}) — vẫn là nguyên tố cũ, hóa học không đổi.',
-      inBand: 'Nằm trong dải bền: đồng vị bền nặng nhất của {sym} là {sym}-{max}.',
-      neutronRich: '⚠ {sym}-{a} giàu neutron: đồng vị bền nặng nhất của {sym} là {sym}-{max}. Các bảng đo lường không ghi thời gian bán rã beta nào cho {sym}-{a}, dù là electron hay positron, nên bản này để nó nằm yên.',
-      noStable: '⚠ {sym} hoàn toàn không có đồng vị bền, nên mọi hạt nhân của nó đều mang một thời gian phân hủy. Các bảng đo lường không ghi thời gian bán rã cho {sym}-{a}, nên bản này để nó nằm yên.',
-      betaMeasured: '☢ {sym}-{a} là chất phát beta-minus đã đo: nó nhả một electron và hóa thành {daughter}-{da}, với thời gian bán rã {life}. Bản này sẽ đếm thời gian bán rã đó.',
+      neutronAdded: 'Đã bắt một neutron: {nu} (Z = {z}, N = {n}) — vẫn là nguyên tố cũ, hóa học không đổi.',
+      inBand: 'Nằm trong dải bền: đồng vị bền nặng nhất của {sym} là {mnu}.',
+      neutronRich: '⚠ {nu} giàu neutron: đồng vị bền nặng nhất của {sym} là {mnu}. Các bảng đo lường không ghi thời gian bán rã beta nào cho {nu}, dù là electron hay positron, nên bản này để nó nằm yên.',
+      noStable: '⚠ {sym} hoàn toàn không có đồng vị bền, nên mọi hạt nhân của nó đều mang một thời gian phân hủy. Các bảng đo lường không ghi thời gian bán rã cho {nu}, nên bản này để nó nằm yên.',
+      betaMeasured: '☢ {nu} là chất phát beta-minus đã đo: nó nhả một electron và hóa thành {dnu}, với thời gian bán rã {life}. Bản này sẽ đếm thời gian bán rã đó.',
       betaChain: 'Đường đi tới bền của nó: {chain}.',
-      betaPlusMeasured: '☢ {sym}-{a} là chất phát positron đã đo: một proton trong nó hóa thành neutron, nhả một positron, và hạt nhân trở thành {daughter}-{da}, với thời gian bán rã {life}. Bản này sẽ đếm thời gian bán rã đó.',
+      betaPlusMeasured: '☢ {nu} là chất phát positron đã đo: một proton trong nó hóa thành neutron, nhả một positron, và hạt nhân trở thành {dnu}, với thời gian bán rã {life}. Bản này sẽ đếm thời gian bán rã đó.',
       betaChainStop: 'Chuỗi phân rã: {chain}. Nó dừng ở {end}, là hạt nhân mà các bảng đo xếp vào {why}, nên hành trình dừng trước khi tới một hạt nhân bền và bản này không nói khác đi.',
       chainWhyEc: 'chỉ bắt electron - electron quỹ đạo rơi vào hạt nhân chứ không phải positron bay ra, và bản này không chạy cả hai',
       chainWhyOther: 'một kiểu phân rã khác với kiểu beta được đếm ở đây',
       chainWhyNone: 'không được các bảng đo ghi nhận điều gì',
       chainWhyHeavy: 'từ bismuth trở lên, nơi chuỗi phân rã đo được theo số proton nắm hạt nhân',
       chainWhyLong: 'vẫn đang phân rã, xa hơn mức bảng này in ra một chuỗi',
-      heavy: '☢ {sym}-{a} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Các bảng đo ghi {sym}-{a} là chất phát {mode} với thời gian bán rã {life}, và công cụ phân rã chạy đúng chiếc đồng hồ đó.',
-      heavyModel: '☢ {sym}-{a} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Chưa bảng đo nào ghi đúng đồng vị này, nên mô hình giọt chất lỏng trong bản này ước lượng nó là chất phát {mode} với thời gian bán rã {life}, và công cụ phân rã chạy theo đúng ước lượng đó.',
-      heavyNoClock: '☢ {sym}-{a} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Chưa bảng đo nào ghi thời gian bán rã cho nó, nên bản này để nó nằm yên.',
+      heavy: '☢ {nu} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Các bảng đo ghi {nu} là chất phát {mode} với thời gian bán rã {life}, và công cụ phân rã chạy đúng chiếc đồng hồ đó.',
+      heavyModel: '☢ {nu} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Chưa bảng đo nào ghi đúng đồng vị này, nên mô hình giọt chất lỏng trong bản này ước lượng nó là chất phát {mode} với thời gian bán rã {life}, và công cụ phân rã chạy theo đúng ước lượng đó.',
+      heavyNoClock: '☢ {nu} đã bắt neutron và nặng thêm. Nó không phải hạt nhân fissile, nên một neutron bay với tốc độ phân hạch chỉ có khoảng một phần {p} cơ hội tách đôi nó, và lần này nó thua. Chưa bảng đo nào ghi thời gian bán rã cho nó, nên bản này để nó nằm yên.',
       fissionShot: '☢ {parent} vừa phân hạch: {f1} + {f2} và {nu} neutron tức thời, năng lượng ≈ {energy} ({src}). Hai mảnh là những hạt nhân mới — giàu neutron, phát beta, và đang bay ra xa nhau.',
       chainNote: ' · {n} neutron của nó đã vớ một hạt nhân fissile khác; chuỗi dây chuyền tiếp tục.',
       fragMissing: ' · {f} không còn chỗ trong cảnh, nên chỉ một nửa của vụ tách đôi hiện ra trước mắt bạn.',
       fissionDeclined: '☢ {parent} không có cặp mảnh nào mà phép tách đôi tỏa năng lượng, nên bản này để nó là một hạt nhân thay vì bịa ra hai.',
       srcMeasured: 'số đo thật',
       srcModel: 'ước lượng mô hình',
-      pastAll: '⚠ {sym}-{a} nằm rất xa ngoài dải bền ({sym}-{max} là đồng vị bền nặng nhất của {sym}). Các bảng đo vẫn ghi nhận những đồng vị của {sym} nặng đến thế, nên hạt nhân này còn giữ được — thứ gì vượt quá đường nhỏ giọt sẽ bị bắn ngược ra ngay thay vì bị giữ lại.',
+      pastAll: '⚠ {nu} nằm rất xa ngoài dải bền ({mnu} là đồng vị bền nặng nhất của {sym}). Các bảng đo vẫn ghi nhận những đồng vị của {sym} nặng đến thế, nên hạt nhân này còn giữ được — thứ gì vượt quá đường nhỏ giọt sẽ bị bắn ngược ra ngay thay vì bị giữ lại.',
       edgeHeaviest: 'nặng nhất',
       edgeLightest: 'nhẹ nhất',
       boundMeasured: '{limit} là đồng vị {edge} của {sym} từng được đo',
@@ -438,7 +438,32 @@
     const rec = recordOf(atomId);
     return rec ? aOf(rec) : baseA(atom.el);
   }
-  function isotopeOf(el, a) { return { sym: el.sym, a: a, z: el.z, n: a - el.z, label: el.sym + '-' + a }; }
+  // A nuclide the player reads carries its mass number raised above and to the
+  // left of the symbol, the same way the atom labels in the scene draw it.
+  function nuclideSym(z, a) {
+    const N = window.__nuclear;
+    if (N && typeof N.nuclideSup === 'function') {
+      const s = N.nuclideSup(z, a);
+      if (s) return s;
+    }
+    const el = findElement(z);
+    return (el ? el.sym : 'Z' + z) + '-' + a;
+  }
+  // A time too short for the named units is written as a number times a power of
+  // ten, with the exponent above the line rather than after a caret.
+  const SUP_DIGITS = ['\u2070', '\u00b9', '\u00b2', '\u00b3', '\u2074', '\u2075', '\u2076', '\u2077', '\u2078', '\u2079'];
+  function sciTime(value) {
+    if (!Number.isFinite(value)) return '?';
+    const e = value.toExponential(1);
+    const i = e.indexOf('e');
+    let exp = '';
+    for (const c of e.slice(i + 1)) {
+      if (c === '+') continue;
+      exp += c === '-' ? '\u207b' : SUP_DIGITS[+c];
+    }
+    return e.slice(0, i) + '\u00d710' + exp;
+  }
+  function isotopeOf(el, a) { return { sym: el.sym, a: a, z: el.z, n: a - el.z, label: nuclideSym(el.z, a) }; }
   function isotopeOfAtom(atomId, atom) { return isotopeOf(atom.el, massNumberOf(atomId, atom)); }
 
   // The engine paints atom labels while it boots, which lands between this file
@@ -754,7 +779,7 @@
       q: ejectaEnergyPhrase(s.qTotal),
       n: s.pricedSteps,
       v: s.speed ? speedPhrase(s.speed) : '?',
-      t: s.transitS ? s.transitS.toExponential(1) + ' s' : '?'
+      t: s.transitS ? sciTime(s.transitS) + ' s' : '?'
     }) + (s.pricedSteps < s.steps.length
       ? L('ejectPartial', { n: s.steps.length - s.pricedSteps }) : '');
   }
@@ -821,8 +846,8 @@
       const d = T.daughterOf(z, a);
       if (!d) return null;
       const path = T.pathTo(z, a);
-      let chain = symOf(z) + '-' + a;
-      for (const s of path.steps) chain += ' →(' + T.formatLife(s.halfLife) + ') ' + symOf(s.to.z) + '-' + s.to.a;
+      let chain = nuclideSym(z, a);
+      for (const s of path.steps) chain += ' \u2192(' + T.formatLife(s.halfLife) + ') ' + nuclideSym(s.to.z, s.to.a);
       return {
         kind: kind,
         life: T.formatLife(d.halfLife),
@@ -830,8 +855,9 @@
         da: d.a,
         shed: kind === 'minus' ? d.neutronsShed : d.protonsShed,
         chain: chain,
+        nuclide: nuclideSym(d.z, d.a),
         steps: path.steps.length,
-        rest: symOf(path.endZ) + '-' + path.endA,
+        rest: nuclideSym(path.endZ, path.endA),
         reason: path.reason
       };
     };
@@ -864,13 +890,14 @@
   function verdictText(el, iso, v) {
     const params = {
       sym: el.sym, a: iso.a, z: iso.z, n: iso.n, max: v.bandMax,
+      nu: nuclideSym(iso.z, iso.a), mnu: nuclideSym(iso.z, v.bandMax),
       p: Math.round(1 / FAST_FISSION_CHANCE)
     };
     if (v.key !== 'heavy') {
       const b = betaNote(iso.z, iso.a);
       if (b) {
         const head = L(b.kind === 'plus' ? 'betaPlusMeasured' : 'betaMeasured',
-          { sym: el.sym, a: iso.a, life: b.life, daughter: b.daughter, da: b.da });
+          { nu: nuclideSym(iso.z, iso.a), life: b.life, dnu: b.nuclide });
         const tail = chainTail(b);
         return tail ? head + ' ' + tail : head;
       }
@@ -888,7 +915,7 @@
         // the rest, and the two deserve different sentences: promising "the charts
         // measure this" about a nucleus no chart has is the fake part.
         return L(c.source === 'measured' ? 'heavy' : 'heavyModel', {
-          sym: el.sym, a: iso.a, z: iso.z, n: iso.n, max: v.bandMax, p: params.p,
+          nu: params.nu, mnu: params.mnu, p: params.p,
           mode: MODE_GLYPH[c.mode] || c.mode, life: N.formatLife(c.halfLife)
         });
       }
@@ -935,7 +962,7 @@
     }
     showStatus('⚛ ' + (shed
       ? ejectionNote(shed, iso.z, iso.a)
-      : L('neutronAdded', { sym: el.sym, a: iso.a, z: iso.z, n: iso.n })) + ' ' +
+      : L('neutronAdded', { nu: nuclideSym(iso.z, iso.a), z: iso.z, n: iso.n })) + ' ' +
       verdictText(atom.el, iso, v) + spendTail(paid, 'neutron'), v.key === 'inBand' ? 'ok' : 'err');
     setLastShot(iso, v);
     // The x-ray, unlike the engine, draws the nucleus itself - and that nucleus is
@@ -1651,7 +1678,7 @@
     const parts = ENERGY_MEV.map(function (m) { return (m * real.energy) / Q_U236_MEASURED; });
     return {
       real: true,
-      z: z, a: a, label: sym + '-' + a, nuName: nameOf(z),
+      z: z, a: a, label: nuclideSym(z, a), nuName: nameOf(z),
       nubar: real.nu, a1: real.light.a, a2: real.heavy.a,
       frag1: nameOf(real.light.z) + '-' + real.light.a,
       frag2: nameOf(real.heavy.z) + '-' + real.heavy.a,
@@ -1717,7 +1744,7 @@
     const jPerKg = (1000 / a) * AVOGADRO * jPerFission;
     const fragNames = opts.fragNames || [nameOf(zLight), nameOf(zHeavy)];
     return {
-      z: z, a: a, label: sym + '-' + a, nuName: nameOf(z),
+      z: z, a: a, label: nuclideSym(z, a), nuName: nameOf(z),
       nubar: split.nu, a1: split.a1, a2: split.a2,
       frag1: fragNames[0] + '-' + split.a1, frag2: fragNames[1] + '-' + split.a2,
       al: al, ah: ah, mid: mid, fissility: fissility, measured: measured,
@@ -2069,7 +2096,7 @@
     if (!criticalOverlay) createCriticalOverlay();
     var nameEl = document.getElementById('critical-element');
     var countEl = document.getElementById('critical-countdown');
-    if (nameEl) nameEl.textContent = '\u2622 ' + atomName + ' (Z=' + atomZ + ')';
+    if (nameEl) nameEl.textContent = '\u2622 ' + atomName + ' (Z = ' + atomZ + ')';
     if (countEl) {
       countEl.textContent = countdown;
       if (countdown <= 10) {
@@ -2610,7 +2637,7 @@
       // No pair the formula will pay for: the nucleus stays one nucleus, and the
       // shot that aimed at it has to be told so rather than answered with a show.
       showStatus(L('fissionDeclined', {
-        parent: oldName + '-' + oldA, sym: oldSym, a: oldA, z: oldZ
+        parent: nuclideSym(oldZ, oldA), sym: oldSym, a: oldA, z: oldZ
       }));
       return;
     }
@@ -2662,10 +2689,10 @@
       window.__mol3d.triggerNuclearVFX();
     }
 
-    var labelLight = N.nuclideLabel(ev.light.z, ev.light.a);
-    var labelHeavy = N.nuclideLabel(ev.heavy.z, ev.heavy.a);
+    var labelLight = nuclideSym(ev.light.z, ev.light.a);
+    var labelHeavy = nuclideSym(ev.heavy.z, ev.heavy.a);
     var note = L('fissionShot', {
-      parent: oldSym + '-' + oldA,
+      parent: nuclideSym(oldZ, oldA),
       f1: labelLight, f2: labelHeavy,
       nu: ev.nu, energy: N.formatEnergy(ev.energy),
       src: L(ev.energySource === 'measured' ? 'srcMeasured' : 'srcModel')

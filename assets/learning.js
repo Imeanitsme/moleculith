@@ -30,7 +30,7 @@
         camera: Array.isArray(r.camera) && r.camera.length === 4 && r.camera.every(Number.isFinite) ? r.camera : null
       };
     }
-    for (const g of content.glossary) if (raw.seen?.[g[0]] === true) out.seen[g[0]] = true;
+    for (const c of content.concepts) for (const k of c.keys) if (raw.seen?.[k] === true) out.seen[k] = true;
     return out;
   }
   let state;
@@ -192,12 +192,43 @@
     body.innerHTML = '<h3>'+L('From your first atom to independent discovery','Từ nguyên tử đầu tiên đến tự khám phá')+'</h3><p>'+L('No chemistry knowledge needed. Start with one task at a time. Nothing here disables advanced tools or changes the simulation.','Không cần biết hóa học trước. Mỗi lần làm một việc. Không công cụ nâng cao nào bị khóa và mô phỏng không bị thay đổi.')+'</p><progress max="10" value="'+count+'"></progress><p>'+count+'/10 '+L('experiments completed','bài đã hoàn thành')+'</p>'+button('next',L('Start / continue learning','Bắt đầu / tiếp tục học'))+'<ol class="learn-lessons">'+lessons.map(l=>'<li>'+button('start',text(l.title),'data-id="'+l.id+'"')+'<span>'+esc(state.done[l.id]?L('Completed · revisit','Đã xong · học lại'):L('Available','Có thể học'))+'</span></li>').join('')+'</ol><details><summary>'+L('Interface tour and advanced resources','Tham quan giao diện và tài liệu nâng cao')+'</summary><p>'+L('The original comprehensive tour and science guide remain available. Progress is saved separately from your molecules.','Hướng dẫn đầy đủ và cẩm nang khoa học gốc vẫn có sẵn. Tiến độ học được lưu riêng với phân tử.')+'</p>'+button('tour',L('Resume interface tour','Tiếp tục hướng dẫn giao diện'))+' '+button('replay-tour',L('Replay interface tour','Xem lại hướng dẫn giao diện'))+' '+button('science',L('Science guide','Cẩm nang khoa học'))+'</details>';
   }
   function normalize(s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d'); }
+  const str = v => typeof v === 'string' ? v : text(v);
+  // The dictionary is bilingual, so a search has to read both languages: typing
+  // 'nguyên tử' in an English interface still finds the atom group.
+  const both = v => typeof v === 'string' ? v : v.en + ' ' + v.vi;
+  const groupFor = key => content.concepts.find(c => c.keys.includes(key));
+  // Older screens (the mini helper, the term offer) only know a concept key such
+  // as 'charge'; a key now names one of seven groups, so resolve it here.
+  function conceptCard(key) { const g = groupFor(key); return g && body.querySelector('[data-group="' + g.id + '"]'); }
+  function conceptHtml(c) {
+    const formal = str(c.formal), simple = str(c.metaphor);
+    const termsHead = L('Technical terms', 'Thuật ngữ kĩ thuật');
+    const advHead = L('Formal definition', 'Định nghĩa chính thức');
+    const simpleHead = L('Plain picture', 'Hình dung đơn giản');
+    // The definition doubles as the tooltip on every term chip: hovering a term
+    // gives the advanced layer without opening anything.
+    const chips = str(c.terms).split(' · ')
+      .map(t => '<span class="learn-term" title="' + esc(formal) + '">' + esc(t) + '</span>').join('');
+    const beginner = '<p class="learn-simple"><b>' + simpleHead + '.</b> ' + esc(simple) + '</p>';
+    const advanced = '<details class="learn-adv"' + (state.mode === 'standard' ? ' open' : '') +
+      '><summary>' + advHead + '</summary><p>' + esc(formal) + '</p></details>';
+    const layers = state.mode === 'expert'
+      ? '<p class="learn-formal">' + esc(formal) + '</p><details class="learn-adv"><summary>' + simpleHead +
+        '</summary><p>' + esc(simple) + '</p></details>'
+      : beginner + advanced;
+    return '<details data-group="' + c.id + '" data-concept="' + c.keys[0] + '" data-keys="' + c.keys.join(' ') + '">' +
+      '<summary>' + esc(text(c.title)) + '</summary>' +
+      '<p class="learn-terms"><b>' + termsHead + ':</b> ' + chips + '</p>' + layers +
+      '<pre>' + esc(str(c.example)) + '</pre>' +
+      button('guide-topic', L('Explore in science guide', 'Đọc sâu trong cẩm nang'), 'data-topic="' + c.topic + '"') +
+      '</details>';
+  }
   function glossaryResults(query = '') {
     const q=normalize(query);
-    const matches=content.glossary.filter(g=>normalize(text(g[1])+' '+text(g[2])+' '+g[3]).includes(q));
+    const matches=content.concepts.filter(c=>normalize([c.title,c.terms,c.formal,c.metaphor,c.example].map(both).join(' ')).includes(q));
     const host=body.querySelector('#learn-results');
     if (!host) return;
-    host.innerHTML=matches.map(g=>'<details data-concept="'+g[0]+'"><summary>'+esc(text(g[1]))+'</summary><p>'+esc(text(g[2]))+'</p><pre>'+esc(g[3])+'</pre>'+button('guide-topic',L('Explore in science guide','Đọc sâu trong cẩm nang'),'data-topic="'+g[4]+'"')+'</details>').join('') || '<p>'+L('No matching concept. Try an element, bond, energy, or reaction.','Không thấy khái niệm phù hợp. Thử nguyên tố, liên kết, năng lượng hoặc phản ứng.')+'</p>';
+    host.innerHTML=matches.map(conceptHtml).join('') || '<p>'+L('No matching concept. Try an element, bond, energy, or reaction.','Không thấy khái niệm phù hợp. Thử nguyên tố, liên kết, năng lượng hoặc phản ứng.')+'</p>';
   }
   function render() {
     if (!panel || panel.hidden) return;
@@ -308,13 +339,13 @@
     if(!api()||!document.querySelector('.top-bar-left'))return setTimeout(mount,250);
     const style=document.createElement('style');style.textContent=`
       #learning-panel{position:fixed;z-index:180;left:max(8px,env(safe-area-inset-left));top:calc(var(--top-h,44px) + 8px);width:min(380px,calc(100vw - 24px));max-height:calc(var(--free-h,80dvh) - 20px);display:flex;flex-direction:column;background:var(--panel,#0b1526);color:var(--text,#def);border:1px solid var(--border,#345);border-radius:14px;box-shadow:0 12px 45px #0007;font-size:13px;overflow:hidden}
-      #learning-panel[hidden],#learn-mini[hidden]{display:none!important}#learning-panel header{padding:10px;flex:none;border-bottom:1px solid var(--border)}#learn-title{font-size:15px;margin:0 0 8px;color:var(--accent)}#learning-panel nav,.learn-row{display:flex;flex-wrap:wrap;gap:5px;align-items:end}#learning-panel button,#learning-panel input,#learning-panel select,#learning-panel textarea,#learn-mini{font:inherit;border:1px solid var(--border);border-radius:7px;color:var(--text);background:var(--panel-2,#15263a);padding:7px;max-width:100%;box-sizing:border-box}#learning-panel button{cursor:pointer;min-height:32px}#learning-panel button:hover{border-color:var(--accent)}#learning-panel button:disabled{opacity:.5;cursor:default}#learning-panel :focus-visible,#learn-mini:focus-visible{outline:2px solid var(--accent);outline-offset:2px}#learn-body{overflow:auto;min-height:0;padding:12px;line-height:1.55;overscroll-behavior:contain}#learn-body h3{margin-top:0}#learn-body details{padding:8px 0;border-bottom:1px solid var(--border)}#learn-body summary{cursor:pointer;font-weight:700}#learn-body label{display:block;min-width:0;flex:1}#learn-body select,#learn-body textarea,#learn-search{display:block;width:100%}#learn-body textarea{min-height:70px}#learn-body fieldset{margin:12px 0;padding:8px;border:1px solid var(--border);border-radius:8px}#learn-body fieldset button{display:block;margin:4px 0;width:100%;text-align:left}.learn-lessons{padding-left:25px}.learn-lessons li{margin:8px 0}.learn-lessons span{display:block;font-size:11px;color:var(--muted)}#learn-body progress{width:100%;accent-color:var(--accent)}#learn-checks{padding-left:0;list-style:none}#learn-checks [data-done=true]{color:var(--ok-text,#7ee2a8)}#learn-notice{padding:8px;border-left:3px solid var(--accent);white-space:pre-wrap}#learn-notice[data-tone=warn]{border-color:var(--warn);color:var(--warn)}#learn-notice[data-tone=ok]{color:var(--ok-text)}.learn-diagram{margin:8px 0}.learn-diagram svg{height:150px;width:100%;color:var(--accent)}.learn-diagram figcaption{font-size:11px;color:var(--muted)}#learn-body pre{white-space:pre-wrap;font-size:12px}#learn-mini{position:fixed;z-index:179;top:calc(var(--top-h,44px) + 6px);left:8px;background:var(--panel);cursor:pointer}.learn-highlight{outline:3px solid var(--accent)!important}#btn-learning{font-size:11px} @media(max-width:820px){#learning-panel{max-height:min(54dvh,calc(var(--free-h,70dvh) - 12px));font-size:12px}#learning-panel header{padding:7px}#learn-body{padding:9px}#learn-title{font-size:13px}}`;
+      #learning-panel[hidden],#learn-mini[hidden]{display:none!important}#learning-panel header{padding:10px;flex:none;border-bottom:1px solid var(--border)}#learn-title{font-size:15px;margin:0 0 8px;color:var(--accent)}#learning-panel nav,.learn-row{display:flex;flex-wrap:wrap;gap:5px;align-items:end}#learning-panel button,#learning-panel input,#learning-panel select,#learning-panel textarea,#learn-mini{font:inherit;border:1px solid var(--border);border-radius:7px;color:var(--text);background:var(--panel-2,#15263a);padding:7px;max-width:100%;box-sizing:border-box}#learning-panel button{cursor:pointer;min-height:32px}#learning-panel button:hover{border-color:var(--accent)}#learning-panel button:disabled{opacity:.5;cursor:default}#learning-panel :focus-visible,#learn-mini:focus-visible{outline:2px solid var(--accent);outline-offset:2px}#learn-body{overflow:auto;min-height:0;padding:12px;line-height:1.55;overscroll-behavior:contain}#learn-body h3{margin-top:0}#learn-body details{padding:8px 0;border-bottom:1px solid var(--border)}#learn-body summary{cursor:pointer;font-weight:700}#learn-body label{display:block;min-width:0;flex:1}#learn-body select,#learn-body textarea,#learn-search{display:block;width:100%}#learn-body textarea{min-height:70px}#learn-body fieldset{margin:12px 0;padding:8px;border:1px solid var(--border);border-radius:8px}#learn-body fieldset button{display:block;margin:4px 0;width:100%;text-align:left}.learn-lessons{padding-left:25px}.learn-lessons li{margin:8px 0}.learn-lessons span{display:block;font-size:11px;color:var(--muted)}#learn-body progress{width:100%;accent-color:var(--accent)}#learn-checks{padding-left:0;list-style:none}#learn-checks [data-done=true]{color:var(--ok-text,#7ee2a8)}#learn-notice{padding:8px;border-left:3px solid var(--accent);white-space:pre-wrap}#learn-notice[data-tone=warn]{border-color:var(--warn);color:var(--warn)}#learn-notice[data-tone=ok]{color:var(--ok-text)}.learn-diagram{margin:8px 0}.learn-diagram svg{height:150px;width:100%;color:var(--accent)}.learn-diagram figcaption{font-size:11px;color:var(--muted)}#learn-body pre{white-space:pre-wrap;font-size:12px}.learn-terms{margin:6px 0}.learn-term{display:inline-block;margin:2px 3px 2px 0;padding:2px 6px;border:1px solid var(--border);border-radius:999px;font-size:11px;background:var(--panel-2,#15263a);cursor:help}.learn-simple{margin:8px 0;padding-left:8px;border-left:3px solid var(--accent)}.learn-adv{margin:8px 0;padding:4px 8px;border:1px solid var(--border);border-radius:8px}.learn-adv summary{font-size:12px;color:var(--muted)}.learn-formal{margin:8px 0}#learn-mini{position:fixed;z-index:179;top:calc(var(--top-h,44px) + 6px);left:8px;background:var(--panel);cursor:pointer}.learn-highlight{outline:3px solid var(--accent)!important}#btn-learning{font-size:11px} @media(max-width:820px){#learning-panel{max-height:min(54dvh,calc(var(--free-h,70dvh) - 12px));font-size:12px}#learning-panel header{padding:7px}#learn-body{padding:9px}#learn-title{font-size:13px}}`;
     document.head.appendChild(style);
     panel=document.createElement('section');panel.id='learning-panel';panel.hidden=true;panel.setAttribute('aria-labelledby','learn-title');
     panel.innerHTML='<header><h2 id="learn-title" tabindex="-1"></h2><label for="learn-mode" id="learn-mode-label"></label> <select id="learn-mode"><option value="guided">Guided</option><option value="standard">Standard</option><option value="expert">Expert</option></select><nav>'+button('overview','Progress')+button('glossary','Glossary')+button('minimize','Minimize')+'</nav></header><div id="learn-body"></div><nav style="padding:7px">'+button('pool',L('Element pool','Kho nguyên tố'))+button('supplies',L('Supplies','Vật tư'))+button('blueprint','BluePrint')+'</nav>';
     body=panel.querySelector('#learn-body');document.body.appendChild(panel);
     entry=document.createElement('button');entry.type='button';entry.id='btn-learning';entry.className='btn';entry.addEventListener('click',()=>open());document.querySelector('.top-bar-left').appendChild(entry);
-    mini=document.createElement('button');mini.type='button';mini.id='learn-mini';mini.hidden=true;mini.addEventListener('click',()=>{const target=miniTarget;open(target?'glossary':'lesson');if(target?.concept){const d=body.querySelector('[data-concept="'+target.concept+'"]');if(d){d.open=true;d.scrollIntoView({block:'nearest'});}}if(target?.error)body.querySelector('#learn-notice')?.scrollIntoView({block:'nearest'});});document.body.appendChild(mini);
+    mini=document.createElement('button');mini.type='button';mini.id='learn-mini';mini.hidden=true;mini.addEventListener('click',()=>{const target=miniTarget;open(target?'glossary':'lesson');if(target?.concept){const d=conceptCard(target.concept);if(d){d.open=true;d.scrollIntoView({block:'nearest'});}}if(target?.error)body.querySelector('#learn-notice')?.scrollIntoView({block:'nearest'});});document.body.appendChild(mini);
     panel.addEventListener('click',handle);
     panel.querySelector('#learn-mode').addEventListener('change',e=>mode(e.target.value));
     panel.addEventListener('input',e=>{
@@ -342,14 +373,20 @@
     Object.entries(tips).forEach(([id,t])=>{const el=document.getElementById(id);if(el){el.title=t;el.setAttribute('aria-label',t);}});
     }
     labelTips();
+    // Capture phase on purpose: the formal-charge button's own handler stops the
+    // event from bubbling, so a bubble listener would never offer the term.
     document.addEventListener('click',e=>{
       if(state.mode==='expert'||!panel.hidden||Date.now()-lastOffer<90000||window.__tutorial?.isActive())return;
       const el=e.target.closest('button');const map={'btn-fc':'charge','btn-atmosphere':'reaction','btn-blueprint':'bond','btn-isomer':'isomer'};const key=map[el?.id];
       if(!key||state.seen[key])return;state.seen[key]=true;lastOffer=Date.now();save();
-      const term=content.glossary.find(g=>g[0]===key);notice=text(term[2]);
-      if(state.mode==='guided'){open('glossary');const d=body.querySelector('[data-concept="'+key+'"]');if(d){d.open=true;d.scrollIntoView({block:'nearest'});}}
+      const term=groupFor(key);if(!term)return;
+      // An unprompted offer is beginner UX, so it always carries the metaphor.
+      // Expert mode is never interrupted at all (guard above); that reader gets
+      // the formal definition from the glossary or a term chip's tooltip.
+      notice=str(term.metaphor);
+      if(state.mode==='guided'){open('glossary');const d=conceptCard(key);if(d){d.open=true;d.scrollIntoView({block:'nearest'});}}
       else{miniTarget={concept:key};updateMini();}
-    });
+    },{capture:true});
     window.addEventListener('mol3d:lang',()=>{render();updateMini();labelTips();});
     updateMini();
     let legacy=false;try{legacy=!!localStorage.getItem('mol3d.tutorial.completed.v6');}catch(_){}

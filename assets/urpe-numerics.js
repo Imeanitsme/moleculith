@@ -47,6 +47,17 @@
     if (!absent(value) && typeof value !== 'string') fail(name + ' must be a string');
     return typeof value === 'string' && value.trim() ? value.trim() : null;
   }
+  // The rate coefficient carries units of concentration^(1 - order) per second. The
+  // exponent is a number, so it is printed above the line instead of after a caret.
+  const SUP = { '-': '\u207B', '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3', '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077', '8': '\u2078', '9': '\u2079', '.': '\u00B7' };
+  function sup(value) {
+    return String(value).split('').map(character => SUP[character] || character).join('');
+  }
+  function rateUnits(order) {
+    if (order === 1) return 's\u207B\u00B9';
+    if (order === 0) return 'mol\u00b7L\u207b\u00b9 s\u207B\u00B9';
+    return '(mol\u00b7L\u207b\u00b9)' + sup(1 - order) + ' s\u207B\u00B9';
+  }
   function exponential(logValue) {
     if (!Number.isFinite(logValue)) return null;
     const value = Math.exp(logValue);
@@ -74,7 +85,7 @@
       if (!absent(options[key])) number(options[key], 'options.' + key, 0, true);
     }
     const assumptions = [
-      'dH and dG are kJ/mol of reaction; dS is J/mol/K; T is K.',
+      'dH and dG are kJ·mol⁻¹ of reaction; dS is J·mol⁻¹·K⁻¹; T is K.',
       'Activities and K are dimensionless; no activity coefficients or phase changes are inferred.',
       'Reference temperatures and standard states must be supplied; pressure standards apply to all phases, concentration standards to aqueous terms.'
     ];
@@ -118,7 +129,7 @@
           note('Incompatible ' + key + ': standard-state conversion data are not available');
         }
       }
-      if (!absent(standard)) assumptions.push(key + ' = ' + standard + (key === 'pStandard' ? ' bar.' : ' mol/L.'));
+      if (!absent(standard)) assumptions.push(key + ' = ' + standard + (key === 'pStandard' ? ' bar.' : ' mol·L⁻¹.'));
     }
 
     const enthalpies = [];
@@ -214,9 +225,9 @@
     const origin = provenance(parameters.provenance, 'rate provenance');
     const citation = source(parameters.source, 'rate source');
     const trusted = origin !== 'unknown' && citation !== null;
-    const assumptions = ['Concentration basis is mol/L; no catalyst effects are inferred.'];
+    const assumptions = ['Concentration basis is mol·L⁻¹; no catalyst effects are inferred.'];
     const result = {
-      k: null, logK: null, units: '(mol/L)^(' + (1 - order) + ') s^-1',
+      k: null, logK: null, units: rateUnits(order),
       barrier: null, provenance: trusted ? origin : 'unknown', source: citation, assumptions
     };
     if (!trusted) assumptions.push('Rate unavailable: known provenance and nonempty source required.');
@@ -234,7 +245,7 @@
     if (model === 'arrhenius') {
       const A = coefficient('A', 0);
       const Ea = coefficient('Ea');
-      result.barrier = { model, quantity: 'Ea', value: trusted && Ea !== null ? Ea / 1000 : null, units: 'kJ/mol' };
+      result.barrier = { model, quantity: 'Eₐ', value: trusted && Ea !== null ? Ea / 1000 : null, units: 'kJ·mol⁻¹' };
       assumptions.push('Arrhenius apparent activation energy Ea is not a Gibbs activation barrier; A has the returned rate units.');
       if (A !== null && Ea !== null) {
         exactZero = A === 0;
@@ -247,10 +258,10 @@
       if (kappa !== null && kappa > 1) fail('rate.kappa must be at most 1');
       const cStandard = absent(parameters.cStandard) ? 1 : coefficient('cStandard', 0, true);
       if (absent(parameters.kappa)) assumptions.push('Transmission coefficient kappa defaults to 1.');
-      if (absent(parameters.cStandard)) assumptions.push('cStandard defaults to 1 mol/L.');
+      if (absent(parameters.cStandard)) assumptions.push('cStandard defaults to 1 mol·L⁻¹.');
       assumptions.push('Eyring transition-state approximation with cStandard^(1-order); activation dH and dS are treated as temperature independent.');
       result.barrier = {
-        model, quantity: 'dG‡', units: 'kJ/mol',
+        model, quantity: 'ΔG‡', units: 'kJ·mol⁻¹',
         value: trusted && dH !== null && dS !== null ? finiteOrNull(dH / 1000 - (T / 1000) * dS) : null
       };
       if (dH !== null && dS !== null && kappa !== null && cStandard !== null) {
@@ -289,7 +300,7 @@
     const duration = number(options.duration, 'duration (s)', 0, true);
     const points = absent(options.points) ? 100 : integer(options.points, 'points', 2, 10001);
     const rtol = absent(options.rtol) ? 1e-6 : number(options.rtol, 'rtol', 0, true);
-    const atol = absent(options.atol) ? 1e-10 : number(options.atol, 'atol (mol/L)', 0, true);
+    const atol = absent(options.atol) ? 1e-10 : number(options.atol, 'atol (mol·L⁻¹)', 0, true);
     if (rtol > 1 || atol > 1) fail('rtol and atol must be at most 1');
     const maxSteps = absent(options.maxSteps) ? 50000 : integer(options.maxSteps, 'maxSteps', 1, 1000000);
     if (!absent(options.cancelled) && typeof options.cancelled !== 'function') fail('cancelled must be a function');
@@ -362,7 +373,7 @@
     });
 
     const assumptions = [
-      'Closed, homogeneous, constant-volume batch; concentrations in mol/L and time in s.',
+      'Closed, homogeneous, constant-volume batch; concentrations in mol·L⁻¹ and time in s.',
       'Supplied rate constants remain fixed; elementary mass action uses stoichiometric powers with no factorial factors.',
       'Omitted initial concentrations are zero; omitted reverseK declares irreversibility.',
       'Adaptive RK4 step doubling uses the two-half-step state and an error estimate divided by 15; every negative stage or trial is rejected, never clipped or renormalized.',

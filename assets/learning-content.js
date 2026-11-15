@@ -103,21 +103,99 @@
       checks: [L('Record a prediction before building', 'Ghi dự đoán trước khi tạo'), L('Build and inspect a new valid molecule', 'Tạo và xem phân tử mới hợp lệ'), L('Record your observation', 'Ghi quan sát')]
     }
   ];
-  const glossary = [
-    ['atom', L('Atom', 'Nguyên tử'), lessons[0].explanation, 'H: Z = 1', 'quantum'],
-    ['element', L('Element & isotope', 'Nguyên tố & đồng vị'), lessons[1].explanation, '¹H, ²H: Z = 1', 'nuclear'],
-    ['electron', L('Electrons & valence', 'Electron & hóa trị'), lessons[2].explanation, 'O: 1s² 2s² 2p⁴ → 2, 6', 'quantum'],
-    ['bond', L('Covalent bond', 'Liên kết cộng hóa trị'), lessons[3].explanation, 'H–H; O=O; N≡N', 'stability'],
-    ['molecule', L('Molecule', 'Phân tử'), lessons[4].explanation, 'H–O–H', 'stability'],
-    ['formula', L('Formula & coefficient', 'Công thức & hệ số'), lessons[5].explanation, '2 H₂O = 4 H + 2 O (atom counts)', 'reactions'],
-    ['geometry', L('Molecular geometry / VSEPR', 'Hình học phân tử / VSEPR'), lessons[6].explanation, 'CH₄: ~109.5°; CO₂: 180°', 'quantum'],
-    ['isomer', L('Isomer', 'Đồng phân'), lessons[7].explanation, 'CH₃CH₂OH ≠ CH₃OCH₃', 'organic'],
-    ['reaction', L('Reaction & conservation', 'Phản ứng & bảo toàn'), lessons[8].explanation, '2 H₂O → 2 H₂ + O₂', 'reactions'],
-    ['experiment', L('Prediction versus evidence', 'Dự đoán và bằng chứng'), lessons[9].explanation, 'Prediction → observation → explanation', 'analytical'],
-    ['charge', L('Ion & formal charge', 'Ion & điện tích hình thức'), L('An ion has a net electric charge. Formal charge is a bookkeeping assignment in a Lewis structure, not a measured partial charge on an atom.', 'Ion có điện tích tổng khác không. Điện tích hình thức là cách phân chia electron trong cấu trúc Lewis, không phải điện tích riêng phần đo được.'), 'Na⁺ + Cl⁻: total charge 0', 'redox'],
-    ['energy', L('Enthalpy & Gibbs energy', 'Enthalpy & năng lượng Gibbs'), L('Enthalpy tracks heat at constant pressure. Gibbs energy describes thermodynamic driving force at fixed temperature and pressure. A negative reaction Gibbs energy does not tell you the reaction speed.', 'Enthalpy liên quan đến nhiệt ở áp suất không đổi. Năng lượng Gibbs mô tả động lực nhiệt động ở nhiệt độ và áp suất xác định. Gibbs phản ứng âm không cho biết tốc độ phản ứng.'), 'ΔG = ΔH − TΔS', 'thermodynamics'],
-    ['rate', L('Activation barrier & catalyst', 'Rào cản hoạt hóa & chất xúc tác'), L('A reaction needs a pathway. An activation barrier can make an energetically favourable reaction slow. A catalyst supplies a different pathway; it does not change the equilibrium constant at a fixed temperature.', 'Phản ứng cần cơ chế. Rào cản hoạt hóa có thể làm phản ứng thuận lợi về năng lượng vẫn chậm. Chất xúc tác tạo đường phản ứng khác; không đổi hằng số cân bằng ở nhiệt độ cố định.'), 'k = A exp(−Ea/RT)', 'kinetics'],
-    ['equilibrium', L('Equilibrium', 'Cân bằng'), L('At dynamic equilibrium forward and reverse rates are equal, not necessarily concentrations. Activities are dimensionless measures of effective concentration relative to a standard state.', 'Ở cân bằng động, tốc độ thuận và nghịch bằng nhau, không nhất thiết nồng độ bằng nhau. Hoạt độ là đại lượng không thứ nguyên của nồng độ hiệu dụng so với trạng thái chuẩn.'), 'ΔG = ΔG° + RT ln Q', 'equilibrium']
+  // Concept dictionary, written in Vietnamese first and then carried into
+  // English by hand. Three layers per group: `terms` is the technical
+  // vocabulary, `formal` is the definition a learner needs when they ask
+  // "but what is it exactly?" (shown as the advanced layer and as each term's
+  // tooltip), and `metaphor` is the picture a beginner holds on to first.
+  // `keys` keeps the older concept ids pointing at the right group.
+  const concepts = [
+    {
+      id: 'atom-isotope', keys: ['atom', 'element', 'molecule'],
+      title: L('1 · Atom and isotope', '1 · Nguyên tử và đồng vị'),
+      terms: L('Atom · Nucleus · Proton · Neutron · Electron · Atomic number (Z) · Isotope',
+        'Nguyên tử · Hạt nhân · Proton · Neutron · Electron · Số hiệu nguyên tử (Z) · Đồng vị'),
+      formal: L('An atom is a tiny nucleus of positively charged protons and uncharged neutrons (hydrogen-¹H has no neutron at all), ringed by negatively charged electrons. The atomic number Z, the proton count, is the only thing that fixes which element an atom is. Isotopes are atoms of one element: same Z, different neutron count, so a different mass number A = Z + N. A chemical reaction only rearranges the bonds between atoms; it never turns one element into another, because the nucleus is untouched.',
+        'Nguyên tử gồm một hạt nhân rất nhỏ chứa proton mang điện dương và neutron không mang điện (riêng hydrogen-¹H hoàn toàn không có neutron), được bao quanh bởi các electron mang điện âm. Số hiệu nguyên tử Z, tức số proton, là đại lượng duy nhất xác định nguyên tố; các đồng vị của cùng một nguyên tố có cùng Z nhưng khác số neutron nên khác số khối A = Z + N. Phản ứng hóa học chỉ sắp xếp lại các liên kết giữa những nguyên tử, không biến đổi hạt nhân và không biến nguyên tố này thành nguyên tố khác.'),
+      metaphor: L('Atoms are the basic Lego bricks that everything is built from. The nucleus sits stuck in the middle like a marble while the electrons buzz around it like a swarm of bees. Isotopes are twins: the same personality, the same element, but a different weight because they carry a different number of neutrons.',
+        'Nguyên tử là những viên gạch Lego cơ bản cấu tạo nên mọi vật chất. Hạt nhân nằm lì ở giữa như viên bi, còn electron bay lượn xung quanh như một bầy ong. Đồng vị là những anh em sinh đôi cùng tính cách (cùng nguyên tố) nhưng nặng nhẹ khác nhau vì số neutron khác nhau.'),
+      example: '¹H: Z = 1, N = 0 · ²H: Z = 1, N = 1 · A = Z + N',
+      topic: 'nuclear'
+    },
+    {
+      id: 'electron-bond', keys: ['electron', 'bond'],
+      title: L('2 · Electron configuration and the covalent bond', '2 · Cấu hình electron và liên kết cộng hóa trị'),
+      terms: L('Electron shell · Orbital · Valence electron · Octet rule · Covalent bond · Lewis model · Ball-and-stick model',
+        'Vỏ electron · Orbital (ô-bi-tan) · Electron hóa trị · Quy tắc bát tử · Liên kết cộng hóa trị · Mô hình Lewis · Mô hình cầu–que'),
+      formal: L('Electrons occupy orbitals in order of increasing energy, and the outermost shell holds the valence electrons; these are what decide how an atom behaves chemically. A covalent bond forms when two atoms share one or more electron pairs, so electron density builds up between the two nuclei and holds them together. The Lewis model draws each shared pair as one line: H–H is one pair, O=O two, N≡N three. The ball-and-stick model then shows the nuclei and the bonds, but not the electron cloud itself.',
+        'Electron phân bố trong các orbital theo mức năng lượng tăng dần; lớp ngoài cùng chứa electron hóa trị và chính các electron hóa trị quyết định tính chất hóa học của nguyên tử. Liên kết cộng hóa trị hình thành khi hai nguyên tử dùng chung một hay nhiều cặp electron, làm mật độ electron tập trung giữa hai hạt nhân và giữ chúng lại gần nhau. Mô hình Lewis biểu diễn mỗi cặp electron chung bằng một nét gạch: H–H là một cặp, O=O hai cặp, N≡N ba cặp. Mô hình cầu–que sau đó cho thấy hạt nhân và liên kết, nhưng không cho thấy đám mây electron.'),
+      metaphor: L('A covalent bond is shared cooking: each atom puts electrons into a common pot instead of trying to take the other one’s. And every line drawn in H–H is only a symbol on paper, not a real string tied between two atoms.',
+        'Liên kết cộng hóa trị là màn “góp gạo thổi cơm chung”: mỗi nguyên tử góp electron vào dùng chung thay vì giành hẳn phần của nhau. Mỗi nét gạch trong H–H chỉ là sơ đồ tượng trưng trên giấy, không phải sợi dây thật thắt giữa hai nguyên tử.'),
+      example: 'O: 1s² 2s² 2p⁴ → 2, 6 · H–H · O=O · N≡N',
+      topic: 'stability'
+    },
+    {
+      id: 'geometry-isomer', keys: ['formula', 'geometry', 'isomer'],
+      title: L('3 · Molecular geometry and isomers', '3 · Hình học phân tử và đồng phân'),
+      terms: L('Molecular geometry · VSEPR model · Electron domain · Regular tetrahedron · Bond angle · Constitutional isomer',
+        'Hình học phân tử · Mô hình VSEPR · Miền electron · Tứ diện đều · Góc liên kết · Đồng phân cấu tạo'),
+      formal: L('VSEPR predicts a shape from the repulsion between the electron domains around a central atom: the domains spread as far apart as they can. Four bonding domains, as in CH₄, give a regular tetrahedron with H–C–H ≈ 109.5°; two domains, as in CO₂, give a straight line at 180°. Constitutional isomers share one molecular formula but connect the atoms in a different order — ethanol CH₃CH₂OH and dimethyl ether CH₃OCH₃ are both C₂H₆O. Rotating a molecule in space never makes a new isomer out of it.',
+        'Mô hình VSEPR dự đoán hình dạng phân tử dựa trên lực đẩy giữa các miền electron quanh nguyên tử trung tâm: các miền luôn xếp xa nhau hết mức có thể. Bốn miền liên kết như trong CH₄ tạo hình tứ diện đều với góc H–C–H ≈ 109,5°; hai miền như trong CO₂ tạo dạng thẳng hàng với góc 180°. Đồng phân cấu tạo là những chất cùng công thức phân tử nhưng khác trật tự liên kết, ví dụ ethanol CH₃CH₂OH và dimethyl ether CH₃OCH₃ đều có công thức C₂H₆O. Chỉ xoay phân tử trong không gian không bao giờ tạo ra đồng phân mới.'),
+      metaphor: L('Think of the balloon rule: the electron clusters around one atom are balloons tied to the same knot, and they push each other as far apart as they can go, which is exactly why molecules have three-dimensional shapes. Isomers are one box of Lego bricks built into two different houses.',
+        'Hãy nghĩ theo quy tắc bóng bay: các cụm electron quanh một nguyên tử giống như những quả bóng buộc chung một gốc, chúng đẩy nhau ra xa hết mức có thể, và đó chính là lý do phân tử có hình khối ba chiều. Đồng phân giống như cùng một bộ mảnh ghép Lego nhưng lắp thành hai ngôi nhà khác nhau.'),
+      example: L('CH₄: ≈ 109.5° · CO₂: 180° · C₂H₆O = CH₃CH₂OH ≠ CH₃OCH₃',
+        'CH₄: ≈ 109,5° · CO₂: 180° · C₂H₆O = CH₃CH₂OH ≠ CH₃OCH₃'),
+      topic: 'quantum'
+    },
+    {
+      id: 'ion-conservation', keys: ['charge', 'reaction'],
+      title: L('4 · Ions, formal charge and conservation', '4 · Ion, điện tích hình thức và định luật bảo toàn'),
+      terms: L('Ion · Formal charge · Partial charge (δ⁺/δ⁻) · Law of conservation of mass · Law of conservation of charge',
+        'Ion · Điện tích hình thức · Điện tích riêng phần (δ⁺/δ⁻) · Định luật bảo toàn khối lượng · Định luật bảo toàn điện tích'),
+      formal: L('An ion is an atom or a group of atoms whose total charge is not zero: it loses electrons to become a cation, or gains them to become an anion. Formal charge is a bookkeeping convention that divides the electrons in a Lewis structure so you can compare which way of writing a molecule is more stable; it is not a charge you can measure on a single atom, and it is not the partial charge δ⁺/δ⁻ that a polar bond produces. A balanced chemical equation has to conserve two things at once: the atom count of every element and the total charge.',
+        'Ion là nguyên tử hoặc nhóm nguyên tử có tổng điện tích khác 0: mất electron thì thành cation, nhận thêm electron thì thành anion. Điện tích hình thức là quy ước phân chia electron trong công thức Lewis để đánh giá cách viết nào bền hơn; đó không phải điện tích thật đo được trên từng nguyên tử, và cũng khác với điện tích riêng phần δ⁺/δ⁻ sinh ra do liên kết phân cực. Một phương trình hóa học đã cân bằng phải đồng thời bảo toàn số nguyên tử của từng nguyên tố và bảo toàn tổng điện tích.'),
+      metaphor: L('A chemical reaction is taking an old Lego model apart and rebuilding it as something new: no brick simply vanishes and no brick simply appears. Formal charge is only how we keep the notebook tidy, not a scale that weighs the real charge on an atom.',
+        'Phản ứng hóa học giống như tháo rời đồ Lego cũ ra rồi xếp lại thành đồ mới: không viên gạch nào tự nhiên biến mất và cũng không viên gạch nào tự nhiên sinh ra. Điện tích hình thức chỉ là cách ta ghi sổ cho gọn, không phải cái cân đo được điện tích thật của từng nguyên tử.'),
+      example: 'Na⁺ + Cl⁻: Σq = 0 · 2 H₂ + O₂ → 2 H₂O',
+      topic: 'redox'
+    },
+    {
+      id: 'thermo', keys: ['energy'],
+      title: L('5 · Thermodynamics: enthalpy and Gibbs energy', '5 · Nhiệt động lực học: enthalpy và năng lượng Gibbs'),
+      terms: L('Enthalpy (ΔH) · Gibbs free energy (ΔG) · Entropy (ΔS) · Exothermic reaction · Endothermic reaction · Spontaneous direction',
+        'Enthalpy (ΔH) · Năng lượng tự do Gibbs (ΔG) · Entropy (ΔS) · Phản ứng tỏa nhiệt · Phản ứng thu nhiệt · Chiều tự phát'),
+      formal: L('Enthalpy is the heat a system exchanges at constant pressure: ΔH < 0 is exothermic, ΔH > 0 is endothermic. Entropy measures how spread out the energy of the system is. Gibbs free energy combines the two, ΔG = ΔH − TΔS, and tells you the spontaneous direction at a fixed temperature and pressure: with ΔG < 0 the process can run forward on its own. Note carefully what this does not say — ΔG < 0 says nothing about how fast the process runs, only that it is energetically downhill.',
+        'Enthalpy là đại lượng đặc trưng cho nhiệt lượng mà hệ trao đổi ở áp suất không đổi: ΔH < 0 là tỏa nhiệt, ΔH > 0 là thu nhiệt. Entropy đo mức độ phân tán năng lượng của hệ. Năng lượng tự do Gibbs kết hợp hai đại lượng này qua ΔG = ΔH − TΔS và cho biết chiều tự phát của quá trình ở nhiệt độ, áp suất xác định: ΔG < 0 thì quá trình có khả năng tự xảy ra theo chiều thuận. Điều nó không nói là tốc độ — ΔG < 0 chỉ trả lời “có tự xảy ra về mặt năng lượng hay không”, chứ không trả lời “xảy ra nhanh hay chậm”.'),
+      metaphor: L('Enthalpy is a heat wallet: an endothermic change pays money out, an exothermic one puts money back in. Gibbs energy is a boulder on a slope — ΔG < 0 means it is positioned to roll down, yet it can sit where it is for centuries if nothing gives it a push.',
+        'Enthalpy giống như cái ví nhiệt lượng: phản ứng thu nhiệt phải chi tiền, phản ứng tỏa nhiệt thì được hoàn tiền. Năng lượng Gibbs giống như một hòn đá nằm trên dốc — ΔG < 0 nghĩa là hòn đá đang ở thế lăn xuống, nhưng nó vẫn có thể nằm im hàng thế kỷ nếu không có gì đẩy nó đi.'),
+      example: L('ΔG = ΔH − TΔS · ΔG < 0: spontaneous · ΔH < 0: exothermic',
+        'ΔG = ΔH − TΔS · ΔG < 0: tự phát · ΔH < 0: tỏa nhiệt'),
+      topic: 'thermodynamics'
+    },
+    {
+      id: 'kinetics', keys: ['rate', 'equilibrium'],
+      title: L('6 · Kinetics and catalysts', '6 · Động hóa học và chất xúc tác'),
+      terms: L('Activation barrier (Eₐ) · Arrhenius equation · Reaction mechanism · Catalyst · Equilibrium constant (K)',
+        'Rào cản hoạt hóa (Eₐ) · Phương trình Arrhenius · Cơ chế phản ứng · Chất xúc tác · Hằng số cân bằng (K)'),
+      formal: L('However favourable a reaction is in energy terms, it still has to cross the activation barrier Eₐ to reach the transition state. The Arrhenius equation k = A · exp(−Eₐ/(R·T)) shows how sharply the rate constant k rises when the temperature T goes up or the barrier comes down. A reaction mechanism is the sequence of elementary steps by which the reactants actually become the products. A catalyst opens a different route with a lower Eₐ, so the reaction runs faster; it is not used up, and at a fixed temperature it does not change the equilibrium constant K or the position of equilibrium.',
+        'Dù có lợi về năng lượng đến đâu, một phản ứng vẫn phải vượt qua rào cản hoạt hóa Eₐ để tới trạng thái chuyển tiếp. Phương trình Arrhenius k = A · exp(−Eₐ/(R·T)) cho thấy hằng số tốc độ k tăng mạnh thế nào khi nhiệt độ T tăng lên hoặc rào cản Eₐ hạ xuống. Cơ chế phản ứng là chuỗi các giai đoạn sơ cấp mà qua đó chất đầu thực sự biến thành sản phẩm. Chất xúc tác mở một con đường khác có Eₐ thấp hơn nên phản ứng chạy nhanh hơn; bản thân nó không bị tiêu hao và ở nhiệt độ cố định, nó không làm thay đổi hằng số cân bằng K cũng như vị trí cân bằng.'),
+      metaphor: L('Eₐ is a high mountain pass between reactants and products: even though the far side is lower and more attractive, you still have to climb before you can cross. A catalyst is a tunnel through the mountain — same two valleys, same difference in height between them, only nobody has to reach the summit any more.',
+        'Eₐ là con dốc cao ngăn cách chất đầu và sản phẩm: dù bên kia dốc thấp hơn và hấp dẫn hơn, muốn sang thì vẫn phải leo lên trước. Chất xúc tác là đường hầm xuyên núi — vẫn hai thung lũng ấy, vẫn cùng một mức chênh lệch năng lượng giữa hai đầu, chỉ là không ai phải leo tới đỉnh nữa.'),
+      example: 'k = A · exp(−Eₐ/(R·T)) · R = 8.314 J·mol⁻¹·K⁻¹ · ΔG° = −R·T·ln K',
+      topic: 'kinetics'
+    },
+    {
+      id: 'method', keys: ['experiment'],
+      title: L('7 · Method and the limits of the model', '7 · Phương pháp và giới hạn của mô hình'),
+      terms: L('Prediction · Observation · Explanation · Simulation model',
+        'Dự đoán · Quan sát · Giải thích · Mô hình mô phỏng'),
+      formal: L('Work with the sandbox in the order the scientific method uses: predict (say what you expect and why), observe (record what the scene actually does), then explain (compare the two and name the model assumption behind any gap). A simulation can only show that a structure is consistent with the rules it was built on. It does not show that the substance is stable in a bottle, and it is certainly not evidence that making it would be safe.',
+        'Làm việc với mô phỏng theo đúng chuỗi của phương pháp khoa học: Dự đoán (nêu trước kết quả mong đợi kèm lý do) → Quan sát (ghi nhận điều thực sự xảy ra trong cảnh) → Giải thích (so sánh hai vế và chỉ ra giả định mô hình nào đứng sau khác biệt). Mô hình mô phỏng chỉ chứng minh một cấu trúc nhất quán với các quy tắc mà nó được lập trình; nó không chứng minh chất đó bền ngoài thực tế, và càng không phải bằng chứng cho quy trình tổng hợp ra nó là an toàn.'),
+      metaphor: L('A simulation is a jigsaw puzzle on a screen: it teaches you why the pieces fit together, not how to handle them by hand in a real laboratory.',
+        'Mô phỏng giống như trò chơi ghép hình trên màn hình: nó giúp bạn hiểu nguyên lý vì sao các mảnh khớp nhau, chứ không phải cách thao tác trực tiếp bằng tay trong phòng thí nghiệm thật.'),
+      example: L('Predict → Observe → Explain', 'Dự đoán → Quan sát → Giải thích'),
+      topic: 'analytical'
+    }
   ];
-  window.MolLearningContent = { lessons, glossary };
+  window.MolLearningContent = { lessons, concepts };
 })();

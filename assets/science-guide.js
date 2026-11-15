@@ -31,12 +31,6 @@
     navPrev: L('Previous topics', 'Chủ đề trước'),
     navNext: L('Next topics', 'Chủ đề tiếp'),
     panelTitle: L('Science', 'Khoa học'),
-    labTitle: L('Decay Lab', 'Phòng thí nghiệm phân rã'),
-    labHint: L('Pick a decay below. Each one throws the real particle out of the nucleus.', 'Chọn một kiểu phân rã bên dưới. Mỗi kiểu ném đúng loại hạt thật ra khỏi hạt nhân.'),
-    labReadout: L('Parent', 'Hạt nhân mẹ'),
-    labDaughter: L('Daughter', 'Hạt nhân con'),
-    labEmits: L('Emits', 'Phát ra'),
-    labConserve: L('A and Z balanced', 'A và Z cân bằng')
   };
 
   const GUIDES = {
@@ -50,7 +44,7 @@
         },
         {
           heading: L('Reaction Types in the Lab', 'Các kiểu phản ứng trong phòng thí nghiệm'),
-          content: L('<b>Synthesis:</b> A + B → AB (e.g., 2H₂ + O₂ → 2H₂O)<br><br><b>Decomposition:</b> AB → A + B (e.g., 2H₂O → 2H₂ + O₂)<br><br><b>Single Replacement:</b> A + BC → AC + B (e.g., Zn + 2HCl → ZnCl₂ + H₂)<br><br><b>Double Replacement:</b> AB + CD → AD + CB (e.g., AgNO₃ + NaCl → AgCl↓ + NaNO₃)<br><br><b>Combustion:</b> Fuel + O₂ → CO₂ + H₂O (e.g., CH₄ + 2O₂ → CO₂ + 2H₂O)<br><br><b>Acid-Base:</b> HA + BOH → BA + H₂O (e.g., HCl + NaOH → NaCl + H₂O)', '<b>Tổng hợp:</b> A + B → AB (ví dụ: 2H₂ + O₂ → 2H₂O)<br><br><b>Phân hủy:</b> AB → A + B (ví dụ: 2H₂O → 2H₂ + O₂)<br><br><b>Thế:</b> A + BC → AC + B (ví dụ: Zn + 2HCl → ZnCl₂ + H₂)<br><br><b>Trao đổi:</b> AB + CD → AD + CB (ví dụ: AgNO₃ + NaCl → AgCl↓ + NaNO₃)<br><br><b>Cháy:</b> Nhiên liệu + O₂ → CO₂ + H₂O (ví dụ: CH₄ + 2O₂ → CO₂ + 2H₂O)<br><br><b>Axit-bazơ:</b> HA + BOH → BA + H₂O (ví dụ: HCl + NaOH → NaCl + H₂O)')
+          content: L('<b>Synthesis:</b> A + B → AB (e.g., 2H₂ + O₂ → 2H₂O)<br><br><b>Decomposition:</b> AB → A + B (e.g., 2H₂O → 2H₂ + O₂)<br><br><b>Single Replacement:</b> A + BC → AC + B (e.g., Zn + 2HCl → ZnCl₂ + H₂)<br><br><b>Double Replacement:</b> AB + CD → AD + CB (e.g., AgNO₃ + NaCl → AgCl↓ + NaNO₃)<br><br><b>Combustion:</b> Fuel + O₂ → CO₂ + H₂O (e.g., CH₄ + 2O₂ → CO₂ + 2H₂O)<br><br><b>Acid–Base:</b> HA + BOH → BA + H₂O (e.g., HCl + NaOH → NaCl + H₂O)', '<b>Tổng hợp:</b> A + B → AB (ví dụ: 2H₂ + O₂ → 2H₂O)<br><br><b>Phân hủy:</b> AB → A + B (ví dụ: 2H₂O → 2H₂ + O₂)<br><br><b>Thế:</b> A + BC → AC + B (ví dụ: Zn + 2HCl → ZnCl₂ + H₂)<br><br><b>Trao đổi:</b> AB + CD → AD + CB (ví dụ: AgNO₃ + NaCl → AgCl↓ + NaNO₃)<br><br><b>Cháy:</b> Nhiên liệu + O₂ → CO₂ + H₂O (ví dụ: CH₄ + 2O₂ → CO₂ + 2H₂O)<br><br><b>Axit–bazơ:</b> HA + BOH → BA + H₂O (ví dụ: HCl + NaOH → NaCl + H₂O)')
         },
         {
           heading: L('Triggering Reactions', 'Kích hoạt phản ứng'),
@@ -73,7 +67,7 @@
         },
         {
           heading: L('Arrhenius Equation', 'Phương trình Arrhenius'),
-          content: L('The rate constant k follows: <b>k = A·e^(-Ea/RT)</b><br><br>Where:<br>• A = frequency factor (collision rate)<br>• Ea = activation energy (J/mol)<br>• R = gas constant (8.314 J/mol·K)<br>• T = temperature (Kelvin)<br><br>Higher T exponentially increases reaction rate!', 'Hằng số tốc độ k tuân theo: <b>k = A·e^(-Ea/RT)</b><br><br>Trong đó:<br>• A = thừa số tần số (tốc độ va chạm)<br>• Ea = năng lượng hoạt hóa (J/mol)<br>• R = hằng số khí (8.314 J/mol·K)<br>• T = nhiệt độ (Kelvin)<br><br>Nhiệt độ tăng thì tốc độ phản ứng tăng theo hàm mũ!')
+          content: L('The rate constant k follows: <b>k = A·e<sup>−E<sub>a</sub>/RT</sup></b><br><br>Where:<br>• A = frequency factor (collision rate)<br>• E<sub>a</sub> = activation energy (J·mol⁻¹)<br>• R = gas constant (8.314 J·mol⁻¹·K⁻¹)<br>• T = temperature (Kelvin)<br><br>Higher T exponentially increases reaction rate!', 'Hằng số tốc độ k tuân theo: <b>k = A·e<sup>−E<sub>a</sub>/RT</sup></b><br><br>Trong đó:<br>• A = thừa số tần số (tốc độ va chạm)<br>• E<sub>a</sub> = năng lượng hoạt hóa (J·mol⁻¹)<br>• R = hằng số khí (8.314 J·mol⁻¹·K⁻¹)<br>• T = nhiệt độ (Kelvin)<br><br>Nhiệt độ tăng thì tốc độ phản ứng tăng theo hàm mũ!')
         },
         {
           heading: L('Temperature Effects', 'Ảnh hưởng của nhiệt độ'),
@@ -92,7 +86,7 @@
       sections: [
         {
           heading: L('Bond Energy', 'Năng lượng liên kết'),
-          content: L('Every bond has an energy — the strength holding atoms together. Stronger bonds = more stable molecules.<br><br>Examples:<br>• C≡C triple bond: 839 kJ/mol (very strong)<br>• C=C double bond: 614 kJ/mol<br>• C-C single bond: 347 kJ/mol<br>• H-H bond: 436 kJ/mol', 'Mỗi liên kết đều có năng lượng — lực giữ các nguyên tử với nhau. Liên kết càng bền thì phân tử càng ổn định.<br><br>Ví dụ:<br>• Liên kết ba C≡C: 839 kJ/mol (rất bền)<br>• Liên kết đôi C=C: 614 kJ/mol<br>• Liên kết đơn C-C: 347 kJ/mol<br>• Liên kết H-H: 436 kJ/mol')
+          content: L('Every bond has an energy — the strength holding atoms together. Stronger bonds = more stable molecules.<br><br>Examples:<br>• C≡C triple bond: 839 kJ·mol⁻¹ (very strong)<br>• C=C double bond: 614 kJ·mol⁻¹<br>• C-C single bond: 347 kJ·mol⁻¹<br>• H-H bond: 436 kJ·mol⁻¹', 'Mỗi liên kết đều có năng lượng — lực giữ các nguyên tử với nhau. Liên kết càng bền thì phân tử càng ổn định.<br><br>Ví dụ:<br>• Liên kết ba C≡C: 839 kJ·mol⁻¹ (rất bền)<br>• Liên kết đôi C=C: 614 kJ·mol⁻¹<br>• Liên kết đơn C-C: 347 kJ·mol⁻¹<br>• Liên kết H-H: 436 kJ·mol⁻¹')
         },
         {
           heading: L('Octet Rule', 'Quy tắc octet'),
@@ -100,7 +94,7 @@
         },
         {
           heading: L('Unstable Molecules', 'Phân tử không bền'),
-          content: L('Some molecules are thermodynamically unstable:<br>• <b>O₃ (Ozone):</b> Decays to 3/2 O₂ over time<br>• <b>H₂O₂ (Peroxide):</b> Decomposes to H₂O + 1/2 O₂<br>• <b>N₄:</b> Explodes into 2 N₂ (releases massive energy)<br><br>The engine auto-decomposes cursed molecules into stable products!', 'Một số phân tử không bền về nhiệt động lực học:<br>• <b>O₃ (ozone):</b> Phân hủy thành 3/2 O₂ theo thời gian<br>• <b>H₂O₂ (peroxit):</b> Phân hủy thành H₂O + 1/2 O₂<br>• <b>N₄:</b> Nổ thành 2 N₂ (giải phóng năng lượng lớn)<br><br>Engine tự phân hủy các phân tử kém bền thành sản phẩm bền!')
+          content: L('Some molecules are thermodynamically unstable:<br>• <b>O₃ (Ozone):</b> Decays to O₂ over time (2 O₃ → 3 O₂)<br>• <b>H₂O₂ (Peroxide):</b> Decomposes to H₂O + ½ O₂ (2 H₂O₂ → 2 H₂O + O₂)<br>• <b>N₄:</b> Explodes into 2 N₂ (releases massive energy)<br><br>The engine auto-decomposes cursed molecules into stable products!', 'Một số phân tử không bền về nhiệt động lực học:<br>• <b>O₃ (ozone):</b> Phân hủy thành O₂ theo thời gian (2 O₃ → 3 O₂)<br>• <b>H₂O₂ (peroxit):</b> Phân hủy thành H₂O + ½ O₂ (2 H₂O₂ → 2 H₂O + O₂)<br>• <b>N₄:</b> Nổ thành 2 N₂ (giải phóng năng lượng lớn)<br><br>Engine tự phân hủy các phân tử kém bền thành sản phẩm bền!')
         },
         {
           heading: L('Atmosphere Mode', 'Chế độ khí quyển'),
@@ -115,7 +109,7 @@
       sections: [
         {
           heading: L('Radioactive Decay', 'Phân rã phóng xạ'),
-          content: L('Elements with Z > 82 (beyond Lead) are radioactive. Their nuclei are unstable and decay over time:<br>• <b>Alpha decay:</b> Emits He nucleus (2p + 2n), Z decreases by 2<br>• <b>Beta decay:</b> Neutron → Proton + electron, Z increases by 1<br>• <b>Gamma decay:</b> Emits high-energy photon, no Z change<br><br>Watch Uranium (Z=92) decay into lighter elements!', 'Các nguyên tố có Z > 82 (sau Chì) là phóng xạ. Hạt nhân không bền và phân rã theo thời gian:<br>• <b>Phân rã alpha:</b> Phát ra hạt nhân He (2p + 2n), Z giảm 2<br>• <b>Phân rã beta:</b> Notron → proton + electron, Z tăng 1<br>• <b>Phân rã gamma:</b> Phát ra photon năng lượng cao, Z không đổi<br><br>Hãy xem Urani (Z=92) phân rã thành các nguyên tố nhẹ hơn!')
+          content: L('Elements with Z > 82 (beyond Lead) are radioactive. Their nuclei are unstable and decay over time:<br>• <b>Alpha decay:</b> Emits the helium nucleus <sup>4</sup><sub>2</sub>He (2 protons + 2 neutrons), Z decreases by 2<br>• <b>Beta decay:</b> Neutron → Proton + electron, Z increases by 1<br>• <b>Gamma decay:</b> Emits high-energy photon, no Z change<br><br>Watch Uranium (Z = 92) decay into lighter elements!', 'Các nguyên tố có Z > 82 (sau Chì) là phóng xạ. Hạt nhân không bền và phân rã theo thời gian:<br>• <b>Phân rã alpha:</b> Phát ra hạt nhân heli <sup>4</sup><sub>2</sub>He (2 proton + 2 neutron), Z giảm 2<br>• <b>Phân rã beta:</b> Notron → proton + electron, Z tăng 1<br>• <b>Phân rã gamma:</b> Phát ra photon năng lượng cao, Z không đổi<br><br>Hãy xem Urani (Z = 92) phân rã thành các nguyên tố nhẹ hơn!')
         },
         {
           heading: L('Critical Mass', 'Khối lượng tới hạn'),
@@ -123,7 +117,7 @@
         },
         {
           heading: L('Chain Reactions', 'Phản ứng dây chuyền'),
-          content: L('Fission releases neutrons that can trigger nearby radioactive atoms. This creates a chain reaction:<br>1 atom fissions → releases neutrons → hits 2-3 atoms → they fission → exponential cascade!<br><br>In Dense Plasma state, chain reactions are suppressed to prevent endless HP loss.', 'Phân hạch giải phóng notron có thể kích hoạt các nguyên tử phóng xạ lân cận, tạo thành phản ứng dây chuyền:<br>1 nguyên tử phân hạch → phát notron → trúng 2-3 nguyên tử → chúng phân hạch → chuỗi tăng theo hàm mũ!<br><br>Ở trạng thái Plasma đặc, phản ứng dây chuyền bị chặn để tránh mất HP vô hạn.')
+          content: L('Fission releases neutrons that can trigger nearby radioactive atoms. This creates a chain reaction:<br>1 atom fissions → releases neutrons → hits 2–3 atoms → they fission → exponential cascade!<br><br>In Dense Plasma state, chain reactions are suppressed to prevent endless HP loss.', 'Phân hạch giải phóng notron có thể kích hoạt các nguyên tử phóng xạ lân cận, tạo thành phản ứng dây chuyền:<br>1 nguyên tử phân hạch → phát notron → trúng 2-3 nguyên tử → chúng phân hạch → chuỗi tăng theo hàm mũ!<br><br>Ở trạng thái Plasma đặc, phản ứng dây chuyền bị chặn để tránh mất HP vô hạn.')
         },
         {
           heading: L('Radiation Damage', 'Tác hại của bức xạ'),
@@ -160,13 +154,13 @@
             "<b>β⁻:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z+1</sub>Y + e⁻ + ν̄<sub>e</sub><br><br>" +
             "<b>β⁺:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z−1</sub>Y + e⁺ + ν<sub>e</sub><br><br>" +
             "<b>EC:</b> <sup>A</sup><sub>Z</sub>X + e⁻ → <sup>A</sup><sub>Z−1</sub>Y + ν<sub>e</sub><br><br>" +
-            "<b>γ:</b> X* → X + γ<br><br>" +
+            "<b>γ:</b> X<sup>*</sup> → X + γ<br><br>" +
             "Read the numbers, not the letters: charge and nucleon count are conserved in every line. In β⁻ a neutron becomes a proton, so Z rises by one while A stays put — the electron and antineutrino carry the missing charge and lepton number.",
             "<b>α:</b> <sup>A</sup><sub>Z</sub>X → <sup>A−4</sup><sub>Z−2</sub>Y + <sup>4</sup><sub>2</sub>He<br><br>" +
             "<b>β⁻:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z+1</sub>Y + e⁻ + ν̄<sub>e</sub><br><br>" +
             "<b>β⁺:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z−1</sub>Y + e⁺ + ν<sub>e</sub><br><br>" +
             "<b>EC:</b> <sup>A</sup><sub>Z</sub>X + e⁻ → <sup>A</sup><sub>Z−1</sub>Y + ν<sub>e</sub><br><br>" +
-            "<b>γ:</b> X* → X + γ<br><br>" +
+            "<b>γ:</b> X<sup>*</sup> → X + γ<br><br>" +
             "Hãy đọc các con số, không phải chữ cái: điện tích và số nucleon được bảo toàn ở mọi dòng. Trong β⁻, một neutron biến thành proton nên Z tăng một còn A giữ nguyên — electron và phản neutrino mang phần điện tích và số lepton còn thiếu."
           )
         },
@@ -188,8 +182,8 @@
         {
           heading: L('Interactive Decay Lab', 'Phòng thí nghiệm phân rã tương tác'),
           content: L(
-            "Fire each decay and watch what the nucleus really emits. The colours here are the same colours the 3D scene uses, so what you learn on this canvas is what you see on the table.<br><br>Every emission conserves A and Z: watch the counters under the canvas.",
-            "Bắn từng kiểu phân rã và xem hạt nhân thực sự phát ra gì. Màu ở đây là đúng màu cảnh 3D dùng, nên điều bạn học trên khung vẽ này chính là điều bạn thấy trên bàn thí nghiệm.<br><br>Mọi lần phát xạ đều bảo toàn A và Z: hãy theo dõi bộ đếm dưới khung vẽ."
+            "Fire each decay and the nucleus really changes: the badge, the equation and the balance strip all come from the A and Z the shot left behind. The colours here are the same colours the 3D scene uses, so what you learn on this canvas is what you see on the table.<br><br>Then take the experiment apart. Put paper, aluminium or lead in the beam and watch which particle each one stops; switch the magnetic field on and β⁻ bends one way while β⁺ bends the other, an alpha barely turns and γ or ν do not turn at all. The Geiger figure counts only what reaches the detector, so shielding the source from the wall really does silence it.",
+            "Bắn từng kiểu phân rã và hạt nhân thay đổi thật: bảng ký hiệu, phương trình và dòng cân bằng đều suy ra từ A và Z mà cú bắn để lại. Màu ở đây là đúng màu cảnh 3D dùng, nên điều bạn học trên khung vẽ này chính là điều bạn thấy trên bàn thí nghiệm.<br><br>Rồi hãy tự mình tháo từng phần thí nghiệm. Đặt giấy, nhôm hoặc chì chắn trong chùm tia và xem mỗi tấm chặn hạt nào; bật từ trường lên để thấy β⁻ cong về một phía còn β⁺ cong phía ngược lại, alpha gần như đi thẳng còn γ và ν thì không cong chút nào. Số Geiger chỉ đếm những gì đi tới đầu dò, nên che giữa nguồn và vách sẽ làm nó im lặng thật sự."
           ),
           interactive: 'decay'
         }
@@ -202,19 +196,19 @@
       sections: [
         {
           heading: L('Matter States', 'Các trạng thái vật chất'),
-          content: L('Extreme temperature and pressure trigger phase transitions — the state of matter itself changes!<br><br>The lab has 5 matter states:<br>• <b>Standard:</b> Normal conditions (298K, 1 atm)<br>• <b>Supercritical:</b> T > 647K, P > 218 atm<br>• <b>Compressed Mantle:</b> T 1000-4000K, P ≥ 1000 atm<br>• <b>Dilute Plasma:</b> T ≥ 5000K, P < 100 atm<br>• <b>Dense Plasma:</b> T ≥ 5000K, P ≥ 1500 atm', 'Nhiệt độ và áp suất cực đoan gây ra chuyển pha — trạng thái vật chất thay đổi!<br><br>Phòng thí nghiệm có 5 trạng thái:<br>• <b>Chuẩn:</b> Điều kiện thường (298K, 1 atm)<br>• <b>Siêu tới hạn:</b> T > 647K, P > 218 atm<br>• <b>Lõi nén:</b> T 1000-4000K, P ≥ 1000 atm<br>• <b>Plasma loãng:</b> T ≥ 5000K, P < 100 atm<br>• <b>Plasma đặc:</b> T ≥ 5000K, P ≥ 1500 atm')
+          content: L('Extreme temperature and pressure trigger phase transitions — the state of matter itself changes!<br><br>The lab has 5 matter states:<br>• <b>Standard:</b> Normal conditions (298 K, 1 atm)<br>• <b>Supercritical:</b> T > 647 K, P > 218 atm<br>• <b>Compressed Mantle:</b> T = 1000–4000 K, P ≥ 1000 atm<br>• <b>Dilute Plasma:</b> T ≥ 5000 K, P < 100 atm<br>• <b>Dense Plasma:</b> T ≥ 5000 K, P ≥ 1500 atm', 'Nhiệt độ và áp suất cực đoan gây ra chuyển pha — trạng thái vật chất thay đổi!<br><br>Phòng thí nghiệm có 5 trạng thái:<br>• <b>Chuẩn:</b> Điều kiện thường (298 K, 1 atm)<br>• <b>Siêu tới hạn:</b> T > 647 K, P > 218 atm<br>• <b>Lõi nén:</b> T = 1000–4000 K, P ≥ 1000 atm<br>• <b>Plasma loãng:</b> T ≥ 5000 K, P < 100 atm<br>• <b>Plasma đặc:</b> T ≥ 5000 K, P ≥ 1500 atm')
         },
         {
           heading: L('Supercritical Fluid', 'Lưu chất siêu tới hạn'),
-          content: L('Above the critical point (647K, 218 atm for water), liquid and gas phases merge into a supercritical fluid. It has:<br>• Gas-like viscosity (flows easily)<br>• Liquid-like density (dissolves things)<br>• Corrodes bonds over time<br><br>Supercritical CO₂ is used to decaffeinate coffee!', 'Vượt điểm tới hạn (647K, 218 atm đối với nước), pha lỏng và pha khí hòa thành lưu chất siêu tới hạn. Nó có:<br>• Độ nhớt như khí (dễ chảy)<br>• Mật độ như lỏng (hòa tan tốt)<br>• Ăn mòn liên kết theo thời gian<br><br>CO₂ siêu tới hạn được dùng để khử caffein trong cà phê!')
+          content: L('Above the critical point (647 K, 218 atm for water), liquid and gas phases merge into a supercritical fluid. It has:<br>• Gas-like viscosity (flows easily)<br>• Liquid-like density (dissolves things)<br>• Corrodes bonds over time<br><br>Supercritical CO₂ is used to decaffeinate coffee!', 'Vượt điểm tới hạn (647 K, 218 atm đối với nước), pha lỏng và pha khí hòa thành lưu chất siêu tới hạn. Nó có:<br>• Độ nhớt như khí (dễ chảy)<br>• Mật độ như lỏng (hòa tan tốt)<br>• Ăn mòn liên kết theo thời gian<br><br>CO₂ siêu tới hạn được dùng để khử caffein trong cà phê!')
         },
         {
           heading: L('Plasma States', 'Trạng thái plasma'),
-          content: L('<b>Dilute Plasma (T ≥ 5000K, P < 100 atm):</b><br>Gas ionizes into charged particles. Triggers explosive blast pushing all atoms outward!<br><br><b>Dense Plasma (T ≥ 5000K, P ≥ 1500 atm):</b><br>Maximum energy state. Hyper-conductive lightning arcs between atoms. Auto-reactions suppressed to prevent chain reaction HP loss.', '<b>Plasma loãng (T ≥ 5000K, P < 100 atm):</b><br>Khí bị ion hóa thành các hạt mang điện. Gây vụ nổ đẩy mọi nguyên tử ra ngoài!<br><br><b>Plasma đặc (T ≥ 5000K, P ≥ 1500 atm):</b><br>Trạng thái năng lượng tối đa. Tia sét dẫn điện cực mạnh phóng giữa các nguyên tử. Phản ứng tự động bị chặn để tránh mất HP do dây chuyền.')
+          content: L('<b>Dilute Plasma (T ≥ 5000 K, P < 100 atm):</b><br>Gas ionizes into charged particles. Triggers explosive blast pushing all atoms outward!<br><br><b>Dense Plasma (T ≥ 5000 K, P ≥ 1500 atm):</b><br>Maximum energy state. Hyper-conductive lightning arcs between atoms. Auto-reactions suppressed to prevent chain reaction HP loss.', '<b>Plasma loãng (T ≥ 5000 K, P < 100 atm):</b><br>Khí bị ion hóa thành các hạt mang điện. Gây vụ nổ đẩy mọi nguyên tử ra ngoài!<br><br><b>Plasma đặc (T ≥ 5000 K, P ≥ 1500 atm):</b><br>Trạng thái năng lượng tối đa. Tia sét dẫn điện cực mạnh phóng giữa các nguyên tử. Phản ứng tự động bị chặn để tránh mất HP do dây chuyền.')
         },
         {
           heading: L('Compressed Mantle', 'Lõi bị nén'),
-          content: L('At T 1000-4000K and P ≥ 1000 atm, matter is crushed under extreme pressure. Like Earth\'s mantle, atoms are squeezed together, causing crush damage. Bonds strain under the pressure!', 'Ở T 1000-4000K và P ≥ 1000 atm, vật chất bị nghiền dưới áp suất cực lớn. Giống như lớp manti của Trái Đất, các nguyên tử bị ép sát nhau gây sát thương do nén. Liên kết bị căng dưới áp lực!')
+          content: L('At T = 1000–4000 K and P ≥ 1000 atm, matter is crushed under extreme pressure. Like Earth\'s mantle, atoms are squeezed together, causing crush damage. Bonds strain under the pressure!', 'Ở T = 1000–4000 K và P ≥ 1000 atm, vật chất bị nghiền dưới áp suất cực lớn. Giống như lớp manti của Trái Đất, các nguyên tử bị ép sát nhau gây sát thương do nén. Liên kết bị căng dưới áp lực!')
         }
       ]
     },
@@ -225,7 +219,7 @@
       sections: [
         {
           heading: L('Thermal Decomposition', 'Phân hủy nhiệt'),
-          content: L('Heat breaks molecules apart. The rate follows first-order kinetics:<br><b>d[A]/dt = -k[A]</b><br><br>Where k depends on temperature (Arrhenius equation). Higher temp = faster decomposition!<br><br>Examples:<br>• CaCO₃ → CaO + CO₂ (limestone decomposition)<br>• 2H₂O₂ → 2H₂O + O₂ (peroxide breakdown)', 'Nhiệt phá vỡ phân tử. Tốc độ theo động học bậc một:<br><b>d[A]/dt = -k[A]</b><br><br>Với k phụ thuộc nhiệt độ (phương trình Arrhenius). Nhiệt độ cao = phân hủy nhanh hơn!<br><br>Ví dụ:<br>• CaCO₃ → CaO + CO₂ (phân hủy đá vôi)<br>• 2H₂O₂ → 2H₂O + O₂ (phân hủy peroxit)'),
+          content: L('Heat breaks molecules apart. The rate follows first-order kinetics:<br><b>d[A]/dt = −k[A]</b><br><br>Where k depends on temperature (Arrhenius equation). Higher temp = faster decomposition!<br><br>Examples:<br>• CaCO₃ → CaO + CO₂ (limestone decomposition)<br>• 2H₂O₂ → 2H₂O + O₂ (peroxide breakdown)', 'Nhiệt phá vỡ phân tử. Tốc độ theo động học bậc một:<br><b>d[A]/dt = −k[A]</b><br><br>Với k phụ thuộc nhiệt độ (phương trình Arrhenius). Nhiệt độ cao = phân hủy nhanh hơn!<br><br>Ví dụ:<br>• CaCO₃ → CaO + CO₂ (phân hủy đá vôi)<br>• 2H₂O₂ → 2H₂O + O₂ (phân hủy peroxit)'),
         },
         {
           heading: L('Molecular Decay System', 'Hệ phân rã phân tử'),
@@ -251,7 +245,7 @@
         },
         {
           heading: L('Oxidation Numbers', 'Số oxi hóa'),
-          content: L('Rules for assigning oxidation states:<br>1. Free elements: 0 (e.g., Na, O₂, H₂)<br>2. Monatomic ions: equal to charge (e.g., Na⁺ = +1)<br>3. Oxygen: usually -2 (except peroxides: -1)<br>4. Hydrogen: +1 with nonmetals, -1 with metals<br>5. Fluorine: always -1<br>6. Sum equals molecular charge', 'Quy tắc gán số oxi hóa:<br>1. Nguyên tố tự do: 0 (ví dụ Na, O₂, H₂)<br>2. Ion đơn nguyên tử: bằng điện tích (ví dụ Na⁺ = +1)<br>3. Oxygen: thường -2 (trừ peroxit: -1)<br>4. Hydrogen: +1 với phi kim, -1 với kim loại<br>5. Fluorine: luôn -1<br>6. Tổng bằng điện tích của phân tử')
+          content: L('Rules for assigning oxidation states:<br>1. Free elements: 0 (e.g., Na, O₂, H₂)<br>2. Monatomic ions: equal to charge (e.g., Na⁺ = +1)<br>3. Oxygen: usually −2 (except peroxides: −1)<br>4. Hydrogen: +1 with nonmetals, −1 with metals<br>5. Fluorine: always −1<br>6. Sum equals molecular charge', 'Quy tắc gán số oxi hóa:<br>1. Nguyên tố tự do: 0 (ví dụ Na, O₂, H₂)<br>2. Ion đơn nguyên tử: bằng điện tích (ví dụ Na⁺ = +1)<br>3. Oxygen: thường −2 (trừ peroxit: −1)<br>4. Hydrogen: +1 với phi kim, −1 với kim loại<br>5. Fluorine: luôn −1<br>6. Tổng bằng điện tích của phân tử')
         },
         {
           heading: L('Balancing Redox Reactions', 'Cân bằng phản ứng oxi hóa - khử'),
@@ -259,7 +253,7 @@
         },
         {
           heading: L('Examples', 'Ví dụ'),
-          content: L('<b>Combustion:</b> CH₄ + 2O₂ → CO₂ + 2H₂O<br>(C oxidized from -4 to +4, O reduced from 0 to -2)<br><br><b>Rusting:</b> 4Fe + 3O₂ → 2Fe₂O₃<br>(Fe oxidized from 0 to +3, O reduced from 0 to -2)<br><br><b>Battery:</b> Zn + Cu²⁺ → Zn²⁺ + Cu<br>(Zn oxidized, Cu²⁺ reduced)', '<b>Cháy:</b> CH₄ + 2O₂ → CO₂ + 2H₂O<br>(C oxi hóa từ -4 lên +4, O khử từ 0 xuống -2)<br><br><b>Gỉ sắt:</b> 4Fe + 3O₂ → 2Fe₂O₃<br>(Fe oxi hóa từ 0 lên +3, O khử từ 0 xuống -2)<br><br><b>Pin:</b> Zn + Cu²⁺ → Zn²⁺ + Cu<br>(Zn bị oxi hóa, Cu²⁺ bị khử)')
+          content: L('<b>Combustion:</b> CH₄ + 2O₂ → CO₂ + 2H₂O<br>(C oxidized from −4 to +4, O reduced from 0 to −2)<br><br><b>Rusting:</b> 4Fe + 3O₂ → 2Fe₂O₃<br>(Fe oxidized from 0 to +3, O reduced from 0 to −2)<br><br><b>Battery:</b> Zn + Cu²⁺ → Zn²⁺ + Cu<br>(Zn oxidized, Cu²⁺ reduced)', '<b>Cháy:</b> CH₄ + 2O₂ → CO₂ + 2H₂O<br>(C oxi hóa từ −4 lên +4, O khử từ 0 xuống −2)<br><br><b>Gỉ sắt:</b> 4Fe + 3O₂ → 2Fe₂O₃<br>(Fe oxi hóa từ 0 lên +3, O khử từ 0 xuống −2)<br><br><b>Pin:</b> Zn + Cu²⁺ → Zn²⁺ + Cu<br>(Zn bị oxi hóa, Cu²⁺ bị khử)')
         }
       ]
     },
@@ -270,11 +264,11 @@
       sections: [
         {
           heading: L('Temperature', 'Nhiệt độ'),
-          content: L('Temperature (Kelvin) affects:<br>• <b>Molecular motion:</b> Higher T = faster dancing atoms<br>• <b>Reaction rates:</b> Exponential increase (Arrhenius)<br>• <b>Phase transitions:</b> Melting, boiling, plasma<br>• <b>Decomposition:</b> Heat breaks bonds<br><br>Range: 1K (near absolute zero) to 6000K (stellar core)!', 'Nhiệt độ (Kelvin) ảnh hưởng đến:<br>• <b>Chuyển động phân tử:</b> T cao = nguyên tử nhảy múa nhanh hơn<br>• <b>Tốc độ phản ứng:</b> Tăng theo hàm mũ (Arrhenius)<br>• <b>Chuyển pha:</b> Nóng chảy, sôi, plasma<br>• <b>Phân hủy:</b> Nhiệt phá vỡ liên kết<br><br>Phạm vi: 1K (gần độ không tuyệt đối) đến 6000K (lõi sao)!')
+          content: L('Temperature (Kelvin) affects:<br>• <b>Molecular motion:</b> Higher T = faster dancing atoms<br>• <b>Reaction rates:</b> Exponential increase (Arrhenius)<br>• <b>Phase transitions:</b> Melting, boiling, plasma<br>• <b>Decomposition:</b> Heat breaks bonds<br><br>Range: 1 K (near absolute zero) to 6000 K (stellar core)!', 'Nhiệt độ (Kelvin) ảnh hưởng đến:<br>• <b>Chuyển động phân tử:</b> T cao = nguyên tử nhảy múa nhanh hơn<br>• <b>Tốc độ phản ứng:</b> Tăng theo hàm mũ (Arrhenius)<br>• <b>Chuyển pha:</b> Nóng chảy, sôi, plasma<br>• <b>Phân hủy:</b> Nhiệt phá vỡ liên kết<br><br>Phạm vi: 1 K (gần độ không tuyệt đối) đến 6000 K (lõi sao)!')
         },
         {
           heading: L('Pressure', 'Áp suất'),
-          content: L('Pressure (atmospheres) affects:<br>• <b>Gas reactions:</b> Higher P = more collisions<br>• <b>Boiling points:</b> Higher P = higher boiling temp<br>• <b>Phase states:</b> Compressed mantle, supercritical fluid<br>• <b>Equilibrium:</b> Shifts toward fewer gas moles<br><br>Range: 0.000001 atm (vacuum) to 2000 atm (ocean trench)!', 'Áp suất (atm) ảnh hưởng đến:<br>• <b>Phản ứng khí:</b> P cao = va chạm nhiều hơn<br>• <b>Nhiệt độ sôi:</b> P cao = sôi ở nhiệt độ cao hơn<br>• <b>Trạng thái pha:</b> Lõi nén, lưu chất siêu tới hạn<br>• <b>Cân bằng:</b> Chuyển dịch về phía ít mol khí hơn<br><br>Phạm vi: 0,000001 atm (chân không) đến 2000 atm (vực biển)!')
+          content: L('Pressure (atmospheres) affects:<br>• <b>Gas reactions:</b> Higher P = more collisions<br>• <b>Boiling points:</b> Higher P = higher boiling temp<br>• <b>Phase states:</b> Compressed mantle, supercritical fluid<br>• <b>Equilibrium:</b> Shifts toward fewer gas moles<br><br>Range: 10⁻⁶ atm (vacuum) to 2000 atm (ocean trench)!', 'Áp suất (atm) ảnh hưởng đến:<br>• <b>Phản ứng khí:</b> P cao = va chạm nhiều hơn<br>• <b>Nhiệt độ sôi:</b> P cao = sôi ở nhiệt độ cao hơn<br>• <b>Trạng thái pha:</b> Lõi nén, lưu chất siêu tới hạn<br>• <b>Cân bằng:</b> Chuyển dịch về phía ít mol khí hơn<br><br>Phạm vi: 10⁻⁶ atm (chân không) đến 2000 atm (vực biển)!')
         },
         {
           heading: L('Atmosphere Composition', 'Thành phần khí quyển'),
@@ -297,7 +291,7 @@
         },
         {
           heading: L('Functional Groups', 'Nhóm chức'),
-          content: L('Reactive groups that define molecule behavior:<br>• <b>Hydroxyl (-OH):</b> Alcohols (methanol, ethanol)<br>• <b>Carbonyl (C=O):</b> Aldehydes, ketones<br>• <b>Carboxyl (-COOH):</b> Organic acids (acetic acid)<br>• <b>Amino (-NH₂):</b> Amines, amino acids<br>• <b>Ester (-COO-):</b> Fragrances, fats', 'Các nhóm chức quyết định tính chất phân tử:<br>• <b>Hydroxyl (-OH):</b> Alcohol (metanol, etanol)<br>• <b>Carbonyl (C=O):</b> Anđehit, xeton<br>• <b>Carboxyl (-COOH):</b> Axit hữu cơ (axit axetic)<br>• <b>Amino (-NH₂):</b> Amin, amino axit<br>• <b>Ester (-COO-):</b> Hương liệu, chất béo')
+          content: L('Reactive groups that define molecule behavior:<br>• <b>Hydroxyl (–OH):</b> Alcohols (methanol, ethanol)<br>• <b>Carbonyl (C=O):</b> Aldehydes, ketones<br>• <b>Carboxyl (–COOH):</b> Organic acids (acetic acid)<br>• <b>Amino (–NH₂):</b> Amines, amino acids<br>• <b>Ester (–COO–):</b> Fragrances, fats', 'Các nhóm chức quyết định tính chất phân tử:<br>• <b>Hydroxyl (–OH):</b> Alcohol (metanol, etanol)<br>• <b>Carbonyl (C=O):</b> Anđehit, xeton<br>• <b>Carboxyl (–COOH):</b> Axit hữu cơ (axit axetic)<br>• <b>Amino (–NH₂):</b> Amin, amino axit<br>• <b>Ester (–COO–):</b> Hương liệu, chất béo')
         },
         {
           heading: L('Organic Reactions', 'Phản ứng hữu cơ'),
@@ -320,7 +314,7 @@
         },
         {
           heading: L('Enthalpy (H)', 'Enthalpy (H)'),
-          content: L('Total heat content of a system. Change in enthalpy (ΔH) determines if reaction releases or absorbs heat.<br><br>ΔH = Σ(bond energies broken) - Σ(bond energies formed)<br><br>If ΔH < 0: Exothermic (releases heat)<br>If ΔH > 0: Endothermic (absorbs heat)', 'Tổng nội nhiệt của hệ. Biến thiên enthalpy (ΔH) quyết định phản ứng tỏa hay thu nhiệt.<br><br>ΔH = Σ(năng lượng liên kết phá) - Σ(năng lượng liên kết tạo)<br><br>ΔH < 0: tỏa nhiệt<br>ΔH > 0: thu nhiệt')
+          content: L('Total heat content of a system. Change in enthalpy (ΔH) determines if reaction releases or absorbs heat.<br><br>ΔH = Σ(bond energies broken) − Σ(bond energies formed)<br><br>If ΔH < 0: Exothermic (releases heat)<br>If ΔH > 0: Endothermic (absorbs heat)', 'Tổng nội nhiệt của hệ. Biến thiên enthalpy (ΔH) quyết định phản ứng tỏa hay thu nhiệt.<br><br>ΔH = Σ(năng lượng liên kết phá) − Σ(năng lượng liên kết tạo)<br><br>ΔH < 0: tỏa nhiệt<br>ΔH > 0: thu nhiệt')
         },
         {
           heading: L('Entropy (S)', 'Entropy (S)'),
@@ -328,7 +322,7 @@
         },
         {
           heading: L('Gibbs Free Energy', 'Năng lượng tự do Gibbs'),
-          content: L('Determines reaction spontaneity:<br><b>ΔG = ΔH - TΔS</b><br><br>• ΔG < 0: Spontaneous (happens automatically)<br>• ΔG > 0: Non-spontaneous (requires energy input)<br>• ΔG = 0: Equilibrium (no net change)<br><br>The engine checks ΔG before allowing reactions!', 'Xác định tính tự diễn biến:<br><b>ΔG = ΔH - TΔS</b><br><br>• ΔG < 0: tự diễn biến<br>• ΔG > 0: không tự diễn biến (cần cung cấp năng lượng)<br>• ΔG = 0: cân bằng (không thay đổi ròng)<br><br>Engine kiểm tra ΔG trước khi cho phép phản ứng!')
+          content: L('Determines reaction spontaneity:<br><b>ΔG = ΔH − TΔS</b><br><br>• ΔG < 0: Spontaneous (happens automatically)<br>• ΔG > 0: Non-spontaneous (requires energy input)<br>• ΔG = 0: Equilibrium (no net change)<br><br>The engine checks ΔG before allowing reactions!', 'Xác định tính tự diễn biến:<br><b>ΔG = ΔH − TΔS</b><br><br>• ΔG < 0: tự diễn biến<br>• ΔG > 0: không tự diễn biến (cần cung cấp năng lượng)<br>• ΔG = 0: cân bằng (không thay đổi ròng)<br><br>Engine kiểm tra ΔG trước khi cho phép phản ứng!')
         }
       ]
     },
@@ -343,7 +337,7 @@
         },
         {
           heading: L('The Four Quantum Numbers', 'Bốn số lượng tử'),
-          content: L('• <b>n</b> (principal): shell and energy, n = 1, 2, 3…<br>• <b>ℓ</b> (azimuthal): shape, 0…n-1 → s, p, d, f<br>• <b>mℓ</b> (magnetic): orientation, -ℓ…+ℓ<br>• <b>ms</b> (spin): +½ or -½<br><br>Pauli exclusion: no two electrons in an atom share all four numbers. That single rule builds the whole periodic table.', '• <b>n</b> (chính): lớp và năng lượng, n = 1, 2, 3…<br>• <b>ℓ</b> (phụ): hình dạng, 0…n-1 → s, p, d, f<br>• <b>mℓ</b> (từ): định hướng, -ℓ…+ℓ<br>• <b>ms</b> (spin): +½ hoặc -½<br><br>Nguyên lý loại trừ Pauli: không có hai electron trong cùng nguyên tử có cả bốn số giống nhau. Chỉ một quy tắc đó tạo nên toàn bộ bảng tuần hoàn.')
+          content: L('• <b>n</b> (principal): shell and energy, n = 1, 2, 3…<br>• <b>ℓ</b> (azimuthal): shape, 0…n−1 → s, p, d, f<br>• <b>m<sub>ℓ</sub></b> (magnetic): orientation, −ℓ…+ℓ<br>• <b>m<sub>s</sub></b> (spin): +½ or −½<br><br>Pauli exclusion: no two electrons in an atom share all four numbers. That single rule builds the whole periodic table.', '• <b>n</b> (chính): lớp và năng lượng, n = 1, 2, 3…<br>• <b>ℓ</b> (phụ): hình dạng, 0…n−1 → s, p, d, f<br>• <b>m<sub>ℓ</sub></b> (từ): định hướng, −ℓ…+ℓ<br>• <b>m<sub>s</sub></b> (spin): +½ hoặc −½<br><br>Nguyên lý loại trừ Pauli: không có hai electron trong cùng nguyên tử có cả bốn số giống nhau. Chỉ một quy tắc đó tạo nên toàn bộ bảng tuần hoàn.')
         },
         {
           heading: L('Quantized Light', 'Ánh sáng lượng tử hóa'),
@@ -362,7 +356,7 @@
       sections: [
         {
           heading: L('A Dynamic Balance', 'Cân bằng động'),
-          content: L('At equilibrium the reaction has not stopped — forward and reverse rates are equal, so concentrations stay constant while molecules keep interconverting.<br><br>For aA + bB ⇌ cC + dD:<br><b>Kc = [C]ᶜ[D]ᵈ / ([A]ᵃ[B]ᵇ)</b>', 'Ở trạng thái cân bằng, phản ứng không dừng lại — tốc độ thuận bằng tốc độ nghịch, nên nồng độ không đổi trong khi phân tử vẫn chuyển hóa qua lại.<br><br>Với aA + bB ⇌ cC + dD:<br><b>Kc = [C]ᶜ[D]ᵈ / ([A]ᵃ[B]ᵇ)</b>')
+          content: L('At equilibrium the reaction has not stopped — forward and reverse rates are equal, so concentrations stay constant while molecules keep interconverting.<br><br>For aA + bB ⇌ cC + dD:<br><b>K<sub>c</sub> = [C]<sup>c</sup>[D]<sup>d</sup> / ([A]<sup>a</sup>[B]<sup>b</sup>)</b>', 'Ở trạng thái cân bằng, phản ứng không dừng lại — tốc độ thuận bằng tốc độ nghịch, nên nồng độ không đổi trong khi phân tử vẫn chuyển hóa qua lại.<br><br>Với aA + bB ⇌ cC + dD:<br><b>K<sub>c</sub> = [C]<sup>c</sup>[D]<sup>d</sup> / ([A]<sup>a</sup>[B]<sup>b</sup>)</b>')
         },
         {
           heading: L('Le Châtelier\'s Principle', 'Nguyên lý Le Châtelier'),
@@ -374,7 +368,7 @@
         },
         {
           heading: L('Industrial Trade-offs', 'Đánh đổi trong công nghiệp'),
-          content: L('Haber process: N₂ + 3H₂ ⇌ 2NH₃, ΔH = -92 kJ/mol.<br>Cold favours yield, slow favours patience. Industry compromises at ~450 °C, ~200 atm over an iron catalyst: acceptable rate, acceptable yield.<br><br>The same compromise appears in the lab — high temperature speeds reactions but pushes equilibria apart from the product side.', 'Quy trình Haber: N₂ + 3H₂ ⇌ 2NH₃, ΔH = -92 kJ/mol.<br>Lạnh thì thuận lợi về hiệu suất, chậm thì đòi hỏi kiên nhẫn. Công nghiệp thỏa hiệp ở ~450 °C, ~200 atm với xúc tác sắt: tốc độ chấp nhận được, hiệu suất chấp nhận được.<br><br>Chính sự thỏa hiệp đó xuất hiện trong phòng thí nghiệm — nhiệt độ cao làm phản ứng nhanh hơn nhưng đẩy cân bằng ra xa phía sản phẩm.')
+          content: L('Haber process: N₂ + 3H₂ ⇌ 2NH₃, ΔH = −92 kJ·mol⁻¹.<br>Cold favours yield, slow favours patience. Industry compromises at ~450 °C, ~200 atm over an iron catalyst: acceptable rate, acceptable yield.<br><br>The same compromise appears in the lab — high temperature speeds reactions but pushes equilibria apart from the product side.', 'Quy trình Haber: N₂ + 3H₂ ⇌ 2NH₃, ΔH = −92 kJ·mol⁻¹.<br>Lạnh thì thuận lợi về hiệu suất, chậm thì đòi hỏi kiên nhẫn. Công nghiệp thỏa hiệp ở ~450 °C, ~200 atm với xúc tác sắt: tốc độ chấp nhận được, hiệu suất chấp nhận được.<br><br>Chính sự thỏa hiệp đó xuất hiện trong phòng thí nghiệm — nhiệt độ cao làm phản ứng nhanh hơn nhưng đẩy cân bằng ra xa phía sản phẩm.')
         }
       ]
     },
@@ -385,7 +379,7 @@
       sections: [
         {
           heading: L('Photons as Reactants', 'Photon như chất phản ứng'),
-          content: L('A molecule can only be excited by light it actually absorbs. One photon, one molecule, one quantum of energy:<br><b>E = hc/λ ≈ 1240 / λ(nm) eV</b><br><br>400 nm violet ≈ 3.1 eV, 700 nm red ≈ 1.8 eV. A typical bond is 3-4 eV, so visible light rarely breaks bonds directly — ultraviolet does.', 'Phân tử chỉ bị kích thích bởi ánh sáng mà nó thực sự hấp thụ. Một photon, một phân tử, một lượng tử năng lượng:<br><b>E = hc/λ ≈ 1240 / λ(nm) eV</b><br><br>400 nm tím ≈ 3,1 eV, 700 nm đỏ ≈ 1,8 eV. Một liên kết thường 3-4 eV, nên ánh sáng nhìn thấy hiếm khi phá trực tiếp liên kết — tia tử ngoại thì có.')
+          content: L('A molecule can only be excited by light it actually absorbs. One photon, one molecule, one quantum of energy:<br><b>E = hf = hc/λ</b>, with <b>hc ≈ 1240 eV·nm</b>, so <b>E(eV) ≈ 1240 / λ(nm)</b><br><br>400 nm violet ≈ 3.1 eV, 700 nm red ≈ 1.8 eV. A typical bond is 3–4 eV, so visible light rarely breaks bonds directly — ultraviolet does.', 'Phân tử chỉ bị kích thích bởi ánh sáng mà nó thực sự hấp thụ. Một photon, một phân tử, một lượng tử năng lượng:<br><b>E = hf = hc/λ</b>, with <b>hc ≈ 1240 eV·nm</b>, so <b>E(eV) ≈ 1240 / λ(nm)</b><br><br>400 nm tím ≈ 3,1 eV, 700 nm đỏ ≈ 1,8 eV. Một liên kết thường 3–4 eV, nên ánh sáng nhìn thấy hiếm khi phá trực tiếp liên kết — tia tử ngoại thì có.')
         },
         {
           heading: L('Excitation and Relaxation', 'Kích thích và hồi phục'),
@@ -393,7 +387,7 @@
         },
         {
           heading: L('Photolysis and Ozone', 'Quang phân hủy và ozone'),
-          content: L('UV splits molecules that are stable in the dark:<br>• Cl₂ + hν → 2 Cl• (radical chain chlorination)<br>• O₂ + hν (< 240 nm) → 2 O•, then O• + O₂ → O₃<br>• O₃ + hν (UV-B) → O₂ + O• — the cycle that shields life from UV<br><br>Chlorofluorocarbons hijack this cycle: one Cl atom destroys ~10⁴ ozone molecules before it leaves the stratosphere.', 'Tia UV cắt những phân tử bền trong bóng tối:<br>• Cl₂ + hν → 2 Cl• (clo hóa gốc tự do)<br>• O₂ + hν (< 240 nm) → 2 O•, rồi O• + O₂ → O₃<br>• O₃ + hν (UV-B) → O₂ + O• — chu trình bảo vệ sự sống khỏi tia UV<br><br>CFC phá vỡ chu trình này: một nguyên tử Cl phá ~10⁴ phân tử ozone trước khi rời tầng bình lưu.')
+          content: L('UV splits molecules that are stable in the dark:<br>• Cl₂ + hν → 2 Cl• (radical chain chlorination)<br>• O₂ + hν (λ < 240 nm) → 2 O•, then O• + O₂ → O₃<br>• O₃ + hν (UV-B) → O₂ + O• — the cycle that shields life from UV<br><br>Chlorofluorocarbons hijack this cycle: one Cl atom destroys ~10⁴ ozone molecules before it leaves the stratosphere.', 'Tia UV cắt những phân tử bền trong bóng tối:<br>• Cl₂ + hν → 2 Cl• (clo hóa gốc tự do)<br>• O₂ + hν (λ < 240 nm) → 2 O•, rồi O• + O₂ → O₃<br>• O₃ + hν (UV-B) → O₂ + O• — chu trình bảo vệ sự sống khỏi tia UV<br><br>CFC phá vỡ chu trình này: một nguyên tử Cl phá ~10⁴ phân tử ozone trước khi rời tầng bình lưu.')
         },
         {
           heading: L('Vision, Fireflies, Photography', 'Thị giác, đom đóm, nhiếp ảnh'),
@@ -411,7 +405,7 @@
         },
         {
           heading: L('Adsorption: Physisorption vs Chemisorption', 'Hấp phụ: vật lý và hóa học'),
-          content: L('<b>Physisorption</b> — van der Waals only, 5-40 kJ/mol, multilayer, reversible, favoured by low temperature.<br><b>Chemisorption</b> — real bonds form, 80-400 kJ/mol, monolayer, often needs activation energy, can be irreversible.<br><br>Charcoal trapping odour is physisorption; hydrogen sticking to platinum is chemisorption.', '<b>Hấp phụ vật lý</b> — chỉ lực van der Waals, 5-40 kJ/mol, nhiều lớp, thuận nghịch, thuận lợi ở nhiệt độ thấp.<br><b>Hấp phụ hóa học</b> — liên kết thật được hình thành, 80-400 kJ/mol, một lớp, thường cần năng lượng hoạt hóa, có thể không thuận nghịch.<br><br>Than hoạt tính giữ mùi là hấp phụ vật lý; hydro bám trên platinum là hấp phụ hóa học.')
+          content: L('<b>Physisorption</b> — van der Waals only, 5–40 kJ·mol⁻¹, multilayer, reversible, favoured by low temperature.<br><b>Chemisorption</b> — real bonds form, 80–400 kJ·mol⁻¹, monolayer, often needs activation energy, can be irreversible.<br><br>Charcoal trapping odour is physisorption; hydrogen sticking to platinum is chemisorption.', '<b>Hấp phụ vật lý</b> — chỉ lực van der Waals, 5–40 kJ·mol⁻¹, nhiều lớp, thuận nghịch, thuận lợi ở nhiệt độ thấp.<br><b>Hấp phụ hóa học</b> — liên kết thật được hình thành, 80–400 kJ·mol⁻¹, một lớp, thường cần năng lượng hoạt hóa, có thể không thuận nghịch.<br><br>Than hoạt tính giữ mùi là hấp phụ vật lý; hydro bám trên platinum là hấp phụ hóa học.')
         },
         {
           heading: L('The Langmuir Isotherm', 'Đẳng nhiệt Langmuir'),
@@ -419,7 +413,7 @@
         },
         {
           heading: L('Heterogeneous Catalysis', 'Xúc tác dị thể'),
-          content: L('A catalyst offers an alternative route with a lower barrier and is regenerated. On a catalytic converter, CO, NO and unburnt hydrocarbons adsorb onto Pt/Rh sites, react, then desorb as CO₂, N₂ and H₂O — thousands of turnovers per second.<br><br>Catalysts lower Ea for both directions, so they speed the approach to equilibrium without moving it. The lab shows this as a glowing catalyst aura plus a lowered energy diagram.', 'Xúc tác mở một con đường khác có rào thế thấp hơn và được tái sinh. Trong bộ chuyển đổi xúc tác, CO, NO và hydrocacbon chưa cháy hấp phụ lên vị trí Pt/Rh, phản ứng rồi giải hấp thành CO₂, N₂ và H₂O — hàng nghìn vòng mỗi giây.<br><br>Xúc tác hạ Ea cho cả hai chiều, nên nó làm cân bằng đến nhanh hơn mà không dịch chuyển cân bằng. Phòng thí nghiệm thể hiện điều đó bằng quầng sáng xúc tác và giản đồ năng lượng thấp hơn.')
+          content: L('A catalyst offers an alternative route with a lower barrier and is regenerated. On a catalytic converter, CO, NO and unburnt hydrocarbons adsorb onto Pt/Rh sites, react, then desorb as CO₂, N₂ and H₂O — thousands of turnovers per second.<br><br>Catalysts lower E<sub>a</sub> for both directions, so they speed the approach to equilibrium without moving it. The lab shows this as a glowing catalyst aura plus a lowered energy diagram.', 'Xúc tác mở một con đường khác có rào thế thấp hơn và được tái sinh. Trong bộ chuyển đổi xúc tác, CO, NO và hydrocacbon chưa cháy hấp phụ lên vị trí Pt/Rh, phản ứng rồi giải hấp thành CO₂, N₂ và H₂O — hàng nghìn vòng mỗi giây.<br><br>Xúc tác hạ E<sub>a</sub> cho cả hai chiều, nên nó làm cân bằng đến nhanh hơn mà không dịch chuyển cân bằng. Phòng thí nghiệm thể hiện điều đó bằng quầng sáng xúc tác và giản đồ năng lượng thấp hơn.')
         }
       ]
     },
@@ -434,11 +428,11 @@
         },
         {
           heading: L('Beer-Lambert Law', 'Định luật Beer-Lambert'),
-          content: L('How much light a solution removes grows with concentration and path length:<br><b>A = εcl</b> and <b>A = -log₁₀(T)</b><br><br>Measure A for a set of standards, get a straight line, then read unknowns off it. That is a calibration curve — the backbone of quantitative analysis.<br><br>Deviations appear at high concentration, where solute particles shield each other.', 'Lượng ánh sáng dung dịch hấp thụ tỉ lệ với nồng độ và chiều dài đường đi:<br><b>A = εcl</b> và <b>A = -log₁₀(T)</b><br><br>Đo A của một dãy dung dịch chuẩn, được đường thẳng, rồi suy ra mẫu chưa biết. Đó là đường chuẩn — xương sống của phân tích định lượng.<br><br>Sai lệch xuất hiện ở nồng độ cao, khi các hạt tan che chắn lẫn nhau.')
+          content: L('How much light a solution removes grows with concentration and path length:<br><b>A = εcl</b> and <b>A = −log₁₀(T)</b><br><br>Measure A for a set of standards, get a straight line, then read unknowns off it. That is a calibration curve — the backbone of quantitative analysis.<br><br>Deviations appear at high concentration, where solute particles shield each other.', 'Lượng ánh sáng dung dịch hấp thụ tỉ lệ với nồng độ và chiều dài đường đi:<br><b>A = εcl</b> và <b>A = −log₁₀(T)</b><br><br>Đo A của một dãy dung dịch chuẩn, được đường thẳng, rồi suy ra mẫu chưa biết. Đó là đường chuẩn — xương sống của phân tích định lượng.<br><br>Sai lệch xuất hiện ở nồng độ cao, khi các hạt tan che chắn lẫn nhau.')
         },
         {
           heading: L('Spectroscopy', 'Quang phổ'),
-          content: L('IR: bonds vibrate at characteristic frequencies — O-H near 3300 cm⁻¹, C=O near 1700 cm⁻¹, C≡N near 2250 cm⁻¹. Missing a peak is as informative as having one.<br><br>UV-Visible: electronic transitions, coloured solutions absorb the complement of what you see.<br>Atomic emission: each element lights up with its own line pattern, the same physics as the lab\'s element spectra.', 'Hồng ngoại: liên kết dao động ở tần số đặc trưng — O-H quanh 3300 cm⁻¹, C=O quanh 1700 cm⁻¹, C≡N quanh 2250 cm⁻¹. Vắng một peak cũng cung cấp thông tin như có nó.<br><br>UV-Vis: chuyển mức electron, dung dịch có màu hấp thụ phần bù của màu bạn nhìn thấy.<br>Phát xạ nguyên tử: mỗi nguyên tố sáng lên với mẫu vạch riêng, cùng vật lý với phổ nguyên tố trong phòng thí nghiệm.')
+          content: L('IR: bonds vibrate at characteristic frequencies — O–H near 3300 cm⁻¹, C=O near 1700 cm⁻¹, C≡N near 2250 cm⁻¹. Missing a peak is as informative as having one.<br><br>UV-Visible: electronic transitions, coloured solutions absorb the complement of what you see.<br>Atomic emission: each element lights up with its own line pattern, the same physics as the lab\'s element spectra.', 'Hồng ngoại: liên kết dao động ở tần số đặc trưng — O–H quanh 3300 cm⁻¹, C=O quanh 1700 cm⁻¹, C≡N quanh 2250 cm⁻¹. Vắng một peak cũng cung cấp thông tin như có nó.<br><br>UV-Vis: chuyển mức electron, dung dịch có màu hấp thụ phần bù của màu bạn nhìn thấy.<br>Phát xạ nguyên tử: mỗi nguyên tố sáng lên với mẫu vạch riêng, cùng vật lý với phổ nguyên tố trong phòng thí nghiệm.')
         },
         {
           heading: L('Sensitivity and Error', 'Độ nhạy và sai số'),
@@ -461,7 +455,7 @@
         },
         {
           heading: L('Solvents and Waste', 'Dung môi và chất thải'),
-          content: L('In pharmaceutical manufacture solvent is often more than 80% of total mass flow. Water, supercritical CO₂, ionic liquids and solvent-free mechanochemistry are the alternatives.<br><br>The E-factor counts kilograms of waste per kilogram of product: bulk petrochemicals ~0.1, pharmaceuticals 25-100. The lab\'s supercritical state is one of those greener media.', 'Trong sản xuất dược phẩm, dung môi thường chiếm hơn 80% tổng dòng vật chất. Nước, CO₂ siêu tới hạn, chất lỏng ion và hóa học cơ học không dung môi là các lựa chọn thay thế.<br><br>Hệ số E đếm số kg chất thải cho mỗi kg sản phẩm: hóa dầu khối lượng ~0,1; dược phẩm 25-100. Trạng thái siêu tới hạn trong phòng thí nghiệm là một trong những môi trường xanh hơn đó.')
+          content: L('In pharmaceutical manufacture solvent is often more than 80% of total mass flow. Water, supercritical CO₂, ionic liquids and solvent-free mechanochemistry are the alternatives.<br><br>The E-factor counts kilograms of waste per kilogram of product: bulk petrochemicals ~0.1, pharmaceuticals 25–100. The lab\'s supercritical state is one of those greener media.', 'Trong sản xuất dược phẩm, dung môi thường chiếm hơn 80% tổng dòng vật chất. Nước, CO₂ siêu tới hạn, chất lỏng ion và hóa học cơ học không dung môi là các lựa chọn thay thế.<br><br>Hệ số E đếm số kg chất thải cho mỗi kg sản phẩm: hóa dầu khối lượng ~0,1; dược phẩm 25–100. Trạng thái siêu tới hạn trong phòng thí nghiệm là một trong những môi trường xanh hơn đó.')
         },
         {
           heading: L('Design for Degradation', 'Thiết kế để phân hủy'),
@@ -476,19 +470,19 @@
       sections: [
         {
           heading: L('Enzymes as Catalysts', 'Enzyme là xúc tác'),
-          content: L('An enzyme binds substrate in an active site, stabilises the transition state and can lower Ea by 10⁶-10¹² times. It cannot change ΔG, so an impossible reaction stays impossible — only faster routes are offered.<br><br>Specificity comes from shape and chemistry: hexokinase fits glucose, not fructose.', 'Enzyme liên kết cơ chất tại trung tâm hoạt động, làm bền trạng thái chuyển tiếp và có thể hạ Ea tới 10⁶-10¹² lần. Nó không thay đổi ΔG, nên phản ứng bất biến vẫn bất khả thi — enzyme chỉ mở đường nhanh hơn.<br><br>Tính đặc hiệu đến từ hình dạng và hóa học: hexokinase khớp với glucose chứ không phải fructose.')
+          content: L('An enzyme binds substrate in an active site, stabilises the transition state and can lower E<sub>a</sub> by 10⁶–10¹² times. It cannot change ΔG, so an impossible reaction stays impossible — only faster routes are offered.<br><br>Specificity comes from shape and chemistry: hexokinase fits glucose, not fructose.', 'Enzyme liên kết cơ chất tại trung tâm hoạt động, làm bền trạng thái chuyển tiếp và có thể hạ E<sub>a</sub> tới 10⁶–10¹² lần. Nó không thay đổi ΔG, nên phản ứng bất biến vẫn bất khả thi — enzyme chỉ mở đường nhanh hơn.<br><br>Tính đặc hiệu đến từ hình dạng và hóa học: hexokinase khớp với glucose chứ không phải fructose.')
         },
         {
           heading: L('Michaelis-Menten Kinetics', 'Động học Michaelis-Menten'),
-          content: L('<b>v = Vmax·[S] / (Km + [S])</b><br><br>Km is the substrate concentration at half Vmax — a low Km means tight binding. Vmax = kcat·[E]total, so the rate saturates once every enzyme is busy.<br><br><b>Competitive</b> inhibition raises the apparent Km but leaves Vmax reachable; <b>non-competitive</b> cuts Vmax and leaves Km alone. The enzyme simulation in Teacher Mode draws both curves.', '<b>v = Vmax·[S] / (Km + [S])</b><br><br>Km là nồng độ cơ chất để đạt nửa Vmax — Km nhỏ nghĩa là liên kết chặt. Vmax = kcat·[E]tổng, nên tốc độ bão hòa khi mọi enzyme đều bận.<br><br>Ức chế <b>cạnh tranh</b> làm Km biểu kiến tăng nhưng vẫn đạt Vmax; ức chế <b>không cạnh tranh</b> cắt Vmax và giữ nguyên Km. Mô phỏng enzyme trong Chế độ giáo viên vẽ cả hai đường.')
+          content: L('<b>v = V<sub>max</sub>·[S] / (K<sub>m</sub> + [S])</b><br><br>K<sub>m</sub> is the substrate concentration at half V<sub>max</sub> — a low K<sub>m</sub> means tight binding. V<sub>max</sub> = k<sub>cat</sub>·[E]<sub>total</sub>, so the rate saturates once every enzyme is busy.<br><br><b>Competitive</b> inhibition raises the apparent Km but leaves Vmax reachable; <b>non-competitive</b> cuts Vmax and leaves Km alone. The enzyme simulation in Teacher Mode draws both curves.', '<b>v = V<sub>max</sub>·[S] / (K<sub>m</sub> + [S])</b><br><br>K<sub>m</sub> là nồng độ cơ chất để đạt nửa V<sub>max</sub> — K<sub>m</sub> nhỏ nghĩa là liên kết chặt. V<sub>max</sub> = k<sub>cat</sub>·[E]<sub>tổng</sub>, nên tốc độ bão hòa khi mọi enzyme đều bận.<br><br>Ức chế <b>cạnh tranh</b> làm K<sub>m</sub> biểu kiến tăng nhưng vẫn đạt V<sub>max</sub>; ức chế <b>không cạnh tranh</b> cắt V<sub>max</sub> và giữ nguyên K<sub>m</sub>. Mô phỏng enzyme trong Chế độ giáo viên vẽ cả hai đường.')
         },
         {
           heading: L('Energy Currency', 'Đơn vị năng lượng'),
-          content: L('ATP ↔ ADP + Pi carries about -30.5 kJ/mol under cellular conditions — small enough to hand energy to a reaction, large enough to be useful. Coupling an unfavorable step to ATP hydrolysis makes the sum negative, and ΔG decides.<br><br>Glucose gives ~30-32 ATP when fully oxidised to CO₂ and H₂O; fermentation recovers only 2 and leaves the rest in ethanol or lactate.', 'ATP ↔ ADP + Pi mang khoảng -30,5 kJ/mol trong điều kiện tế bào — đủ nhỏ để trao năng lượng cho phản ứng, đủ lớn để hữu dụng. Ghép một bước bất lợi với thủy phân ATP làm tổng ΔG âm, và ΔG là trọng tài.<br><br>Glucose cho ~30-32 ATP khi oxy hóa hoàn toàn thành CO₂ và H₂O; lên men chỉ thu được 2 và để phần còn lại trong ethanol hoặc lactat.')
+          content: L('ATP ↔ ADP + P<sub>i</sub> carries about −30.5 kJ·mol⁻¹ under cellular conditions — small enough to hand energy to a reaction, large enough to be useful. Coupling an unfavorable step to ATP hydrolysis makes the sum negative, and ΔG decides.<br><br>Glucose gives ~30–32 ATP when fully oxidised to CO₂ and H₂O; fermentation recovers only 2 and leaves the rest in ethanol or lactate.', 'ATP ↔ ADP + P<sub>i</sub> mang khoảng −30,5 kJ·mol⁻¹ trong điều kiện tế bào — đủ nhỏ để trao năng lượng cho phản ứng, đủ lớn để hữu dụng. Ghép một bước bất lợi với thủy phân ATP làm tổng ΔG âm, và ΔG là trọng tài.<br><br>Glucose cho ~30–32 ATP khi oxy hóa hoàn toàn thành CO₂ và H₂O; lên men chỉ thu được 2 và để phần còn lại trong ethanol hoặc lactat.')
         },
         {
           heading: L('pH, Temperature and Denaturation', 'pH, nhiệt độ và biến tính'),
-          content: L('Proteins hold their shape with hydrogen bonds, salt bridges and hydrophobic packing. Each enzyme has an optimum pH and temperature; beyond them the structure unfolds and the active site is lost — denaturation.<br><br>Buffers resist pH change because a weak acid and its conjugate base soak up added H⁺ or OH⁻. Blood keeps pH 7.35-7.45 with the H₂CO₃/HCO₃⁻ pair.<br><br>Heat everything too far in this lab and the same physics applies: bonds break, structures collapse, products simplify.', 'Protein giữ hình dạng bằng liên kết hydro, cầu muối và hiệu ứng kỵ nước. Mỗi enzyme có pH và nhiệt độ tối ưu; vượt qua thì cấu trúc mở tung và trung tâm hoạt động mất — đó là biến tính.<br><br>Dung dịch đệm chống đổi pH vì một axit yếu cùng bazơ liên hợp của nó hấp thụ H⁺ hoặc OH⁻ thêm vào. Máu giữ pH 7,35-7,45 bằng cặp H₂CO₃/HCO₃⁻.<br><br>Đun quá nóng trong phòng thí nghiệm này, cũng chính vật lý đó áp dụng: liên kết đứt, cấu trúc sụp, sản phẩm đơn giản hơn.')
+          content: L('Proteins hold their shape with hydrogen bonds, salt bridges and hydrophobic packing. Each enzyme has an optimum pH and temperature; beyond them the structure unfolds and the active site is lost — denaturation.<br><br>Buffers resist pH change because a weak acid and its conjugate base soak up added H⁺ or OH⁻. Blood keeps pH 7.35–7.45 with the H₂CO₃/HCO₃⁻ pair.<br><br>Heat everything too far in this lab and the same physics applies: bonds break, structures collapse, products simplify.', 'Protein giữ hình dạng bằng liên kết hydro, cầu muối và hiệu ứng kỵ nước. Mỗi enzyme có pH và nhiệt độ tối ưu; vượt qua thì cấu trúc mở tung và trung tâm hoạt động mất — đó là biến tính.<br><br>Dung dịch đệm chống đổi pH vì một axit yếu cùng bazơ liên hợp của nó hấp thụ H⁺ hoặc OH⁻ thêm vào. Máu giữ pH 7,35–7,45 bằng cặp H₂CO₃/HCO₃⁻.<br><br>Đun quá nóng trong phòng thí nghiệm này, cũng chính vật lý đó áp dụng: liên kết đứt, cấu trúc sụp, sản phẩm đơn giản hơn.')
         }
       ]
     }
@@ -500,74 +494,203 @@
   let infoLang = null;
 
   // ── Interactive decay lab ───────────────────────────────────────────────────
-  // Five decays, one canvas. The numbers are the physics; the colours are the
-  // same ones the 3D scene uses, so a reader learns the palette here before they
-  // ever see it on the table. Each daughter is computed from its own equation
-  // rather than hardcoded, which is what lets the A/Z counters be an honest
-  // conservation check instead of decoration.
-  const DECAY_LAB = {
+  // One nucleus, five decay modes, and the particle colours the 3D scene already
+  // uses, so what a reader learns on this canvas is what they see on the table.
+  // The nucleus is persistent state: every shot rewrites A and Z, so you can walk
+  // uranium down the chart and hit Reset to start the chain again.
+  //
+  // Real numbers in here: the A and Z bookkeeping and the equation each mode
+  // prints (the balance strip adds both sides of it, it does not assert them);
+  // the Larmor radius r = p/(qB) that bends a track, with p taken from the
+  // measured mean decay energy of the named isotope; which shield stops which
+  // particle; the 85% attenuation of a 140 keV gamma ray in a lead wall; and the
+  // K X-ray an electron-capture decay leaves behind, from Moseley's law.
+  //
+  // Schematic on purpose: the pacing. A real alpha and a real beta of these
+  // energies differ in speed by more than an order of magnitude, so one
+  // compression factor is shared by every species — compression does not change
+  // curvature per unit length, which is why the *shapes* stay honest while the
+  // clock is slowed. The canvas is 3 cm of air across, shield thicknesses are not
+  // to scale, Moseley's law ignores screening so its heavier elements read low,
+  // and a neutrino is never counted by the detector because no detector the size
+  // of this lab could catch one.
+  const LAB_START = { a: 238, z: 92 };
+  const LAB_WORLD_CM = 3;               // canvas width expressed in cm of air
+  const LAB_R_CONST = 1 / 299.792458;   // r[m] = p[MeV/c] * LAB_R_CONST / (|q| * B[T])
+  const LAB_MAX_TRACKS = 40;
+  const LAB_TRAIL_POINTS = 44;
+  const LAB_LOG_ROWS = 60;
+  const LAB_GAMMA_STOP = 0.85;
+
+  // Every species carries the (A, Z) it contributes to an equation, so the
+  // conservation check can be arithmetic instead of decoration. A beta is booked
+  // as Z = -1 (β⁻) / +1 (β⁺) because it takes that unit of charge away with it.
+  const LAB_SYM = {
+    alpha: { html: '<sup>4</sup><sub>2</sub>He', text: '⁴₂He', a: 4, z: 2 },
+    electron: { html: 'e⁻', text: 'e⁻', a: 0, z: -1 },
+    positron: { html: 'e⁺', text: 'e⁺', a: 0, z: 1 },
+    antineutrino: { html: 'ν̄ₑ', text: 'ν̄ₑ', a: 0, z: 0 },
+    neutrino: { html: 'νₑ', text: 'νₑ', a: 0, z: 0 },
+    photon: { html: 'γ', text: 'γ', a: 0, z: 0 }
+  };
+
+  const LAB_MODES = {
     alpha: {
-      color: '#ff4433', label: 'α',
-      parent: { z: 92, a: 238 },
-      daughter: function (p) { return { z: p.z - 2, a: p.a - 4 }; },
-      particles: [{ kind: 'alpha', color: '#ff4433', glow: '#ff5a3c', r: 9, speed: 0.34, angle: 0.15 }]
+      color: '#ff4433', label: 'α', delta: { a: -4, z: -2 },
+      emits: L('⁴₂He nucleus · 4.20 MeV', 'hạt nhân ⁴₂He · 4,20 MeV'),
+      beams: [
+        { kind: 'alpha', q: 2, p: 176.9, size: 6.4, v: 150, spread: 0.10, color: '#ff4433', glow: '#ff5a3c' }
+      ]
     },
     betaMinus: {
-      color: '#2ae4ff', label: 'β⁻',
-      parent: { z: 55, a: 137 },
-      daughter: function (p) { return { z: p.z + 1, a: p.a }; },
-      particles: [
-        { kind: 'electron', color: '#2ae4ff', glow: '#9df7ff', r: 6, speed: 0.62, angle: -0.25 },
-        { kind: 'neutrino', color: '#2ee6c8', glow: '#b5fff3', r: 3, speed: 0.78, angle: 0.75 }
+      color: '#2ae4ff', label: 'β⁻', delta: { a: 0, z: 1 },
+      emits: L('e⁻ 0.174 MeV + ν̄ₑ', 'e⁻ 0,174 MeV + ν̄ₑ'),
+      beams: [
+        { kind: 'electron', q: -1, p: 0.456, size: 2.6, v: 380, spread: 0.42, color: '#2ae4ff', glow: '#9df7ff' },
+        { kind: 'antineutrino', q: 0, p: 0.34, size: 2.2, v: 420, spread: 0.55, color: '#2ee6c8', glow: '#b5fff3' }
       ]
     },
     betaPlus: {
-      color: '#ff8033', label: 'β⁺',
-      parent: { z: 9, a: 18 },
-      daughter: function (p) { return { z: p.z - 1, a: p.a }; },
-      particles: [
-        { kind: 'positron', color: '#ff8033', glow: '#ffc49a', r: 6, speed: 0.62, angle: -0.25 },
-        { kind: 'neutrino', color: '#2ee6c8', glow: '#b5fff3', r: 3, speed: 0.78, angle: 0.75 }
+      color: '#ff8033', label: 'β⁺', delta: { a: 0, z: -1 },
+      emits: L('e⁺ 0.250 MeV + νₑ', 'e⁺ 0,250 MeV + νₑ'),
+      beams: [
+        { kind: 'positron', q: 1, p: 0.564, size: 2.6, v: 380, spread: 0.42, color: '#ff8033', glow: '#ffc49a' },
+        { kind: 'neutrino', q: 0, p: 0.55, size: 2.2, v: 420, spread: 0.62, color: '#2ee6c8', glow: '#b5fff3' }
       ]
     },
+    // Electron capture eats an orbital electron, so that e⁻ belongs on the left
+    // of the equation and of the charge sum.
     ec: {
-      color: '#8b9bb4', label: 'EC',
-      parent: { z: 26, a: 55 },
-      daughter: function (p) { return { z: p.z - 1, a: p.a }; },
-      particles: [
-        { kind: 'neutrino', color: '#2ee6c8', glow: '#b5fff3', r: 3, speed: 0.8, angle: 0.1 }
+      color: '#b48cff', label: 'EC', delta: { a: 0, z: -1 }, capture: 'electron',
+      beams: [
+        { kind: 'neutrino', q: 0, p: 0.231, size: 2.2, v: 420, spread: 0.30, color: '#2ee6c8', glow: '#b5fff3' },
+        { kind: 'photon', q: 0, p: 0.0059, size: 3.2, v: 500, spread: 0.90, color: '#cfd8ff', glow: '#ffffff' }
       ]
     },
     gamma: {
-      color: '#8b9bb4', label: 'γ',
-      parent: { z: 27, a: 60 },
-      daughter: function (p) { return { z: p.z, a: p.a }; },
-      particles: [{ kind: 'photon', color: '#e8eef7', glow: '#ffffff', r: 5, speed: 0.95, angle: 0.4 }]
+      color: '#f4d35e', label: 'γ', delta: { a: 0, z: 0 },
+      beams: [
+        { kind: 'photon', q: 0, p: 0.14, size: 4.2, v: 520, spread: 0.22, color: '#f4d35e', glow: '#fff3b0' }
+      ]
     }
   };
 
-  const LAB_EMIT_TEXT = {
-    alpha: L('⁴He nucleus (2p + 2n) + energy', 'hạt nhân ⁴He (2p + 2n) + năng lượng'),
-    betaMinus: L('e⁻ + ν̄e', 'e⁻ + ν̄e'),
-    betaPlus: L('e⁺ + νe', 'e⁺ + νe'),
-    ec: L('νe only — the electron went in', 'chỉ νe — electron đi vào'),
-    gamma: L('γ photon', 'photon γ')
+  // Shield rules, from the penetration table every textbook carries: paper stops
+  // alphas, a few millimetres of aluminium stops betas, lead only attenuates
+  // gammas, and nothing stops a neutrino.
+  const LAB_SHIELDS = [
+    { id: 'paper', at: 0.50, w: 7, label: L('PAPER', 'GIẤY'), color: '#f59e0b',
+      name: L('paper', 'giấy'),
+      stops: { alpha: 'stop', electron: 'pass', positron: 'pass', photon: 'pass', neutrino: 'pass', antineutrino: 'pass' } },
+    { id: 'aluminum', at: 0.68, w: 10, label: L('Al', 'Al'), color: '#60a5fa',
+      name: L('aluminium', 'nhôm'),
+      stops: { alpha: 'stop', electron: 'stop', positron: 'stop', photon: 'pass', neutrino: 'pass', antineutrino: 'pass' } },
+    { id: 'lead', at: 0.84, w: 15, label: L('Pb', 'Pb'), color: '#c084fc',
+      name: L('lead', 'chì'),
+      stops: { alpha: 'stop', electron: 'stop', positron: 'stop', photon: 'attenuate', neutrino: 'pass', antineutrino: 'pass' } }
+  ];
+
+  const LAB_UI = {
+    title: L('Decay Lab', 'Phòng thí nghiệm phân rã'),
+    hint: L('Fire a decay and the nucleus really changes. Click the canvas for a random shot. Tracks bend by the real r = p/(qB) in the field you set, and the shields stop exactly what they stop in the laboratory.',
+            'Bắn một kiểu phân rã và hạt nhân thay đổi thật. Click vào khung vẽ để bắn ngẫu nhiên. Vệt hạt cong theo đúng r = p/(qB) trong từ trường bạn đặt, và các tấm chắn chặn đúng những gì chúng chặn ngoài phòng thí nghiệm.'),
+    reset: L('Reset', 'Đặt lại'),
+    controls: L('Controls', 'Điều khiển'),
+    theory: L('Decay theory', 'Lý thuyết phân rã'),
+    shields: L('Shields', 'Tấm chắn'),
+    field: L('Magnetic field B', 'Từ trường B'),
+    speed: L('Animation speed', 'Tốc độ mô phỏng'),
+    trails: L('Cloud-chamber trails', 'Vệt buồng mây'),
+    auto: L('Auto-decay', 'Tự phân rã'),
+    counts: L('counts/min', 'xung/phút'),
+    decays: L('decays', 'lần phân rã'),
+    flight: L('in flight', 'đang bay'),
+    parent: L('Parent', 'Hạt nhân mẹ'),
+    daughter: L('Daughter', 'Hạt nhân con'),
+    emits: L('Emits', 'Phát ra'),
+    conserve: L('A and Z balanced', 'A và Z cân bằng'),
+    unbalanced: L('A and Z do not balance', 'A và Z không cân bằng'),
+    equation: L('Equation', 'Phương trình'),
+    log: L('Event telemetry', 'Bản ghi sự kiện'),
+    clear: L('Clear', 'Xóa'),
+    foot: L('Schematic: the canvas is 3 cm of air across, track pacing is slowed by one shared factor, and the lab applies the decay rule to the current A and Z without checking that this nuclide really decays that way.',
+            'Mô phỏng minh họa: khung vẽ tương đương 3 cm không khí, tốc độ vệt được làm chậm theo một hệ số chung, và phòng thí nghiệm áp đúng quy tắc phân rã lên A và Z hiện tại mà không kiểm tra nuclit này có thực sự phân rã theo kiểu đó hay không.'),
+    tooLight: L('too light for this decay — nothing emitted', 'quá nhẹ cho kiểu phân rã này — không phát xạ'),
+    stopped: L('stopped by', 'bị chặn bởi'),
+    attenuated: L('absorbed in', 'bị hấp thụ trong'),
+    passed: L('passed every shield', 'xuyên qua mọi tấm chắn'),
+    through: L('reached the detector', 'đến đầu dò'),
+    resetMsg: L('nucleus reset', 'đặt lại hạt nhân'),
+    noField: L('no field', 'không từ trường'),
+    air: L('of air', 'không khí'),
+    detector: L('DETECTOR', 'ĐẦU DÒ')
   };
 
-  function elSymbol(z) {
+  const LAB_THEORY = [
+    {
+      color: '#ff4433', name: L('Alpha (α)', 'Alpha (α)'),
+      eq: '<sup>238</sup><sub>92</sub>U → <sup>234</sup><sub>90</sub>Th + <sup>4</sup><sub>2</sub>He',
+      body: L('A bare helium-4 nucleus, 2 protons + 2 neutrons. It leaves with about 4.20 MeV and a range of a few centimetres in air, so it ionises heavily over a short path. Paper, the dead layer of skin, or a couple of centimetres of air stop it — an alpha outside the body is almost harmless, while inside it is not.',
+              'Hạt nhân heli-4 trần, gồm 2 proton + 2 neutron. Nó mang theo khoảng 4,20 MeV và bay được vài centimét trong không khí, nên nó ion hóa rất mạnh trên một quãng ngắn. Giấy, lớp sừng chết hay vài centimét không khí đều chặn được — alpha ở ngoài cơ thể gần như vô hại, còn ở trong thì không.')
+    },
+    {
+      color: '#2ae4ff', name: L('Beta (β⁻ / β⁺)', 'Beta (β⁻ / β⁺)'),
+      eq: '<sup>137</sup><sub>55</sub>Cs → <sup>137</sup><sub>56</sub>Ba + e⁻ + ν̄ₑ<br><sup>18</sup><sub>9</sub>F → <sup>18</sup><sub>8</sub>O + e⁺ + νₑ',
+      body: L('An electron or a positron created in the nucleus at the moment of decay, with a neutrino carrying away the rest. The energy is shared at random, so betas show a continuous spectrum up to an endpoint. A few millimetres of aluminium stops them; fast electrons in lead also make bremsstrahlung X-rays, which is why beta shields are plastic first.',
+              'Electron hoặc positron được sinh ra trong hạt nhân đúng lúc phân rã, kèm neutrino mang phần năng lượng còn lại. Năng lượng chia ngẫu nhiên nên beta có phổ liên tục tới một giá trị biên. Vài milimét nhôm chặn được chúng; electron nhanh trong chì còn sinh tia X hãm, nên chắn beta người ta dùng nhựa trước.')
+    },
+    {
+      color: '#f4d35e', name: L('Gamma (γ) and capture', 'Gamma (γ) và bắt electron'),
+      eq: '<sup>99m</sup><sub>43</sub>Tc → <sup>99</sup><sub>43</sub>Tc + γ<br><sup>55</sup><sub>26</sub>Fe + e⁻ → <sup>55</sup><sub>25</sub>Mn + νₑ',
+      body: L('Gamma rays are photons from an excited nucleus: no charge, no mass, no track — they only weaken exponentially as absorber grows, so lead and concrete are measured in half-value thicknesses. Electron capture is the mirror of β⁺: the nucleus takes a K-shell electron, a neutrino leaves, and the refilling shell emits the characteristic X-ray of the new element.',
+              'Tia gamma là photon phát ra từ hạt nhân bị kích thích: không điện tích, không khối lượng, không để lại vệt — chúng chỉ suy giảm theo hàm mũ khi vật liệu hấp thụ dày lên, nên chì và bê tông được đo bằng chiều dày giảm nửa. Bắt electron là ảnh gương của β⁺: hạt nhân lấy một electron lớp K, neutrino bay ra, và lớp vỏ trống phát tia X đặc trưng của nguyên tố mới.')
+    }
+  ];
+
+  function elRecord(z) {
     const list = window.__mol3d && window.__mol3d.ELEMENTS;
     if (Array.isArray(list)) {
       const hit = list.find(function (e) { return e.z === z; });
-      if (hit && hit.sym) return hit.sym;
+      if (hit) return hit;
     }
-    return 'X' + z;
+    return { z: z, sym: 'X' + z, name: 'Element ' + z };
   }
 
-  function subScript(n) {
-    const map = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉' };
-    return String(n).split('').map(function (c) { return map[c] || c; }).join('');
+  function elSymbol(z) { return elRecord(z).sym; }
+
+  // The game already carries Vietnamese names for all 118 elements and the
+  // periodic table resolves them through this helper, so the lab asks it rather
+  // than keeping a second list that would drift.
+  function elName(z) {
+    const rec = elRecord(z);
+    const i18n = window.__mol3d && window.__mol3d.i18n;
+    if (i18n && typeof i18n.elName === 'function') return i18n.elName(rec);
+    return rec.name;
   }
-  function nuclideText(n) { return '<sup>' + n.a + '</sup>' + subScript(n.z) + esc(elSymbol(n.z)); }
+
+  const SUP_DIG = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  const SUB_DIG = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉' };
+  function supScript(n) { return String(n).split('').map(function (c) { return SUP_DIG[c] || c; }).join(''); }
+  function subScript(n) { return String(n).split('').map(function (c) { return SUB_DIG[c] || c; }).join(''); }
+
+  // The guide body is innerHTML, so the readouts can carry real super/subscripts.
+  // Log lines, canvas text and the aria labels go through esc()/textContent, so
+  // they use the Unicode forms instead.
+  function nuclideHtml(n) { return '<sup>' + n.a + '</sup><sub>' + n.z + '</sub>' + esc(elSymbol(n.z)); }
+  function nuclideText(n) { return supScript(n.a) + subScript(n.z) + elSymbol(n.z); }
+
+  // Fixed-point text with a true minus sign and, for signed quantities, a plus.
+  function labNum(v, digits, signed) {
+    const s = Math.abs(v).toFixed(digits);
+    return (v < 0 ? '−' : (signed && v > 0) ? '+' : '') + s;
+  }
+
+  // Technetium and promethium have no stable isotope at all, and neither does
+  // anything past bismuth. That is a fact about Z, not about the drawn nucleus.
+  function stabilityText(z) {
+    if (z === 43 || z === 61 || z > 83) return L('no stable isotope', 'không có đồng vị bền');
+    return L('has stable isotopes', 'có đồng vị bền');
+  }
 
   function hexAlpha(hex, a) {
     const h = hex.replace('#', '');
@@ -575,49 +698,131 @@
     return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
   }
 
+  // The canvas is painted in code, so the theme has to be read in code too: the
+  // guide can be switched to light mode while this lab still draws its own text,
+  // and pale blue ink that reads on the dark fill disappears on the light one.
+  function labInk() {
+    const light = typeof document !== 'undefined' &&
+      document.documentElement.getAttribute('data-theme') === 'light';
+    return {
+      light: light,
+      caption: light ? 'rgba(28, 44, 70, 0.66)' : 'rgba(190, 208, 230, 0.55)',
+      detector: light ? 'rgba(40, 60, 92, 0.72)' : 'rgba(200, 215, 235, 0.6)',
+      neutron: light ? '#8ea3bb' : '#c9d3dc'
+    };
+  }
+
+  function beamsOf(m) {
+    return m.beams.map(function (t) { return LAB_SYM[t.kind]; });
+  }
+
+  // Number in the language's own decimal style: Vietnamese writes 0,231.
+  function labNumVi(s) { return String(s).replace('.', ','); }
+
+  // What a decay actually sends out depends on the nucleus it leaves behind, so
+  // these two labels are computed instead of fixed. Electron capture empties a
+  // K shell of the *daughter*, and Moseley's law E(Kα) = 13.6 eV · ¾ · (Z−1)²
+  // puts manganese at 5.9 keV, which is the measured line; heavier elements come
+  // out low because the law ignores screening, hence the ≈.
+  function emitsText(modeKey, n) {
+    const m = LAB_MODES[modeKey];
+    if (modeKey === 'ec') {
+      const kev = 13.6 * 0.75 * Math.pow(n.z - 1, 2) / 1000;
+      const sym = elSymbol(n.z);
+      const e = kev.toFixed(1);
+      return L('νₑ 0.231 MeV + ' + sym + ' K X-ray ≈' + e + ' keV',
+               'νₑ 0,231 MeV + tia X K của ' + sym + ' ≈' + labNumVi(e) + ' keV');
+    }
+    // 0.140 MeV is the medical ⁹⁹ᵐTc line; elsewhere it is only an example energy.
+    if (modeKey === 'gamma' && n.a === 99 && n.z === 43) {
+      return L('γ photon 0.140 MeV (⁹⁹ᵐTc)', 'photon γ 0,140 MeV (⁹⁹ᵐTc)');
+    }
+    if (modeKey === 'gamma') {
+      return L('γ photon 0.140 MeV (example energy)', 'photon γ 0,140 MeV (năng lượng ví dụ)');
+    }
+    return m.emits;
+  }
+
   let lab = null;
 
+  // The experiment outlives a language switch: showGuide() rebuilds the card, so
+  // the nucleus, the settings and the log live here and are re-applied on bind.
+  const labPersist = {
+    n: { a: LAB_START.a, z: LAB_START.z },
+    mode: 'alpha',
+    field: 0,
+    speed: 1,
+    trails: true,
+    auto: false,
+    shields: { paper: true, aluminum: true, lead: true },
+    decays: 0,
+    clicks: [],
+    log: []
+  };
+
   function decayLabHtml() {
-    const rows = Object.keys(DECAY_LAB).map(function (key) {
-      return '<button type="button" class="dl-btn" data-decay="' + key + '" style="--dl-c:' + DECAY_LAB[key].color + '">' + esc(DECAY_LAB[key].label) + '</button>';
+    const modes = Object.keys(LAB_MODES).map(function (key) {
+      const m = LAB_MODES[key];
+      return '<button type="button" class="dl-btn' + (key === labPersist.mode ? ' active' : '') +
+        '" data-decay="' + key + '" style="--dl-c:' + m.color + '" title="' + esc(m.label) + '">' + m.label + '</button>';
+    }).join('');
+    const shields = LAB_SHIELDS.map(function (s) {
+      return '<label class="dl-switch"><input type="checkbox" data-shield="' + s.id + '"' +
+        (labPersist.shields[s.id] ? ' checked' : '') + '><span style="--dl-c:' + s.color + '">' + esc(tx(s.name)) + '</span></label>';
+    }).join('');
+    const theory = LAB_THEORY.map(function (c) {
+      return '<div class="dl-card" style="--dl-c:' + c.color + '"><b>' + esc(tx(c.name)) + '</b>' +
+        '<div class="dl-card-eq">' + c.eq + '</div><p>' + tx(c.body) + '</p></div>';
     }).join('');
     return '' +
       '<div class="decay-lab">' +
-        '<div class="dl-head">' + ic('atom') + '<span>' + esc(tx(UI.labTitle)) + '</span></div>' +
-        '<p class="dl-hint">' + esc(tx(UI.labHint)) + '</p>' +
-        '<canvas class="dl-canvas" aria-label="' + esc(tx(UI.labTitle)) + '"></canvas>' +
-        '<div class="dl-buttons">' + rows + '</div>' +
-        '<div class="dl-readout">' +
-          '<div class="dl-col"><span>' + esc(tx(UI.labReadout)) + '</span><b class="dl-parent">—</b></div>' +
-          '<div class="dl-col"><span>' + esc(tx(UI.labDaughter)) + '</span><b class="dl-daughter">—</b></div>' +
-          '<div class="dl-col"><span>' + esc(tx(UI.labEmits)) + '</span><b class="dl-emits">—</b></div>' +
+        '<div class="dl-head">' + ic('radiation') + '<span>' + esc(tx(LAB_UI.title)) + '</span>' +
+          '<button type="button" class="dl-mini" data-act="reset">' + ic('rotate-ccw') + esc(tx(LAB_UI.reset)) + '</button>' +
         '</div>' +
+        '<p class="dl-hint">' + esc(tx(LAB_UI.hint)) + '</p>' +
+        '<div class="dl-hud">' +
+          '<div class="dl-badge"><b class="dl-a">—</b><i class="dl-z">—</i></div>' +
+          '<div class="dl-sym">—</div>' +
+          '<div class="dl-id"><b class="dl-name">—</b><span class="dl-sub"><i class="dl-n">—</i> · <span class="dl-stab"></span></span></div>' +
+          '<div class="dl-live"><b class="dl-cpm">0</b><span class="dl-u dl-cpm-u"></span>' +
+            '<span class="dl-tally"><i class="dl-decays">0</i> <span class="dl-u dl-decays-u"></span>' +
+            '· <i class="dl-flight">0</i> <span class="dl-u dl-flight-u"></span></span></div>' +
+        '</div>' +
+        '<canvas class="dl-canvas" aria-label="' + esc(tx(LAB_UI.title)) + '"></canvas>' +
+        '<div class="dl-modes">' + modes + '</div>' +
+        '<div class="dl-tabs">' +
+          '<button type="button" class="dl-tab active" data-tab="controls">' + esc(tx(LAB_UI.controls)) + '</button>' +
+          '<button type="button" class="dl-tab" data-tab="theory">' + esc(tx(LAB_UI.theory)) + '</button>' +
+        '</div>' +
+        '<div class="dl-panel dl-panel-controls">' +
+          '<div class="dl-group"><span class="dl-label">' + esc(tx(LAB_UI.shields)) + '</span>' +
+            '<div class="dl-switches">' + shields + '</div></div>' +
+          '<div class="dl-group"><span class="dl-label">' + esc(tx(LAB_UI.field)) +
+            ' <b class="dl-field-v"></b></span>' +
+            '<input class="dl-range" type="range" min="-1" max="1" step="0.05" value="' + labPersist.field + '" data-act="field" aria-label="' + esc(tx(LAB_UI.field)) + '"></div>' +
+          '<div class="dl-group"><span class="dl-label">' + esc(tx(LAB_UI.speed)) +
+            ' <b class="dl-speed-v"></b></span>' +
+            '<input class="dl-range" type="range" min="0.25" max="2" step="0.25" value="' + labPersist.speed + '" data-act="speed" aria-label="' + esc(tx(LAB_UI.speed)) + '"></div>' +
+          '<div class="dl-switches">' +
+            '<label class="dl-switch"><input type="checkbox" data-act="trails"' + (labPersist.trails ? ' checked' : '') +
+              '><span>' + esc(tx(LAB_UI.trails)) + '</span></label>' +
+            '<label class="dl-switch"><input type="checkbox" data-act="auto"' + (labPersist.auto ? ' checked' : '') +
+              '><span>' + esc(tx(LAB_UI.auto)) + '</span></label>' +
+          '</div>' +
+        '</div>' +
+        '<div class="dl-panel dl-panel-theory" hidden>' + theory + '</div>' +
+        '<div class="dl-readout">' +
+          '<div class="dl-col"><span>' + esc(tx(LAB_UI.parent)) + '</span><b class="dl-parent">—</b></div>' +
+          '<div class="dl-col"><span>' + esc(tx(LAB_UI.daughter)) + '</span><b class="dl-daughter">—</b></div>' +
+          '<div class="dl-col"><span>' + esc(tx(LAB_UI.emits)) + '</span><b class="dl-emits">—</b></div>' +
+        '</div>' +
+        '<div class="dl-equation"><span>' + esc(tx(LAB_UI.equation)) + '</span><b class="dl-eq"></b></div>' +
         '<div class="dl-balance" aria-live="polite"></div>' +
+        '<div class="dl-log-head"><span>' + esc(tx(LAB_UI.log)) + '</span>' +
+          '<button type="button" class="dl-mini" data-act="clear-log">' + esc(tx(LAB_UI.clear)) + '</button></div>' +
+        '<div class="dl-log"></div>' +
+        '<p class="dl-foot">' + esc(tx(LAB_UI.foot)) + '</p>' +
       '</div>';
-  }
-
-  function paintDecayLab(state, card) {
-    const d = DECAY_LAB[state.key];
-    const p = d.parent;
-    const dg = d.daughter(p);
-    card.querySelector('.dl-parent').innerHTML = nuclideText(p);
-    card.querySelector('.dl-daughter').innerHTML = nuclideText(dg);
-    card.querySelector('.dl-emits').textContent = tx(LAB_EMIT_TEXT[state.key]);
-    // A and Z are the whole check: a decay that failed to balance would show up
-    // here before any reader had to trust the drawing.
-    const da = p.a - dg.a;
-    const dz = p.z - dg.z;
-    const emits = state.key === 'alpha' ? { a: 4, z: 2 }
-      : state.key === 'betaMinus' ? { a: 0, z: -1 }
-        : state.key === 'betaPlus' ? { a: 0, z: 1 }
-          : state.key === 'gamma' ? { a: 0, z: 0 }
-            : { a: 0, z: 1 };
-    const ok = da === emits.a && dz === emits.z;
-    const box = card.querySelector('.dl-balance');
-    box.className = 'dl-balance ' + (ok ? 'ok' : 'bad');
-    box.innerHTML = ic(ok ? 'check-circle-2' : 'alert-triangle') +
-      '<span>ΔA = ' + da + ' · ΔZ = ' + dz + ' · ' + esc(tx(UI.labConserve)) + '</span>';
-    lucideIn(box);
   }
 
   function bindDecayLab(host) {
@@ -628,138 +833,555 @@
     if (lab) stopLab();
 
     const state = {
-      w: 0, h: 0, ctx: null, key: 'alpha',
-      raf: 0, flying: [], last: 0, emitAt: 0
+      card: card, canvas: canvas, ctx: null, w: 0, h: 0, dpr: 1,
+      raf: 0, last: 0, tracks: [], sparks: [], pulse: 0,
+      shots: labPersist.decays, nextAuto: 0,
+      clicks: labPersist.clicks, resize: null
     };
     lab = state;
 
-    function nucleusPos() { return { x: state.w * 0.33, y: state.h * 0.5 }; }
+    function pxPerM() { return state.w / (LAB_WORLD_CM / 100); }
+    function nucleus() { return { x: state.w * 0.15, y: state.h * 0.5 }; }
+    function shieldX(s) { return { x: state.w * s.at, w: s.w }; }
+    function detectorX() { return state.w - 5; }
 
-    function paint() { paintDecayLab(state, card); }
-
-    function launch() {
-      const d = DECAY_LAB[state.key];
-      const at = nucleusPos();
-      const span = Math.max(state.w, 1);
-      state.flying = d.particles.map(function (p) {
-        return {
-          p: p,
-          x: at.x, y: at.y,
-          vx: Math.cos(p.angle) * p.speed * span,
-          vy: Math.sin(p.angle) * p.speed * span
-        };
-      });
-      state.emitAt = performance.now();
-      if (!state.raf) { state.last = performance.now(); state.raf = requestAnimationFrame(step); }
+    function clock() {
+      const t = performance.now() / 1000;
+      const m = Math.floor(t / 60), sec = Math.floor(t % 60);
+      return m + ':' + (sec < 10 ? '0' + sec : sec);
     }
 
-    function drawNucleus(ctx, glowBoost) {
-      const at = nucleusPos();
+    function addLog(msg) {
+      labPersist.log.push(clock() + ' · ' + msg);
+      if (labPersist.log.length > LAB_LOG_ROWS) labPersist.log.shift();
+      paintLog();
+    }
+
+    function paintLog() {
+      const box = card.querySelector('.dl-log');
+      box.textContent = '';
+      for (const line of labPersist.log) {
+        const row = document.createElement('div');
+        row.className = 'dl-log-row';
+        row.textContent = line;
+        box.appendChild(row);
+      }
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // One place computes the daughter and both sides of the equation, so the
+    // balance strip is a real check on the mode table rather than a badge.
+    function reaction(modeKey, n) {
+      const m = LAB_MODES[modeKey];
+      const daughter = { a: n.a + m.delta.a, z: n.z + m.delta.z };
+      const cap = m.capture ? LAB_SYM[m.capture] : null;
+      const parts = beamsOf(m);
+      let leftA = n.a + (cap ? cap.a : 0);
+      let leftZ = n.z + (cap ? cap.z : 0);
+      let rightA = daughter.a, rightZ = daughter.z;
+      for (const p of parts) { rightA += p.a; rightZ += p.z; }
+      const left = nuclideHtml(n) + (cap ? ' + ' + cap.html : '');
+      const right = nuclideHtml(daughter) + parts.map(function (p) { return ' + ' + p.html; }).join('');
+      return {
+        m: m, daughter: daughter, left: left, right: right,
+        ok: leftA === rightA && leftZ === rightZ,
+        sums: leftA + ' = ' + rightA + ' · ΣZ ' + leftZ + ' = ' + rightZ
+      };
+    }
+
+    function paintNucleus() {
+      const n = labPersist.n;
+      const r = reaction(labPersist.mode, n);
+      card.querySelector('.dl-a').textContent = String(n.a);
+      card.querySelector('.dl-z').textContent = String(n.z);
+      card.querySelector('.dl-sym').textContent = elSymbol(n.z);
+      card.querySelector('.dl-name').textContent = elName(n.z);
+      card.querySelector('.dl-n').textContent = 'N = ' + (n.a - n.z);
+      card.querySelector('.dl-stab').textContent = tx(stabilityText(n.z));
+      card.querySelector('.dl-parent').innerHTML = nuclideHtml(n);
+      card.querySelector('.dl-daughter').innerHTML = nuclideHtml(r.daughter);
+      card.querySelector('.dl-emits').textContent = tx(emitsText(labPersist.mode, r.daughter));
+      card.querySelector('.dl-eq').innerHTML = r.left + ' → ' + r.right;
+      const box = card.querySelector('.dl-balance');
+      box.className = 'dl-balance ' + (r.ok ? 'ok' : 'bad');
+      box.innerHTML = ic(r.ok ? 'check' : 'triangle-alert') +
+        '<span>ΣA ' + r.sums + ' · ' + esc(tx(r.ok ? LAB_UI.conserve : LAB_UI.unbalanced)) + '</span>';
+      lucideIn(box);
+      card.querySelector('.dl-decays').textContent = String(state.shots);
+      card.querySelector('.dl-decays-u').textContent = tx(LAB_UI.decays);
+      card.querySelector('.dl-cpm-u').textContent = tx(LAB_UI.counts);
+      card.querySelector('.dl-flight-u').textContent = tx(LAB_UI.flight);
+    }
+
+    function launch(modeKey) {
+      const m = LAB_MODES[modeKey];
+      const n = labPersist.n;
+      const before = { a: n.a, z: n.z };
+      // A nucleus has to contain what the mode takes out of it.
+      if (modeKey === 'alpha' && (n.a < 8 || n.z < 4)) return refuse(before);
+      if ((modeKey === 'betaPlus' || modeKey === 'ec') && n.z < 2) return refuse(before);
+
+      const r = reaction(modeKey, n);
+      const at = nucleus();
+      const field = labPersist.field;
+      for (const t of m.beams) {
+        // r = p/(qB) in metres, scaled to the canvas: 3 cm of air across.
+        // Curvature, not pacing, is what the reader should trust here.
+        const radiusM = (t.q === 0 || field === 0) ? Infinity
+          : Math.abs(t.p) * LAB_R_CONST / (Math.abs(t.q) * Math.abs(field));
+        const ang = (Math.random() - 0.5) * t.spread * 2;
+        const v = t.v * labPersist.speed;
+        state.tracks.push({
+          kind: t.kind, q: t.q, color: t.color, glow: t.glow, size: t.size,
+          x: at.x + 14, y: at.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, v: v,
+          radius: radiusM === Infinity ? Infinity : radiusM * pxPerM(),
+          trail: [], active: true, phase: Math.random() * 6.28, crossed: {}
+        });
+      }
+      if (state.tracks.length > LAB_MAX_TRACKS) state.tracks.splice(0, state.tracks.length - LAB_MAX_TRACKS);
+
+      n.a = r.daughter.a;
+      n.z = r.daughter.z;
+      state.pulse = 1;
+      state.shots++;
+      labPersist.decays = state.shots;
+      labPersist.mode = modeKey;
+      paintNucleus();
+      addLog(nuclideText(before) + (m.capture ? ' + ' + LAB_SYM[m.capture].text : '') + ' → ' +
+        nuclideText(n) + ' + ' + beamsOf(m).map(function (p) { return p.text; }).join(' + ') +
+        ' · ' + tx(emitsText(modeKey, r.daughter)));
+      kick();
+      return true;
+
+      function refuse(from) {
+        labPersist.mode = modeKey;
+        paintNucleus();
+        addLog(nuclideText(from) + ' — ' + tx(LAB_UI.tooLight));
+        render();
+        return false;
+      }
+    }
+
+    function registerClick() {
+      state.clicks.push(performance.now());
+      if (state.clicks.length > 600) state.clicks.splice(0, state.clicks.length - 600);
+    }
+
+    // Counts per minute over a rolling 60 s window, exactly like the real
+    // counter this panel is standing in for.
+    function cpm() {
+      const cut = performance.now() - 60000;
+      while (state.clicks.length && state.clicks[0] < cut) state.clicks.shift();
+      return state.clicks.length;
+    }
+
+    function stepTrack(t, dt) {
+      // A finished track is a drawing, not a particle: it must not keep moving,
+      // or a stopped alpha would walk into the detector anyway.
+      if (!t.active) {
+        if (!labPersist.trails && t.trail.length) t.trail.shift();
+        return false;
+      }
+      const prevX = t.x;
+      // F = q(v x B). Rotating the velocity keeps |v| constant, which is what a
+      // magnetic field actually does; +B is out of the screen (⊙), and with that
+      // convention a positive charge moving right is pushed down the canvas.
+      if (t.q !== 0 && labPersist.field !== 0 && isFinite(t.radius)) {
+        const dTheta = (t.q > 0 ? 1 : -1) * (labPersist.field > 0 ? 1 : -1) * (t.v * dt) / t.radius;
+        const c = Math.cos(dTheta), s = Math.sin(dTheta);
+        const vx = t.vx * c - t.vy * s;
+        t.vy = t.vx * s + t.vy * c;
+        t.vx = vx;
+      }
+      t.x += t.vx * dt;
+      t.y += t.vy * dt;
+      t.phase += dt * 9;
+
+      if (labPersist.trails) {
+        t.trail.push({ x: t.x, y: t.y });
+        if (t.trail.length > LAB_TRAIL_POINTS) t.trail.shift();
+      } else if (t.trail.length) {
+        t.trail.shift();
+      }
+
+      for (const sh of LAB_SHIELDS) {
+        if (!labPersist.shields[sh.id] || t.crossed[sh.id]) continue;
+        const g = shieldX(sh);
+        // Test the swept span, or a fast particle tunnels straight through.
+        if (!(t.x >= g.x && prevX < g.x + g.w)) continue;
+        t.crossed[sh.id] = true;
+        const rule = sh.stops[t.kind];
+        if (rule === 'stop') {
+          t.active = false;
+          spark(t.x, t.y, sh.color);
+          addLog(LAB_SYM[t.kind].text + ' ' + tx(LAB_UI.stopped) + ' ' + tx(sh.name));
+          return false;
+        }
+        if (rule === 'attenuate' && Math.random() < LAB_GAMMA_STOP) {
+          t.active = false;
+          spark(t.x, t.y, sh.color);
+          addLog(LAB_SYM[t.kind].text + ' ' + tx(LAB_UI.attenuated) + ' ' + tx(sh.name));
+          return false;
+        }
+      }
+
+      if (t.y < -20 || t.y > state.h + 20 || t.x < -20) { t.active = false; return false; }
+      if (t.x >= detectorX()) {
+        t.active = false;
+        const sym = LAB_SYM[t.kind].text;
+        if (t.kind === 'neutrino' || t.kind === 'antineutrino') addLog(sym + ' ' + tx(LAB_UI.passed));
+        else { registerClick(); addLog(sym + ' ' + tx(LAB_UI.through)); }
+        return false;
+      }
+      return true;
+    }
+
+    function spark(x, y, color) {
+      for (let i = 0; i < 7; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 20 + Math.random() * 90;
+        state.sparks.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, color: color });
+      }
+      if (state.sparks.length > 90) state.sparks.splice(0, state.sparks.length - 90);
+    }
+
+    function drawField(ctx) {
+      const b = labPersist.field;
+      if (Math.abs(b) < 0.02) return;
+      const tint = b > 0 ? '#2ae4ff' : '#b48cff';
       ctx.save();
-      const g = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, 52);
-      g.addColorStop(0, 'rgba(255,70,50,' + (0.34 + glowBoost * 0.36) + ')');
-      g.addColorStop(1, 'rgba(255,70,50,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(at.x, at.y, 52, 0, Math.PI * 2); ctx.fill();
-      for (let i = 0; i < 9; i++) {
-        const a = (i / 9) * Math.PI * 2 + 0.4;
-        const rr = i < 5 ? 9 : 13;
-        ctx.beginPath();
-        ctx.arc(at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr, 5, 0, Math.PI * 2);
-        ctx.fillStyle = i < 5 ? '#ff3d3d' : '#c9d3dc';
-        ctx.fill();
+      ctx.fillStyle = hexAlpha(tint, 0.05);
+      ctx.fillRect(0, 0, state.w, state.h);
+      ctx.fillStyle = hexAlpha(tint, 0.32);
+      ctx.font = '11px "Segoe UI", Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // ⊙ = field coming at you, ✕ = field going in, the textbook convention.
+      const glyph = b > 0 ? '⊙' : '✕';
+      for (let x = 26; x < state.w - 12; x += 54) {
+        for (let y = 18; y < state.h - 18; y += 38) ctx.fillText(glyph, x, y);
       }
       ctx.restore();
     }
 
-    function drawTrail(ctx, f) {
-      const p = f.p;
-      const v = Math.hypot(f.vx, f.vy) || 1;
-      const ux = f.vx / v, uy = f.vy / v;
-      for (let i = 1; i <= 9; i++) {
-        const back = i * (p.r * 1.5 + 2.2);
-        ctx.beginPath();
-        ctx.arc(f.x - ux * back, f.y - uy * back, Math.max(1, p.r * (1 - i / 11)), 0, Math.PI * 2);
-        ctx.fillStyle = hexAlpha(p.color, (1 - i / 10) * 0.5);
-        ctx.fill();
+    function drawShields(ctx) {
+      ctx.save();
+      ctx.font = '600 10px "Segoe UI", Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      for (const sh of LAB_SHIELDS) {
+        if (!labPersist.shields[sh.id]) continue;
+        const g = shieldX(sh);
+        ctx.fillStyle = hexAlpha(sh.color, 0.16);
+        ctx.fillRect(g.x, 12, g.w, state.h - 24);
+        ctx.strokeStyle = hexAlpha(sh.color, 0.8);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(g.x + 0.5, 12.5, g.w - 1, state.h - 25);
+        ctx.fillStyle = sh.color;
+        ctx.fillText(tx(sh.label), g.x, 2);
       }
+      ctx.restore();
     }
 
-    function drawParticle(ctx, f) {
-      const p = f.p;
-      drawTrail(ctx, f);
-      if (p.kind === 'photon') {
-        const v = Math.hypot(f.vx, f.vy) || 1;
-        ctx.strokeStyle = p.color;
-        ctx.lineWidth = 2;
+    function drawDetector(ctx) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.18)';
+      ctx.fillRect(detectorX(), 8, state.w - detectorX(), state.h - 16);
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+      ctx.beginPath();
+      ctx.moveTo(detectorX() + 0.5, 8);
+      ctx.lineTo(detectorX() + 0.5, state.h - 8);
+      ctx.stroke();
+      ctx.font = '9px "Segoe UI", Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = labInk().detector;
+      ctx.translate(state.w - 7, state.h - 14);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(tx(LAB_UI.detector), 0, 0);
+      ctx.restore();
+    }
+
+    function drawNucleus(ctx) {
+      const at = nucleus();
+      const n = labPersist.n;
+      const ink = labInk();
+      ctx.save();
+      const g = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, 40);
+      g.addColorStop(0, 'rgba(255, 70, 50, ' + (0.18 + state.pulse * 0.4).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(255, 70, 50, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(at.x, at.y, 40, 0, Math.PI * 2); ctx.fill();
+
+      const shown = Math.min(20, Math.max(2, Math.round(n.a / 12)));
+      const ratio = n.a > 0 ? n.z / n.a : 0;
+      for (let i = 0; i < shown; i++) {
+        // A deterministic layout per nucleon keeps the cluster from boiling every
+        // frame, which on a slow machine is the difference between 8 and 40 fps.
+        const a = i * 2.399963;
+        const rr = 4 + 9 * Math.sqrt((i + 0.5) / shown);
         ctx.beginPath();
-        ctx.moveTo(f.x - (f.vx / v) * 14, f.y - (f.vy / v) * 14);
-        ctx.lineTo(f.x, f.y);
+        ctx.arc(at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr, 3.4, 0, Math.PI * 2);
+        ctx.fillStyle = ((i * 11) % 100) < ratio * 100 ? '#ff5a4a' : ink.neutron;
+        ctx.fill();
+      }
+      if (state.pulse > 0) {
+        ctx.beginPath();
+        ctx.arc(at.x, at.y, 18 + (1 - state.pulse) * 26, 0, Math.PI * 2);
+        ctx.strokeStyle = hexAlpha('#ff8033', state.pulse.toFixed(3));
+        ctx.lineWidth = 2;
         ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawTrack(ctx, t) {
+      if (t.trail.length > 1) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        for (let i = 1; i < t.trail.length; i++) {
+          ctx.beginPath();
+          ctx.moveTo(t.trail[i - 1].x, t.trail[i - 1].y);
+          ctx.lineTo(t.trail[i].x, t.trail[i].y);
+          ctx.strokeStyle = hexAlpha(t.color, (0.06 + 0.4 * (i / t.trail.length)).toFixed(3));
+          ctx.lineWidth = t.kind === 'alpha' ? 3 : 1.6;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      if (!t.active) return;
+
+      if (t.kind === 'photon') {
+        // No charge, no mass: the photon is drawn as the wave it is.
+        ctx.save();
+        ctx.strokeStyle = t.color;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        for (let i = 0; i <= 22; i++) {
+          const px = t.x - i * 1.6;
+          const py = t.y + Math.sin(t.phase - i * 0.5) * 4;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.restore();
         return;
       }
-      const rg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, p.r * 2.8);
-      rg.addColorStop(0, hexAlpha(p.glow, 0.85));
-      rg.addColorStop(1, hexAlpha(p.color, 0));
-      ctx.fillStyle = rg;
-      ctx.beginPath(); ctx.arc(f.x, f.y, p.r * 2.8, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(f.x, f.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.color; ctx.fill();
-      if (p.kind === 'alpha') {
-        // The bare nucleus reads as two red protons and two grey neutrons.
-        ctx.beginPath(); ctx.arc(f.x - 3.4, f.y - 3.4, 3.1, 0, Math.PI * 2); ctx.fillStyle = '#ff5a4a'; ctx.fill();
-        ctx.beginPath(); ctx.arc(f.x + 3.4, f.y + 3.4, 3.1, 0, Math.PI * 2); ctx.fillStyle = '#c9d3dc'; ctx.fill();
+      if (t.kind === 'neutrino' || t.kind === 'antineutrino') {
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+        ctx.fillStyle = t.color; ctx.fill();
+        ctx.restore();
+        return;
       }
+
+      const rg = ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.size * 2.6);
+      rg.addColorStop(0, hexAlpha(t.glow, 0.8));
+      rg.addColorStop(1, hexAlpha(t.color, 0));
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.size * 2.6, 0, Math.PI * 2); ctx.fill();
+
+      if (t.kind === 'alpha') {
+        // Two protons and two neutrons, so it reads as the cluster it is.
+        const off = 2.8;
+        const neutron = labInk().neutron;
+        const dots = [[-off, -off, '#ff5a4a'], [off, off, '#ff5a4a'], [off, -off, neutron], [-off, off, neutron]];
+        for (const d of dots) {
+          ctx.beginPath(); ctx.arc(t.x + d[0], t.y + d[1], 2.4, 0, Math.PI * 2);
+          ctx.fillStyle = d[2]; ctx.fill();
+        }
+        return;
+      }
+      ctx.beginPath(); ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+      ctx.fillStyle = t.color; ctx.fill();
+      ctx.font = '600 9px "Segoe UI", Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = t.q > 0 ? '#1a1004' : '#061318';
+      ctx.fillText(t.q > 0 ? '+' : '−', t.x, t.y);
+    }
+
+    function drawCaption(ctx) {
+      ctx.save();
+      ctx.font = '10px "Segoe UI", Arial';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = labInk().caption;
+      ctx.textAlign = 'left';
+      ctx.fillText(LAB_WORLD_CM + ' cm ' + tx(LAB_UI.air), 6, state.h - 5);
+      ctx.textAlign = 'right';
+      const b = labPersist.field;
+      ctx.fillText('B = ' + labNum(b, 2) + ' T ' +
+        (Math.abs(b) < 0.02 ? tx(LAB_UI.noField) : (b > 0 ? '⊙' : '✕')), detectorX() - 8, state.h - 5);
+      ctx.restore();
+    }
+
+    function paint() {
+      const ctx = state.ctx;
+      if (!ctx) return;
+      ctx.clearRect(0, 0, state.w, state.h);
+      drawField(ctx);
+      drawNucleus(ctx);
+      drawShields(ctx);
+      drawDetector(ctx);
+      for (const t of state.tracks) drawTrack(ctx, t);
+      ctx.save();
+      for (const s of state.sparks) {
+        ctx.globalAlpha = Math.max(0, s.life);
+        ctx.beginPath(); ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = s.color; ctx.fill();
+      }
+      ctx.restore();
+      drawCaption(ctx);
+    }
+
+    function alive() {
+      return countInFlight() > 0 || state.sparks.length > 0 || state.pulse > 0 || labPersist.auto;
     }
 
     function step(now) {
       if (lab !== state || !state.ctx) { state.raf = 0; return; }
       const dt = Math.min(0.05, Math.max(0, (now - state.last) / 1000));
       state.last = now;
-      const ctx = state.ctx;
-      ctx.clearRect(0, 0, state.w, state.h);
-      drawNucleus(ctx, state.flying.length ? 1 : 0);
-      for (let i = state.flying.length - 1; i >= 0; i--) {
-        const f = state.flying[i];
-        f.x += f.vx * dt;
-        f.y += f.vy * dt;
-        if (f.x < -60 || f.x > state.w + 60 || f.y < -60 || f.y > state.h + 60) { state.flying.splice(i, 1); continue; }
-        drawParticle(ctx, f);
+      state.pulse = Math.max(0, state.pulse - dt * 2.2);
+
+      for (let i = state.tracks.length - 1; i >= 0; i--) {
+        const t = state.tracks[i];
+        stepTrack(t, dt);
+        if (!t.active && t.trail.length === 0) state.tracks.splice(i, 1);
       }
-      state.raf = state.flying.length ? requestAnimationFrame(step) : 0;
+      for (let i = state.sparks.length - 1; i >= 0; i--) {
+        const s = state.sparks[i];
+        s.x += s.vx * dt; s.y += s.vy * dt;
+        s.life -= dt * 2.4;
+        if (s.life <= 0) state.sparks.splice(i, 1);
+      }
+
+      if (labPersist.auto && now >= state.nextAuto) {
+        state.nextAuto = now + 1400 / Math.max(0.25, labPersist.speed);
+        const keys = Object.keys(LAB_MODES);
+        for (let i = 0; i < keys.length; i++) {
+          if (launch(keys[Math.floor(Math.random() * keys.length)])) break;
+        }
+      }
+
+      card.querySelector('.dl-flight').textContent = String(countInFlight());
+      card.querySelector('.dl-cpm').textContent = String(cpm());
+      paint();
+      state.raf = alive() ? requestAnimationFrame(step) : 0;
     }
 
-    card.addEventListener('click', function (event) {
-      const btn = event.target.closest('.dl-btn');
-      if (btn) {
-        state.key = btn.dataset.decay;
-        card.querySelectorAll('.dl-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
-        paint();
-        launch();
-        return;
-      }
-      if (event.target === canvas) launch();
-    });
+    function countInFlight() {
+      let k = 0;
+      for (const t of state.tracks) if (t.active) k++;
+      return k;
+    }
+
+    function kick() {
+      if (!state.raf) { state.last = performance.now(); state.raf = requestAnimationFrame(step); }
+    }
+
+    // One frame, for when the picture changed but nothing is flying.
+    function render() {
+      if (state.raf) return;
+      state.last = performance.now();
+      step(state.last);
+    }
 
     state.resize = function () {
       if (lab !== state) return;
       const rect = canvas.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) return;
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
+      state.dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(rect.width * state.dpr);
+      canvas.height = Math.round(rect.height * state.dpr);
       state.w = rect.width;
       state.h = rect.height;
       state.ctx = canvas.getContext('2d');
-      state.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      step(performance.now());
+      state.ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+      render();
     };
 
-    const first = card.querySelector('.dl-btn');
-    if (first) first.classList.add('active');
-    paint();
+    card.addEventListener('click', function (event) {
+      const btn = event.target.closest('.dl-btn');
+      if (btn) {
+        labPersist.mode = btn.dataset.decay;
+        card.querySelectorAll('.dl-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+        paintNucleus();
+        launch(btn.dataset.decay);
+        return;
+      }
+      const tab = event.target.closest('.dl-tab');
+      if (tab) {
+        const theory = tab.dataset.tab === 'theory';
+        card.querySelectorAll('.dl-tab').forEach(function (b) { b.classList.toggle('active', b === tab); });
+        card.querySelector('.dl-panel-controls').hidden = theory;
+        card.querySelector('.dl-panel-theory').hidden = !theory;
+        return;
+      }
+      const act = event.target.closest('[data-act]');
+      if (act && act.dataset.act === 'reset') {
+        labPersist.n = { a: LAB_START.a, z: LAB_START.z };
+        labPersist.decays = 0;
+        state.shots = 0;
+        state.tracks = [];
+        state.sparks = [];
+        state.pulse = 0;
+        state.clicks.length = 0;
+        paintNucleus();
+        addLog(nuclideText(labPersist.n) + ' · ' + tx(LAB_UI.resetMsg));
+        render();
+        return;
+      }
+      if (act && act.dataset.act === 'clear-log') {
+        labPersist.log.length = 0;
+        paintLog();
+        return;
+      }
+      if (event.target === canvas) {
+        const keys = Object.keys(LAB_MODES);
+        launch(keys[Math.floor(Math.random() * keys.length)]);
+      }
+    });
+
+    card.addEventListener('input', function (event) {
+      const el = event.target;
+      if (el.dataset.act === 'field') {
+        labPersist.field = Number(el.value);
+        card.querySelector('.dl-field-v').textContent = labNum(labPersist.field, 2, true) + ' T';
+        kick();
+      } else if (el.dataset.act === 'speed') {
+        labPersist.speed = Number(el.value);
+        card.querySelector('.dl-speed-v').textContent = '×' + labPersist.speed.toFixed(2);
+      }
+    });
+
+    card.addEventListener('change', function (event) {
+      const el = event.target;
+      if (el.dataset.shield) {
+        labPersist.shields[el.dataset.shield] = el.checked;
+        render();
+      } else if (el.dataset.act === 'trails') {
+        labPersist.trails = el.checked;
+        if (!el.checked) for (const t of state.tracks) t.trail.length = 0;
+        kick();
+      } else if (el.dataset.act === 'auto') {
+        // Turning it on has to act now, not only arm it for later.
+        labPersist.auto = el.checked;
+        state.nextAuto = performance.now() + 300;
+        if (el.checked) kick();
+        else render();
+      }
+    });
+
+    card.querySelectorAll('.dl-btn').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.decay === labPersist.mode);
+    });
+    card.querySelector('.dl-field-v').textContent = labNum(labPersist.field, 2, true) + ' T';
+    card.querySelector('.dl-speed-v').textContent = '×' + labPersist.speed.toFixed(2);
+    paintNucleus();
+    paintLog();
     state.resize();
-    launch();
+    kick();
     window.addEventListener('resize', state.resize);
   }
 
@@ -767,7 +1389,9 @@
     if (!lab) return;
     if (lab.raf) cancelAnimationFrame(lab.raf);
     lab.raf = 0;
-    lab.flying = [];
+    lab.tracks = [];
+    lab.sparks = [];
+    labPersist.auto = false;
     if (lab.resize) window.removeEventListener('resize', lab.resize);
     lab = null;
   }
@@ -1312,24 +1936,96 @@
         font-weight: 600;
         font-size: 14px;
       }
+      .dl-mini {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 9px;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--g-muted);
+        background: var(--g-fill-strong);
+        border: 1px solid var(--g-line);
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .dl-mini:hover { color: var(--g-accent); border-color: var(--g-accent); }
+      .dl-log-head .dl-mini { margin-left: auto; }
       .dl-hint {
         margin: 6px 0 10px;
         color: var(--g-muted);
         font-size: 12.5px;
         line-height: 1.5;
       }
+      /* Nuclide badge: mass number over atomic number, the chart-of-nuclides
+         convention, next to the symbol the reader is meant to recognise. */
+      .dl-hud {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        margin-bottom: 10px;
+        background: var(--g-fill);
+        border: 1px solid var(--g-line);
+        border-radius: 8px;
+      }
+      .dl-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        line-height: 1.05;
+        padding: 2px 6px;
+        border-right: 1px solid var(--g-line);
+      }
+      .dl-badge .dl-a { font-size: 15px; font-weight: 700; color: var(--g-text); }
+      .dl-badge .dl-z { font-size: 12px; font-style: normal; color: var(--g-accent); }
+      .dl-sym {
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--g-text);
+        letter-spacing: 0.01em;
+        min-width: 42px;
+      }
+      .dl-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .dl-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--g-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dl-sub { font-size: 11px; color: var(--g-muted); }
+      .dl-sub .dl-n { font-style: normal; }
+      .dl-live {
+        margin-left: auto;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        font-size: 11px;
+        color: var(--g-muted);
+      }
+      .dl-cpm { font-size: 20px; font-weight: 700; color: var(--g-accent); font-variant-numeric: tabular-nums; }
+      .dl-tally { display: flex; gap: 7px; flex-basis: 100%; justify-content: flex-end; }
+      .dl-tally i { font-style: normal; color: var(--g-text); font-variant-numeric: tabular-nums; }
+      .dl-u { font-size: 10.5px; }
       .dl-canvas {
         display: block;
         width: 100%;
         aspect-ratio: 16 / 7;
-        min-height: 120px;
+        min-height: 130px;
         border-radius: 6px;
-        background: radial-gradient(circle at 33% 50%, rgba(255, 60, 50, 0.10), transparent 62%), var(--g-fill);
+        background: radial-gradient(circle at 15% 50%, rgba(255, 60, 50, 0.12), transparent 60%),
+          radial-gradient(circle at 97% 50%, rgba(148, 163, 184, 0.1), transparent 26%), var(--g-fill);
         border: 1px solid var(--g-line);
         cursor: pointer;
         touch-action: manipulation;
       }
-      .dl-buttons {
+      .dl-modes {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
@@ -1337,10 +2033,10 @@
       }
       .dl-btn {
         flex: 1 1 auto;
-        min-width: 74px;
-        padding: 6px 8px;
-        font-size: 12px;
-        font-weight: 600;
+        min-width: 56px;
+        padding: 7px 8px;
+        font-size: 13px;
+        font-weight: 700;
         color: var(--g-muted);
         background: var(--g-fill-strong);
         border: 1px solid var(--g-line);
@@ -1353,6 +2049,86 @@
         background: var(--dl-c);
         border-color: var(--dl-c);
         color: #0b1220;
+        box-shadow: 0 0 0 1px var(--dl-c) inset;
+      }
+      .dl-tabs {
+        display: flex;
+        gap: 6px;
+        margin-top: 12px;
+        border-bottom: 1px solid var(--g-line);
+      }
+      .dl-tab {
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--g-muted);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .dl-tab:hover { color: var(--g-text); }
+      .dl-tab.active { color: var(--g-accent); border-bottom-color: var(--g-accent); }
+      .dl-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 10px;
+      }
+      .dl-panel[hidden] { display: none; }
+      .dl-group { display: flex; flex-direction: column; gap: 5px; }
+      .dl-label {
+        font-size: 11.5px;
+        color: var(--g-muted);
+        letter-spacing: 0.02em;
+      }
+      .dl-label b { color: var(--g-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+      .dl-range {
+        width: 100%;
+        accent-color: var(--g-accent);
+        cursor: pointer;
+      }
+      .dl-switches { display: flex; flex-wrap: wrap; gap: 6px; }
+      .dl-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 9px;
+        font-size: 11.5px;
+        color: var(--g-muted);
+        background: var(--g-fill);
+        border: 1px solid var(--g-line);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .dl-switch input { accent-color: var(--dl-c, var(--g-accent)); margin: 0; cursor: pointer; }
+      .dl-switch:hover { color: var(--g-text); }
+      .dl-switch:has(input:checked) {
+        color: var(--g-text);
+        background: var(--g-fill-strong);
+        border-color: var(--dl-c, var(--g-accent));
+      }
+      .dl-card {
+        padding: 9px 11px;
+        background: var(--g-fill);
+        border: 1px solid var(--g-line);
+        border-left: 3px solid var(--dl-c);
+        border-radius: 6px;
+      }
+      .dl-card b { font-size: 12.5px; color: var(--dl-c); }
+      .dl-card-eq {
+        margin: 5px 0;
+        font-size: 13.5px;
+        line-height: 1.9;
+        color: var(--g-text);
+      }
+      .dl-card p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--g-muted);
       }
       .dl-readout {
         display: grid;
@@ -1381,6 +2157,24 @@
         color: var(--g-text);
         overflow-wrap: anywhere;
       }
+      .dl-equation {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px;
+        margin-top: 8px;
+        padding: 8px 10px;
+        background: var(--g-fill);
+        border: 1px solid var(--g-line);
+        border-radius: 6px;
+      }
+      .dl-equation > span {
+        font-size: 10.5px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      .dl-eq { font-size: 14px; color: var(--g-text); overflow-wrap: anywhere; }
       .dl-balance {
         display: flex;
         align-items: center;
@@ -1393,13 +2187,67 @@
       }
       .dl-balance.ok { color: #35d39a; background: rgba(53, 211, 154, 0.09); border-color: rgba(53, 211, 154, 0.35); }
       .dl-balance.bad { color: #ff6b6b; background: rgba(255, 107, 107, 0.09); border-color: rgba(255, 107, 107, 0.35); }
+      .dl-log-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        font-size: 10.5px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      .dl-log {
+        margin-top: 6px;
+        max-height: 132px;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: var(--g-line) transparent;
+        border: 1px solid var(--g-line);
+        border-radius: 6px;
+        background: var(--g-fill-faint);
+        padding: 6px 8px;
+      }
+      .dl-log-row {
+        font-family: ui-monospace, Consolas, Menlo, monospace;
+        font-size: 11px;
+        line-height: 1.55;
+        color: var(--g-text);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .dl-foot {
+        margin: 8px 0 0;
+        font-size: 10.5px;
+        line-height: 1.5;
+        color: var(--g-muted);
+        opacity: 0.85;
+      }
       html[data-theme="light"] .dl-balance.ok { color: #0f7a52; background: rgba(15, 122, 82, 0.08); }
       html[data-theme="light"] .dl-balance.bad { color: #b02a2a; background: rgba(176, 42, 42, 0.08); }
       html[data-theme="light"] .dl-btn.active { color: #ffffff; }
+      html[data-theme="light"] .dl-canvas {
+        background: radial-gradient(circle at 15% 50%, rgba(255, 60, 50, 0.1), transparent 60%),
+          radial-gradient(circle at 97% 50%, rgba(100, 116, 139, 0.12), transparent 26%), #f4f7fd;
+      }
+      html[data-theme="light"] .dl-log-row { color: #16233a; }
+      /* Shrinks the lab in proportion instead of reflowing it, so the canvas and
+         the live counters keep dominating the card on a phone. */
       @media (max-width: 520px) {
+        .decay-lab { padding: 9px; }
+        .dl-hud { gap: 7px; padding: 6px 8px; }
+        .dl-sym { font-size: 21px; min-width: 34px; }
+        .dl-name { font-size: 12px; }
+        .dl-cpm { font-size: 17px; }
+        .dl-btn { min-width: 44px; padding: 6px 5px; font-size: 12px; }
+        .dl-tab { padding: 6px 8px; font-size: 11px; }
         .dl-readout { grid-template-columns: 1fr 1fr; }
         .dl-readout .dl-col:last-child { grid-column: 1 / -1; }
-        .dl-canvas { aspect-ratio: 4 / 3; }
+        .dl-canvas { aspect-ratio: 4 / 3; min-height: 190px; }
+        .dl-log { max-height: 108px; }
+        .dl-log-row { font-size: 10px; }
       }
       @media (max-width: 768px) {
         .guide-card {

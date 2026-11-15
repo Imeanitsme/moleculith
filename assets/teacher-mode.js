@@ -16,6 +16,14 @@
     return mant + '×10' + String(exp).split('').map((c) => SUP[c] || c).join('');
   }
 
+  // An atom count sits below the symbol, the way a formula is written; 2 is the
+  // only count a calculator ever needs to raise in practice, but every digit maps.
+  function subDigits(n) {
+    const SUB = { 0: "\u2080", 1: "\u2081", 2: "\u2082", 3: "\u2083", 4: "\u2084",
+      5: "\u2085", 6: "\u2086", 7: "\u2087", 8: "\u2088", 9: "\u2089" };
+    return String(n).split("").map(function (d) { return SUB[d] || d; }).join("");
+  }
+
   // ---------- Internationalization ----------
   const I18N = {
     en: {
@@ -44,13 +52,13 @@
       selectAnswer: "Please select an answer",
       correct: "Correct!",
       incorrect: "Incorrect.",
-      enterFormula: "Enter a formula (e.g., H2O)",
+      enterFormula: "Enter a formula (e.g., H\u2082O)",
       unknownElement: "Unknown element:",
       invalidFormula: "Invalid formula",
       molarMass: "Molar mass:",
       atomsIn: "atoms",
       atomOne: "atom",
-      gPerMol: "g/mol",
+      gPerMol: "g\u00b7mol\u207B\u00B9",
       langBtn: "Tiếng Việt",
       lesson: "Lesson",
       min: "min",
@@ -127,7 +135,7 @@
       molarMass: "Khối lượng mol:",
       atomsIn: "nguyên tử",
       atomOne: "nguyên tử",
-      gPerMol: "g/mol",
+      gPerMol: "g\u00b7mol\u207B\u00B9",
       langBtn: "English",
       lesson: "Bài",
       min: "phút",
@@ -336,7 +344,7 @@
 <li><b>Ionisation energy</b> and <b>electronegativity</b> do the opposite: up and to the right.</li>
 <li><b>Metallic character</b> grows toward the lower left; fluorine is the most electronegative element, francium the least.</li>
 </ul>
-<div class="formula">Z_eff ≈ Z − S&nbsp;&nbsp;(effective nuclear charge after shielding)</div>
+<div class="formula">Z<sub>eff</sub> ≈ Z − S&nbsp;&nbsp;(effective nuclear charge after shielding)</div>
 <p>Down a group, added shells shield the nucleus; across a period, protons are added without new shielding, so the pull tightens.</p>`, `
 <h3>Vì sao bảng có hình dạng như vậy</h3>
 <p>Chu kỳ điền thêm lớp; nhóm có cùng số electron hóa trị nên có tính chất tương tự nhau.</p>
@@ -345,7 +353,7 @@
 <li><b>Năng lượng ion hóa</b> và <b>độ âm điện</b> ngược lại: tăng lên trên và sang phải.</li>
 <li><b>Tính kim loại</b> tăng về góc dưới-trái; flo có độ âm điện lớn nhất, franhi nhỏ nhất.</li>
 </ul>
-<div class="formula">Z_eff ≈ Z − S&nbsp;&nbsp;(điện tích hạt nhân hiệu dụng sau khi chắn)</div>
+<div class="formula">Z<sub>eff</sub> ≈ Z − S&nbsp;&nbsp;(điện tích hạt nhân hiệu dụng sau khi chắn)</div>
 <p>Xuống dưới, thêm lớp chắn hạt nhân; sang phải, thêm proton mà không thêm lớp chắn nên lực hút mạnh hơn.</p>`)
         }
       ],
@@ -372,8 +380,8 @@
           opts: [L('Down and left', 'Xuống dưới và sang trái'), L('Up and right', 'Lên trên và sang phải'),
                  L('Straight down a group', 'Thẳng xuống một nhóm'), L('It never varies', 'Không thay đổi')],
           a: 1,
-          ex: L('Larger Z_eff and smaller radius hold electrons tighter: up and to the right.',
-                'Z_eff lớn hơn và bán kính nhỏ hơn giữ electron chặt hơn: lên trên và sang phải.')
+          ex: L('Larger Z<sub>eff</sub> and smaller radius hold electrons tighter: up and to the right.',
+                'Z<sub>eff</sub> lớn hơn và bán kính nhỏ hơn giữ electron chặt hơn: lên trên và sang phải.')
         }
       ]
     },
@@ -506,16 +514,16 @@
           duration: 11,
           body: L(`
 <h3>Counting atoms by weighing them</h3>
-<p>One mole contains exactly 6.02214076×10²³ entities (Avogadro's constant Nₐ). Molar mass in g/mol numerically equals atomic or formula mass in u.</p>
+<p>One mole contains exactly 6.02214076×10²³ entities (Avogadro's constant Nₐ). Molar mass in g·mol⁻¹ numerically equals atomic or formula mass in u.</p>
 <div class="formula">n = m / M&nbsp;&nbsp;&nbsp;n = N / Nₐ&nbsp;&nbsp;&nbsp;n = C·V&nbsp;&nbsp;&nbsp;gas at STP: n = V / 22.4 L</div>
 <p>Balanced coefficients are mole ratios. Read the equation as "2 molecules of hydrogen per 1 of oxygen", then scale to any amount.</p>
-<div class="example">How much CaO from 100 g CaCO₃? M(CaCO₃)=100.1 g/mol → 0.999 mol. 1:1 ratio, M(CaO)=56.1 g/mol → 56.0 g.</div>
+<div class="example">How much CaO from 100 g CaCO₃? M(CaCO₃)=100.1 g·mol⁻¹ → 0.999 mol. 1:1 ratio, M(CaO)=56.1 g·mol⁻¹ → 56.0 g.</div>
 <p>The <b>limiting reagent</b> is the reactant exhausted first; everything else is in excess and cannot react further.</p>`, `
 <h3>Đếm nguyên tử bằng cách cân</h3>
-<p>Một mol chứa đúng 6,02214076×10²³ thực thể (hằng số Avogadro Nₐ). Khối lượng mol theo g/mol bằng giá trị khối lượng nguyên tử hay công thức tính theo u.</p>
+<p>Một mol chứa đúng 6,02214076×10²³ thực thể (hằng số Avogadro Nₐ). Khối lượng mol theo g·mol⁻¹ bằng giá trị khối lượng nguyên tử hay công thức tính theo u.</p>
 <div class="formula">n = m / M&nbsp;&nbsp;&nbsp;n = N / Nₐ&nbsp;&nbsp;&nbsp;n = C·V&nbsp;&nbsp;&nbsp;khí ở đktc: n = V / 22,4 L</div>
 <p>Hệ số cân bằng chính là tỉ lệ mol. Hãy đọc "2 phân tử hydro với 1 phân tử oxi" rồi nhân lên mọi lượng.</p>
-<div class="example">Bao nhiêu CaO từ 100 g CaCO₃? M(CaCO₃)=100,1 g/mol → 0,999 mol. Tỉ lệ 1:1, M(CaO)=56,1 g/mol → 56,0 g.</div>
+<div class="example">Bao nhiêu CaO từ 100 g CaCO₃? M(CaCO₃)=100,1 g·mol⁻¹ → 0,999 mol. Tỉ lệ 1:1, M(CaO)=56,1 g·mol⁻¹ → 56,0 g.</div>
 <p><b>Chất giới hạn</b> là chất hết trước; các chất khác dư và không phản ứng tiếp được.</p>`)
         },
         {
@@ -666,7 +674,7 @@
           body: L(`
 <h3>How fast, and why</h3>
 <p>Reaction rate is the change in concentration per unit time. Rates come from molecular collisions that carry enough energy and the right orientation.</p>
-<div class="formula">v = k [A]^m [B]^n&nbsp;&nbsp;&nbsp;(orders m, n are measured, not read off the equation)</div>
+<div class="formula">v = k [A]<sup>m</sup> [B]<sup>n</sup>&nbsp;&nbsp;&nbsp;(orders m, n are measured, not read off the equation)</div>
 <p>Overall order is m + n. Doubling [A] and watching the rate quadruple means second order in A.</p>
 <ul>
 <li>Higher concentration or pressure → more collisions per second.</li>
@@ -675,7 +683,7 @@
 </ul>`, `
 <h3>Tốc độ và nguyên nhân</h3>
 <p>Tốc độ phản ứng là biến thiên nồng độ theo thời gian. Tốc độ đến từ các va chạm đủ năng lượng và đúng hướng.</p>
-<div class="formula">v = k [A]^m [B]^n&nbsp;&nbsp;&nbsp;(bậc m, n phải đo, không đọc từ phương trình)</div>
+<div class="formula">v = k [A]<sup>m</sup> [B]<sup>n</sup>&nbsp;&nbsp;&nbsp;(bậc m, n phải đo, không đọc từ phương trình)</div>
 <p>Bậc tổng là m + n. Tăng [A] gấp đôi mà tốc độ tăng gấp bốn nghĩa là bậc hai theo A.</p>
 <ul>
 <li>Nồng độ hoặc áp suất cao hơn → nhiều va chạm hơn mỗi giây.</li>
@@ -688,19 +696,19 @@
           duration: 9,
           body: L(`
 <h3>The barrier every reaction must cross</h3>
-<p>Reactants must reach a high-energy transition state. The minimum energy required is the activation energy Ea.</p>
-<div class="formula">k = A · e^(−Ea / RT)</div>
-<p>A is the collision frequency and orientation factor. Because Ea appears in an exponent, a small temperature rise produces a large rate jump.</p>
+<p>Reactants must reach a high-energy transition state. The minimum energy required is the activation energy E<sub>a</sub>.</p>
+<div class="formula">k = A·e<sup>−E<sub>a</sub>/RT</sup></div>
+<p>A is the collision frequency and orientation factor. Because E<sub>a</sub> appears in an exponent, a small temperature rise produces a large rate jump.</p>
 <div class="example">Rule of thumb: near room temperature many reactions roughly double per 10 K.</div>
-<div class="formula">ln(k₂/k₁) = (Ea / R) · (1/T₁ − 1/T₂)</div>
-<p>Plot ln k against 1/T: the slope is −Ea/R, which is how Ea is measured.</p>`, `
+<div class="formula">ln(k₂/k₁) = (E<sub>a</sub> / R) · (1/T₁ − 1/T₂)</div>
+<p>Plot ln k against 1/T: the slope is −E<sub>a</sub>/R, which is how E<sub>a</sub> is measured.</p>`, `
 <h3>Rào cản mọi phản ứng phải vượt</h3>
-<p>Chất đầu phải đạt trạng thái chuyển tiếp năng lượng cao. Năng lượng tối thiểu cần thiết là năng lượng hoạt hóa Ea.</p>
-<div class="formula">k = A · e^(−Ea / RT)</div>
-<p>A là tần số va chạm và hệ số định hướng. Vì Ea nằm ở số mũ, tăng nhiệt độ nhỏ làm tốc độ nhảy vọt.</p>
+<p>Chất đầu phải đạt trạng thái chuyển tiếp năng lượng cao. Năng lượng tối thiểu cần thiết là năng lượng hoạt hóa E<sub>a</sub>.</p>
+<div class="formula">k = A·e<sup>−E<sub>a</sub>/RT</sup></div>
+<p>A là tần số va chạm và hệ số định hướng. Vì E<sub>a</sub> nằm ở số mũ, tăng nhiệt độ nhỏ làm tốc độ nhảy vọt.</p>
 <div class="example">Kinh nghiệm: gần nhiệt độ phòng, nhiều phản ứng tăng gấp đôi mỗi 10 K.</div>
-<div class="formula">ln(k₂/k₁) = (Ea / R) · (1/T₁ − 1/T₂)</div>
-<p>Vẽ ln k theo 1/T: hệ số góc là −Ea/R, đây là cách đo Ea.</p>`)
+<div class="formula">ln(k₂/k₁) = (E<sub>a</sub> / R) · (1/T₁ − 1/T₂)</div>
+<p>Vẽ ln k theo 1/T: hệ số góc là −E<sub>a</sub>/R, đây là cách đo E<sub>a</sub>.</p>`)
         },
         {
           title: L('Equilibrium and Le Chatelier', 'Cân bằng và nguyên lý Le Chatelier'),
@@ -708,14 +716,14 @@
           body: L(`
 <h3>Two opposite rates becoming equal</h3>
 <p>In a closed vessel the forward and reverse reactions both run. When their rates match, concentrations stop changing: dynamic equilibrium.</p>
-<div class="formula">Kc = [C]^c [D]^d / ([A]^a [B]^b)&nbsp;&nbsp;&nbsp;pure solids and liquids are omitted</div>
-<p>K &gt;&gt; 1 favours products; K &lt;&lt; 1 favours reactants. A catalyst speeds both directions equally and never changes K.</p>
+<div class="formula">K<sub>c</sub> = [C]<sup>c</sup> [D]<sup>d</sup> / ([A]<sup>a</sup> [B]<sup>b</sup>)&nbsp;&nbsp;&nbsp;pure solids and liquids are omitted</div>
+<p>K ≫ 1 favours products; K ≪ 1 favours reactants. A catalyst speeds both directions equally and never changes K.</p>
 <p><b>Le Chatelier</b>: stress the system and it shifts to relieve it — more reactant pushes right, higher pressure favours fewer gas moles, heating favours the endothermic direction.</p>
 <div class="example">Haber process N₂ + 3 H₂ ⇌ 2 NH₃: high pressure helps (4 gas moles → 2), but the reaction is exothermic, so temperature is a compromise between yield and rate.</div>`, `
 <h3>Hai tốc độ ngược nhau trở nên bằng nhau</h3>
 <p>Trong bình kín, phản ứng thuận và nghịch cùng chạy. Khi tốc độ bằng nhau, nồng độ không đổi: cân bằng động.</p>
-<div class="formula">Kc = [C]^c [D]^d / ([A]^a [B]^b)&nbsp;&nbsp;&nbsp;bỏ qua rắn và lỏng nguyên chất</div>
-<p>K &gt;&gt; 1 ngả về sản phẩm; K &lt;&lt; 1 ngả về chất đầu. Xúc tác tăng cả hai chiều như nhau và không đổi K.</p>
+<div class="formula">K<sub>c</sub> = [C]<sup>c</sup> [D]<sup>d</sup> / ([A]<sup>a</sup> [B]<sup>b</sup>)&nbsp;&nbsp;&nbsp;bỏ qua rắn và lỏng nguyên chất</div>
+<p>K ≫ 1 ngả về sản phẩm; K ≪ 1 ngả về chất đầu. Xúc tác tăng cả hai chiều như nhau và không đổi K.</p>
 <p><b>Le Chatelier</b>: hệ chịu tác động sẽ dịch chuyển để chống lại tác động — thêm chất đầu dịch phải, tăng áp suất ngả về phía ít mol khí, tăng nhiệt ngả về chiều thu nhiệt.</p>
 <div class="example">Tổng hợp amoniac N₂ + 3 H₂ ⇌ 2 NH₃: áp suất cao có lợi (4 mol khí → 2), nhưng phản ứng tỏa nhiệt nên nhiệt độ là thỏa hiệp giữa hiệu suất và tốc độ.</div>`)
         }
@@ -733,7 +741,7 @@
           opts: [L('Raising the temperature', 'Tăng nhiệt độ'),
                  L('Lowering the activation energy', 'Giảm năng lượng hoạt hóa'),
                  L('Consuming a reactant', 'Tiêu thụ chất đầu'),
-                 L('Changing Kc', 'Thay đổi Kc')],
+                 L('Changing K<sub>c</sub>', 'Thay đổi K<sub>c</sub>')],
           a: 1,
           ex: L('It opens a lower-energy pathway and is regenerated.',
                 'Nó mở con đường năng lượng thấp hơn và được tái sinh.')
@@ -782,13 +790,13 @@
           body: L(`
 <h3>Counting particles, not identity</h3>
 <p>Solute particles change vapour pressure, boiling point, freezing point and osmotic pressure in proportion to their number, regardless of what they are.</p>
-<div class="formula">ΔTb = i·Kb·m&nbsp;&nbsp;&nbsp;ΔTf = i·Kf·m&nbsp;&nbsp;&nbsp;π = i·M·R·T</div>
+<div class="formula">ΔT<sub>b</sub> = i·K<sub>b</sub>·m&nbsp;&nbsp;&nbsp;ΔT<sub>f</sub> = i·K<sub>f</sub>·m&nbsp;&nbsp;&nbsp;π = i·M·R·T</div>
 <p>i is the van ’t Hoff factor — the number of particles each formula unit gives. NaCl ideally gives i = 2, CaCl₂ gives 3, glucose stays 1.</p>
 <div class="example">Salt on icy roads works because ΔTf pushes the freezing point below 0 °C.</div>
 <p>Gases become less soluble as temperature rises; solids usually more. Pressure raises gas solubility (Henry’s law) but hardly affects solids.</p>`, `
 <h3>Đếm hạt, không đếm danh tính</h3>
 <p>Hạt chất tan làm thay đổi áp suất hơi, nhiệt độ sôi, nhiệt độ đông đặc và áp suất thẩm thấu theo số lượng, bất kể bản chất.</p>
-<div class="formula">ΔTb = i·Kb·m&nbsp;&nbsp;&nbsp;ΔTf = i·Kf·m&nbsp;&nbsp;&nbsp;π = i·M·R·T</div>
+<div class="formula">ΔT<sub>b</sub> = i·K<sub>b</sub>·m&nbsp;&nbsp;&nbsp;ΔT<sub>f</sub> = i·K<sub>f</sub>·m&nbsp;&nbsp;&nbsp;π = i·M·R·T</div>
 <p>i là hệ số van ’t Hoff — số hạt mỗi đơn vị công thức tạo ra. NaCl lý tưởng i = 2, CaCl₂ bằng 3, glucose bằng 1.</p>
 <div class="example">Rắc muối lên đường đóng băng vì ΔTf hạ điểm đông dưới 0 °C.</div>
 <p>Khí kém tan hơn khi nhiệt độ tăng; rắn thường tan nhiều hơn. Áp suất tăng độ tan của khí (định luật Henry) nhưng gần như không ảnh hưởng rắn.</p>`)
@@ -825,38 +833,38 @@
       sim: 'ph-calc',
       lessons: [
         {
-          title: L('pH, Kw and Strength', 'pH, Kw và độ mạnh'),
+          title: L('pH, K<sub>w</sub> and Strength', 'pH, K<sub>w</sub> và độ mạnh'),
           duration: 9,
           body: L(`
 <h3>The logarithmic scale</h3>
-<p>Water auto-ionises: 2 H₂O ⇌ H₃O⁺ + OH⁻, with Kw = [H₃O⁺][OH⁻] = 1.0×10⁻¹⁴ at 25 °C.</p>
+<p>Water auto-ionises: 2 H₂O ⇌ H₃O⁺ + OH⁻, with K<sub>w</sub> = [H₃O⁺][OH⁻] = 1.0×10⁻¹⁴ at 25 °C.</p>
 <div class="formula">pH = −log[H₃O⁺]&nbsp;&nbsp;&nbsp;pOH = −log[OH⁻]&nbsp;&nbsp;&nbsp;pH + pOH = 14</div>
-<p>A <b>strong</b> acid dissociates completely, so [H⁺] equals its analytical concentration. A <b>weak</b> acid dissociates partly and needs Ka.</p>
-<div class="example">0.010 M HCl gives pH 2.00. 0.010 M CH₃COOH with Ka = 1.8×10⁻⁵ gives [H⁺] = √(Ka·C) ≈ 4.2×10⁻⁴, pH 3.37.</div>`, `
+<p>A <b>strong</b> acid dissociates completely, so [H⁺] equals its analytical concentration. A <b>weak</b> acid dissociates partly and needs K<sub>a</sub>.</p>
+<div class="example">0.010 M HCl gives pH 2.00. 0.010 M CH₃COOH with K<sub>a</sub> = 1.8×10⁻⁵ gives [H⁺] = √(K<sub>a</sub>·C) ≈ 4.2×10⁻⁴, pH 3.37.</div>`, `
 <h3>Thang logarithmic</h3>
-<p>Nước tự ion hóa: 2 H₂O ⇌ H₃O⁺ + OH⁻, với Kw = [H₃O⁺][OH⁻] = 1,0×10⁻¹⁴ ở 25 °C.</p>
+<p>Nước tự ion hóa: 2 H₂O ⇌ H₃O⁺ + OH⁻, với K<sub>w</sub> = [H₃O⁺][OH⁻] = 1,0×10⁻¹⁴ ở 25 °C.</p>
 <div class="formula">pH = −log[H₃O⁺]&nbsp;&nbsp;&nbsp;pOH = −log[OH⁻]&nbsp;&nbsp;&nbsp;pH + pOH = 14</div>
-<p>Axit <b>mạnh</b> phân ly hoàn toàn nên [H⁺] bằng nồng độ phân tích. Axit <b>yếu</b> phân ly một phần, cần Ka.</p>
-<div class="example">HCl 0,010 M cho pH 2,00. CH₃COOH 0,010 M với Ka = 1,8×10⁻⁵ cho [H⁺] = √(Ka·C) ≈ 4,2×10⁻⁴, pH 3,37.</div>`)
+<p>Axit <b>mạnh</b> phân ly hoàn toàn nên [H⁺] bằng nồng độ phân tích. Axit <b>yếu</b> phân ly một phần, cần K<sub>a</sub>.</p>
+<div class="example">HCl 0,010 M cho pH 2,00. CH₃COOH 0,010 M với K<sub>a</sub> = 1,8×10⁻⁵ cho [H⁺] = √(K<sub>a</sub>·C) ≈ 4,2×10⁻⁴, pH 3,37.</div>`)
         },
         {
           title: L('Equilibria of Weak Acids', 'Cân bằng của axit yếu'),
           duration: 10,
           body: L(`
-<h3>Ka, Kb and the ICE table</h3>
+<h3>K<sub>a</sub>, K<sub>b</sub> and the ICE table</h3>
 <p>Write Initial, Change, Equilibrium concentrations and substitute into the equilibrium expression.</p>
-<div class="formula">Ka = [H⁺][A⁻] / [HA]&nbsp;&nbsp;&nbsp;Ka · Kb = Kw for a conjugate pair</div>
-<p>Smaller pKa means a stronger acid. A weak acid’s conjugate base is weakly basic, which is why sodium acetate solutions are slightly alkaline.</p>
-<div class="example">Ethanoic acid pKa = 4.76, so at pH 4.76 exactly half of it is deprotonated.</div>
+<div class="formula">K<sub>a</sub> = [H⁺][A⁻] / [HA]&nbsp;&nbsp;&nbsp;K<sub>a</sub> · K<sub>b</sub> = K<sub>w</sub> for a conjugate pair</div>
+<p>Smaller pK<sub>a</sub> means a stronger acid. A weak acid’s conjugate base is weakly basic, which is why sodium acetate solutions are slightly alkaline.</p>
+<div class="example">Ethanoic acid pK<sub>a</sub> = 4.76, so at pH 4.76 exactly half of it is deprotonated.</div>
 <p><b>Buffers</b> resist pH change because a weak acid and its conjugate base are both present. Henderson–Hasselbalch:</p>
-<div class="formula">pH = pKa + log([A⁻]/[HA])</div>`, `
-<h3>Ka, Kb và bảng ICE</h3>
+<div class="formula">pH = pK<sub>a</sub> + log([A⁻]/[HA])</div>`, `
+<h3>K<sub>a</sub>, K<sub>b</sub> và bảng ICE</h3>
 <p>Viết nồng độ ban đầu, biến thiên và cân bằng rồi thế vào biểu thức cân bằng.</p>
-<div class="formula">Ka = [H⁺][A⁻] / [HA]&nbsp;&nbsp;&nbsp;Ka · Kb = Kw cho một cặp liên hợp</div>
-<p>pKa nhỏ hơn nghĩa là axit mạnh hơn. Base liên hợp của axit yếu là base yếu, nên dung dịch natri acetat hơi kiềm.</p>
-<div class="example">Axit ethanoic pKa = 4,76, tại pH 4,76 đúng một nửa lượng axit đã cho proton.</div>
+<div class="formula">K<sub>a</sub> = [H⁺][A⁻] / [HA]&nbsp;&nbsp;&nbsp;K<sub>a</sub> · K<sub>b</sub> = K<sub>w</sub> cho một cặp liên hợp</div>
+<p>pK<sub>a</sub> nhỏ hơn nghĩa là axit mạnh hơn. Base liên hợp của axit yếu là base yếu, nên dung dịch natri acetat hơi kiềm.</p>
+<div class="example">Axit ethanoic pK<sub>a</sub> = 4,76, tại pH 4,76 đúng một nửa lượng axit đã cho proton.</div>
 <p><b>Dung dịch đệm</b> chống đổi pH vì có mặt cả axit yếu và base liên hợp. Henderson–Hasselbalch:</p>
-<div class="formula">pH = pKa + log([A⁻]/[HA])</div>`)
+<div class="formula">pH = pK<sub>a</sub> + log([A⁻]/[HA])</div>`)
         },
         {
           title: L('Neutralisation and Titrations', 'Trung hòa và chuẩn độ'),
@@ -864,12 +872,12 @@
           body: L(`
 <h3>Counting to the equivalence point</h3>
 <p>Acid + base → salt + water. At equivalence, moles of H⁺ delivered equal moles of OH⁻ delivered.</p>
-<div class="formula">n(H⁺) = n(OH⁻)&nbsp;&nbsp;&nbsp;C_a V_a = C_b V_b (1:1 stoichiometry)</div>
+<div class="formula">n(H⁺) = n(OH⁻)&nbsp;&nbsp;&nbsp;C<sub>a</sub> V<sub>a</sub> = C<sub>b</sub> V<sub>b</sub> (1:1 stoichiometry)</div>
 <p>Strong–strong titrations end at pH 7. Weak–strong end above 7 because the conjugate base hydrolyses. Choose the indicator so its colour-change range brackets the equivalence pH.</p>
 <div class="example">25.00 mL of vinegar needs 31.5 mL of 0.100 M NaOH, so the acid content is 0.126 M.</div>`, `
 <h3>Đếm tới điểm tương đương</h3>
 <p>Axit + base → muối + nước. Tại điểm tương đương, số mol H⁺ bằng số mol OH⁻.</p>
-<div class="formula">n(H⁺) = n(OH⁻)&nbsp;&nbsp;&nbsp;C_a V_a = C_b V_b (tỉ lệ 1:1)</div>
+<div class="formula">n(H⁺) = n(OH⁻)&nbsp;&nbsp;&nbsp;C<sub>a</sub> V<sub>a</sub> = C<sub>b</sub> V<sub>b</sub> (tỉ lệ 1:1)</div>
 <p>Chuẩn độ mạnh–mạnh kết thúc ở pH 7. Yếu–mạnh kết thúc trên 7 vì base liên hợp thủy phân. Chọn chỉ thị có khoảng đổi màu bao quanh pH tương đương.</p>
 <div class="example">25,00 mL giấm cần 31,5 mL NaOH 0,100 M, nên nồng độ axit là 0,126 M.</div>`)
         }
@@ -882,7 +890,7 @@
           ex: L('Strong acid, [H⁺] = 10⁻³, so pH = 3.', 'Axit mạnh, [H⁺] = 10⁻³ nên pH = 3.')
         },
         {
-          q: L('A solution has pH = pKa of its acid. Then:', 'Dung dịch có pH = pKa của axit. Khi đó:'),
+          q: L('A solution has pH = pK<sub>a</sub> of its acid. Then:', 'Dung dịch có pH = pK<sub>a</sub> của axit. Khi đó:'),
           opts: [L('[A⁻] = [HA]', '[A⁻] = [HA]'), L('all acid is HA', 'toàn bộ là HA'),
                  L('all acid is A⁻', 'toàn bộ là A⁻'), L('pH = 0', 'pH = 0')],
           a: 0,
@@ -937,17 +945,17 @@
           body: L(`
 <h3>Measuring the urge to take electrons</h3>
 <p>Each half-cell has a reduction potential measured against the standard hydrogen electrode, defined as 0.00 V. Values are intensive: doubling the coefficient does not change E°.</p>
-<div class="formula">E°cell = E°(cathode, reduced) − E°(anode, oxidised)</div>
-<div class="example">Zn|Zn²⁺ (−0.76 V) and Cu|Cu²⁺ (+0.34 V): E°cell = 0.34 − (−0.76) = 1.10 V. Zinc is the anode and dissolves.</div>
-<p>Positive E°cell means a spontaneous cell. Couple it to free energy:</p>
-<div class="formula">ΔG° = −nFE°cell&nbsp;&nbsp;&nbsp;E°cell = (RT/nF)·ln K</div>
+<div class="formula">E°<sub>cell</sub> = E°(cathode, reduced) − E°(anode, oxidised)</div>
+<div class="example">Zn|Zn²⁺ (−0.76 V) and Cu|Cu²⁺ (+0.34 V): E°<sub>cell</sub> = 0.34 − (−0.76) = 1.10 V. Zinc is the anode and dissolves.</div>
+<p>Positive E°<sub>cell</sub> means a spontaneous cell. Couple it to free energy:</p>
+<div class="formula">ΔG° = −nFE°<sub>cell</sub>&nbsp;&nbsp;&nbsp;E°<sub>cell</sub> = (RT/nF)·ln K</div>
 <p>F = 96485 C/mol is Faraday’s constant and n the moles of electrons transferred.</p>`, `
 <h3>Đo xu hướng nhận electron</h3>
 <p>Mỗi nửa pin có thế khử đo so với điện cực hydro chuẩn, quy ước là 0,00 V. Giá trị là đại lượng cường độ: nhân đôi hệ số không làm đổi E°.</p>
-<div class="formula">E°pin = E°(catot, bị khử) − E°(anot, bị oxi hóa)</div>
-<div class="example">Zn|Zn²⁺ (−0,76 V) và Cu|Cu²⁺ (+0,34 V): E°pin = 0,34 − (−0,76) = 1,10 V. Kẽm là anot và tan ra.</div>
-<p>E°pin dương nghĩa là pin tự diễn biến. Hệ thức với năng lượng tự do:</p>
-<div class="formula">ΔG° = −nFE°pin&nbsp;&nbsp;&nbsp;E°pin = (RT/nF)·ln K</div>
+<div class="formula">E°<sub>pin</sub> = E°(catot, bị khử) − E°(anot, bị oxi hóa)</div>
+<div class="example">Zn|Zn²⁺ (−0,76 V) và Cu|Cu²⁺ (+0,34 V): E°<sub>pin</sub> = 0,34 − (−0,76) = 1,10 V. Kẽm là anot và tan ra.</div>
+<p>E°<sub>pin</sub> dương nghĩa là pin tự diễn biến. Hệ thức với năng lượng tự do:</p>
+<div class="formula">ΔG° = −nFE°<sub>pin</sub>&nbsp;&nbsp;&nbsp;E°<sub>pin</sub> = (RT/nF)·ln K</div>
 <p>F = 96485 C/mol là hằng số Faraday, n là số mol electron trao đổi.</p>`)
         },
         {
@@ -978,8 +986,8 @@
                 'Anot là nơi xảy ra oxi hóa, trong mọi pin điện hóa.')
         },
         {
-          q: L('E° = −0.76 V for Zn²⁺/Zn and +0.34 V for Cu²⁺/Cu. E°cell is:',
-               'E° = −0,76 V cho Zn²⁺/Zn và +0,34 V cho Cu²⁺/Cu. E°pin là:'),
+          q: L('E° = −0.76 V for Zn²⁺/Zn and +0.34 V for Cu²⁺/Cu. E°<sub>cell</sub> is:',
+               'E° = −0,76 V cho Zn²⁺/Zn và +0,34 V cho Cu²⁺/Cu. E°<sub>pin</sub> là:'),
           opts: [L('−1.10 V', '−1,10 V'), L('+1.10 V', '+1,10 V'), L('−0.42 V', '−0,42 V'), L('+0.42 V', '+0,42 V')],
           a: 1,
           ex: L('0.34 − (−0.76) = 1.10 V, spontaneous.', '0,34 − (−0,76) = 1,10 V, tự diễn biến.')
@@ -1030,7 +1038,7 @@
 <ul>
 <li><b>Alcohol</b> –OH: polar, hydrogen-bonds, weak acid, oxidises to carbonyls.</li>
 <li><b>Aldehyde</b> –CHO and <b>ketone</b> C=O: carbonyl chemistry, nucleophilic addition.</li>
-<li><b>Carboxylic acid</b> –COOH: genuinely acidic (pKa ≈ 4–5), forms esters.</li>
+<li><b>Carboxylic acid</b> –COOH: genuinely acidic (pK<sub>a</sub> ≈ 4–5), forms esters.</li>
 <li><b>Ester</b> –COO–: fruity smells, hydrolyses back to acid plus alcohol.</li>
 <li><b>Amine</b> –NH₂: basic, smells fishy, key in amino acids.</li>
 <li><b>Halogenoalkane</b> C–X: site of substitution and elimination.</li>
@@ -1040,7 +1048,7 @@
 <ul>
 <li><b>Rượu</b> –OH: phân cực, tạo liên kết hydro, axit yếu, oxi hóa thành carbonyl.</li>
 <li><b>Andehit</b> –CHO và <b>xeton</b> C=O: hóa học carbonyl, cộng nucleophin.</li>
-<li><b>Axit cacboxylic</b> –COOH: axit thật sự (pKa ≈ 4–5), tạo este.</li>
+<li><b>Axit cacboxylic</b> –COOH: axit thật sự (pK<sub>a</sub> ≈ 4–5), tạo este.</li>
 <li><b>Este</b> –COO–: mùi quả, thủy phân trở lại axit và rượu.</li>
 <li><b>Amin</b> –NH₂: bazơ, mùi tanh, có trong amino acid.</li>
 <li><b>Dẫn xuất halogen</b> C–X: vị trí thế và tách.</li>
@@ -1135,12 +1143,12 @@
           body: L(`
 <h3>First-order, unstoppable</h3>
 <p>Decay is a random process for one nucleus but perfectly statistical for many. The number left follows first-order kinetics with a constant decay time unaffected by temperature, pressure or chemistry.</p>
-<div class="formula">N = N₀ (½)^(t / t½)&nbsp;&nbsp;&nbsp;λ = ln 2 / t½&nbsp;&nbsp;&nbsp;activity = λN</div>
+<div class="formula">N = N₀·(½)<sup>t/t½</sup>&nbsp;&nbsp;&nbsp;λ = ln 2 / t½&nbsp;&nbsp;&nbsp;activity = λN</div>
 <div class="example">Carbon-14 (t½ = 5730 yr): a sample with 25% of modern ¹⁴C is two decay times old, about 11460 years.</div>
 <p>Activity is measured in becquerel (one decay per second). Radiometric dating works because the parent isotope’s decay time is known and constant.</p>`, `
 <h3>Bậc một, không thể ngăn</h3>
 <p>Phân rã là ngẫu nhiên với một hạt nhân nhưng hoàn toàn thống kê với nhiều hạt nhân. Số còn lại tuân động học bậc một với thời gian phân hủy không đổi, không phụ thuộc nhiệt độ, áp suất hay hóa học.</p>
-<div class="formula">N = N₀ (½)^(t / t½)&nbsp;&nbsp;&nbsp;λ = ln 2 / t½&nbsp;&nbsp;&nbsp;hoạt độ = λN</div>
+<div class="formula">N = N₀·(½)<sup>t/t½</sup>&nbsp;&nbsp;&nbsp;λ = ln 2 / t½&nbsp;&nbsp;&nbsp;hoạt độ = λN</div>
 <div class="example">Carbon-14 (t½ = 5730 năm): mẫu còn 25% ¹⁴C hiện đại nghĩa là hai thời gian phân hủy, khoảng 11460 năm.</div>
 <p>Hoạt độ đo bằng becquerel (một phân rã mỗi giây). Phương pháp đồng vị phóng xạ hoạt động vì thời gian phân hủy của đồng vị mẹ đã biết và không đổi.</p>`)
         },
@@ -1299,7 +1307,7 @@
 <li>Gay-Lussac (constant V): p ∝ T.</li>
 <li>Avogadro: equal volumes hold equal numbers of molecules.</li>
 </ul>
-<div class="formula">pV = nRT&nbsp;&nbsp;&nbsp;R = 8.314 J/(mol·K)</div>
+<div class="formula">pV = nRT&nbsp;&nbsp;&nbsp;R = 8.314 J·mol⁻¹·K⁻¹</div>
 <div class="example">One mole at 298 K and 1 atm occupies V = nRT/p = 24.5 L. At STP (273 K) it is 22.4 L.</div>
 <p>Temperature must be in kelvin: T(K) = T(°C) + 273.15.</p>`, `
 <h3>Bốn biến, một phương trình</h3>
@@ -1310,7 +1318,7 @@
 <li>Gay-Lussac (thể tích không đổi): p ∝ T.</li>
 <li>Avogadro: thể tích bằng nhau chứa số phân tử bằng nhau.</li>
 </ul>
-<div class="formula">pV = nRT&nbsp;&nbsp;&nbsp;R = 8,314 J/(mol·K)</div>
+<div class="formula">pV = nRT&nbsp;&nbsp;&nbsp;R = 8,314 J·mol⁻¹·K⁻¹</div>
 <div class="example">Một mol ở 298 K và 1 atm chiếm V = nRT/p = 24,5 L. Ở đktc (273 K) là 22,4 L.</div>
 <p>Nhiệt độ phải tính theo kelvin: T(K) = T(°C) + 273,15.</p>`)
         },
@@ -1320,18 +1328,18 @@
           body: L(`
 <h3>What the model leaves out</h3>
 <p>Each gas in a mixture contributes its own <b>partial pressure</b>; the total is the sum, and the fraction equals the mole fraction.</p>
-<div class="formula">p_total = Σ p_i&nbsp;&nbsp;&nbsp;p_i = x_i · p_total</div>
+<div class="formula">p<sub>total</sub> = Σ p<sub>i</sub>&nbsp;&nbsp;&nbsp;p<sub>i</sub> = x<sub>i</sub> · p<sub>total</sub></div>
 <div class="example">Collected over water, hydrogen at 100 kPa total with 3.2 kPa water vapour is really 96.8 kPa of H₂.</div>
 <p>Kinetic theory gives the link between temperature and molecular speed:</p>
-<div class="formula">⟨KE⟩ = (3/2) kT&nbsp;&nbsp;&nbsp;v_rms = √(3RT / M)</div>
+<div class="formula">⟨KE⟩ = (3/2) kT&nbsp;&nbsp;&nbsp;v<sub>rms</sub> = √(3RT / M)</div>
 <p>Light molecules move faster: at the same temperature helium travels about 2.7 times faster than oxygen.</p>
 <p>Real gases depart from ideality at high pressure and low temperature, where molecule volume and attraction matter. Compressed CO₂ even liquefies — the ideal law cannot describe that.</p>`, `
 <h3>Mô hình bỏ sót điều gì</h3>
 <p>Mỗi khí trong hỗn hợp đóng góp <b>áp suất riêng phần</b> của nó; tổng bằng tổng các thành phần, và tỉ lệ bằng tỉ lệ mol.</p>
-<div class="formula">p_total = Σ p_i&nbsp;&nbsp;&nbsp;p_i = x_i · p_total</div>
+<div class="formula">p<sub>total</sub> = Σ p<sub>i</sub>&nbsp;&nbsp;&nbsp;p<sub>i</sub> = x<sub>i</sub> · p<sub>total</sub></div>
 <div class="example">Thu khí hydro trên nước ở tổng áp 100 kPa với hơi nước 3,2 kPa thì hydro thực sự là 96,8 kPa.</div>
 <p>Thuyết động học nối nhiệt độ với tốc độ phân tử:</p>
-<div class="formula">⟨KE⟩ = (3/2) kT&nbsp;&nbsp;&nbsp;v_rms = √(3RT / M)</div>
+<div class="formula">⟨KE⟩ = (3/2) kT&nbsp;&nbsp;&nbsp;v<sub>rms</sub> = √(3RT / M)</div>
 <p>Phân tử nhẹ chuyển động nhanh hơn: cùng nhiệt độ, heli chạy nhanh hơn oxi khoảng 2,7 lần.</p>
 <p>Khí thực lệch khỏi lý tưởng khi áp suất cao và nhiệt độ thấp, vì thể tích phân tử và lực hút trở nên quan trọng. CO₂ nén thậm chí hóa lỏng — định luật khí lý tưởng không mô tả được.</p>`)
         }
@@ -1491,12 +1499,12 @@
           body: L(`
 <h3>Evidence for quantisation</h3>
 <p>Excited atoms emit light only at specific wavelengths, producing line spectra. For hydrogen the lines fit the Rydberg formula exactly.</p>
-<div class="formula">1/λ = R_H (1/n₁² − 1/n₂²)&nbsp;&nbsp;&nbsp;R_H = 1.097×10⁷ m⁻¹</div>
+<div class="formula">1/λ = R<sub>H</sub> (1/n₁² − 1/n₂²)&nbsp;&nbsp;&nbsp;R<sub>H</sub> = 1.097×10⁷ m⁻¹</div>
 <div class="example">The red Hα line (n = 3 → 2) sits at 656 nm; the Balmer series as a whole defines visible hydrogen.</div>
 <p>Each line is a photon carrying away the difference between two levels: E = h·ν. Flame tests and atomic emission spectroscopy use the same physics to identify elements, and the colours of neon signs and sodium street lamps are atomic spectra you can see on the street.</p>`, `
 <h3>Bằng chứng cho lượng tử hóa</h3>
 <p>Nguyên tử kích thích chỉ phát ánh sáng ở một số bước sóng nhất định, tạo phổ vạch. Với hydro, các vạch khớp chính xác công thức Rydberg.</p>
-<div class="formula">1/λ = R_H (1/n₁² − 1/n₂²)&nbsp;&nbsp;&nbsp;R_H = 1,097×10⁷ m⁻¹</div>
+<div class="formula">1/λ = R<sub>H</sub> (1/n₁² − 1/n₂²)&nbsp;&nbsp;&nbsp;R<sub>H</sub> = 1,097×10⁷ m⁻¹</div>
 <div class="example">Vạch đỏ Hα (n = 3 → 2) ở 656 nm; dãy Balmer xác định vùng khả kiến của hydro.</div>
 <p>Mỗi vạch là một photon mang đi hiệu hai mức năng lượng: E = h·ν. Phép thử ngọn lửa và phổ phát xạ nguyên tử dùng cùng vật lý để nhận diện nguyên tố; màu của đèn neon và đèn natri đường phố là phổ nguyên tử nhìn thấy được.</p>`)
         }
@@ -1540,15 +1548,15 @@
           body: L(`
 <h3>One number, many starting points</h3>
 <p>At a fixed temperature every mixture of a reversible reaction settles so that the same ratio of concentrations holds, no matter which side you started from.</p>
-<div class="formula">a A + b B ⇌ c C + d D&nbsp;&nbsp;&nbsp;Kc = [C]^c[D]^d / [A]^a[B]^b</div>
+<div class="formula">a A + b B ⇌ c C + d D&nbsp;&nbsp;&nbsp;K<sub>c</sub> = [C]<sup>c</sup>[D]<sup>d</sup> / [A]<sup>a</sup>[B]<sup>b</sup></div>
 <p>Rules: pure solids and liquids are omitted; coefficients become exponents; reversing the reaction gives 1/K; multiplying coefficients by n raises K to the power n. Only temperature changes K.</p>
-<div class="example">If Kc = 4.0 × 10⁻³, reactants dominate at equilibrium — the reaction barely proceeds.</div>
+<div class="example">If K<sub>c</sub> = 4.0 × 10⁻³, reactants dominate at equilibrium — the reaction barely proceeds.</div>
 <p>Compare Q (the same expression with current concentrations) with K to predict the direction: Q &lt; K shifts right, Q &gt; K shifts left, Q = K is at equilibrium.</p>`, `
 <h3>Một con số, nhiều điểm khởi đầu</h3>
 <p>Ở nhiệt độ cố định, mọi hỗn hợp của phản ứng thuận nghịch đều ổn định sao cho cùng một tỉ số nồng độ được thỏa, bất kể bắt đầu từ phía nào.</p>
-<div class="formula">a A + b B ⇌ c C + d D&nbsp;&nbsp;&nbsp;Kc = [C]^c[D]^d / [A]^a[B]^b</div>
+<div class="formula">a A + b B ⇌ c C + d D&nbsp;&nbsp;&nbsp;K<sub>c</sub> = [C]<sup>c</sup>[D]<sup>d</sup> / [A]<sup>a</sup>[B]<sup>b</sup></div>
 <p>Quy tắc: bỏ rắn và lỏng nguyên chất; hệ số thành số mũ; đảo phản ứng cho 1/K; nhân hệ số với n thì K mũ n. Chỉ nhiệt độ làm đổi K.</p>
-<div class="example">Nếu Kc = 4,0 × 10⁻³ thì chất đầu áp đảo tại cân bằng — phản ứng hầu như không tiến hành.</div>
+<div class="example">Nếu K<sub>c</sub> = 4,0 × 10⁻³ thì chất đầu áp đảo tại cân bằng — phản ứng hầu như không tiến hành.</div>
 <p>So sánh Q (biểu thức trên với nồng độ hiện tại) với K để dự đoán chiều: Q &lt; K dịch phải, Q &gt; K dịch trái, Q = K là cân bằng.</p>`)
         },
         {
@@ -1557,16 +1565,16 @@
           body: L(`
 <h3>ICE and the 5% shortcut</h3>
 <p>Tabulate Initial, Change and Equilibrium concentrations using one unknown x tied together by the stoichiometry, then substitute into K and solve.</p>
-<div class="example">A ⇌ B with Kc = 0.10 and [A]₀ = 1.00 M: x/(1−x) = 0.10 gives x = 0.091 M.</div>
+<div class="example">A ⇌ B with K<sub>c</sub> = 0.10 and [A]₀ = 1.00 M: x/(1−x) = 0.10 gives x = 0.091 M.</div>
 <p>When K is very small, x is negligible compared with the initial concentration and the quadratic collapses. Check afterwards that x is under 5% of the starting value; if not, solve properly.</p>
-<div class="formula">Kp = Kc (RT)^Δn(gas)&nbsp;&nbsp;&nbsp;Δn = moles gas products − reactants</div>
-<p>For gas reactions Kp and Kc differ only by this factor, so a reaction with no change in gas moles has Kp = Kc.</p>`, `
+<div class="formula">K<sub>p</sub> = K<sub>c</sub>·(RT)<sup>Δn</sup>&nbsp;&nbsp;&nbsp;Δn = moles gas products − reactants</div>
+<p>For gas reactions K<sub>p</sub> and K<sub>c</sub> differ only by this factor, so a reaction with no change in gas moles has K<sub>p</sub> = K<sub>c</sub>.</p>`, `
 <h3>ICE và mẹo 5%</h3>
 <p>Lập bảng Ban đầu, Biến thiên, Cân bằng dùng một ẩn x gắn theo tỷ lượng, rồi thế vào K và giải.</p>
-<div class="example">A ⇌ B với Kc = 0,10 và [A]₀ = 1,00 M: x/(1−x) = 0,10 cho x = 0,091 M.</div>
+<div class="example">A ⇌ B với K<sub>c</sub> = 0,10 và [A]₀ = 1,00 M: x/(1−x) = 0,10 cho x = 0,091 M.</div>
 <p>Khi K rất nhỏ, x không đáng kể so với nồng độ ban đầu và phương trình bậc hai đơn giản hóa. Kiểm tra lại x dưới 5% giá trị đầu; nếu không, phải giải đầy đủ.</p>
-<div class="formula">Kp = Kc (RT)^Δn(khí)&nbsp;&nbsp;&nbsp;Δn = mol khí sản phẩm − chất đầu</div>
-<p>Với phản ứng khí, Kp và Kc chỉ khác nhau thừa số này, nên phản ứng không đổi số mol khí có Kp = Kc.</p>`)
+<div class="formula">K<sub>p</sub> = K<sub>c</sub>·(RT)<sup>Δn</sup>&nbsp;&nbsp;&nbsp;Δn = mol khí sản phẩm − chất đầu</div>
+<p>Với phản ứng khí, K<sub>p</sub> và K<sub>c</sub> chỉ khác nhau thừa số này, nên phản ứng không đổi số mol khí có K<sub>p</sub> = K<sub>c</sub>.</p>`)
         },
         {
           title: L('Shifting Equilibria in Industry', 'Dịch chuyển cân bằng trong công nghiệp'),
@@ -1602,10 +1610,10 @@
                 'Mọi số mũ nhân đôi nên biểu thức bình phương.')
         },
         {
-          q: L('For N₂O₄ ⇌ 2NO₂, Kp and Kc differ by:', 'Với N₂O₄ ⇌ 2NO₂, Kp và Kc khác nhau bởi:'),
+          q: L('For N₂O₄ ⇌ 2NO₂, K<sub>p</sub> and K<sub>c</sub> differ by:', 'Với N₂O₄ ⇌ 2NO₂, K<sub>p</sub> và K<sub>c</sub> khác nhau bởi:'),
           opts: [L('(RT)⁻¹', '(RT)⁻¹'), L('(RT)¹', '(RT)¹'), L('(RT)²', '(RT)²'), L('They are equal', 'Bằng nhau')],
           a: 1,
-          ex: L('Δn = 2 − 1 = 1, so Kp = Kc·RT.', 'Δn = 2 − 1 = 1 nên Kp = Kc·RT.')
+          ex: L('Δn = 2 − 1 = 1, so K<sub>p</sub> = K<sub>c</sub>·RT.', 'Δn = 2 − 1 = 1 nên K<sub>p</sub> = K<sub>c</sub>·RT.')
         },
         {
           q: L('Adding a catalyst to a system at equilibrium:',
@@ -1648,13 +1656,13 @@
           body: L(`
 <h3>Storing sunlight in bonds</h3>
 <p>Chlorophyll absorbs red and blue light and reflects green. The excited pigment passes an electron down a chain, splitting water, building a proton gradient and finally fixing CO₂ into carbohydrate.</p>
-<div class="formula">6 CO₂ + 6 H₂O + light → C₆H₁₂O₆ + 6 O₂&nbsp;&nbsp;&nbsp;ΔG° ≈ +2870 kJ/mol</div>
+<div class="formula">6 CO₂ + 6 H₂O + light → C₆H₁₂O₆ + 6 O₂&nbsp;&nbsp;&nbsp;ΔG° ≈ +2870 kJ·mol⁻¹</div>
 <p>This is the strongly endergonic reaction that light makes possible — the reverse of combustion.</p>
 <p>Other natural and everyday photochemistry: vitamin D synthesis in skin from UVB, retinal isomerisation that starts vision, silver halide darkening in film, and the UV degradation of plastics and dyes.</p>
 <div class="example">Ozone in the upper atmosphere forms when UV splits O₂; the same radiation then destroys it. Chlorine radicals from CFCs tip that balance toward loss.</div>`, `
 <h3>Lưu trữ ánh sáng trong liên kết</h3>
 <p>Diệp lục hấp thụ ánh sáng đỏ và xanh, phản xạ xanh lục. Sắc tố kích thích chuyển electron xuống chuỗi truyền, tách nước, tạo gradient proton và cuối cùng cố định CO₂ thành carbohydrate.</p>
-<div class="formula">6 CO₂ + 6 H₂O + ánh sáng → C₆H₁₂O₆ + 6 O₂&nbsp;&nbsp;&nbsp;ΔG° ≈ +2870 kJ/mol</div>
+<div class="formula">6 CO₂ + 6 H₂O + ánh sáng → C₆H₁₂O₆ + 6 O₂&nbsp;&nbsp;&nbsp;ΔG° ≈ +2870 kJ·mol⁻¹</div>
 <p>Đây là phản ứng thu năng lượng mạnh mà ánh sáng làm cho khả thi — ngược của phản ứng cháy.</p>
 <p>Quang hóa tự nhiên và đời thường khác: tổng hợp vitamin D trong da từ UVB, đồng phân hóa retinal khởi đầu thị giác, bạc halogenua sẫm màu trên phim, và phân hủy nhựa, thuốc nhuộm dưới tia UV.</p>
 <div class="example">Ozon tầng trên khí hình thành khi UV tách O₂; cùng bức xạ đó lại phá hủy nó. Gốc clo từ CFC làm cân bằng nghiêng về phía mất ozon.</div>`)
@@ -1777,15 +1785,15 @@
           body: L(`
 <h3>Measuring by reacting completely</h3>
 <p>A standard solution of known concentration is delivered to the analyte until stoichiometric equivalence. An indicator or a pH meter reports the end point, and volume plus concentration converts directly to moles.</p>
-<div class="formula">C_analyte = C_titrant · V_titrant × (a/b) / V_analyte</div>
-<p>Titration curves have characteristic shapes. Strong acid versus strong base is flat then vertical near pH 7. Weak acid versus strong base starts higher, has a buffer region, and the half-equivalence pH equals the pKa.</p>
-<div class="example">At half-neutralisation, [A⁻] = [HA], so Henderson–Hasselbalch reduces to pH = pKa. Read pKa straight off the curve.</div>
+<div class="formula">C<sub>analyte</sub> = C<sub>titrant</sub> · V<sub>titrant</sub> × (a/b) / V<sub>analyte</sub></div>
+<p>Titration curves have characteristic shapes. Strong acid versus strong base is flat then vertical near pH 7. Weak acid versus strong base starts higher, has a buffer region, and the half-equivalence pH equals the pK<sub>a</sub>.</p>
+<div class="example">At half-neutralisation, [A⁻] = [HA], so Henderson–Hasselbalch reduces to pH = pK<sub>a</sub>. Read pK<sub>a</sub> straight off the curve.</div>
 <p>The steep jump must contain the indicator transition range, otherwise the end point lies outside the vertical part and the result is meaningless.</p>`, `
 <h3>Đo bằng cách phản ứng hoàn toàn</h3>
 <p>Dung dịch chuẩn có nồng độ đã biết được nhỏ vào chất cần phân tích tới tương đương tỷ lượng. Chỉ thị hoặc máy đo pH báo điểm cuối, và thể tích cùng nồng độ đổi trực tiếp thành số mol.</p>
-<div class="formula">C_chất phân tích = C_chuẩn · V_chuẩn × (a/b) / V_chất phân tích</div>
-<p>Đường chuẩn độ có hình dạng đặc trưng. Axit mạnh với bazơ mạnh: phẳng rồi đứng gần pH 7. Axit yếu với bazơ mạnh: bắt đầu cao hơn, có vùng đệm, và pH tại nửa tương đương bằng pKa.</p>
-<div class="example">Tại nửa trung hòa, [A⁻] = [HA], nên Henderson–Hasselbalch rút thành pH = pKa. Đọc pKa ngay trên đường cong.</div>
+<div class="formula">C<sub>chất phân tích</sub> = C<sub>chuẩn</sub> · V<sub>chuẩn</sub> × (a/b) / V<sub>chất phân tích</sub></div>
+<p>Đường chuẩn độ có hình dạng đặc trưng. Axit mạnh với bazơ mạnh: phẳng rồi đứng gần pH 7. Axit yếu với bazơ mạnh: bắt đầu cao hơn, có vùng đệm, và pH tại nửa tương đương bằng pK<sub>a</sub>.</p>
+<div class="example">Tại nửa trung hòa, [A⁻] = [HA], nên Henderson–Hasselbalch rút thành pH = pK<sub>a</sub>. Đọc pK<sub>a</sub> ngay trên đường cong.</div>
 <p>Phần nhảy vọt phải chứa khoảng đổi màu của chỉ thị, nếu không điểm cuối nằm ngoài phần đứng và kết quả vô nghĩa.</p>`)
         },
         {
@@ -1817,7 +1825,7 @@
           body: L(`
 <h3>Separate, then measure</h3>
 <p><b>Chromatography</b> splits a mixture between a mobile phase and a stationary phase. Components that prefer the stationary phase travel slower, so a single injection becomes a series of peaks.</p>
-<div class="formula">retention time t_R identifies · peak area quantifies</div>
+<div class="formula">retention time t<sub>R</sub> identifies · peak area quantifies</div>
 <p>Increasing column length or the partition coefficient improves separation but costs time. In gas chromatography volatility dominates; in HPLC it is polarity.</p>
 <p><b>Spectrophotometry</b> measures how much light a solution absorbs at a chosen wavelength:</p>
 <div class="formula">A = ε · l · c&nbsp;&nbsp;(Beer–Lambert law)</div>
@@ -1825,7 +1833,7 @@
 <p>Beer’s law fails at high concentrations, where absorbing particles shade one another.</p>`, `
 <h3>Tách ra rồi đo</h3>
 <p><b>Sắc ký</b> chia hỗn hợp giữa pha động và pha tĩnh. Cấu tử ưa pha tĩnh đi chậm hơn, nên một lần bơm thành loạt peak.</p>
-<div class="formula">thời gian lưu t_R để nhận diện · diện tích peak để định lượng</div>
+<div class="formula">thời gian lưu t<sub>R</sub> để nhận diện · diện tích peak để định lượng</div>
 <p>Tăng chiều dài cột hoặc hệ số phân bố cải thiện tách nhưng tốn thời gian. Sắc ký khí phụ thuộc độ bay hơi; HPLC phụ thuộc độ phân cực.</p>
 <p><b>Quang phổ kế</b> đo lượng ánh sáng dung dịch hấp thụ ở bước sóng chọn trước:</p>
 <div class="formula">A = ε · l · c&nbsp;&nbsp;(định luật Beer–Lambert)</div>
@@ -1837,7 +1845,7 @@
         {
           q: L('At the half-equivalence point of a weak-acid titration:',
                'Tại điểm nửa tương đương của chuẩn độ axit yếu:'),
-          opts: [L('pH = 7', 'pH = 7'), L('pH = pKa', 'pH = pKa'), L('pH = 14 − pKa', 'pH = 14 − pKa'),
+          opts: [L('pH = 7', 'pH = 7'), L('pH = pK<sub>a</sub>', 'pH = pK<sub>a</sub>'), L('pH = 14 − pK<sub>a</sub>', 'pH = 14 − pK<sub>a</sub>'),
                  L('the solution is neutral', 'dung dịch trung tính')],
           a: 1,
           ex: L('[A⁻] = [HA] makes the log term zero.', '[A⁻] = [HA] làm số hạng log bằng 0.')
@@ -1948,16 +1956,16 @@
           body: L(`
 <h3>Catalysis with a lock and key</h3>
 <p>Enzymes bind substrate at an active site, forming an ES complex, then release product. Binding is specific and it pays energy back by stabilising the transition state, which is how rate enhancements of 10¹² are reached.</p>
-<div class="formula">v = Vmax · [S] / (Km + [S])</div>
-<p>Vmax is the rate at full saturation and equals kcat·[E]total. Km is the substrate concentration at half Vmax and reports affinity: a low Km means tight binding.</p>
-<div class="example">At [S] = Km the enzyme runs at exactly half its maximum rate — the definition used to measure Km.</div>
-<p>Plot 1/v against 1/[S] (Lineweaver–Burk) to read Vmax and Km from the intercepts. Competitive inhibitors raise the apparent Km but leave Vmax reachable; non-competitive inhibitors lower Vmax because some enzyme is taken out of service.</p>`, `
+<div class="formula">v = V<sub>max</sub> · [S] / (K<sub>m</sub> + [S])</div>
+<p>V<sub>max</sub> is the rate at full saturation and equals k<sub>cat</sub>·[E]<sub>total</sub>. K<sub>m</sub> is the substrate concentration at half V<sub>max</sub> and reports affinity: a low K<sub>m</sub> means tight binding.</p>
+<div class="example">At [S] = K<sub>m</sub> the enzyme runs at exactly half its maximum rate — the definition used to measure K<sub>m</sub>.</div>
+<p>Plot 1/v against 1/[S] (Lineweaver–Burk) to read V<sub>max</sub> and K<sub>m</sub> from the intercepts. Competitive inhibitors raise the apparent K<sub>m</sub> but leave V<sub>max</sub> reachable; non-competitive inhibitors lower V<sub>max</sub> because some enzyme is taken out of service.</p>`, `
 <h3>Xúc tác theo mô hình khóa và chìa</h3>
 <p>Enzyme gắn cơ chất tại vị trí hoạt động tạo phức ES rồi phóng thích sản phẩm. Gắn kết có tính đặc hiệu và hoàn năng lượng bằng cách ổn định trạng thái chuyển tiếp — đó là cách đạt mức tăng tốc 10¹².</p>
-<div class="formula">v = Vmax · [S] / (Km + [S])</div>
-<p>Vmax là tốc độ khi bão hòa hoàn toàn và bằng kcat·[E]tổng. Km là nồng độ cơ chất tại nửa Vmax, phản ánh ái lực: Km nhỏ nghĩa là gắn chặt.</p>
-<div class="example">Tại [S] = Km enzyme chạy đúng một nửa tốc độ tối đa — định nghĩa dùng để đo Km.</div>
-<p>Vẽ 1/v theo 1/[S] (Lineweaver–Burk) để đọc Vmax và Km từ các giao điểm. Ức chế cạnh tranh làm Km biểu kiến tăng nhưng vẫn đạt Vmax; ức chế không cạnh tranh làm Vmax giảm vì một phần enzyme bị loại khỏi vòng.</p>`)
+<div class="formula">v = V<sub>max</sub> · [S] / (K<sub>m</sub> + [S])</div>
+<p>V<sub>max</sub> là tốc độ khi bão hòa hoàn toàn và bằng k<sub>cat</sub>·[E]<sub>tổng</sub>. K<sub>m</sub> là nồng độ cơ chất tại nửa V<sub>max</sub>, phản ánh ái lực: K<sub>m</sub> nhỏ nghĩa là gắn chặt.</p>
+<div class="example">Tại [S] = K<sub>m</sub> enzyme chạy đúng một nửa tốc độ tối đa — định nghĩa dùng để đo K<sub>m</sub>.</div>
+<p>Vẽ 1/v theo 1/[S] (Lineweaver–Burk) để đọc V<sub>max</sub> và K<sub>m</sub> từ các giao điểm. Ức chế cạnh tranh làm K<sub>m</sub> biểu kiến tăng nhưng vẫn đạt V<sub>max</sub>; ức chế không cạnh tranh làm V<sub>max</sub> giảm vì một phần enzyme bị loại khỏi vòng.</p>`)
         },
         {
           title: L('Biomolecules and Metabolism', 'Sinh phân tử và chuyển hóa'),
@@ -1970,8 +1978,8 @@
 <li><b>Proteins</b> — amino acid chains folded into shape; structure sets function, and denaturing destroys both.</li>
 <li><b>Nucleic acids</b> — DNA stores information in base pairs, RNA carries and translates it.</li>
 </ul>
-<div class="formula">ATP + H₂O → ADP + Pi&nbsp;&nbsp;&nbsp;ΔG ≈ −30 kJ/mol</div>
-<p>ATP is the currency that couples exergonic and endergonic steps. Glucose oxidation releases about 2870 kJ/mol, harvested in roughly 30 ATP rather than dumped as heat.</p>
+<div class="formula">ATP + H₂O → ADP + Pi&nbsp;&nbsp;&nbsp;ΔG ≈ −30 kJ·mol⁻¹</div>
+<p>ATP is the currency that couples exergonic and endergonic steps. Glucose oxidation releases about 2870 kJ·mol⁻¹, harvested in roughly 30 ATP rather than dumped as heat.</p>
 <div class="example">Digestion is the reverse chemistry: hydrolysis breaks each polymer back to monomers so the body can rebuild them its own way.</div>`, `
 <h3>Bốn polyme làm việc</h3>
 <ul>
@@ -1980,30 +1988,30 @@
 <li><b>Protein</b> — chuỗi amino acid cuộn thành cấu trúc; cấu trúc quyết định chức năng, biến tính phá cả hai.</li>
 <li><b>Axit nucleic</b> — DNA lưu thông tin trong các cặp base, RNA truyền tải và dịch mã.</li>
 </ul>
-<div class="formula">ATP + H₂O → ADP + Pi&nbsp;&nbsp;&nbsp;ΔG ≈ −30 kJ/mol</div>
-<p>ATP là đồng tiền nối bước tỏa năng lượng với bước thu năng lượng. Oxi hóa glucose giải phóng khoảng 2870 kJ/mol, thu được trong chừng 30 ATP thay vì xả ra thành nhiệt.</p>
+<div class="formula">ATP + H₂O → ADP + Pi&nbsp;&nbsp;&nbsp;ΔG ≈ −30 kJ·mol⁻¹</div>
+<p>ATP là đồng tiền nối bước tỏa năng lượng với bước thu năng lượng. Oxi hóa glucose giải phóng khoảng 2870 kJ·mol⁻¹, thu được trong chừng 30 ATP thay vì xả ra thành nhiệt.</p>
 <div class="example">Tiêu hóa là hóa học ngược: thủy phân phá mỗi polyme về monome để cơ thể xây lại theo cách riêng.</div>`)
         }
       ],
       quiz: [
         {
-          q: L('When [S] equals Km, the reaction rate is:', 'Khi [S] bằng Km, tốc độ phản ứng là:'),
-          opts: [L('Vmax', 'Vmax'), L('Vmax/2', 'Vmax/2'), L('2·Vmax', '2·Vmax'), L('zero', 'bằng 0')],
+          q: L('When [S] equals K<sub>m</sub>, the reaction rate is:', 'Khi [S] bằng K<sub>m</sub>, tốc độ phản ứng là:'),
+          opts: [L('V<sub>max</sub>', 'V<sub>max</sub>'), L('V<sub>max</sub>/2', 'V<sub>max</sub>/2'), L('2·V<sub>max</sub>', '2·V<sub>max</sub>'), L('zero', 'bằng 0')],
           a: 1,
-          ex: L('v = Vmax·Km/(Km+Km) = Vmax/2.', 'v = Vmax·Km/(Km+Km) = Vmax/2.')
+          ex: L('v = V<sub>max</sub>·K<sub>m</sub>/(K<sub>m</sub>+K<sub>m</sub>) = V<sub>max</sub>/2.', 'v = V<sub>max</sub>·K<sub>m</sub>/(K<sub>m</sub>+K<sub>m</sub>) = V<sub>max</sub>/2.')
         },
         {
           q: L('A competitive inhibitor changes the kinetics by:', 'Chất ức chế cạnh tranh thay đổi động học bằng:'),
-          opts: [L('lowering Vmax', 'giảm Vmax'), L('raising apparent Km', 'tăng Km biểu kiến'),
-                 L('destroying the enzyme', 'phá enzyme'), L('raising Vmax', 'tăng Vmax')],
+          opts: [L('lowering V<sub>max</sub>', 'giảm V<sub>max</sub>'), L('raising apparent K<sub>m</sub>', 'tăng K<sub>m</sub> biểu kiến'),
+                 L('destroying the enzyme', 'phá enzyme'), L('raising V<sub>max</sub>', 'tăng V<sub>max</sub>')],
           a: 1,
-          ex: L('More substrate out-competes it, so Vmax stays reachable.',
-                'Thêm cơ chất thắng cạnh tranh nên vẫn đạt Vmax.')
+          ex: L('More substrate out-competes it, so V<sub>max</sub> stays reachable.',
+                'Thêm cơ chất thắng cạnh tranh nên vẫn đạt V<sub>max</sub>.')
         },
         {
           q: L('ATP drives endergonic reactions by:', 'ATP thúc đẩy phản ứng thu năng lượng bằng:'),
           opts: [L('raising temperature', 'tăng nhiệt độ'), L('coupling its hydrolysis', 'nối với thủy phân của nó'),
-                 L('acting as a reductant', 'làm chất khử'), L('lowering Km', 'giảm Km')],
+                 L('acting as a reductant', 'làm chất khử'), L('lowering K<sub>m</sub>', 'giảm K<sub>m</sub>')],
           a: 1,
           ex: L('The combined ΔG of the couple is negative.', 'ΔG tổng của cặp phản ứng âm.')
         }
@@ -2306,7 +2314,7 @@
         notes += (i + 1) + '. ' + c(topic.quiz[i].ex) + '  ';
       }
       els.feedback.className = 'feedback-area ' + (pct >= 60 ? 'correct' : 'incorrect');
-      els.feedback.textContent = t(pct >= 60 ? 'correct' : 'incorrect') + ' ' +
+      els.feedback.innerHTML = t(pct >= 60 ? 'correct' : 'incorrect') + ' ' +
         t('score') + ': ' + correct + ' ' + t('of') + ' ' + topic.quiz.length + ' (' + pct + '%). ' +
         (pct >= 60 ? t('wellDone') : t('reviewText')) + ' ' + notes;
     }
@@ -2540,7 +2548,7 @@
         const a = (i / cnt) * Math.PI * 2 + simState.time * (0.6 / n);
         sphere(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 4.5, C.yellow);
       }
-      label('n=' + n + ' (' + cnt + ')', cx + r + 4, cy - r * 0.7, C.dim, 10);
+      label('n = ' + n + ' (' + cnt + ')', cx + r + 4, cy - r * 0.7, C.dim, 10);
       left -= cnt;
     }
 
@@ -2661,7 +2669,7 @@
     const kind = dEN < 0.4 ? 'nonpolar covalent' : (dEN < 1.7 ? 'polar covalent' : 'ionic');
     label(mol + '  ·  ' + data.d + ' bond order  ·  ΔEN ≈ ' + dEN.toFixed(2), 14, 22, C.text, 13);
     label(kind, 14, 42, dEN < 0.4 ? C.blue : (dEN < 1.7 ? C.yellow : C.red), 13);
-    if (dEN >= 0.4 && dEN < 1.7) label('δ+ / δ− across the bond', 14, 60, C.dim, 11);
+    if (dEN >= 0.4 && dEN < 1.7) label('δ⁺ / δ⁻ across the bond', 14, 60, C.dim, 11);
   }
 
   function drawBalanceEquation(ctx, p) {
@@ -2790,7 +2798,7 @@
     ctx.lineTo(bx + 40, by + 12);
     ctx.lineTo(bx + bw - 6, by + bh - 34);
     ctx.stroke();
-    label('Ea = ' + Ea + ' kJ/mol', bx + 6, by + bh + 14, C.text, 11);
+    label('E\u2090 = ' + Ea + ' kJ\u00b7mol\u207B\u00B9', bx + 6, by + bh + 14, C.text, 11);
     label('T = ' + T + ' K', bx + 6, by - 12, C.text, 11);
     label('k = ' + sciSup(rate, 3) + ' s⁻¹', 14, ctx.H - 60, C.yellow, 12);
   }
@@ -2835,7 +2843,7 @@
     }
 
     label('n = M × V', 14, 22, C.accent, 15);
-    label(M.toFixed(3) + ' mol/L × ' + V + ' mL', 14, 46, C.text, 12);
+    label(M.toFixed(3) + ' mol·L⁻¹ × ' + V + ' mL', 14, 46, C.text, 12);
     label('= ' + mol.toFixed(4) + ' mol', 14, 64, C.blue, 13);
     label('= ' + gram.toFixed(3) + ' g of solute', 14, 82, C.green, 13);
     label('meniscus at the mark: ' + Math.round(fill * 100) + '%', cx, ctx.H - 14, fill > 0.97 && fill < 1.0 ? C.green : C.yellow, 11, 'center');
@@ -2884,7 +2892,7 @@
 
     label('pH = ' + pH.toFixed(2), 14, ctx.H - 74, pH < 7 ? C.red : (pH > 7 ? C.blue : C.green), 20);
     label('pOH = ' + pOH.toFixed(2), 14, ctx.H - 50, C.text, 12);
-    label('[H⁺] = ' + h.toExponential(2) + ' M', 14, ctx.H - 32, C.text, 12);
+    label('[H\u207A] = ' + sciSup(h, 3) + ' mol\u00b7L\u207B\u00B9', 14, ctx.H - 32, C.text, 12);
     label(strong ? 'strong: fully dissociated' : 'α = ' + (alpha * 100).toFixed(1) + '% dissociated', 14, ctx.H - 14, C.dim, 11);
   }
 
@@ -3104,8 +3112,8 @@
     label('T = ' + T + ' K (' + (T - 273).toFixed(0) + ' °C)', bx, by + 44, C.text, 12);
     label('V = ' + V.toFixed(2) + ' L', bx, by + 62, C.text, 12);
     label('p = ' + P.toFixed(2) + ' atm', bx, by + 84, C.green, 15);
-    label('v_rms(O₂) = ' + vrms.toFixed(0) + ' m/s', bx, by + 106, C.yellow, 12);
-    label('⟨KE⟩ = ' + (1.5 * 8.314 * T / 1000).toFixed(2) + ' kJ/mol', bx, by + 124, C.dim, 11);
+    label('v\u1D63\u2098\u209B(O\u2082) = ' + vrms.toFixed(0) + ' m\u00b7s\u207B\u00B9', bx, by + 106, C.yellow, 12);
+    label('\u27E8KE\u27E9 = ' + (1.5 * 8.314 * T / 1000).toFixed(2) + ' kJ\u00b7mol\u207B\u00B9', bx, by + 124, C.dim, 11);
   }
 
   function drawCrystalLattice(ctx, p) {
@@ -3288,8 +3296,8 @@
     label('[B] = ' + B.toFixed(3) + ' M', 14, 88, C.green, 12);
     label('Q = ' + Q.toFixed(3) + (Math.abs(Q - K) / K < 0.05 ? '  ≈ K: at equilibrium' : (Q < K ? '  < K: shifting right' : '  > K: shifting left')),
       14, ctx.H - 16, Math.abs(Q - K) / K < 0.05 ? C.yellow : C.dim, 12);
-    label('v_fwd = ' + (kf * A).toFixed(4), x0 + w + 4, y0 - h * 0.6, C.red, 10);
-    label('v_rev = ' + (kr * B).toFixed(4), x0 + w + 4, y0 - h * 0.5, C.green, 10);
+    label('v(fwd) = ' + (kf * A).toFixed(4), x0 + w + 4, y0 - h * 0.6, C.red, 10);
+    label('v(rev) = ' + (kr * B).toFixed(4), x0 + w + 4, y0 - h * 0.5, C.green, 10);
   }
 
   function drawPhotoelectric(ctx, p) {
@@ -3584,7 +3592,7 @@
     label('Michaelis–Menten', 14, 22, C.accent, 15);
     label('v = Vmax·[S] / (Km + [S])', 14, 44, C.text, 12);
     label('Vmax(app) = ' + Vmaxapp.toFixed(1) + '   Km(app) = ' + Kmapp.toFixed(2), 14, 66, C.yellow, 12);
-    label('[S] = ' + S.toFixed(2) + ' → v = ' + v.toFixed(2) + ' (' + Math.round(100 * v / Vmax) + '% of Vmax)', 14, 86, C.green, 12);
+    label('[S] = ' + S.toFixed(2) + ' → v = ' + v.toFixed(2) + ' (' + Math.round(100 * v / Vmax) + '% of Vₘₐₛ)', 14, 86, C.green, 12);
     label(type === 'none' ? 'no inhibitor' : type + ' inhibition, [I] = ' + I.toFixed(1),
       14, ctx.H - 14, type === 'none' ? C.dim : C.red, 12);
     if (type === 'competitive') label('out-competed by more substrate: Vmax preserved, Km raised', 14, ctx.H - 32, C.dim, 10);
@@ -3688,7 +3696,7 @@
     },
     'reaction-rate': {
       p: function() {
-        return slider('param-ea', t('ea'), 10, 200, 5, 60, ' kJ/mol') +
+        return slider('param-ea', t('ea'), 10, 200, 5, 60, ' kJ·mol⁻¹') +
           slider('param-temp', t('tempK'), 200, 800, 10, 298, ' K');
       },
       d: drawReactionRate
@@ -3697,7 +3705,7 @@
       p: function() {
         return slider('param-molarity', t('molarity'), 0.01, 2, 0.01, 0.5, ' M') +
           slider('param-volume', t('volume'), 50, 1000, 10, 250, ' mL') +
-          slider('param-mm', t('molarMassParam'), 10, 200, 1, 58.44, ' g/mol') +
+          slider('param-mm', t('molarMassParam'), 10, 200, 1, 58.44, ' g·mol⁻¹') +
           slider('param-fill', t('fill'), 0, 100, 1, 100, '%');
       },
       d: drawSolutionPrep
@@ -3987,10 +3995,10 @@
     if (res.mass > 0) {
       const syms = Object.keys(res.counts);
       if (syms.length === 1 && res.counts[syms[0]] === 1) {
-        els.calcResult.textContent = getElementName(syms[0]) + ' (' + syms[0] + ', Z=' + ELEMENT_Z[syms[0]] + ') — ' +
+        els.calcResult.textContent = getElementName(syms[0]) + ' (' + syms[0] + ', Z = ' + ELEMENT_Z[syms[0]] + ') — ' +
           res.mass.toFixed(3) + ' ' + t('gPerMol');
       } else {
-        const breakdown = syms.map(function(s) { return s + ' ' + res.counts[s]; }).join(', ');
+        const breakdown = syms.map(function(s) { return s + subDigits(res.counts[s]); }).join(', ');
         const n = totalAtoms(res.counts);
         els.calcResult.textContent = raw + ' — ' + t('molarMass') + ' ' + res.mass.toFixed(3) +
           ' ' + t('gPerMol') + '  ·  ' + n + ' ' + (n === 1 ? t('atomOne') : t('atomsIn')) + ' (' + breakdown + ')';

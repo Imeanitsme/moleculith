@@ -87,7 +87,7 @@
     var m = (typeof el.mass === 'number' && isFinite(el.mass)) ? Math.round(el.mass) : null;
     var base = (m !== null && m >= z) ? m : Math.max(1, z * 2 - 1);
     var a = base + neutronExcess(atomId);
-    return { z: z, n: a - z, a: a, label: el.sym + '-' + a };
+    return { z: z, n: a - z, a: a, sym: el.sym, label: el.sym + '-' + a };
   }
 
   // The tag is a texture, not geometry: a nuclide that was drawn before is reused
@@ -108,31 +108,45 @@
       : { edge: 'rgba(8,12,18,0.9)', fill: '#ffd9a8' };
   }
 
-  function nuclideTexture(label, THREE) {
-    var cached = nuclideTextures.get(label);
+  function nuclideTexture(nuclide, THREE) {
+    var cached = nuclideTextures.get(nuclide.label);
     if (cached) return cached;
     var canvas = document.createElement('canvas');
     canvas.width = 192;
     canvas.height = 64;
     var g = canvas.getContext('2d');
     if (!g) return null;
-    g.font = 'bold 40px "Segoe UI", Arial, sans-serif';
+    var symbolFont = 'bold 40px "Segoe UI", Arial, sans-serif';
+    var massFont = 'bold 26px "Segoe UI", Arial, sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.lineWidth = 8;
     g.lineJoin = 'round';
     var ink = nuclideInk();
     g.strokeStyle = ink.edge;
-    g.strokeText(label, 96, 34);
     // Warm rather than the symbol's white: this line belongs to the nucleus, and
     // the element label floating on the same atom already uses white.
     g.fillStyle = ink.fill;
-    g.fillText(label, 96, 34);
+    // The mass number is raised above and to the left of the symbol, so it is
+    // painted at its own size and height rather than trusting the font to carry
+    // superscript digits.
+    var mass = String(nuclide.a);
+    g.font = massFont;
+    var massW = g.measureText(mass).width;
+    g.font = symbolFont;
+    var symW = g.measureText(nuclide.sym).width;
+    var left = 96 - (massW + symW) / 2;
+    g.lineWidth = 8;
+    g.strokeText(nuclide.sym, left + massW + symW / 2, 34);
+    g.fillText(nuclide.sym, left + massW + symW / 2, 34);
+    g.font = massFont;
+    g.lineWidth = 5;
+    g.strokeText(mass, left + massW / 2, 14);
+    g.fillText(mass, left + massW / 2, 14);
     var tex = new THREE.CanvasTexture(canvas);
     if (nuclideTextures.size >= NUCLIDE_TEX_MAX) {
       nuclideTextures.delete(nuclideTextures.keys().next().value);
     }
-    nuclideTextures.set(label, tex);
+    nuclideTextures.set(nuclide.label, tex);
     return tex;
   }
 
@@ -140,7 +154,7 @@
     if (!THREE || typeof THREE.Sprite !== 'function' ||
         typeof THREE.SpriteMaterial !== 'function' ||
         typeof THREE.CanvasTexture !== 'function') return null;
-    var tex = nuclideTexture(nuclide.label, THREE);
+    var tex = nuclideTexture(nuclide, THREE);
     if (!tex) return null;
     var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex, transparent: true, depthWrite: false

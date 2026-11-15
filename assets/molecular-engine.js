@@ -25,7 +25,7 @@
     debye: 3.33564e-30,              // C m
     a0: 5.29177210903e-11            // Bohr radius, m
   };
-  CONST.R = CONST.N_A * CONST.k_B;             // 8.31446261815324 J/(mol K)
+  CONST.R = CONST.N_A * CONST.k_B;             // 8.31446261815324 J·mol⁻¹·K⁻¹
   CONST.hbar = CONST.h / (2 * Math.PI);        // J s
   CONST.ke = 1 / (4 * Math.PI * CONST.eps0);   // 8.9875517923e9 N m^2 / C^2
   CONST.kcalMol = 4184 / CONST.N_A;            // J per particle per kcal/mol
@@ -1045,8 +1045,8 @@
     if (this.mol.assignCharges) this.mol.assignCharges();
     var check = this.validateTimestep();
     if (!check.ok) {
-      this.warnings = ['timestep ' + this.dt.toExponential(2) + ' s exceeds the ' +
-        check.recommendedMax.toExponential(2) + ' s limit implied by the ' + check.fastestBond +
+      this.warnings = ['timestep ' + sci(this.dt, 2) + ' s exceeds the ' +
+        sci(check.recommendedMax, 2) + ' s limit implied by the ' + check.fastestBond +
         ' vibration; energy conservation will fail'];
     }
     this.force();
@@ -1182,10 +1182,10 @@
       if (!isFinite(a.x) || !isFinite(a.y) || !isFinite(a.z)) return 'atom ' + a.sym + ' position is not finite';
       if (!isFinite(a.vx) || !isFinite(a.vy) || !isFinite(a.vz)) return 'atom ' + a.sym + ' velocity is not finite';
       var r = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-      if (r > 1e-5) return 'atom ' + a.sym + ' has run away to ' + r.toExponential(2) + ' m';
+      if (r > 1e-5) return 'atom ' + a.sym + ' has run away to ' + sci(r, 2) + ' m';
       var f = Math.sqrt(a.fx * a.fx + a.fy * a.fy + a.fz * a.fz);
       // 1e-4 N at atomic scales is already far outside the model's validity
-      if (f > 1e-4) return 'force on ' + a.sym + ' reached ' + f.toExponential(2) + ' N, outside the model range';
+      if (f > 1e-4) return 'force on ' + a.sym + ' reached ' + sci(f, 2) + ' N, outside the model range';
     }
     return null;
   }
@@ -1602,7 +1602,7 @@
       kind: 'semi-empirical classical',
       hardnessSource: 'Mulliken-Parr absolute hardness, eta = (IE - EA)/2 eV (measured NIST IE/EA)',
       chiSource: params.chiSource === 'pauling'
-        ? 'Pauling thermochemical electronegativity, converted to eV as 1 EN unit = 252.4 kJ/mol = ' + PAULING_UNIT_EV.toFixed(3) + ' eV'
+        ? 'Pauling thermochemical electronegativity, converted to eV as 1 EN unit = 252.4 kJ·mol⁻¹ = ' + PAULING_UNIT_EV.toFixed(3) + ' eV'
         : 'Mulliken-Parr absolute electronegativity, chi = (IE + EA)/2 eV (measured NIST IE/EA)',
       interactionKernel: 'screened Coulomb 14.3996/(r + 14.3996/gbar), gbar = (eta_i+eta_j)/2, n=1',
       chiScale: params.chiSource,
@@ -2384,8 +2384,8 @@
   Thermo.sackurTetrode = function(m_kg, T, volume_m3) {
     var lam = Thermo.thermalWavelength(m_kg, T);
     var x = volume_m3 / (lam * lam * lam);
-    if (!(x > 0)) return { ok: false, reason: 'invalid V/lambda^3' };
-    return { ok: true, SperMolecule: CONST.k_B * (Math.log(x) + 2.5), lambda: lam, formula: 'S = k[ln(V/lambda^3) + 5/2]' };
+    if (!(x > 0)) return { ok: false, reason: 'invalid V/λ³' };
+    return { ok: true, SperMolecule: CONST.k_B * (Math.log(x) + 2.5), lambda: lam, formula: 'S = k·[ln(V/λ³) + 5/2]' };
   };
 
   // Rotational: rigid rotor about the principal axes, moments of inertia from
@@ -2422,7 +2422,7 @@
       return {
         ok: true, linear: true, symmetryNumber: sigma, thetaRot: th,
         S: CONST.k_B * (Math.log(T / (sigma * th)) + 1),
-        formula: 'S = k[ln(T/sigma.theta_r) + 1] (rigid linear rotor, high-T limit)'
+        formula: 'S = k·[ln(T/(σ·θ)) + 1] (rigid linear rotor, high-T limit)'
       };
     }
     var prod = 1, th = [];
@@ -2434,7 +2434,7 @@
     return {
       ok: true, linear: false, symmetryNumber: sigma, thetaRot: th,
       S: CONST.k_B * (0.5 * Math.log(Math.PI / (sigma * sigma)) + 1.5 * Math.log(T) - 0.5 * Math.log(prod) + 1.5),
-      formula: 'S = k[ln(sqrt(pi)/sigma^2 * T^3/(theta_a.theta_b.theta_c)) + 3/2] (rigid nonlinear rotor)'
+      formula: 'S = k·[ln(√π/σ² · T³/(θ₁·θ₂·θ₃)) + 3/2] (rigid nonlinear rotor)'
     };
   };
 
@@ -2452,7 +2452,7 @@
       Cv += CONST.k_B * x * x * ex / Math.pow(ex - 1, 2);
       ZPE += 0.5 * CONST.h * v;
     }
-    return { S: S, zeroPointEnergy: ZPE, Cv: Cv, formula: 'S = k sum[ x/(e^x-1) - ln(1-e^-x) ], x = h.v/kT' };
+    return { S: S, zeroPointEnergy: ZPE, Cv: Cv, formula: 'S = k·Σ[ x/(exp(x)−1) − ln(1−exp(−x)) ], x = hν/kT' };
   };
 
   // 9.4 The discrete Gibbs-Shannon form, used for distributions the engine
@@ -2491,7 +2491,7 @@
   // Ideal-gas molar heat capacity from the active quadratic degrees of freedom.
   Thermo.molarHeatCapacity = function(dofTrans, dofRot, dofVib) {
     var Cv = (dofTrans + dofRot) * 0.5 * CONST.R + dofVib * CONST.R;
-    return { Cv: Cv, Cp: Cv + CONST.R, units: 'J/(mol K)' };
+    return { Cv: Cv, Cp: Cv + CONST.R, units: 'J·mol⁻¹·K⁻¹' };
   };
 
   // ==================== normal modes / Hessian (Phase 10.2, 10.3) ====================
@@ -2555,9 +2555,9 @@
     });
     return {
       ok: true, modes: modes, step: HESSIAN_STEP, energy: e0,
-      units: 'wavenumber in cm^-1',
+      units: 'wavenumber in cm⁻¹',
       imaginaryCount: modes.filter(function(m) { return m.imaginary; }).length,
-      formula: 'omega^2 from the mass-weighted Hessian of the fitted force field'
+      formula: 'ω² from the mass-weighted Hessian of the fitted force field'
     };
   }
 
@@ -2603,7 +2603,7 @@
     rep.freePerMole = {
       A: fe.HelmholtzA * CONST.N_A, H: fe.enthalpyH * CONST.N_A, G: fe.GibbsG * CONST.N_A
     };
-    rep.note = 'rigid rotor / harmonic oscillator / ideal translation; entropies per molecule in J/K, molar values in J/(mol K)';
+    rep.note = 'rigid rotor / harmonic oscillator / ideal translation; entropies per molecule in J·K⁻¹, molar values in J·mol⁻¹·K⁻¹';
     return rep;
   };
 
@@ -2906,7 +2906,7 @@
     return {
       ok: true, Ea_J_per_mol: Ea, Ea_kJ_per_mol: Ea / 1000, A: A,
       r2: ssTot > 0 ? 1 - ssRes / ssTot : 1, points: m,
-      units: 'Ea J/mol, A in the same units as the input k'
+      units: 'Ea in J·mol⁻¹, A in the same units as the input k'
     };
   };
 
@@ -2922,15 +2922,15 @@
     return {
       ok: true, k: k, kappa: kappa, T: T,
       thermalFrequency: kBToverH,
-      units: 'first-order s^-1; concentration-dependent units for higher order',
-      note: 'Eyring: k = kappa.kB.T/h . exp(-dG_dagger/RT). dG_dagger is an activation FREE energy in J/mol; it is not the Arrhenius Ea.'
+      units: 'first-order s\u207b\u00b9; concentration-dependent units for higher order',
+      note: 'Eyring: k = kappa.kB.T/h . exp(-dG_dagger/RT). dG_dagger is an activation FREE energy in J·mol⁻¹; it is not the Arrhenius Ea.'
     };
   };
 
   // Eyring activation entropy from a measured A factor: A = (e kBT/h) exp(dS/R).
   Kinetics.entropyFromPreExponential = function(A, T) {
     var pref = Math.E * CONST.k_B * T / CONST.h;
-    return { ok: pref > 0, deltaS_dagger: CONST.R * Math.log(A / pref), units: 'J/(mol K)' };
+    return { ok: pref > 0, deltaS_dagger: CONST.R * Math.log(A / pref), units: 'J·mol⁻¹·K⁻¹' };
   };
 
   // Wigner parabolic-barrier tunnelling correction from the imaginary
@@ -2942,7 +2942,7 @@
     return {
       ok: true, kappa: kappa, dimensionlessBarrierFrequency: x,
       reliable: x < 2,
-      warning: x >= 2 ? 'h.nu/kT = ' + x.toFixed(2) + ' is outside the low-barrier limit the Wigner correction assumes' : null
+      warning: x >= 2 ? 'h\u03bd/kT = ' + x.toFixed(2) + ' is outside the low-barrier limit the Wigner correction assumes' : null
     };
   };
 
@@ -2999,9 +2999,9 @@
   };
 
   Kinetics.halfLife = function(k, order, c0) {
-    if (order === 1) return { ok: true, t_half: Math.log(2) / k, formula: 'ln2/k' };
-    if (order === 2) return { ok: true, t_half: 1 / (k * c0), formula: '1/(k.c0)' };
-    if (order === 0) return { ok: true, t_half: c0 / (2 * k), formula: 'c0/(2k)' };
+    if (order === 1) return { ok: true, t_half: Math.log(2) / k, formula: '(ln 2)/k' };
+    if (order === 2) return { ok: true, t_half: 1 / (k * c0), formula: '1/(k·c₀)' };
+    if (order === 0) return { ok: true, t_half: c0 / (2 * k), formula: 'c₀/(2k)' };
     return { ok: false, reason: 'no closed form supplied for order ' + order };
   };
 
@@ -4309,7 +4309,7 @@
       var b = before.counts[key] || 0, a = after.counts[key] || 0;
       if (b !== a) problems.push(key + ': ' + b + ' -> ' + a + ' atoms');
     }
-    if (Math.abs(before.charge - after.charge) > 1e-24) problems.push('charge ' + before.charge.toExponential(3) + ' -> ' + after.charge.toExponential(3) + ' C');
+    if (Math.abs(before.charge - after.charge) > 1e-24) problems.push('charge ' + sci(before.charge, 3) + ' C \u2192 ' + sci(after.charge, 3) + ' C');
     if (Math.abs(before.mass - after.mass) > before.mass * 1e-12) problems.push('mass drift');
     return {
       ok: problems.length === 0,
@@ -4889,10 +4889,10 @@
     equilibrium: LS('Fitted r₀', 'r₀ khớp'),
     shift: LS('Δr', 'Δr'),
     stiffness: LS('k (N/m)', 'k (N/m)'),
-    uBond: LS('U bond (kJ/mol)', 'U liên kết (kJ/mol)'),
-    uBondNote: LS('U bond is the potential energy of the pair at its present length, measured against the same two atoms infinitely far apart and at rest, from the exact term the integrator steps: the Morse well when the bond has a dissociation energy, the harmonic spring otherwise. So an equilibrium C-C bond reads -348 kJ/mol and an equilibrium C-H bond -413 kJ/mol, and the number only climbs when the bond is stretched or compressed. A positive value means the pair has been pushed inside the repulsive wall of the well, or that this bond is one of the estimated spring-only cases that has no dissociation energy to set its depth.',
-      'U liên kết là thế năng của cặp ở chiều dài hiện tại, đo so với chính hai nguyên tử đó tách ra vô cùng và đứng yên, lấy đúng từ số hạng mà integrator đang tích phân: hố Morse khi liên kết có năng lượng phân li, còn không thì dùng lò xo điều hòa. Vì vậy một liên kết C-C ở cân bằng đọc -348 kJ/mol và liên kết C-H ở cân bằng đọc -413 kJ/mol, con số này chỉ dâng lên khi liên kết bị kéo giãn hoặc nén lại. Một giá trị dương nghĩa là cặp đã bị đẩy vào phần thế đẩy của hố, hoặc liên kết này thuộc trường hợp lò xo ước lượng không có năng lượng phân li để định độ sâu.'),
-    dissociation: LS('D₀ (kJ/mol)', 'D₀ (kJ/mol)'),
+    uBond: LS('U bond (kJ·mol⁻¹)', 'U liên kết (kJ·mol⁻¹)'),
+    uBondNote: LS('U bond is the potential energy of the pair at its present length, measured against the same two atoms infinitely far apart and at rest, from the exact term the integrator steps: the Morse well when the bond has a dissociation energy, the harmonic spring otherwise. So an equilibrium C-C bond reads -348 kJ·mol⁻¹ and an equilibrium C-H bond -413 kJ·mol⁻¹, and the number only climbs when the bond is stretched or compressed. A positive value means the pair has been pushed inside the repulsive wall of the well, or that this bond is one of the estimated spring-only cases that has no dissociation energy to set its depth.',
+      'U liên kết là thế năng của cặp ở chiều dài hiện tại, đo so với chính hai nguyên tử đó tách ra vô cùng và đứng yên, lấy đúng từ số hạng mà integrator đang tích phân: hố Morse khi liên kết có năng lượng phân li, còn không thì dùng lò xo điều hòa. Vì vậy một liên kết C-C ở cân bằng đọc -348 kJ·mol⁻¹ và liên kết C-H ở cân bằng đọc -413 kJ·mol⁻¹, con số này chỉ dâng lên khi liên kết bị kéo giãn hoặc nén lại. Một giá trị dương nghĩa là cặp đã bị đẩy vào phần thế đẩy của hố, hoặc liên kết này thuộc trường hợp lò xo ước lượng không có năng lượng phân li để định độ sâu.'),
+    dissociation: LS('D₀ (kJ·mol⁻¹)', 'D₀ (kJ·mol⁻¹)'),
     measured: LS('measured', 'đo thực nghiệm'),
     estimated: LS('estimated', 'ước lượng'),
     ionicChar: LS('ionic character', 'phần ion'),
@@ -4922,7 +4922,7 @@
       'Thông báo gốc từ các phép tính (chỉ tiếng Anh). Mọi thứ engine không mô hình hoá được đều ghi ở đây thay vì bị ẩn.'),
     termsTitle: LS('Energy of this species, per mole, term by term', 'Năng lượng của loài này, theo mol, từng số hạng'),
     term: LS('Term', 'Số hạng'),
-    valueKJmol: LS('kJ/mol', 'kJ/mol'),
+    valueKJmol: LS('kJ·mol⁻¹', 'kJ·mol⁻¹'),
     tBond: LS('Bond stretch (Morse)', 'Giãn liên kết (Morse)'),
     tAngle: LS('Angle bend', 'Uốn góc'),
     tTorsion: LS('Torsion', 'Xoắn'),
@@ -5136,7 +5136,7 @@
     [/^f = (.*) active dof after COM removal$/, function(m) { return m[1] + ' bậc tự do hiệu dụng sau khi tách chuyển động khối tâm.'; }],
     [/^Morse and harmonic differ anharmonically, so (.*)$/, function(m) { return 'Morse và harmonic lệch nhau do phi điều hoà, nên ' + m[1] + '.'; }],
     [/^max (\|∇U\| = .*)$/, function(m) { return 'Giá trị lớn nhất ' + m[1] + '.'; }],
-    [/^reference (.*) J\/\(mol K\) at (.*)$/, function(m) { return 'Mốc ' + m[1] + ' J/(mol K) ở ' + m[2] + '.'; }],
+    [/^reference (.*) J\u00b7mol\u207b\u00b9\u00b7K\u207b\u00b9 at (.*)$/, function(m) { return 'Mốc ' + m[1] + ' J\u00b7mol\u207b\u00b9\u00b7K\u207b\u00b9 ở ' + m[2] + '.'; }],
     [/^(Σq .* e) · Σ formal (.*)$/, function(m) { return m[1] + ' · Σ hình thức ' + m[2]; }],
     // The numerical-stop sentences the integrator writes when it refuses to go on.
     [/^energy drift (.*) exceeds 1% of the reference energy$/, function(m) { return 'độ trôi năng lượng ' + m[1] + ' vượt 1% năng lượng mốc'; }],
@@ -5156,7 +5156,7 @@
       function(m) { return 'E ' + m[1] + ', độ trôi tương đối ' + m[2] + ' — cặp đã nằm sẵn trên đường cong Morse nên ghi liên kết vào đồ thị không tốn năng lượng.'; }],
     [/^(.*) → (.*) atoms · ΔQ (.*)$/, function(m) { return m[1] + ' → ' + m[2] + ' nguyên tử · ΔQ ' + m[3]; }],
     [/^(\d+) fragments$/, function(m) { return m[1] + ' mảnh'; }],
-    [/^(.*) kJ\/mol released · (.*) steps$/, function(m) { return 'Tỏa ra ' + m[1] + ' kJ/mol · ' + m[2] + ' bước.'; }],
+    [/^(.*) kJ·mol⁻¹ released · (.*) steps$/, function(m) { return 'Tỏa ra ' + m[1] + ' kJ·mol⁻¹ · ' + m[2] + ' bước.'; }],
     [/^max drift (.*)$/, function(m) { return 'Độ trôi lớn nhất ' + m[1]; }],
     [/^(.*) D · (-?[0-9.]+)% vs measured$/, function(m) { return m[1] + ' D · lệch ' + m[2] + '% so với đo.'; }],
     [/^(.*) eV gap, (.*) centres$/, function(m) { return 'Vạch HOMO–LUMO ' + m[1] + ' eV, ' + m[2] + ' tâm.'; }],
@@ -5211,6 +5211,23 @@
         window.lucide.createIcons({ nameAttr: 'data-lucide', root: root || document });
     } catch (e) {}
   }
+  // A power of ten is written with the exponent above the line, and a negative
+  // value carries a minus sign rather than a hyphen.
+  var SUP_DIGITS = ['\u2070', '\u00b9', '\u00b2', '\u00b3', '\u2074', '\u2075', '\u2076', '\u2077', '\u2078', '\u2079'];
+  function supExp(text) {
+    var out = '';
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (c === '-') out += '\u207b';
+      else if (c !== '+') out += SUP_DIGITS[+c];
+    }
+    return out;
+  }
+  function exp10(x, d) {
+    var e = x.toExponential(d);
+    var i = e.indexOf('e');
+    return e.slice(0, i).replace(/^-/, '\u2212') + '\u00d710' + supExp(e.slice(i + 1));
+  }
   // A calculated number that is smaller than the last printed digit is still a
   // result. Printing "0.0" (or "-0.0") would say "no force here", so widen the
   // precision until the value shows, and only then fall back to exponential.
@@ -5222,12 +5239,12 @@
     if (x === 0) return s;
     var wide = dp;
     while (wide < dp + 4 && parseFloat(x.toFixed(wide)) === 0) wide++;
-    if (wide === dp + 4 && parseFloat(x.toFixed(wide)) === 0) return x.toExponential(2);
+    if (wide === dp + 4 && parseFloat(x.toFixed(wide)) === 0) return exp10(x, 2);
     return x.toFixed(wide);
   }
   function sci(x, d) {
     if (x === null || x === undefined || !isFinite(x)) return '—';
-    return x.toExponential(d === undefined ? 2 : d);
+    return exp10(x, d === undefined ? 2 : d);
   }
   function fs(t) { return num(t * 1e15, 1) + ' fs'; }
   function deg(x) { return num(x, 1) + '°'; }
@@ -5489,8 +5506,8 @@
         html += box(TXT(STR.relaxApplied), kv([
           ['FIRE', (r.converged ? TXT(STR.fireConv) : TXT(STR.fireStop)) + ' · ' +
             r.steps + ' ' + TXT(STR.fireSteps)],
-          [TXT(STR.tTotal), num(r.energyAfterKJmol, 1) + ' kJ/mol'],
-          ['Δ', num(r.releasedKJmol, 1) + ' kJ/mol'],
+          [TXT(STR.tTotal), num(r.energyAfterKJmol, 1) + ' kJ·mol⁻¹'],
+          ['Δ', num(r.releasedKJmol, 1) + ' kJ·mol⁻¹'],
           [TXT(STR.relaxNote), TXT(STR.sync)]
         ]) + '<div class="mpe-row"><button data-act="sync">⇄ ' + esc(TXT(STR.sync)) + '</button></div>' +
           (Engine.state.lastSync ? '<div class="' + (Engine.state.lastSync.ok ? 'mpe-ok' : 'mpe-err') + '">' +
@@ -5583,8 +5600,8 @@
 
       html += box(TXT(STR.instantT) + ' / ' + TXT(STR.kinetic) + ' / ' + TXT(STR.total), kv([
         [TXT(STR.temperature), num(Thermo.temperature(mol, dyn.kinetic()), 1) + ' K'],
-        [TXT(STR.kinetic), num(dyn.kinetic() * CONST.N_A / 1000, 2) + ' kJ/mol'],
-        [TXT(STR.tTotal), num(dyn.totalEnergy() * CONST.N_A / 1000, 2) + ' kJ/mol'],
+        [TXT(STR.kinetic), num(dyn.kinetic() * CONST.N_A / 1000, 2) + ' kJ·mol⁻¹'],
+        [TXT(STR.tTotal), num(dyn.totalEnergy() * CONST.N_A / 1000, 2) + ' kJ·mol⁻¹'],
         [TXT(STR.kSpread), sci(Math.min.apply(null, Thermo.perAtomTemperature(mol)), 2) + ' … ' +
           sci(Math.max.apply(null, Thermo.perAtomTemperature(mol)), 2) + ' K']
       ]));
@@ -5611,7 +5628,7 @@
           [TXT(STR.topologyWork), run.reactive ? sci(run.reactive.ledger.topologyWork, 2) + ' J' : '0'],
           [TXT(STR.unpaidHeat), run.reactive ? sci(run.reactive.ledger.unpaidHeat, 2) + ' J' : '0'],
           [TXT(STR.bathHeat), run.reactive ? sci(run.reactive.ledger.bathHeat, 2) + ' J' : '0'],
-          [TXT(STR.momentumResidual), run.reactive ? sci(run.reactive.ledger.momentumResidual, 2) + ' kg m/s' : '0'],
+          [TXT(STR.momentumResidual), run.reactive ? sci(run.reactive.ledger.momentumResidual, 2) + ' kg\u00b7m\u00b7s\u207b\u00b9' : '0'],
           [TXT(STR.pairCurves), (mol.bondCurvePairCount || 0) + ' / ' +
             esc(TXT(t.options.pairBondCurve ? STR.onState : STR.offState))],
           [TXT(STR.refusedAtoms), run.reactive ? (mol.bondCurveRefused || []).join(' ') || '—' : '—']
@@ -5638,7 +5655,7 @@
       return '<div class="' + (c.ok ? 'mpe-ok' : 'mpe-err') + '">' +
         esc(TXT(STR.atoms)) + ': ' + c.atomCount.before + ' → ' + c.atomCount.after +
         ' · Q: ' + num(c.charge_e.before, 6) + ' → ' + num(c.charge_e.after, 6) + ' e' +
-        ' · ΔU = ' + num(c.energyDeltaKJmol, 2) + ' kJ/mol</div>' +
+        ' · ΔU = ' + num(c.energyDeltaKJmol, 2) + ' kJ·mol⁻¹</div>' +
         (c.problems.length ? listBlock(c.problems) : '');
     }
 
@@ -5694,7 +5711,7 @@
       if (pol) {
         html += box(TXT(STR.polarTitle), kv([
           [TXT(STR.kStatus), esc(gloss(pol.status))],
-          [TXT(STR.polarEnergy), num(pol.energy * CONST.N_A / 1000, 2) + ' kJ/mol'],
+          [TXT(STR.polarEnergy), num(pol.energy * CONST.N_A / 1000, 2) + ' kJ·mol⁻¹'],
           [TXT(STR.kIterations), pol.iterations],
           ['α', pol.hasAllPolar ? esc(TXT(STR.polComplete)) : esc(TXT(STR.polarMissing)) + ' ' + pol.missingPolar.join(', ')]
         ]), pol.converged ? '' : 'warn');
@@ -5713,22 +5730,22 @@
         : (rot.thetaRot || []).map(function(x) { return num(x, 3); }).join(' / ') + ' K');
       var html = box(TXT(STR.thermoTitle) + ' ' + num(T, 1) + ' K', kv([
         [TXT(STR.trans), rep.translational.ok
-          ? num(rep.translational.SperMolecule * per, 2) + ' J/(mol K)'
+          ? num(rep.translational.SperMolecule * per, 2) + ' J·mol⁻¹·K⁻¹'
           : '— ' + esc(gloss(rep.translational.reason || ''))],
         [TXT(STR.rot), rot.ok
-          ? num(rot.S * per, 2) + ' J/(mol K) · ' + esc(rot.linear ? TXT(STR.linear) : TXT(STR.nonlinear))
+          ? num(rot.S * per, 2) + ' J·mol⁻¹·K⁻¹ · ' + esc(rot.linear ? TXT(STR.linear) : TXT(STR.nonlinear))
           : '— ' + esc(gloss(rot.reason || ''))],
         [TXT(STR.thetaRot), esc(theta)],
-        [TXT(STR.vib), vib.ok ? num(vib.S * per, 2) + ' J/(mol K)' : '— ' + esc(gloss(vib.reason || ''))],
-        [TXT(STR.kSTotal), num(rep.entropyPerMole, 2) + ' J/(mol K)'],
-        [TXT(STR.zpe), num(rep.zpePerMole / 1000, 2) + ' kJ/mol'],
-        [TXT(STR.tTotal), num(rep.U_potential * per / 1000, 2) + ' kJ/mol'],
-        [TXT(STR.enthalpy), num(rep.freePerMole.H / 1000, 2) + ' kJ/mol'],
-        [TXT(STR.helmholtz), num(rep.freePerMole.A / 1000, 2) + ' kJ/mol'],
-        [TXT(STR.gibbs), num(rep.freePerMole.G / 1000, 2) + ' kJ/mol'],
+        [TXT(STR.vib), vib.ok ? num(vib.S * per, 2) + ' J·mol⁻¹·K⁻¹' : '— ' + esc(gloss(vib.reason || ''))],
+        [TXT(STR.kSTotal), num(rep.entropyPerMole, 2) + ' J·mol⁻¹·K⁻¹'],
+        [TXT(STR.zpe), num(rep.zpePerMole / 1000, 2) + ' kJ·mol⁻¹'],
+        [TXT(STR.tTotal), num(rep.U_potential * per / 1000, 2) + ' kJ·mol⁻¹'],
+        [TXT(STR.enthalpy), num(rep.freePerMole.H / 1000, 2) + ' kJ·mol⁻¹'],
+        [TXT(STR.helmholtz), num(rep.freePerMole.A / 1000, 2) + ' kJ·mol⁻¹'],
+        [TXT(STR.gibbs), num(rep.freePerMole.G / 1000, 2) + ' kJ·mol⁻¹'],
         [TXT(STR.heatCapacity), (function(d) {
           var c = Thermo.molarHeatCapacity(d.trans, d.rot, d.vib);
-          return num(c.Cv, 2) + ' / ' + num(c.Cp, 2) + ' J/(mol K) · 3N−' + (d.linear ? 5 : 6) + ' = ' + d.vib + ' vib';
+          return num(c.Cv, 2) + ' / ' + num(c.Cp, 2) + ' J·mol⁻¹·K⁻¹ · 3N−' + (d.linear ? 5 : 6) + ' = ' + d.vib + ' vib';
         })(dofOf(mol))],
         [TXT(STR.kNote), esc(gloss(rep.note))]
       ]));
@@ -6011,7 +6028,7 @@
       var start = Optimizer.energy(w.mol);
       var res = Optimizer.minimize(w.mol, { maxSteps: 4000 });
       record('FIRE minimises', res.energy <= start && res.maxGradient < 5e-6,
-        num((start - res.energy) * CONST.N_A / 1000, 2) + ' kJ/mol released · ' + res.steps + ' steps',
+        num((start - res.energy) * CONST.N_A / 1000, 2) + ' kJ·mol⁻¹ released · ' + res.steps + ' steps',
         'max |∇U| = ' + sci(res.maxGradient, 2) + ' N');
     } else record('FIRE minimises', false, '', 'no water');
 
@@ -6019,7 +6036,7 @@
     var ar = element('Ar');
     var st = Thermo.sackurTetrode(ar.mass, 298.15, 24.561e-3 / CONST.N_A);
     record('Sackur-Tetrode for Ar(g)', st.ok && approx(st.SperMolecule * CONST.N_A, 154.847, 0, 0.02),
-      num(st.SperMolecule * CONST.N_A, 2) + ' J/(mol K)', 'reference 154.85 J/(mol K) at 298.15 K, 1 bar');
+      num(st.SperMolecule * CONST.N_A, 2) + ' J·mol⁻¹·K⁻¹', 'reference 154.85 J·mol⁻¹·K⁻¹ at 298.15 K, 1 bar');
 
     // 12. Hückel: butadiene has 4 π electrons and a positive HOMO-LUMO gap.
     var bd = build([placed('C', 0, 0, 0), placed('C', 1.34, 0, 0), placed('C', 2.48, 0, 0), placed('C', 3.82, 0, 0),

@@ -167,11 +167,22 @@
     empirical: ['empirical', 'thực nghiệm'], mixed: ['mixed sources', 'nhiều nguồn'], unknown: ['unknown', 'chưa rõ'] };
   const phaseName = p => { const n = PHASE[p]; return n ? L(n[0], n[1]) : String(p); };
   const provName = p => { const n = PROV[p]; return n ? L(n[0], n[1]) : String(p); };
+  // A power of ten is written with the exponent above the line, and a negative
+  // number carries a minus sign rather than a hyphen. toExponential() is the value
+  // in the form "1.2e-5"; this is the same value in the form it is read as.
+  const SUP = { '-': '\u207B', '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3', '4': '\u2074', '5': '\u2075', '6': '\u2076', '7': '\u2077', '8': '\u2078', '9': '\u2079' };
+  function sup(s) { return String(s).split('').map(c => SUP[c] || c).join(''); }
+  function sci10(v, d) {
+    const e = v.toExponential(d);
+    const i = e.indexOf('e');
+    const mant = e.slice(0, i).replace(/\.?0+$/, '').replace(/^-/, '\u2212');
+    return mant + '\u00d710' + sup(e.slice(i + 1).replace('+', ''));
+  }
   function sci(v, d) {
     if (v === null || !Number.isFinite(v)) return L('unknown', 'chưa rõ');
     const a = Math.abs(v);
-    if (a !== 0 && (a >= 1e5 || a < 1e-3)) return v.toExponential(d === undefined ? 2 : d);
-    return v.toFixed(d === undefined ? 2 : d);
+    if (a !== 0 && (a >= 1e5 || a < 1e-3)) return sci10(v, d === undefined ? 2 : d);
+    return v.toFixed(d === undefined ? 2 : d).replace(/^-/, '\u2212');
   }
 
   function panelHtml(rx, moles) {
@@ -190,20 +201,20 @@
       return '<div class="rxn-gibbs-note">' + esc(L('Gibbs: the solver rejected this equation (', 'Dự đoán Gibbs: bộ giải từ chối phương trình (')) + esc(e.message) + ').</div>';
     }
     const K = r.lnK === null ? L('unknown', 'chưa rõ')
-      : (Math.abs(r.lnK) > 700 ? 'e^' + r.lnK.toFixed(1) : sci(r.K));
+      : (Math.abs(r.lnK) > 700 ? 'e' + sup(r.lnK.toFixed(0)) : sci(r.K));
     let verdict;
     if (r.dG0 === null) verdict = L('undetermined: standard data incomplete', 'không xác định: dữ liệu chuẩn chưa đủ');
     else if (r.dG0 < 0) verdict = L('thermodynamically favourable as written at these conditions; it says nothing about how fast', 'thuận lợi về nhiệt động khi viết như trên ở điều kiện này; không nói gì về tốc độ');
     else verdict = L('thermodynamically unfavourable as written; the game condition must supply the driving energy', 'không thuận lợi khi viết như trên; điều kiện trong game phải cung cấp năng lượng thúc đẩy');
 
     const rows = [];
-    rows.push('<div class="rxn-gibbs-eq"><b>ΔH°(T)</b> = ' + sci(r.dH, 2) + ' kJ/mol' +
+    rows.push('<div class="rxn-gibbs-eq"><b>ΔH°(T)</b> = ' + sci(r.dH, 2) + ' kJ·mol⁻¹' +
       ' <b>ΔS°(T)</b> = ' + sci(r.dS, 2) + ' J·mol⁻¹·K⁻¹</div>');
-    rows.push('<div class="rxn-gibbs-eq"><b>ΔG°(T)</b> = ' + sci(r.dG0, 2) + ' kJ/mol' +
+    rows.push('<div class="rxn-gibbs-eq"><b>ΔG°(T)</b> = ' + sci(r.dG0, 2) + ' kJ·mol⁻¹' +
       ' <b>K(T)</b> = ' + esc(K) + '</div>');
     if (r.lnQ !== null && r.lnQ !== undefined) {
       rows.push('<div class="rxn-gibbs-eq"><b>Q</b> = ' + (Number.isFinite(r.lnQ) ? sci(Math.exp(r.lnQ)) : (r.lnQ > 0 ? '→ ∞' : '→ 0')) +
-        ' <b>ΔG</b> = ' + sci(r.dG, 2) + ' kJ/mol</div>');
+        ' <b>ΔG</b> = ' + sci(r.dG, 2) + ' kJ·mol⁻¹</div>');
       rows.push('<div class="rxn-gibbs-note">' + esc(q.reactantGases
         ? L('Q uses the masses you entered for the gaseous reactants and holds every product at unit activity, so ΔG is the initial driving force.',
             'Q dùng khối lượng bạn nhập cho các chất khí tham gia và giữ mọi sản phẩm ở hoạt độ đơn vị, nên ΔG là lực đẩy ban đầu.')
@@ -246,7 +257,7 @@
         (gaps.length > 6 ? esc(L(' (+' + (gaps.length - 6) + ' more)', ' (+ ' + (gaps.length - 6) + ' nữa)')) : '') + '.</div>');
     }
     const per = list.map(t => '<div>' + esc(t.formula) + ' ' + (t.nu < 0 ? L('reactant', 'chất tham gia') : L('product', 'sản phẩm')) +
-      ' · ΔfH° ' + sci(t.data.hf, 2) + ' kJ/mol · S° ' + sci(t.data.s, 2) + ' J·mol⁻¹·K⁻¹ · ' + esc(phaseName(t.data.phase)) +
+      ' · ΔfH° ' + sci(t.data.hf, 2) + ' kJ·mol⁻¹ · S° ' + sci(t.data.s, 2) + ' J·mol⁻¹·K⁻¹ · ' + esc(phaseName(t.data.phase)) +
       (Number.isFinite(t.data.cp) ? ' · Cp ' + sci(t.data.cp, 2) : '') + '</div>');
     const titles = list.map(t => att(t.formula + ': ' + t.data.source)).join('\n');
     return '<div class="rxn-gibbs" title="' + titles + '">' +
@@ -271,12 +282,12 @@
         ? L('thermodynamically favourable at these conditions (says nothing about rate)', 'thuận lợi về nhiệt động ở điều kiện này (không nói gì về tốc độ)')
         : L('unfavourable at these conditions; the game condition supplies the driving energy', 'không thuận lợi ở điều kiện này; điều kiện trong game cung cấp năng lượng');
     }
-    const K = r.lnK === null ? L('unknown', 'chưa rõ') : (Math.abs(r.lnK) > 700 ? 'e^' + r.lnK.toFixed(1) : sci(r.K));
+    const K = r.lnK === null ? L('unknown', 'chưa rõ') : (Math.abs(r.lnK) > 700 ? 'e' + sup(r.lnK.toFixed(0)) : sci(r.K));
     const title = r.sources.map(s => s.formula + ': ' + s.data.source).join('\n');
     return '<div class="urpe-g" title="' + title.replace(/"/g, '&quot;') + '">' +
       '<b>' + L('Gibbs prediction at the environment setting', 'Dự đoán Gibbs theo điều kiện môi trường') +
       ' (' + T.toFixed(2) + ' K, ' + P.toFixed(P < 10 ? 3 : 1) + ' bar)</b><br>' +
-      'ΔH° = ' + sci(r.dH, 2) + ' kJ/mol · ΔS° = ' + sci(r.dS, 2) + ' J/(mol·K) · ΔG° = ' + sci(r.dG0, 2) + ' kJ/mol · K = ' + K +
+      'ΔH° = ' + sci(r.dH, 2) + ' kJ·mol⁻¹ · ΔS° = ' + sci(r.dS, 2) + ' J·mol⁻¹·K⁻¹ · ΔG° = ' + sci(r.dG0, 2) + ' kJ·mol⁻¹ · K = ' + K +
       '<br><i>' + verdict + '</i></div>';
   }
 
@@ -322,13 +333,13 @@
     try { if (th && th.standardStateGibbs) r = th.standardStateGibbs(list); } catch (e) { r = null; }
     if (r && r.dG !== null && r.dG !== undefined) {
       return '<div class="urpe-g-note">' + L('Standard-state data (298.15 K, 1 bar)', 'Dữ liệu chuẩn (298,15 K, 1 bar)') + '</div>' + head +
-        'ΔfH° = ' + r.dHf.toFixed(2) + ' kJ/mol · ΔfS° = ' + r.dSf.toFixed(2) + ' J/(mol·K) · ΔfG° = ' + r.dG.toFixed(2) + ' kJ/mol';
+        'ΔfH° = ' + r.dHf.toFixed(2) + ' kJ·mol⁻¹ · ΔfS° = ' + r.dSf.toFixed(2) + ' J·mol⁻¹·K⁻¹ · ΔfG° = ' + r.dG.toFixed(2) + ' kJ·mol⁻¹';
     }
     const sp = lookup(a.displayFormula || a.formula || (r && r.formula));
     if (sp) {
       const d = sp.data;
       return '<div class="urpe-g-note">' + L('Reference table (298.15 K)', 'Bảng dữ liệu chuẩn (298,15 K)') + '</div>' + head +
-        'ΔfH° = ' + fmt(d.hf, 2) + ' kJ/mol · S° = ' + fmt(d.s, 2) + ' J/(mol·K)' +
+        'ΔfH° = ' + fmt(d.hf, 2) + ' kJ·mol⁻¹ · S° = ' + fmt(d.s, 2) + ' J·mol⁻¹·K⁻¹' +
         (d.phase ? ' · ' + esc(phaseName(d.phase)) : '') +
         '<br><i title="' + String(d.source || '').replace(/"/g, '&quot;') + '">' + String(d.source || '').replace(/[<>&]/g, '') + '</i>';
     }

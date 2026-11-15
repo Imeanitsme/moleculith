@@ -44204,7 +44204,7 @@ const UI = {
     "time.speed": "Speed:",
     "btn.quality.title": "Graphics quality — auto adapts when fps drops",
     "btn.theme.title": "Switch between dark and light theme",
-    "btn.atmosphere.title": "Toggle atmosphere (O2, N2, Ar, CO2)",
+    "btn.atmosphere.title": "Toggle atmosphere (O₂, N₂, Ar, CO₂)",
     "btn.lang.title": "Switch language",
     "btn.fc.title": "Show formal charge badges",
     "btn.mayhem.title": "Toggle mayhem mode — exotic elements and chaotic reactions",
@@ -44283,10 +44283,10 @@ const UI = {
     // stoichiometry
     "stoich.title": "Stoichiometry",
     "stoich.empty": "Select an atom or molecule to compute molar mass.",
-    "stoich.molar": "Molar mass: {m} g/mol",
+    "stoich.molar": "Molar mass: {m} g·mol⁻¹",
     "stoich.el": "Element",
     "stoich.atoms": "Atoms",
-    "stoich.atomic": "g/mol",
+    "stoich.atomic": "g·mol⁻¹",
     "stoich.subtotal": "Subtotal",
     "stoich.pct": "Mass %",
     "stoich.massLbl": "Mass (g)",
@@ -44420,7 +44420,7 @@ const UI = {
     "kinetics.ea": "Activation Energy",
     "kinetics.rate": "Rate Constant",
     "kinetics.halflife": "Decay time",
-    "kinetics.halflifeMark": "t decay",
+    "kinetics.halflifeMark": "t₁/₂",
     "kinetics.decomp": "Decomposition",
     "kinetics.dh": "Activation enthalpy",
     "kinetics.ds": "Activation entropy",
@@ -44611,18 +44611,18 @@ const UI = {
     "time.speedSlow": "⏪ Speed: {speed}",
     "nuclear.alphaBonds": "☢ {from} underwent alpha decay → {to} — bonds shattered!",
     "nuclear.alpha": "underwent alpha decay",
-    "nuclear.alphaHe": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · the alpha carries {ea} · half-life {life}",
-    "nuclear.alphaHeBonds": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · the alpha carries {ea} · half-life {life} — bonds shattered!",
-    "nuclear.ec": "☢ {from}-{fa} captured an electron: a proton became a neutron → {to}-{ta} · Q {q} · half-life {life}",
-    "nuclear.ecBonds": "☢ {from}-{fa} captured an electron: a proton became a neutron → {to}-{ta} · Q {q} · half-life {life} — bonds broken!",
+    "nuclear.alphaHe": "☢ {parent} → {daughter} + ⁴₂He · alpha decay · Q {q} · the alpha carries {ea} · half-life {life}",
+    "nuclear.alphaHeBonds": "☢ {parent} → {daughter} + ⁴₂He · alpha decay · Q {q} · the alpha carries {ea} · half-life {life} — bonds shattered!",
+    "nuclear.ec": "☢ {parent} + e⁻ → {daughter} + νₑ · electron capture, a proton became a neutron · Q {q} · half-life {life}",
+    "nuclear.ecBonds": "☢ {parent} + e⁻ → {daughter} + νₑ · electron capture, a proton became a neutron · Q {q} · half-life {life} — bonds broken!",
     "nuclear.beta": "decayed",
     "nuclear.qClause": " · Q {q}",
-    "nuclear.betaMinus": "☢ {from}-{fa} underwent beta-minus decay → {to}-{ta} · half-life {life}",
-    "nuclear.betaMinusBonds": "☢ {from}-{fa} underwent beta-minus decay → {to}-{ta} · half-life {life} — bonds broken!",
-    "nuclear.betaPlus": "☢ {from}-{fa} underwent beta-plus decay: a proton turned into a neutron and threw out a positron → {to}-{ta} · half-life {life}",
-    "nuclear.betaPlusBonds": "☢ {from}-{fa} underwent beta-plus decay: a proton turned into a neutron and threw out a positron → {to}-{ta} · half-life {life} — bonds broken!",
+    "nuclear.betaMinus": "☢ {parent} → {daughter} + e⁻ + ν̄ₑ · beta-minus decay · half-life {life}",
+    "nuclear.betaMinusBonds": "☢ {parent} → {daughter} + e⁻ + ν̄ₑ · beta-minus decay · half-life {life} — bonds broken!",
+    "nuclear.betaPlus": "☢ {parent} → {daughter} + e⁺ + νₑ · beta-plus decay, a proton turned into a neutron · half-life {life}",
+    "nuclear.betaPlusBonds": "☢ {parent} → {daughter} + e⁺ + νₑ · beta-plus decay, a proton turned into a neutron · half-life {life} — bonds broken!",
     "chem.rearranged": "Rearranged {formula} → {n} {product}",
-    "chem.rearrangedO5": "Rearranged O5 → O3 + O2",
+    "chem.rearrangedO5": "Rearranged O₅ → O₃ + O₂",
     "custom.deleteTitle": "Delete custom element",
     "custom.needName": "Name and symbol are required",
     "custom.exists": 'Element "{sym}" already exists',
@@ -44766,7 +44766,7 @@ const UI = {
     "time.speed": "Tốc độ:",
     "btn.quality.title": "Chất lượng đồ họa — tự điều chỉnh khi fps giảm",
     "btn.theme.title": "Chuyển giữa giao diện tối và sáng",
-    "btn.atmosphere.title": "Bật/tắt khí quyển (O2, N2, Ar, CO2)",
+    "btn.atmosphere.title": "Bật/tắt khí quyển (O₂, N₂, Ar, CO₂)",
     "btn.lang.title": "Chuyển ngôn ngữ",
     "btn.fc.title": "Hiện điện tích hình thức",
     "btn.mayhem.title": "Chế độ hỗn loạn — nguyên tố kỳ lạ và phản ứng hỗn loạn",
@@ -44841,10 +44841,10 @@ const UI = {
     // stoichiometry
     "stoich.title": "Tính toán mol",
     "stoich.empty": "Chọn một nguyên tử hoặc phân tử để tính khối lượng mol.",
-    "stoich.molar": "Khối lượng mol: {m} g/mol",
+    "stoich.molar": "Khối lượng mol: {m} g·mol⁻¹",
     "stoich.el": "Nguyên tố",
     "stoich.atoms": "Số nguyên tử",
-    "stoich.atomic": "g/mol",
+    "stoich.atomic": "g·mol⁻¹",
     "stoich.subtotal": "Tổng",
     "stoich.pct": "% khối lượng",
     "stoich.massLbl": "Khối lượng (g)",
@@ -44973,7 +44973,7 @@ const UI = {
     "kinetics.ea": "Năng lượng hoạt hóa",
     "kinetics.rate": "Hằng số tốc độ",
     "kinetics.halflife": "Thời gian phân hủy",
-    "kinetics.halflifeMark": "t decay",
+    "kinetics.halflifeMark": "t₁/₂",
     "kinetics.decomp": "Phân hủy",
     "kinetics.dh": "Enthalpy hoạt hóa",
     "kinetics.ds": "Entropy hoạt hóa",
@@ -45161,18 +45161,18 @@ const UI = {
     "time.speedSlow": "⏪ Tốc độ: {speed}",
     "nuclear.alphaBonds": "☢ {from} phân rã alpha → {to} — liên kết vỡ tung!",
     "nuclear.alpha": "phân rã alpha",
-    "nuclear.alphaHe": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · hạt alpha mang {ea} · bán rã {life}",
-    "nuclear.alphaHeBonds": "☢ {from}-{fa} → {to}-{ta} + ⁴He · Q {q} · hạt alpha mang {ea} · bán rã {life} — liên kết vỡ tung!",
-    "nuclear.ec": "☢ {from}-{fa} bắt electron: một proton hóa thành neutron → {to}-{ta} · Q {q} · bán rã {life}",
-    "nuclear.ecBonds": "☢ {from}-{fa} bắt electron: một proton hóa thành neutron → {to}-{ta} · Q {q} · bán rã {life} — vỡ liên kết!",
+    "nuclear.alphaHe": "☢ {parent} → {daughter} + ⁴₂He · phân rã alpha · Q {q} · hạt alpha mang {ea} · bán rã {life}",
+    "nuclear.alphaHeBonds": "☢ {parent} → {daughter} + ⁴₂He · phân rã alpha · Q {q} · hạt alpha mang {ea} · bán rã {life} — liên kết vỡ tung!",
+    "nuclear.ec": "☢ {parent} + e⁻ → {daughter} + νₑ · bắt electron: một proton hóa thành neutron · Q {q} · bán rã {life}",
+    "nuclear.ecBonds": "☢ {parent} + e⁻ → {daughter} + νₑ · bắt electron: một proton hóa thành neutron · Q {q} · bán rã {life} — vỡ liên kết!",
     "nuclear.beta": "phân rã beta",
     "nuclear.qClause": " · Q {q}",
-    "nuclear.betaMinus": "☢ {from}-{fa} phân rã beta-minus → {to}-{ta} · thời gian bán rã {life}",
-    "nuclear.betaMinusBonds": "☢ {from}-{fa} phân rã beta-minus → {to}-{ta} · thời gian bán rã {life} — vỡ liên kết!",
-    "nuclear.betaPlus": "☢ {from}-{fa} phân rã beta-plus: một proton hóa thành neutron và nhả một positron → {to}-{ta} · thời gian bán rã {life}",
-    "nuclear.betaPlusBonds": "☢ {from}-{fa} phân rã beta-plus: một proton hóa thành neutron và nhả một positron → {to}-{ta} · thời gian bán rã {life} — vỡ liên kết!",
+    "nuclear.betaMinus": "☢ {parent} → {daughter} + e⁻ + ν̄ₑ · phân rã beta-minus · thời gian bán rã {life}",
+    "nuclear.betaMinusBonds": "☢ {parent} → {daughter} + e⁻ + ν̄ₑ · phân rã beta-minus · thời gian bán rã {life} — vỡ liên kết!",
+    "nuclear.betaPlus": "☢ {parent} → {daughter} + e⁺ + νₑ · phân rã beta-plus: một proton hóa thành neutron và nhả một positron · thời gian bán rã {life}",
+    "nuclear.betaPlusBonds": "☢ {parent} → {daughter} + e⁺ + νₑ · phân rã beta-plus: một proton hóa thành neutron và nhả một positron · thời gian bán rã {life} — vỡ liên kết!",
     "chem.rearranged": "Đã sắp xếp lại {formula} → {n} {product}",
-    "chem.rearrangedO5": "Đã sắp xếp lại O5 → O3 + O2",
+    "chem.rearrangedO5": "Đã sắp xếp lại O₅ → O₃ + O₂",
     "custom.deleteTitle": "Xóa nguyên tố tùy chỉnh",
     "custom.needName": "Cần nhập tên và ký hiệu",
     "custom.exists": 'Nguyên tố "{sym}" đã tồn tại',
@@ -51773,7 +51773,7 @@ function tryBiochemicalReaction(formulas) {
       reactants: { ATP: 1, H2O: 1 },
       condition: "rt",
       products: [["ADP", 1], ["HPO4", 1]],
-      equation: "ATP4- + H2O → ADP3- + HPO42- + H+ (ΔG° ≈ -30.5 kJ/mol)",
+      equation: "ATP⁴⁻ + H₂O → ADP³⁻ + HPO₄²⁻ + H⁺ (ΔG° ≈ −30.5 kJ·mol⁻¹)",
       dynamic: true,
       biochemical: true,
       enzyme: "ATPase"
@@ -52465,6 +52465,7 @@ function limitingAnalysis(rx, molesByFormula) {
 // Scientific notation as "a×10ᵇ" with real Unicode superscript digits (no caret
 // and no "e+"). Every user-facing large/small number goes through this so the
 // readout matches how an exponent is written mathematically.
+const MINUS = "−";
 const SUP_DIGITS = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹" };
 function sciSup(x, sig) {
   if (typeof x !== "number" || !isFinite(x)) return "—";
@@ -52475,11 +52476,69 @@ function sciSup(x, sig) {
   let mant = s.slice(0, ei);
   const exp = parseInt(s.slice(ei + 1), 10);
   if (mant.indexOf(".") >= 0) mant = mant.replace(/0+$/, "").replace(/\.$/, "");
+  // The mantissa of a negative number is the one place this function used to hand
+  // back an ASCII hyphen; an exponent is a power, so it gets the real minus.
   const sup = String(exp).split("").map((c) => SUP_DIGITS[c] || c).join("");
-  return mant + "×10" + sup;
+  return mant.replace(/^-/, MINUS) + "×10" + sup;
 }
 // Standalone INFO/teacher scripts render numbers too; share this one formatter.
 if (typeof window !== "undefined") window.__sciSup = sciSup;
+// Typography for everything the app prints as mathematics. A hyphen is not a
+// minus sign, a unit is separated from its number by a space, a subscript is not
+// a letter typed after the symbol, and a nuclide carries the mass number over the
+// atomic number. The rules live here so each panel keeps its content and only its
+// own writing.
+const SUB_DIGITS = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉" };
+const SUB_LETTERS = { a: "ₐ", e: "ₑ", h: "ₕ", i: "ᵢ", j: "ⱼ", k: "ₖ", l: "ₗ", m: "ₘ", n: "ₙ", o: "ₒ", p: "ₚ", r: "ᵣ", s: "ₛ", t: "ₜ", u: "ᵤ", v: "ᵥ", x: "ₓ" };
+function subText(s) {
+  return String(s).split("").map((c) => SUB_DIGITS[c] || SUB_LETTERS[c] || c).join("");
+}
+function supText(s) {
+  return String(s).replace(/-/g, MINUS).split("").map((c) => SUP_DIGITS[c] || c).join("");
+}
+// A charge is written as the count then the sign, and a single unit charge never
+// shows its 1: ²⁺, ⁺, ⁻, ²⁻.
+function chargeText(q) {
+  const n = Math.round(q || 0);
+  if (n === 0) return "";
+  return (Math.abs(n) === 1 ? "" : supText(Math.abs(n))) + (n > 0 ? "⁺" : "⁻");
+}
+function mathNum(v, digits) {
+  if (typeof v !== "number" || !isFinite(v)) return "—";
+  const s = typeof digits === "number" ? v.toFixed(digits) : String(v);
+  return s.replace(/^-/, MINUS);
+}
+function mathUnit(v, unit, digits) {
+  if (typeof v !== "number" || !isFinite(v)) return "—";
+  return mathNum(v, digits) + " " + unit;
+}
+// Full nuclide notation: mass number and atomic number stacked before the symbol,
+// with an optional charge and the metastable/excited marker after the mass number.
+function nuclideText(a, z, sym, q, metastable) {
+  return supText(a) + subText(z) + sym + (metastable ? "ᵐ" : "") + chargeText(q);
+}
+// The plain-text form for the surfaces that cannot take markup: an ASCII math
+// string in, a typeset one out. Ranges and isotope names keep their hyphen
+// because those are punctuation, not subtraction.
+function mathText(s) {
+  return String(s)
+    .replace(/<=/g, "≤").replace(/>=/g, "≥").replace(/!=/g, "≠")
+    .replace(/->|=>/g, "→")
+    .replace(/\*//g, "·")
+    .replace(/\b1e([+-]?\d+)\b/g, (m, e) => "10" + supText(e))
+    .replace(/\^\{([^}]*)\}/g, (m, g) => supText(g))
+    .replace(/\^([A-Za-z0-9+\-])/g, (m, g) => supText(g))
+    .replace(/_\{([^}]*)\}/g, (m, g) => subText(g))
+    .replace(/_([A-Za-z0-9])/g, (m, g) => subText(g))
+    .replace(/(\d|\))\s*-\s*(?=[A-Za-z(−])/g, "$1 − ")
+    .replace(/\s-\s(?=[\d(−])/g, " − ");
+}
+if (typeof window !== "undefined") {
+  window.__math = {
+    MINUS: MINUS, sup: supText, sub: subText, charge: chargeText,
+    num: mathNum, unit: mathUnit, nuclide: nuclideText, text: mathText, sci: sciSup
+  };
+}
 function fmtAmount(x, sig = 4) {
   if (typeof x !== "number" || !isFinite(x)) return "—";
   if (x === 0) return "0";
@@ -52733,7 +52792,7 @@ function compileNetwork(network2) {
       );
       requireCond(
         Number.isFinite(Ea) && Ea >= 0,
-        `${label}: arrhenius.Ea must be a finite non-negative number (J/mol)`
+        `${label}: arrhenius.Ea must be a finite non-negative number (J·mol\u207B\u00B9)`
       );
       k = arrheniusK(A, Ea, rxT);
     } else {
@@ -55635,7 +55694,7 @@ function drawEnergyDiagram(canvas, eaUncat, eaCat, dH) {
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = "center";
   ctx.font = "8px sans-serif";
-  ctx.fillText("Energy (kJ/mol)", 0, 0);
+  ctx.fillText("Energy (kJ·mol⁻¹)", 0, 0);
   ctx.restore();
   ctx.textAlign = "center";
   ctx.font = "8px sans-serif";
@@ -55722,10 +55781,10 @@ function drawEnergyDiagram(canvas, eaUncat, eaCat, dH) {
   ctx.textAlign = "center";
   const peakX = xToX(0.5);
   ctx.fillStyle = P.err;
-  ctx.fillText(`Ea=${eaUncat.toFixed(0)}`, peakX, eToY(eaUncat) - 6);
+  ctx.fillText(`Eₐ = ${mathNum(eaUncat, 0)}`, peakX, eToY(eaUncat) - 6);
   if (eaCat < eaUncat) {
     ctx.fillStyle = P.ok;
-    ctx.fillText(`Ea=${eaCat.toFixed(0)}`, peakX + 20, eToY(eaCat) - 6);
+    ctx.fillText(`Eₐ = ${mathNum(eaCat, 0)}`, peakX + 20, eToY(eaCat) - 6);
   }
 }
 function smoothstep(t2) {
@@ -58383,7 +58442,7 @@ function emitNuclearDecay(shot, now) {
     atom._decayShake = 2000;
     atom._decayTime = now;
     status(t(broken.length ? "nuclear.alphaHeBonds" : "nuclear.alphaHe", {
-      from: oldEl.sym, fa: nuc.a, to: newEl.sym, ta: d.a,
+      parent: nuclideText(nuc.a, oldEl.z, oldEl.sym), daughter: nuclideText(d.a, d.z, newEl.sym),
       q: qText, life, ea: N.formatEnergy(al.alphaEnergy)
     }), "warn");
   } else {
@@ -58412,7 +58471,7 @@ function emitNuclearDecay(shot, now) {
       : branch.mode === "electronCapture" ? (broken.length ? "nuclear.ecBonds" : "nuclear.ec")
         : (broken.length ? "nuclear.betaMinusBonds" : "nuclear.betaMinus");
     status(t(key, {
-      from: oldEl.sym, fa: nuc.a, to: newEl.sym, ta: d.a,
+      parent: nuclideText(nuc.a, oldEl.z, oldEl.sym), daughter: nuclideText(d.a, d.z, newEl.sym),
       life: life + t("nuclear.qClause", { q: qText })
     }), "warn");
   }
@@ -58582,10 +58641,8 @@ function updateBetaDecay(now) {
       ? (broken.length ? "nuclear.betaPlusBonds" : "nuclear.betaPlus")
       : (broken.length ? "nuclear.betaMinusBonds" : "nuclear.betaMinus");
     status(t(line, {
-      from: oldEl.name,
-      fa: plan.a,
-      to: newEl.name,
-      ta: d.a,
+      parent: nuclideText(plan.a, plan.z, oldEl.sym),
+      daughter: nuclideText(d.a, d.z, newEl.sym),
       life: book.formatLife(plan.halfLife)
     }), "warn");
     spawnAnim.set(id, now);
@@ -59032,7 +59089,7 @@ function checkAndRearrangeMolecules() {
           buildMoleculeAt(template, cen.x + offset.x, cen.y + offset.y, cen.z + offset.z);
         }
         reactionVFX.explode(cen, 0.8, new Color(16755200));
-        status(t("chem.rearranged", { formula, n: numMolecules, product: diatomicFormula }), "warn");
+        status(t("chem.rearranged", { formula: prettyFormula(formula), n: numMolecules, product: prettyFormula(diatomicFormula) }), "warn");
         reanalyze();
         invalidate();
         return;
@@ -59489,7 +59546,7 @@ network.onMessage = (peerId, msgType, payload) => {
     }
   } else if (msgType === 18) {
     if (data && data.equation) {
-      status(t("net.reactionBroadcast", { eq: data.equation }), "ok");
+      status(t("net.reactionBroadcast", { eq: prettyEq(String(data.equation)) }), "ok");
     }
   } else if (msgType === 19) {
     if (data) {
@@ -61269,7 +61326,17 @@ function selectedStructures() {
 }
 function prettyEq(eq) {
   const sub = "₀₁₂₃₄₅₆₇₈₉";
-  return eq.replace(/->/g, "→").replace(new RegExp("(?<=[A-Za-z)\\]])\\d+", "g"), (m) => [...m].map((c) => sub[+c]).join(""));
+  return eq.replace(/->/g, "→").replace(new RegExp("(?<=[A-Za-z)\\]])\\d+", "g"), (m) => [...m].map((c) => sub[+c]).join(""))
+    // Subscripting the atom counts is only half of writing a species: its charge
+    // belongs above the line, and a thermodynamic value in parentheses needs the
+    // real minus sign or it reads as a subtraction.
+    .replace(/([A-Za-z₀-₉)\]])([+-])(?=\s|→|⇌|$)/g, (m, base, sign) => base + chargeText(sign === "+" ? 1 : -1))
+    // A half-reaction ends in a bare "e", which is the electron and carries the
+    // negative charge that says which way it went.
+    .replace(/(^|[\s>+])e(?=$|[\s+→⇌])/g, (m, pre) => pre + "e⁻")
+    // A bare negative number is the one place ASCII still sneaks a hyphen into an
+    // equation, and here it can only ever be subtraction's opposite.
+    .replace(/(?<=[\s(=<>≈≤≥])-(?=[\d.])/g, MINUS);
 }
 function buildRxnPanel() {
   if (!rxnConds) return;
@@ -61315,7 +61382,7 @@ function prettyRedox(s) {
 function redoxHalfHtml(h) {
   const isOx = h.kind === "oxidation";
   return `<div class="rxn-half ${isOx ? "is-ox" : "is-red"}">
-    <div class="rxn-half-head"><span>${isOx ? t("redox.oxidation") : t("redox.reduction")}</span><b>${redoxNum(h.electrons)} e</b></div>
+    <div class="rxn-half-head"><span>${isOx ? t("redox.oxidation") : t("redox.reduction")}</span><b>${redoxNum(h.electrons)} e⁻</b></div>
     <div class="rxn-half-eq">${prettyRedox(h.text)}</div>
     <div class="rxn-half-role">${isOx ? t("redox.reducingAgent") : t("redox.oxidizingAgent")}: ${prettyRedox(h.agent)} \u2192 ${prettyRedox(h.product)}</div>
   </div>`;
@@ -62501,16 +62568,18 @@ function updateKineticsPanel(comp, an) {
   const rateConstant = kin.rateConstant;
   const halfLife = kin.halfLife;
   const decompProb = kin.decompositionProbability;
-  kineticTempEl.textContent = `${temp.toFixed(1)} K`;
-  kineticEaEl.textContent = `${ea.toFixed(1)} kJ/mol`;
-  kineticRateEl.textContent = rateConstant ? `${sciSup(rateConstant, 3)} s¹` : "—";
+  kineticTempEl.textContent = mathUnit(temp, "K", 1);
+  kineticEaEl.textContent = mathUnit(ea, "kJ·mol⁻¹", 1);
+  // A first-order rate constant is per second, which is s⁻¹ rather than the s¹
+  // this used to print - the exponent is the whole meaning of the unit.
+  kineticRateEl.textContent = rateConstant ? `${sciSup(rateConstant, 3)} s⁻¹` : "—";
   kineticHalflifeEl.textContent = halfLife ? formatTime(halfLife) : "—";
   const pct = decompProb * 100;
-  kineticDecompEl.textContent = pct > 0 && pct < 0.05 ? `${sciSup(pct, 3)}%` : `${pct.toFixed(1)}%`;
-  const energy = (v) => typeof v === "number" && isFinite(v) ? `${v.toFixed(1)} kJ/mol` : "—";
+  kineticDecompEl.textContent = pct > 0 && pct < 0.05 ? `${sciSup(pct, 3)}%` : `${mathNum(pct, 1)}%`;
+  const energy = (v) => mathUnit(v, "kJ·mol⁻¹", 1);
   kineticDhEl.textContent = energy(kin.deltaH);
   kineticDgEl.textContent = energy(kin.deltaG);
-  kineticDsEl.textContent = typeof kin.deltaS === "number" && isFinite(kin.deltaS) ? `${kin.deltaS.toFixed(1)} J/mol·K` : "—";
+  kineticDsEl.textContent = mathUnit(kin.deltaS, "J·mol⁻¹·K⁻¹", 1);
   const kappaShown = typeof kin.kappa === "number" && isFinite(kin.kappa) && kin.kappa > 1;
   kineticKappaEl.textContent = kappaShown ? `${kin.kappa.toFixed(2)}${kin.tunnelingReliable ? "" : " *"}` : "—";
   kineticKappaEl.title = kappaShown ? (kin.tunnelingReliable ? t("kinetics.kappaReliable") : t("kinetics.kappaLimit")) : "";
@@ -62649,18 +62718,19 @@ function drawKineticsGraph(rateConstant) {
   ctx.restore();
 }
 function formatTimeShort(seconds) {
-  if (seconds < 1e-9) return "0";
-  if (seconds < 1e-6) return `${(seconds * 1e9).toFixed(0)}ns`;
-  if (seconds < 1e-3) return `${(seconds * 1e6).toFixed(0)}μs`;
-  if (seconds < 1) return `${(seconds * 1e3).toFixed(0)}ms`;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  if (seconds < 3600) return `${(seconds / 60).toFixed(1)}m`;
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
-  if (seconds < 315e5) return `${(seconds / 86400).toFixed(1)}d`;
-  if (seconds < 315e8) return `${(seconds / 315e5).toFixed(1)}y`;
-  const exp = Math.floor(Math.log10(seconds));
-  const mantissa = seconds / Math.pow(10, exp);
-  return `${mantissa.toFixed(1)}e${exp}s`;
+  // An axis tick may still only show a real value: a half-life shorter than a
+  // nanosecond is written in scientific notation, never rounded down to zero.
+  if (seconds === 0) return "0 s";
+  if (seconds < 1e-9) return `${sciSup(seconds, 2)} s`;
+  if (seconds < 1e-6) return `${(seconds * 1e9).toFixed(0)} ns`;
+  if (seconds < 1e-3) return `${(seconds * 1e6).toFixed(0)} μs`;
+  if (seconds < 1) return `${(seconds * 1e3).toFixed(0)} ms`;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  if (seconds < 3600) return `${(seconds / 60).toFixed(1)} min`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} h`;
+  if (seconds < 315e5) return `${(seconds / 86400).toFixed(1)} d`;
+  if (seconds < 315e8) return `${(seconds / 315e5).toFixed(1)} y`;
+  return `${sciSup(seconds, 2)} s`;
 }
 const stoichBody = document.getElementById("stoich-body");
 const stoichEmpty = document.getElementById("stoich-empty");
@@ -62804,9 +62874,9 @@ function drawBohrModel(el) {
   ctx.font = "bold 10px system-ui";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(`${el.z}p`, cx, cy - 5);
+  ctx.fillText(`${el.z} p`, cx, cy - 5);
   ctx.font = "9px system-ui";
-  ctx.fillText(`${neutrons}n`, cx, cy + 6);
+  ctx.fillText(`${neutrons} n`, cx, cy + 6);
   for (let s = 0; s < shells.length; s++) {
     const count = shells[s];
     const r = shellR[s];
@@ -64984,12 +65054,13 @@ function syncAtmosphereComposition() {
   updateAtmosphereButton();
 }
 function formatEnvTemperature(k) {
-  return (k >= 1e3 ? Math.round(k).toLocaleString("en-US") : Math.round(k * 10) / 10) + "K";
+  // The quantity and its unit are separate tokens; "300K" reads as one word.
+  return (k >= 1e3 ? Math.round(k).toLocaleString("en-US") : mathNum(Math.round(k * 10) / 10)) + " K";
 }
 function formatEnvPressure(atm) {
-  if (atm >= 100) return Math.round(atm) + "atm";
-  if (atm >= 0.01) return Math.round(atm * 100) / 100 + "atm";
-  return sciSup(atm, 2) + "atm";
+  if (atm >= 100) return Math.round(atm) + " atm";
+  if (atm >= 0.01) return mathNum(Math.round(atm * 100) / 100) + " atm";
+  return sciSup(atm, 2) + " atm";
 }
 function updateEnvironmentReadouts() {
   const tempEl = document.getElementById("env-temp-display");
@@ -66494,7 +66565,7 @@ ${scene}`;
         setQuestMode("account");
       } catch (e) { addQuestMessage("system", t("quest.signinFailed", { error: e.message || t("quest.unknownError") })); }
     });
-    mk(qt("⚡ Guest API · 1 msg / 10s", "⚡ API khách · 1 tin / 10s"), () => setQuestMode("guest"));
+    mk(qt("⚡ Guest API · 1 msg / 10 s", "⚡ API khách · 1 tin / 10 s"), () => setQuestMode("guest"));
     questMessages.appendChild(wrap);
     addQuestMessage("system", qt("Sign-in is unlimited. Guest uses the app\u2019s API key with a 10-second cooldown between messages.", "Đăng nhập không giới hạn. Chế độ khách dùng API key của ứng dụng với thời gian chờ 10 giây giữa mỗi tin nhắn."));
   }

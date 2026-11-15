@@ -185,7 +185,7 @@
       "steps": [
         {
           "target": "#env-temp-display",
-          "text": "This shows the current temperature in Kelvin. Default is 298K (room temp).",
+          "text": "This shows the current temperature in Kelvin. Default is 298 K (room temp).",
           "action": "highlight"
         },
         {
@@ -229,19 +229,19 @@
           "action": "next"
         },
         {
-          "text": "Dense Plasma: T ≥ 5000K and P ≥ 1500 atm. Maximum damage and hyper-conductive lightning arcs!",
+          "text": "Dense Plasma: T ≥ 5000 K and P ≥ 1500 atm. Maximum damage and hyper-conductive lightning arcs!",
           "action": "next"
         },
         {
-          "text": "Dilute Plasma: T ≥ 5000K and P < 100 atm. Triggers an explosive blast pushing all atoms outward!",
+          "text": "Dilute Plasma: T ≥ 5000 K and P < 100 atm. Triggers an explosive blast pushing all atoms outward!",
           "action": "next"
         },
         {
-          "text": "Compressed Mantle: T 1000-4000K and P ≥ 1000 atm. Crush damage from extreme pressure!",
+          "text": "Compressed Mantle: T = 1000–4000 K and P ≥ 1000 atm. Crush damage from extreme pressure!",
           "action": "next"
         },
         {
-          "text": "Supercritical Fluid: T > 647K and P > 218 atm. Bonds corrode and break over time!",
+          "text": "Supercritical Fluid: T > 647 K and P > 218 atm. Bonds corrode and break over time!",
           "action": "next"
         },
         {
@@ -550,7 +550,7 @@
     "The Slow Down button decreases time speed. Click it repeatedly to go from 1 billion× back down to 1×.": "Nút Làm chậm giảm tốc độ thời gian. Nhấn nhiều lần để giảm từ 1 tỷ× xuống 1×.",
     "At extreme speeds, you can trigger THE WORLD — a cinematic time-freeze effect with a purple shockwave!": "Ở tốc độ cực cao, bạn có thể kích hoạt THE WORLD — hiệu ứng đóng bºng điện ảnh với sóng xung kích tím!",
     "Temperature affects molecule movement. Higher temp = faster dancing atoms!": "Nhiệt độ ảnh hưởng chuyển động phân tử. Nhiệt cao hơn = nguyên tử nhày nhanh hơn!",
-    "This shows the current temperature in Kelvin. Default is 298K (room temp).": "Đây hiển thị nhiệt độ hiện tại theo Kelvin. Mặc định là 298K (nhiệt độ phòng).",
+    "This shows the current temperature in Kelvin. Default is 298 K (room temp).": "Đây hiển thị nhiệt độ hiện tại theo Kelvin. Mặc định là 298 K (nhiệt độ phòng).",
     "And this is the pressure in atmospheres. Default is 1 atm.": "Và đây là áp suất tính bằng atm. Mặc định là 1 atm.",
     "Open Environment Control to change temperature, pressure, and gas composition.": "Mở Điều khiển môi trường để đổi nhiệt độ, áp suất và thành phần khí.",
     "Drag the temperature slider. Heat affects reaction rates and molecular motion.": "Kéo thanh nhiệt độ. Nhiệt ảnh hưởng tốc độ phản ứng và chuyển động phân tử.",
@@ -558,10 +558,10 @@
     "Add gases to the environment — O₂, N₂, CO₂, and more. These act as bonus reactants!": "Thêm khí vào môi trường — O₂, N₂, CO₂ và hơn thế. Chúng làm tác nhân bổ sung!",
     "Toggle Atmosphere mode from the Menu. It adds auto H-capping and environmental reactions.": "Bật/tắt chế độ Khí quyển từ Menu. Nó thêm tự động thêm H và phản ứng môi trường.",
     "Extreme temperature and pressure trigger phase transitions — the matter state changes!": "Nhiệt độ và áp suất cực đoan kích hoạt chuyển pha — trạng thái vật chất thay đổi!",
-    "Dense Plasma: T ≥ 5000K and P ≥ 1500 atm. Maximum damage and hyper-conductive lightning arcs!": "Plasma Đặc: T ≥ 5000K và P ≥ 1500 atm. Sát thương tối đa và vòng sét dẫn điện!",
-    "Dilute Plasma: T ≥ 5000K and P < 100 atm. Triggers an explosive blast pushing all atoms outward!": "Plasma Loãng: T ≥ 5000K và P < 100 atm. Kích hoạt vụ nổ đẩy tất cả nguyên tử ra ngoài!",
-    "Compressed Mantle: T 1000-4000K and P ≥ 1000 atm. Crush damage from extreme pressure!": "Lớp nén: T 1000-4000K và P ≥ 1000 atm. Sát thương nén từ áp suất cực đoan!",
-    "Supercritical Fluid: T > 647K and P > 218 atm. Bonds corrode and break over time!": "Chất lỏng siêu tới hạn: T > 647K và P > 218 atm. Liên kết ăn mòn và phá vỡ theo thời gian!",
+    "Dense Plasma: T ≥ 5000 K and P ≥ 1500 atm. Maximum damage and hyper-conductive lightning arcs!": "Plasma Đặc: T ≥ 5000 K và P ≥ 1500 atm. Sát thương tối đa và vòng sét dẫn điện!",
+    "Dilute Plasma: T ≥ 5000 K and P < 100 atm. Triggers an explosive blast pushing all atoms outward!": "Plasma Loãng: T ≥ 5000 K và P < 100 atm. Kích hoạt vụ nổ đẩy tất cả nguyên tử ra ngoài!",
+    "Compressed Mantle: T = 1000–4000 K and P ≥ 1000 atm. Crush damage from extreme pressure!": "Lớp nén: T = 1000–4000 K và P ≥ 1000 atm. Sát thương nén từ áp suất cực đoan!",
+    "Supercritical Fluid: T > 647 K and P > 218 atm. Bonds corrode and break over time!": "Chất lỏng siêu tới hạn: T > 647 K và P > 218 atm. Liên kết ăn mòn và phá vỡ theo thời gian!",
     "Watch the phase indicator near the temperature display to see the current state.": "Xem chỉ báo pha gần hiển thị nhiệt độ để biết trạng thái hiện tại.",
     "This is your health bar. It starts at 100 HP.": "Đây là thanh máu. Bắt đầu với 100 HP.",
     "Radioactive elements (Z > 82, like Uranium and Plutonium) emit radiation that damages you!": "Các nguyên tố phóng xạ (Z > 82, như Uran và Plutoni) phát bức xạ gây sát thương!",

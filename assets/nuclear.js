@@ -231,6 +231,29 @@
 
   function nuclideLabel(z, a) { return symbolOf(z) + '-' + Math.round(a); }
 
+  // A nuclide that the player reads carries its mass number raised to the left of
+  // the symbol (²³⁸U). The hyphenated form above stays the internal species id.
+  var SUP_DIGITS = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+  function supDigits(value) {
+    var digits = String(Math.round(value));
+    var out = '';
+    for (var i = 0; i < digits.length; i++) out += SUP_DIGITS[+digits[i]];
+    return out;
+  }
+  function nuclideSup(z, a) { return supDigits(a) + symbolOf(z); }
+
+  // Raises a whole exponent string, sign included, above the line.
+  function supExp(text) {
+    var out = '';
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (c === '-') out += '\u207B';
+      else if (c === '+') out += '';
+      else out += SUP_DIGITS[+c] === undefined ? c : SUP_DIGITS[+c];
+    }
+    return out;
+  }
+
   // ── Decay clocks ──────────────────────────────────────────────────────────
 
   function lambdaOf(halfLife) {
@@ -1242,7 +1265,9 @@
         return (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + ' ' + units[i][1];
       }
     }
-    return seconds.toExponential(2) + ' s';
+    return seconds.toExponential(2).replace(/e([-+]?\d+)/, function (all, exp) {
+      return '\u00d710' + supExp(exp);
+    }) + ' s';
   }
 
   function formatEnergy(mev) {
@@ -1299,6 +1324,7 @@
     measuredAlphaCount: function () { return Object.keys(ALPHA).length; },
     measuredBetaCount: function () { return Object.keys(HEAVY_BETA_MINUS).length; },
     nuclideLabel: nuclideLabel,
+    nuclideSup: nuclideSup,
     symbolOf: symbolOf,
     nameOf: nameOf,
     formatLife: formatLife,

@@ -322,10 +322,28 @@
   // to name in seconds gets named in nanoseconds, and one too long for years gets
   // scientific years. Same ruler the beta-minus table uses, so the two never
   // describe the same span in different words.
+  // A lifetime outside the named units is written as a number times a power of ten,
+  // with the exponent above the line and a minus sign rather than a hyphen.
+  const SUP_DIGITS = ['\u2070', '\u00B9', '\u00B2', '\u00B3', '\u2074', '\u2075', '\u2076', '\u2077', '\u2078', '\u2079'];
+  function supExp(text) {
+    var out = '';
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (c === '-') out += '\u207B';
+      else if (c === '+') out += '';
+      else out += SUP_DIGITS[+c] === undefined ? c : SUP_DIGITS[+c];
+    }
+    return out;
+  }
+  function sciYears(value) {
+    return value.toExponential(2).replace(/e([-+]?\d+)/, function (all, exponent) {
+      return '\u00d710' + supExp(exponent);
+    }) + ' y';
+  }
   function formatLife(t) {
     if (!isFinite(t) || !(t > 0)) return 'not measured';
     if (t < 1e-6) return (t * 1e9).toPrecision(3) + ' ns';
-    if (t < 1e-3) return (t * 1e6).toPrecision(3) + ' us';
+    if (t < 1e-3) return (t * 1e6).toPrecision(3) + ' \u00b5s';
     if (t < 1) return (t * 1e3).toPrecision(3) + ' ms';
     if (t < 90) return t.toPrecision(4) + ' s';
     if (t < 5400) return (t / 60).toPrecision(4) + ' min';
@@ -336,7 +354,7 @@
     if (y < 1e6) return (y / 1e3).toPrecision(4) + ' kyr';
     if (y < 1e9) return (y / 1e6).toPrecision(4) + ' Myr';
     if (y < 1e12) return (y / 1e9).toPrecision(4) + ' Gyr';
-    return y.toExponential(2) + ' y';
+    return sciYears(y);
   }
 
   window.__mol3dBetaPlus = {

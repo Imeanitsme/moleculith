@@ -30,7 +30,13 @@
     menuBtn: L('Science Guide', 'Cẩm nang khoa học'),
     navPrev: L('Previous topics', 'Chủ đề trước'),
     navNext: L('Next topics', 'Chủ đề tiếp'),
-    panelTitle: L('Science', 'Khoa học')
+    panelTitle: L('Science', 'Khoa học'),
+    labTitle: L('Decay Lab', 'Phòng thí nghiệm phân rã'),
+    labHint: L('Pick a decay below. Each one throws the real particle out of the nucleus.', 'Chọn một kiểu phân rã bên dưới. Mỗi kiểu ném đúng loại hạt thật ra khỏi hạt nhân.'),
+    labReadout: L('Parent', 'Hạt nhân mẹ'),
+    labDaughter: L('Daughter', 'Hạt nhân con'),
+    labEmits: L('Emits', 'Phát ra'),
+    labConserve: L('A and Z balanced', 'A và Z cân bằng')
   };
 
   const GUIDES = {
@@ -122,6 +128,70 @@
         {
           heading: L('Radiation Damage', 'Tác hại của bức xạ'),
           content: L('Radioactive atoms emit radiation that damages you based on distance (inverse-square law):<br><b>Dose ∝ 1/r²</b><br><br>Double the distance = 1/4 the radiation. Stay far from Uranium, Plutonium, and other heavy elements!', 'Nguyên tử phóng xạ phát bức xạ gây hại theo khoảng cách (định luật nghịch đảo bình phương):<br><b>Liều ∝ 1/r²</b><br><br>Gấp đôi khoảng cách = một phần tư bức xạ. Hãy đứng xa Urani, Plutoni và các nguyên tố nặng khác!')
+        }
+      ]
+    },
+
+    decay: {
+      icon: 'radiation',
+      title: L('Decay Particles & Lab', 'Hạt phân rã & Phòng thí nghiệm'),
+      sections: [
+        {
+          heading: L('What Actually Leaves the Nucleus', 'Thứ thực sự rời khỏi hạt nhân'),
+          content: L(
+            "A decay does not throw out an atom — it throws out a particle. The lab paints each one in the colour of its own physics:<br><br>" +
+            "<b style=\"color:#ff4433\">Alpha (α):</b> a bare helium nucleus — strictly 2 protons + 2 neutrons, no electron cloud — with a glowing red trail.<br>" +
+            "<b style=\"color:#2ae4ff\">Beta-minus (β⁻):</b> a fast electron, bright cyan with a cyan trail, thrown out together with a tiny teal antineutrino at a different angle.<br>" +
+            "<b style=\"color:#ff8033\">Beta-plus (β⁺):</b> a positron, warm orange with an orange trail, paired with a tiny teal neutrino.<br>" +
+            "<b style=\"color:#8b9bb4\">Gamma (γ):</b> a photon — no charge, no mass, no visible track.<br><br>" +
+            "Electron capture is the exception that proves the rule: the nucleus takes an electron <i>in</i>, so nothing charged comes out — only a neutrino.",
+            "Một lần phân rã không ném ra nguyên tử — nó ném ra hạt. Phòng thí nghiệm vẽ mỗi hạt bằng đúng màu của vật lý đó:<br><br>" +
+            "<b style=\"color:#ff4433\">Alpha (α):</b> hạt nhân heli trần — đúng 2 proton + 2 neutron, không có mây electron — kèm vệt đỏ phát sáng.<br>" +
+            "<b style=\"color:#2ae4ff\">Beta trừ (β⁻):</b> một electron nhanh, xanh cyan sáng, kèm vệt cyan, bay ra cùng một phản neutrino nhỏ màu xanh ngọc theo hướng khác.<br>" +
+            "<b style=\"color:#ff8033\">Beta cộng (β⁺):</b> một positron, màu cam ấm, kèm vệt cam, đi cùng một neutrino nhỏ màu xanh ngọc.<br>" +
+            "<b style=\"color:#8b9bb4\">Gamma (γ):</b> photon — không điện tích, không khối lượng, không để lại vệt.<br><br>" +
+            "Bắt electron là ngoại lệ chứng minh quy tắc: hạt nhân <i>nhận</i> electron vào, nên không có hạt mang điện nào bay ra — chỉ có neutrino."
+          )
+        },
+        {
+          heading: L('The Five Equations', 'Năm phương trình'),
+          content: L(
+            "<b>α:</b> <sup>A</sup><sub>Z</sub>X → <sup>A−4</sup><sub>Z−2</sub>Y + <sup>4</sup><sub>2</sub>He<br><br>" +
+            "<b>β⁻:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z+1</sub>Y + e⁻ + ν̄<sub>e</sub><br><br>" +
+            "<b>β⁺:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z−1</sub>Y + e⁺ + ν<sub>e</sub><br><br>" +
+            "<b>EC:</b> <sup>A</sup><sub>Z</sub>X + e⁻ → <sup>A</sup><sub>Z−1</sub>Y + ν<sub>e</sub><br><br>" +
+            "<b>γ:</b> X* → X + γ<br><br>" +
+            "Read the numbers, not the letters: charge and nucleon count are conserved in every line. In β⁻ a neutron becomes a proton, so Z rises by one while A stays put — the electron and antineutrino carry the missing charge and lepton number.",
+            "<b>α:</b> <sup>A</sup><sub>Z</sub>X → <sup>A−4</sup><sub>Z−2</sub>Y + <sup>4</sup><sub>2</sub>He<br><br>" +
+            "<b>β⁻:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z+1</sub>Y + e⁻ + ν̄<sub>e</sub><br><br>" +
+            "<b>β⁺:</b> <sup>A</sup><sub>Z</sub>X → <sup>A</sup><sub>Z−1</sub>Y + e⁺ + ν<sub>e</sub><br><br>" +
+            "<b>EC:</b> <sup>A</sup><sub>Z</sub>X + e⁻ → <sup>A</sup><sub>Z−1</sub>Y + ν<sub>e</sub><br><br>" +
+            "<b>γ:</b> X* → X + γ<br><br>" +
+            "Hãy đọc các con số, không phải chữ cái: điện tích và số nucleon được bảo toàn ở mọi dòng. Trong β⁻, một neutron biến thành proton nên Z tăng một còn A giữ nguyên — electron và phản neutrino mang phần điện tích và số lepton còn thiếu."
+          )
+        },
+        {
+          heading: L('What Each Particle Is Used For', 'Mỗi hạt được dùng để làm gì'),
+          content: L(
+            "<b style=\"color:#ff4433\">α (helium nucleus):</b> americium-241 ionises air inside smoke detectors; alpha emitters power RTGs on deep-space probes (Pu-238). Stopped by paper and dead skin — but lethal if inhaled.<br><br>" +
+            "<b style=\"color:#2ae4ff\">β⁻ (electron):</b> strontium-90 treats surface eye disease, electron beams weld and sterilise, beta gauges measure paper and foil thickness. Stopped by a few millimetres of metal; fast electrons also make X-rays (bremsstrahlung).<br><br>" +
+            "<b style=\"color:#ff8033\">β⁺ (positron):</b> PET scanners track positron-emitting tracers (F-18). Each positron annihilates with an electron and fires two 511 keV photons back-to-back — that pair is the image. Also probes defects in metals.<br><br>" +
+            "<b style=\"color:#2ee6c8\">ν / ν̄ (neutrinos):</b> reactor antineutrinos monitor plutonium content without opening the core; solar and supernova neutrinos are our only direct look inside a star. About 10¹⁴ pass through you every second and almost nothing stops them.<br><br>" +
+            "<b style=\"color:#8b9bb4\">γ (photon):</b> radiotherapy, Tc-99m imaging, sterilising medical equipment and food. Needs lead or concrete, not paper.",
+            "<b style=\"color:#ff4433\">α (hạt nhân heli):</b> americium-241 ion hóa không khí trong đầu báo khói; nguồn alpha cấp điện cho RTG trên tàu vũ trụ xa (Pu-238). Bị chặn bởi giấy và lớp sừng chết — nhưng gây chết người nếu hít vào.<br><br>" +
+            "<b style=\"color:#2ae4ff\">β⁻ (electron):</b> strontium-90 điều trị bệnh bề mặt mắt, chùm electron hàn và tiệt trùng, máy đo beta đo độ dày giấy và lá kim loại. Bị chặn bởi vài milimét kim loại; electron nhanh còn tạo tia X (bức xạ hãm).<br><br>" +
+            "<b style=\"color:#ff8033\">β⁺ (positron):</b> máy PET theo dõi chất đánh dấu phát positron (F-18). Mỗi positron hủy cặp với electron và bắn ra hai photon 511 keV ngược chiều — chính cặp đó tạo nên hình ảnh. Còn dùng để dò khuyết tật trong kim loại.<br><br>" +
+            "<b style=\"color:#2ee6c8\">ν / ν̄ (neutrino):</b> phản neutrino từ lò phản ứng giám sát lượng plutoni mà không cần mở lõi; neutrino Mặt Trời và siêu tân tinh là cách duy nhất nhìn trực tiếp vào trong một ngôi sao. Khoảng 10¹⁴ hạt xuyên qua bạn mỗi giây và gần như không gì chặn được.<br><br>" +
+            "<b style=\"color:#8b9bb4\">γ (photon):</b> xạ trị, chụp hình bằng Tc-99m, tiệt trùng thiết bị y tế và thực phẩm. Cần chì hoặc bê tông, không phải giấy."
+          )
+        },
+        {
+          heading: L('Interactive Decay Lab', 'Phòng thí nghiệm phân rã tương tác'),
+          content: L(
+            "Fire each decay and watch what the nucleus really emits. The colours here are the same colours the 3D scene uses, so what you learn on this canvas is what you see on the table.<br><br>Every emission conserves A and Z: watch the counters under the canvas.",
+            "Bắn từng kiểu phân rã và xem hạt nhân thực sự phát ra gì. Màu ở đây là đúng màu cảnh 3D dùng, nên điều bạn học trên khung vẽ này chính là điều bạn thấy trên bàn thí nghiệm.<br><br>Mọi lần phát xạ đều bảo toàn A và Z: hãy theo dõi bộ đếm dưới khung vẽ."
+          ),
+          interactive: 'decay'
         }
       ]
     },
@@ -429,6 +499,279 @@
   let lastLang = null;
   let infoLang = null;
 
+  // ── Interactive decay lab ───────────────────────────────────────────────────
+  // Five decays, one canvas. The numbers are the physics; the colours are the
+  // same ones the 3D scene uses, so a reader learns the palette here before they
+  // ever see it on the table. Each daughter is computed from its own equation
+  // rather than hardcoded, which is what lets the A/Z counters be an honest
+  // conservation check instead of decoration.
+  const DECAY_LAB = {
+    alpha: {
+      color: '#ff4433', label: 'α',
+      parent: { z: 92, a: 238 },
+      daughter: function (p) { return { z: p.z - 2, a: p.a - 4 }; },
+      particles: [{ kind: 'alpha', color: '#ff4433', glow: '#ff5a3c', r: 9, speed: 0.34, angle: 0.15 }]
+    },
+    betaMinus: {
+      color: '#2ae4ff', label: 'β⁻',
+      parent: { z: 55, a: 137 },
+      daughter: function (p) { return { z: p.z + 1, a: p.a }; },
+      particles: [
+        { kind: 'electron', color: '#2ae4ff', glow: '#9df7ff', r: 6, speed: 0.62, angle: -0.25 },
+        { kind: 'neutrino', color: '#2ee6c8', glow: '#b5fff3', r: 3, speed: 0.78, angle: 0.75 }
+      ]
+    },
+    betaPlus: {
+      color: '#ff8033', label: 'β⁺',
+      parent: { z: 9, a: 18 },
+      daughter: function (p) { return { z: p.z - 1, a: p.a }; },
+      particles: [
+        { kind: 'positron', color: '#ff8033', glow: '#ffc49a', r: 6, speed: 0.62, angle: -0.25 },
+        { kind: 'neutrino', color: '#2ee6c8', glow: '#b5fff3', r: 3, speed: 0.78, angle: 0.75 }
+      ]
+    },
+    ec: {
+      color: '#8b9bb4', label: 'EC',
+      parent: { z: 26, a: 55 },
+      daughter: function (p) { return { z: p.z - 1, a: p.a }; },
+      particles: [
+        { kind: 'neutrino', color: '#2ee6c8', glow: '#b5fff3', r: 3, speed: 0.8, angle: 0.1 }
+      ]
+    },
+    gamma: {
+      color: '#8b9bb4', label: 'γ',
+      parent: { z: 27, a: 60 },
+      daughter: function (p) { return { z: p.z, a: p.a }; },
+      particles: [{ kind: 'photon', color: '#e8eef7', glow: '#ffffff', r: 5, speed: 0.95, angle: 0.4 }]
+    }
+  };
+
+  const LAB_EMIT_TEXT = {
+    alpha: L('⁴He nucleus (2p + 2n) + energy', 'hạt nhân ⁴He (2p + 2n) + năng lượng'),
+    betaMinus: L('e⁻ + ν̄e', 'e⁻ + ν̄e'),
+    betaPlus: L('e⁺ + νe', 'e⁺ + νe'),
+    ec: L('νe only — the electron went in', 'chỉ νe — electron đi vào'),
+    gamma: L('γ photon', 'photon γ')
+  };
+
+  function elSymbol(z) {
+    const list = window.__mol3d && window.__mol3d.ELEMENTS;
+    if (Array.isArray(list)) {
+      const hit = list.find(function (e) { return e.z === z; });
+      if (hit && hit.sym) return hit.sym;
+    }
+    return 'X' + z;
+  }
+
+  function subScript(n) {
+    const map = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉' };
+    return String(n).split('').map(function (c) { return map[c] || c; }).join('');
+  }
+  function nuclideText(n) { return '<sup>' + n.a + '</sup>' + subScript(n.z) + esc(elSymbol(n.z)); }
+
+  function hexAlpha(hex, a) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  let lab = null;
+
+  function decayLabHtml() {
+    const rows = Object.keys(DECAY_LAB).map(function (key) {
+      return '<button type="button" class="dl-btn" data-decay="' + key + '" style="--dl-c:' + DECAY_LAB[key].color + '">' + esc(DECAY_LAB[key].label) + '</button>';
+    }).join('');
+    return '' +
+      '<div class="decay-lab">' +
+        '<div class="dl-head">' + ic('atom') + '<span>' + esc(tx(UI.labTitle)) + '</span></div>' +
+        '<p class="dl-hint">' + esc(tx(UI.labHint)) + '</p>' +
+        '<canvas class="dl-canvas" aria-label="' + esc(tx(UI.labTitle)) + '"></canvas>' +
+        '<div class="dl-buttons">' + rows + '</div>' +
+        '<div class="dl-readout">' +
+          '<div class="dl-col"><span>' + esc(tx(UI.labReadout)) + '</span><b class="dl-parent">—</b></div>' +
+          '<div class="dl-col"><span>' + esc(tx(UI.labDaughter)) + '</span><b class="dl-daughter">—</b></div>' +
+          '<div class="dl-col"><span>' + esc(tx(UI.labEmits)) + '</span><b class="dl-emits">—</b></div>' +
+        '</div>' +
+        '<div class="dl-balance" aria-live="polite"></div>' +
+      '</div>';
+  }
+
+  function paintDecayLab(state, card) {
+    const d = DECAY_LAB[state.key];
+    const p = d.parent;
+    const dg = d.daughter(p);
+    card.querySelector('.dl-parent').innerHTML = nuclideText(p);
+    card.querySelector('.dl-daughter').innerHTML = nuclideText(dg);
+    card.querySelector('.dl-emits').textContent = tx(LAB_EMIT_TEXT[state.key]);
+    // A and Z are the whole check: a decay that failed to balance would show up
+    // here before any reader had to trust the drawing.
+    const da = p.a - dg.a;
+    const dz = p.z - dg.z;
+    const emits = state.key === 'alpha' ? { a: 4, z: 2 }
+      : state.key === 'betaMinus' ? { a: 0, z: -1 }
+        : state.key === 'betaPlus' ? { a: 0, z: 1 }
+          : state.key === 'gamma' ? { a: 0, z: 0 }
+            : { a: 0, z: 1 };
+    const ok = da === emits.a && dz === emits.z;
+    const box = card.querySelector('.dl-balance');
+    box.className = 'dl-balance ' + (ok ? 'ok' : 'bad');
+    box.innerHTML = ic(ok ? 'check-circle-2' : 'alert-triangle') +
+      '<span>ΔA = ' + da + ' · ΔZ = ' + dz + ' · ' + esc(tx(UI.labConserve)) + '</span>';
+    lucideIn(box);
+  }
+
+  function bindDecayLab(host) {
+    const card = host.querySelector('.decay-lab');
+    if (!card) return;
+    const canvas = card.querySelector('.dl-canvas');
+    if (!canvas) return;
+    if (lab) stopLab();
+
+    const state = {
+      w: 0, h: 0, ctx: null, key: 'alpha',
+      raf: 0, flying: [], last: 0, emitAt: 0
+    };
+    lab = state;
+
+    function nucleusPos() { return { x: state.w * 0.33, y: state.h * 0.5 }; }
+
+    function paint() { paintDecayLab(state, card); }
+
+    function launch() {
+      const d = DECAY_LAB[state.key];
+      const at = nucleusPos();
+      const span = Math.max(state.w, 1);
+      state.flying = d.particles.map(function (p) {
+        return {
+          p: p,
+          x: at.x, y: at.y,
+          vx: Math.cos(p.angle) * p.speed * span,
+          vy: Math.sin(p.angle) * p.speed * span
+        };
+      });
+      state.emitAt = performance.now();
+      if (!state.raf) { state.last = performance.now(); state.raf = requestAnimationFrame(step); }
+    }
+
+    function drawNucleus(ctx, glowBoost) {
+      const at = nucleusPos();
+      ctx.save();
+      const g = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, 52);
+      g.addColorStop(0, 'rgba(255,70,50,' + (0.34 + glowBoost * 0.36) + ')');
+      g.addColorStop(1, 'rgba(255,70,50,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(at.x, at.y, 52, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2 + 0.4;
+        const rr = i < 5 ? 9 : 13;
+        ctx.beginPath();
+        ctx.arc(at.x + Math.cos(a) * rr, at.y + Math.sin(a) * rr, 5, 0, Math.PI * 2);
+        ctx.fillStyle = i < 5 ? '#ff3d3d' : '#c9d3dc';
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawTrail(ctx, f) {
+      const p = f.p;
+      const v = Math.hypot(f.vx, f.vy) || 1;
+      const ux = f.vx / v, uy = f.vy / v;
+      for (let i = 1; i <= 9; i++) {
+        const back = i * (p.r * 1.5 + 2.2);
+        ctx.beginPath();
+        ctx.arc(f.x - ux * back, f.y - uy * back, Math.max(1, p.r * (1 - i / 11)), 0, Math.PI * 2);
+        ctx.fillStyle = hexAlpha(p.color, (1 - i / 10) * 0.5);
+        ctx.fill();
+      }
+    }
+
+    function drawParticle(ctx, f) {
+      const p = f.p;
+      drawTrail(ctx, f);
+      if (p.kind === 'photon') {
+        const v = Math.hypot(f.vx, f.vy) || 1;
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(f.x - (f.vx / v) * 14, f.y - (f.vy / v) * 14);
+        ctx.lineTo(f.x, f.y);
+        ctx.stroke();
+        return;
+      }
+      const rg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, p.r * 2.8);
+      rg.addColorStop(0, hexAlpha(p.glow, 0.85));
+      rg.addColorStop(1, hexAlpha(p.color, 0));
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(f.x, f.y, p.r * 2.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(f.x, f.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color; ctx.fill();
+      if (p.kind === 'alpha') {
+        // The bare nucleus reads as two red protons and two grey neutrons.
+        ctx.beginPath(); ctx.arc(f.x - 3.4, f.y - 3.4, 3.1, 0, Math.PI * 2); ctx.fillStyle = '#ff5a4a'; ctx.fill();
+        ctx.beginPath(); ctx.arc(f.x + 3.4, f.y + 3.4, 3.1, 0, Math.PI * 2); ctx.fillStyle = '#c9d3dc'; ctx.fill();
+      }
+    }
+
+    function step(now) {
+      if (lab !== state || !state.ctx) { state.raf = 0; return; }
+      const dt = Math.min(0.05, Math.max(0, (now - state.last) / 1000));
+      state.last = now;
+      const ctx = state.ctx;
+      ctx.clearRect(0, 0, state.w, state.h);
+      drawNucleus(ctx, state.flying.length ? 1 : 0);
+      for (let i = state.flying.length - 1; i >= 0; i--) {
+        const f = state.flying[i];
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        if (f.x < -60 || f.x > state.w + 60 || f.y < -60 || f.y > state.h + 60) { state.flying.splice(i, 1); continue; }
+        drawParticle(ctx, f);
+      }
+      state.raf = state.flying.length ? requestAnimationFrame(step) : 0;
+    }
+
+    card.addEventListener('click', function (event) {
+      const btn = event.target.closest('.dl-btn');
+      if (btn) {
+        state.key = btn.dataset.decay;
+        card.querySelectorAll('.dl-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+        paint();
+        launch();
+        return;
+      }
+      if (event.target === canvas) launch();
+    });
+
+    state.resize = function () {
+      if (lab !== state) return;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      state.w = rect.width;
+      state.h = rect.height;
+      state.ctx = canvas.getContext('2d');
+      state.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      step(performance.now());
+    };
+
+    const first = card.querySelector('.dl-btn');
+    if (first) first.classList.add('active');
+    paint();
+    state.resize();
+    launch();
+    window.addEventListener('resize', state.resize);
+  }
+
+  function stopLab() {
+    if (!lab) return;
+    if (lab.raf) cancelAnimationFrame(lab.raf);
+    lab.raf = 0;
+    lab.flying = [];
+    if (lab.resize) window.removeEventListener('resize', lab.resize);
+    lab = null;
+  }
+
   function createGuidePanel() {
     if (guidePanel) return guidePanel;
 
@@ -587,12 +930,15 @@
         <div class="guide-section">
           <h3>${tx(section.heading)}</h3>
           <div class="guide-text">${tx(section.content)}</div>
+          ${section.interactive === 'decay' ? decayLabHtml() : ''}
         </div>
       `;
     }
 
+    stopLab();
     content.innerHTML = html;
     lucideIn(content);
+    if (guide.sections.some(s => s.interactive === 'decay')) bindDecayLab(content);
     content.scrollTop = 0;
     updateNavArrows();
     centerActiveTab();
@@ -600,6 +946,9 @@
   }
 
   function closeGuide() {
+    // A running canvas loop behind a hidden overlay is pure battery, and the
+    // panel can be reopened on a different topic that has no lab at all.
+    stopLab();
     if (guidePanel) {
       guidePanel.style.display = 'none';
     }
@@ -944,6 +1293,113 @@
       .guide-content::-webkit-scrollbar-thumb {
         background: var(--g-accent);
         border-radius: 4px;
+      }
+      /* The decay lab is a canvas on the guide's own palette. Height is in
+         aspect-ratio, not pixels, so the same card works from a phone to a
+         desktop without the trace ever being clipped. */
+      .decay-lab {
+        margin-top: 14px;
+        border: 1px solid var(--g-line);
+        border-radius: 8px;
+        background: var(--g-fill-faint);
+        padding: 12px;
+      }
+      .dl-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--g-accent);
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .dl-hint {
+        margin: 6px 0 10px;
+        color: var(--g-muted);
+        font-size: 12.5px;
+        line-height: 1.5;
+      }
+      .dl-canvas {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 7;
+        min-height: 120px;
+        border-radius: 6px;
+        background: radial-gradient(circle at 33% 50%, rgba(255, 60, 50, 0.10), transparent 62%), var(--g-fill);
+        border: 1px solid var(--g-line);
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      .dl-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .dl-btn {
+        flex: 1 1 auto;
+        min-width: 74px;
+        padding: 6px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--g-muted);
+        background: var(--g-fill-strong);
+        border: 1px solid var(--g-line);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .dl-btn:hover { border-color: var(--dl-c); color: var(--dl-c); }
+      .dl-btn.active {
+        background: var(--dl-c);
+        border-color: var(--dl-c);
+        color: #0b1220;
+      }
+      .dl-readout {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .dl-col {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 7px 9px;
+        background: var(--g-fill);
+        border: 1px solid var(--g-line);
+        border-radius: 6px;
+        min-width: 0;
+      }
+      .dl-col span {
+        font-size: 10.5px;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--g-muted);
+      }
+      .dl-col b {
+        font-size: 14px;
+        color: var(--g-text);
+        overflow-wrap: anywhere;
+      }
+      .dl-balance {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        font-size: 12px;
+        padding: 6px 9px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+      }
+      .dl-balance.ok { color: #35d39a; background: rgba(53, 211, 154, 0.09); border-color: rgba(53, 211, 154, 0.35); }
+      .dl-balance.bad { color: #ff6b6b; background: rgba(255, 107, 107, 0.09); border-color: rgba(255, 107, 107, 0.35); }
+      html[data-theme="light"] .dl-balance.ok { color: #0f7a52; background: rgba(15, 122, 82, 0.08); }
+      html[data-theme="light"] .dl-balance.bad { color: #b02a2a; background: rgba(176, 42, 42, 0.08); }
+      html[data-theme="light"] .dl-btn.active { color: #ffffff; }
+      @media (max-width: 520px) {
+        .dl-readout { grid-template-columns: 1fr 1fr; }
+        .dl-readout .dl-col:last-child { grid-column: 1 / -1; }
+        .dl-canvas { aspect-ratio: 4 / 3; }
       }
       @media (max-width: 768px) {
         .guide-card {

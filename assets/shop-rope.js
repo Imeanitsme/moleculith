@@ -681,11 +681,6 @@
     }
   }
 
-  function ownsElement(z) {
-    // Trading is open for every element now; what gates a placement is the crate.
-    if (!z) return true;
-    return true;
-  }
   function ownsFeature(id) {
     if (!featureById(id)) return true;
     return ownedFeatures.has(id);
@@ -1414,7 +1409,6 @@
     refreshFeatureLocks();
     window.__mol3dShop = {
       version: 3,
-      ownsElement: ownsElement,
       ownsFeature: ownsFeature,
       blocksFeature: blocksFeature,
       lockedMessage: lockedMessage,

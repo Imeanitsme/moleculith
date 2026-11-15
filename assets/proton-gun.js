@@ -1914,7 +1914,10 @@
         '<div class="pg-cap-sub">' + esc(S.sub) + '</div>' +
       '</div>';
     const ash = wrap.querySelector('.pg-ash');
-    const n = window.innerWidth < 720 ? 34 : 64;
+    // Every flake is an element the compositor has to keep moving, so a device
+    // already drawing the scene on a low tier gets a thinner fall of ash.
+    const pm = window.__mol3d && typeof window.__mol3d.particleMult === 'function' ? window.__mol3d.particleMult() : 1;
+    const n = Math.max(12, Math.round((window.innerWidth < 720 ? 34 : 64) * Math.min(1, pm || 1)));
     for (let i = 0; i < n; i++) {
       const flake = document.createElement('span');
       const s = 2 + Math.random() * 3.5;

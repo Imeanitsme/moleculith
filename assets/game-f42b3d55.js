@@ -44408,12 +44408,10 @@ const UI = {
     "status.theme": "Theme: {mode}",
     "status.on": "ON",
     "status.off": "OFF",
-    "rank.locked": "Locked",
     "rank.requires": "Requires",
     "rank.shopHint": "Buy it in the Rope Shop (drag the cord at the top right)",
     "crate.empty": "{name} is not in the crate. Buy atoms for {price}★ in the Rope Shop — {hint}",
     "crate.needStars": "Not enough stars: the atoms in this molecule cost {n}★ and the balance is {have}★ — {hint}",
-    "rank.elementLocked": "This element is locked. Buy it in the Rope Shop — drag the cord at the top right.",
     "rank.featureLocked": "This feature is locked. Buy it in the Rope Shop for {price} ★ — drag the cord at the top right!",
     "rank.discStarCap": "Cascade guard: the discovery tap is full this second — the species keeps its place in the dex and is paid next tick.",
     "kinetics.title": "Kinetics",
@@ -44963,12 +44961,10 @@ const UI = {
     "status.theme": "Giao diện: {mode}",
     "status.on": "BẬT",
     "status.off": "TẮT",
-    "rank.locked": "Đã khóa",
     "rank.requires": "Yêu cầu",
     "rank.shopHint": "Mua trong Cửa hàng Dây thừng (kéo sợi dây ở góc trên bên phải)",
     "crate.empty": "Trong thùng hấng không còn {name}. Hãy mua nguyên tử giá {price}★ trong Cửa hàng Dây thồng — {hint}",
     "crate.needStars": "Không đủ sao: nguyên tử của phân tử này tốn {n}★, số dư hiện có là {have}★ — {hint}",
-    "rank.elementLocked": "Nguyên tố này đang khóa. Hãy mua ở Cửa hàng Dây thừng — kéo sợi dây ở góc trên bên phải.",
     "rank.featureLocked": "Tính năng này đang khóa. Hãy mua tại Cửa hàng Dây thừng với giá {price} ★ — kéo sợi dây ở góc trên bên phải!",
     "rank.discStarCap": "Chốt chắn dây chuyền: ngân sách sao mỗi giây đã dùng hết — loài của bạn vẫn trong sổ và sẽ được trả ở giây tiếp theo.",
     "kinetics.title": "Động học",
@@ -46248,12 +46244,50 @@ function getMayhemElement(sym) {
   return MAYHEM_ELEMENTS.find((e) => e.sym === sym);
 }
 const TIERS = {
-  low: { key: "low", label: "Low", sphereSeg: [8, 6], cylSeg: 5, pixelRatio: 0.75, drift: false, maxAtoms: 1000, particleMult: 0.3, xrayOptimized: true },
-  med: { key: "med", label: "Medium", sphereSeg: [16, 12], cylSeg: 10, pixelRatio: 1.5, drift: true, maxAtoms: 2000, particleMult: 0.7, xrayOptimized: false },
-  high: { key: "high", label: "High", sphereSeg: [26, 18], cylSeg: 14, pixelRatio: 2, drift: true, maxAtoms: 99999, particleMult: 1, xrayOptimized: false },
-  ultra: { key: "ultra", label: "Ultra High", sphereSeg: [32, 24], cylSeg: 18, pixelRatio: Math.min(window.devicePixelRatio || 1, 2.5), drift: true, maxAtoms: 99999, particleMult: 1.5, xrayOptimized: false }
+  low: { key: "low", label: "Low", sphereSeg: [8, 6], cylSeg: 5, pixelRatio: 0.75, drift: false, particleMult: 0.3, maxFps: 30, labelCrowd: 12, labelBudget: 8, badgeBudget: 6, labelReach: 7 },
+  med: { key: "med", label: "Medium", sphereSeg: [16, 12], cylSeg: 10, pixelRatio: 1.5, drift: true, particleMult: 0.7, maxFps: 60, labelCrowd: 24, labelBudget: 20, badgeBudget: 14, labelReach: 10 },
+  high: { key: "high", label: "High", sphereSeg: [26, 18], cylSeg: 14, pixelRatio: 2, drift: true, particleMult: 1, maxFps: 0, labelCrowd: 40, labelBudget: 40, badgeBudget: 40, labelReach: 12 },
+  ultra: { key: "ultra", label: "Ultra High", sphereSeg: [32, 24], cylSeg: 18, pixelRatio: Math.min(window.devicePixelRatio || 1, 2.5), drift: true, particleMult: 1.5, maxFps: 0, labelCrowd: 40, labelBudget: 40, badgeBudget: 40, labelReach: 12 }
 };
 const TIER_ORDER = ["low", "med", "high", "ultra"];
+// The scene has to start on the right tier, not drift into it. Leaving it on the
+// default and letting the throttle react costs the weakest machine the several
+// seconds it is least able to spend, and `antialias` cannot be turned off later
+// without rebuilding the renderer, so both are settled here from what the
+// browser will state for free. A signal the browser does not expose (Safari has
+// no deviceMemory) reads as 0 and is ignored rather than guessed at.
+const DEVICE = (() => {
+  const cores = Number(navigator.hardwareConcurrency) || 0;
+  const mem = Number(navigator.deviceMemory) || 0;
+  const touch = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  const dpr = window.devicePixelRatio || 1;
+  let gpu = "";
+  let software = false;
+  try {
+    const probe = document.createElement("canvas");
+    const gl = probe.getContext("webgl2") || probe.getContext("webgl");
+    if (!gl) software = true;
+    else {
+      const ext = gl.getExtension("WEBGL_debug_renderer_info");
+      // Without the debug extension the only name available is the masked
+      // "WebKit WebGL", which says nothing - so an unrecognised string is left
+      // to the core/memory signals instead of being called software.
+      gpu = String((ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || "");
+      software = /swiftshader|llvmpipe|software|basic render|gdi/i.test(gpu);
+      const lose = gl.getExtension("WEBGL_lose_context");
+      if (lose) lose.loseContext();
+    }
+  } catch {
+  }
+  const weak = software || (cores > 0 && cores <= 2) || (mem > 0 && mem <= 2) || (touch && cores > 0 && cores <= 4);
+  return {
+    cores, mem, touch, gpu, software, weak,
+    tier: weak ? 0 : 1,
+    // A buffer already rendered above native density resolves the edges the
+    // multisample pass exists for, and pays for it in fill rate twice over.
+    antialias: !weak && dpr < 1.5
+  };
+})();
 class AutoThrottle {
   constructor({ downFps = 30, upFps = 55, downMs = 2e3, upMs = 4e3 } = {}) {
     this.downFps = downFps;
@@ -46262,20 +46296,26 @@ class AutoThrottle {
     this.upMs = upMs;
     this.lowSince = null;
     this.highSince = null;
+    this.ceil = TIER_ORDER.length - 1;
   }
-  // Returns the suggested tier index (may equal current).
-  update(fps, tierIndex2, maxIndex = TIER_ORDER.length - 1) {
+  // Returns the suggested tier index (may equal current). `downFps` is lowered by
+  // the caller when the tier deliberately holds its frame rate to a cap.
+  update(fps, tierIndex2, maxIndex = TIER_ORDER.length - 1, downFps = this.downFps) {
     const now = performance.now();
-    if (fps < this.downFps) {
+    if (fps < downFps) {
       this.lowSince ??= now;
       if (now - this.lowSince >= this.downMs && tierIndex2 > 0) {
         this.reset();
+        // The tier just given up is not retried. Otherwise a device that lands
+        // between two tiers would oscillate between them forever, and every step
+        // rebuilds all the scene geometry while it toasts the player about it.
+        this.ceil = tierIndex2 - 1;
         return tierIndex2 - 1;
       }
     } else this.lowSince = null;
     if (fps > this.upFps) {
       this.highSince ??= now;
-      if (now - this.highSince >= this.upMs && tierIndex2 < maxIndex) {
+      if (now - this.highSince >= this.upMs && tierIndex2 < Math.min(maxIndex, this.ceil)) {
         this.reset();
         return tierIndex2 + 1;
       }
@@ -46285,6 +46325,7 @@ class AutoThrottle {
   reset() {
     this.lowSince = null;
     this.highSince = null;
+    this.ceil = TIER_ORDER.length - 1;
   }
 }
 class FpsSampler {
@@ -46301,6 +46342,12 @@ class FpsSampler {
     if (this.frames.length < 2) return 60;
     const span = this.frames[this.frames.length - 1] - this.frames[0];
     return span > 0 ? (this.frames.length - 1) * 1e3 / span : 60;
+  }
+  // A single long stall between two timestamps divides out to well under 1 fps,
+  // and a load hitch is not a reason to drop a tier the device can hold. So the
+  // throttle only hears about a rate the window actually sampled.
+  get reliable() {
+    return this.frames.length >= 5;
   }
 }
 function createMovement({ camera: camera2, controls: controls2, getGameMode, isPlayerDead: isPlayerDead2 }) {
@@ -54661,14 +54708,8 @@ class RankManager {
   }
 }
 const rankManager = new RankManager();
-// Ranks carry status only. Every element and every feature comes out of the Rope
-// Shop, so ownership is the single gate; FREE_ELEMENT_Z mirrors the shop's free tier.
-const FREE_ELEMENT_Z = 20;
-function isElementUnlocked(z) {
-  const shop = window.__mol3dShop;
-  if (shop && typeof shop.ownsElement === "function") return !!shop.ownsElement(z);
-  return z <= FREE_ELEMENT_Z;
-}
+// Ranks carry status only. Elements are never gated - the crate is what costs
+// stars - while features still come out of the Rope Shop.
 function isFeatureUnlocked(feature) {
   const shop = window.__mol3dShop;
   if (shop && typeof shop.ownsFeature === "function") return !!shop.ownsFeature(feature);
@@ -58301,9 +58342,11 @@ function emitNuclearDecay(shot, now) {
   if (branch.mode === "alpha") {
     // Alpha decay is a two-body split. Momentum is equal and opposite, so the
     // light helium nucleus carries A_d/(A_d+4) of the Q value and flies off at
-    // (A_d/4) times the speed the heavy daughter recoils with. The helium is a
-    // real atom in the scene: it cost nothing, it is noble so it bonds to nothing,
-    // and eight of them are what a uranium atom eventually turns into.
+    // (A_d/4) times the speed the heavy daughter recoils with. What leaves is
+    // the bare nucleus itself - 2p + 2n, no electron cloud - not a helium atom:
+    // an alpha stops after a few centimetres and picks up electrons there, long
+    // after it has left the table. It is drawn by the decay-particles layer, so
+    // it takes no bonds, no crate unit and no place in the inspector.
     const al = N.alpha(nuc.z, nuc.a);
     const dir = decayDirection();
     const speed = 2.6 * Math.sqrt(Math.max(0.05, al.alphaEnergy));
@@ -58311,26 +58354,19 @@ function emitNuclearDecay(shot, now) {
     atom.vel.x -= dir.x * recoil;
     atom.vel.y -= dir.y * recoil;
     atom.vel.z -= dir.z * recoil;
-    const hePos = {
-      x: atom.pos.x + dir.x * (displayRadius(oldEl) + displayRadius(newEl) + 0.9),
-      y: atom.pos.y + dir.y * (displayRadius(oldEl) + displayRadius(newEl) + 0.9),
-      z: atom.pos.z + dir.z * (displayRadius(oldEl) + displayRadius(newEl) + 0.9)
-    };
-    const heId = spawnAtom("He", hePos, { charge: false, silent: true });
-    if (heId != null) {
-      if (gun && typeof gun.setNuclide === "function") gun.setNuclide(heId, 2, 4);
-      const he = atoms.get(heId);
-      if (he) {
-        he.vel = { x: dir.x * speed, y: dir.y * speed, z: dir.z * speed };
-        repaintNucleus(heId, he.el, now);
-      }
+    if (window.__decayParticles && typeof window.__decayParticles.alpha === "function") {
+      window.__decayParticles.alpha(
+        { x: atom.pos.x, y: atom.pos.y, z: atom.pos.z },
+        dir,
+        speed
+      );
     }
     const scale = 1.2 + Math.max(0, al.q) / 4;
     reactionVFX.fission(pos, scale);
     applyExplosionDamage(pos, scale, 1);
     triggerNuclearExplosionVFX();
     for (const [otherId, otherAtom] of atoms) {
-      if (otherId === id || otherId === heId) continue;
+      if (otherId === id) continue;
       const otherPos = new Vector3(otherAtom.pos.x, otherAtom.pos.y, otherAtom.pos.z);
       const dist = pos.distanceTo(otherPos);
       if (dist < 6 && dist > 0.01) {
@@ -58357,6 +58393,16 @@ function emitNuclearDecay(shot, now) {
     // hands back two 511 keV gammas flying apart.
     const plus = branch.mode === "betaPlus";
     reactionVFX.explode(pos, plus ? 0.5 : 0.35, plus ? 16737502 : branch.mode === "electronCapture" ? 11034879 : 6547199);
+    // A weak decay throws a charged lepton out of the nucleus, and with it the
+    // neutrino the books demand: beta-minus pairs the electron with an
+    // antineutrino, beta-plus the positron with a neutrino. Electron capture is
+    // not an emission - the nucleus takes an electron in - so it throws neither.
+    if (window.__decayParticles && typeof window.__decayParticles.beta === "function") {
+      window.__decayParticles.beta(
+        { x: pos.x, y: pos.y, z: pos.z },
+        plus ? "plus" : branch.mode === "electronCapture" ? null : "minus"
+      );
+    }
     atom.vel.x += (Math.random() - 0.5) * 0.3;
     atom.vel.y += (Math.random() - 0.5) * 0.3;
     atom.vel.z += (Math.random() - 0.5) * 0.3;
@@ -58522,6 +58568,9 @@ function updateBetaDecay(now) {
     // annihilates against an electron almost at once and hands back two 511 keV
     // gammas flying apart in opposite directions, which is the whole of PET.
     reactionVFX.explode(pos, plan.kind === "plus" ? 0.5 : 0.35, plan.kind === "plus" ? 16737502 : 6547199);
+    if (window.__decayParticles && typeof window.__decayParticles.beta === "function") {
+      window.__decayParticles.beta({ x: pos.x, y: pos.y, z: pos.z }, plan.kind);
+    }
     atom.vel = atom.vel || { x: 0, y: 0, z: 0 };
     atom.vel.x += (Math.random() - 0.5) * 0.3;
     atom.vel.y += (Math.random() - 0.5) * 0.3;
@@ -59294,7 +59343,7 @@ function stabilizeStrays(strayIds, now) {
   if (formulas.length) status(t("status.stabilized", { formula: formulas.join(" + ") }), "ok");
 }
 const sceneWrap = document.getElementById("scene-wrap");
-const renderer = new WebGLRenderer({ antialias: true, powerPreference: "low-power" });
+const renderer = new WebGLRenderer({ antialias: DEVICE.antialias, powerPreference: "low-power" });
 renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
 const camera = new PerspectiveCamera(50, sceneWrap.clientWidth / sceneWrap.clientHeight, 0.1, 200);
 camera.position.set(0, 4.2, 10.5);
@@ -59612,6 +59661,7 @@ const _perp = new Vector3();
 const _q = new Quaternion();
 const _v = new Vector3();
 const _up = new Vector3(0, 1, 0);
+const _camDir = new Vector3();
 const _col = new Color();
 const ghostMat = new MeshBasicMaterial({ color: 4176208, transparent: true, opacity: 0.55 });
 const ghost = new Mesh(cylGeo, ghostMat);
@@ -59625,8 +59675,12 @@ try {
   if (QUALITY_MODES.includes(savedQuality)) qualityMode = savedQuality;
 } catch {
 }
-let tierIndex = 1;
+let tierIndex = qualityMode === "auto" ? DEVICE.tier : Math.max(0, TIER_ORDER.indexOf(qualityMode));
 const fpsSampler = new FpsSampler();
+// The clock the browser offers, counted before the pacing gate gets a say. A loop
+// drawing 30fps because the tier told it to looks identical to one drawing 30fps
+// because that is all the device has, unless the tick rate is also on the table.
+const tickSampler = new FpsSampler();
 const throttle = new AutoThrottle();
 let lastAuto = 0;
 const fpsChip = document.getElementById("fps-chip");
@@ -59666,7 +59720,10 @@ function applyMode(m) {
   } catch {
   }
   throttle.reset();
-  if (m !== "auto") applyTier(TIER_ORDER.indexOf(m));
+  // An explicit pick is the tier; "auto" starts from the hardware profile and
+  // lets the throttle move from there. Both have to reach applyTier, since the
+  // geometries and the drawing buffer are only resized inside it.
+  applyTier(m === "auto" ? DEVICE.tier : TIER_ORDER.indexOf(m));
   updateQualityHud();
   // The settings modal keeps its own copy of this label, so a pick made from
   // either entry point has to refresh both.
@@ -59676,8 +59733,17 @@ function autoTick(now) {
   if (now - lastAuto < 500) return;
   lastAuto = now;
   const fps = fpsSampler.fps;
-  if (qualityMode === "auto") {
-    const s = throttle.update(fps, tierIndex);
+  if (qualityMode === "auto" && fpsSampler.reliable) {
+    const cap = tier().maxFps || 0;
+    // A capped tier can never measure above its cap, so the raw rate stops being a
+    // headroom signal; the tick sampler restores it. It counts the rAF callbacks
+    // that arrived before the pacing gate refused them, so a gap between the two is
+    // capacity the browser had ready and the tier threw away. A device that cannot
+    // keep up shows no gap, because its callbacks arrive as slowly as it draws them.
+    const gatedByCap = cap && tickSampler.reliable && tickSampler.fps > fps * 1.25;
+    const headroom = gatedByCap ? Math.max(61, cap * 2) : fps;
+    const floor = cap ? Math.min(throttle.downFps, cap - 8) : throttle.downFps;
+    const s = throttle.update(headroom, tierIndex, TIER_ORDER.length - 1, floor);
     if (s !== tierIndex) {
       applyTier(s);
       status(t("status.autoAdjusted", { tier: t(`quality.${TIER_ORDER[s]}`), fps: Math.round(fps) }));
@@ -59875,10 +59941,12 @@ function syncInstances() {
   atomMeshN.instanceMatrix.needsUpdate = true;
   if (atomMeshM.instanceColor) atomMeshM.instanceColor.needsUpdate = true;
   if (atomMeshN.instanceColor) atomMeshN.instanceColor.needsUpdate = true;
+  // These meshes are never frustum-culled, so the only reader of their bounding
+  // sphere is picking. Dropping it here defers that work to the next hover or
+  // click instead of rebuilding it on every frame - and leaving the old sphere in
+  // place would be wrong, since atoms that moved outside it would stop picking.
   atomMeshM.boundingSphere = null;
   atomMeshN.boundingSphere = null;
-  if (mi > 0) atomMeshM.computeBoundingSphere();
-  if (ni > 0) atomMeshN.computeBoundingSphere();
   const gridOn = !!(window.__xray && typeof window.__xray.config === 'function' && window.__xray.config().grid);
   atomMeshGrid.visible = gridOn;
   if (gridOn) {
@@ -59892,7 +59960,6 @@ function syncInstances() {
     }
     atomMeshGrid.count = gi;
     atomMeshGrid.instanceMatrix.needsUpdate = true;
-    if (gi > 0) atomMeshGrid.computeBoundingSphere();
   }
   let ci = 0, ii = 0;
   for (const b of bonds.values()) {
@@ -59937,19 +60004,15 @@ function syncInstances() {
   if (bondMeshI.instanceColor) bondMeshI.instanceColor.needsUpdate = true;
   bondMeshC.boundingSphere = null;
   bondMeshI.boundingSphere = null;
-  if (ci > 0) bondMeshC.computeBoundingSphere();
-  if (ii > 0) bondMeshI.computeBoundingSphere();
 }
 // Every atom carries a label sprite and a formal-charge badge, so a build of a few
 // hundred atoms used to bury the structure under a wall of symbols. Past a crowd size
 // each overlay keeps a budget of the nearest sprites plus the ones the player is
-// working on; the label and badge toggles remain the master switches.
-const LABEL_CROWD = 40;
-const LABEL_REACH = 12;
-const LABEL_BUDGET = 40;
-const BADGE_BUDGET = 40;
-function pickNearestSprites(ids, budget) {
-  const cp = camera.position, reach2 = LABEL_REACH * LABEL_REACH;
+// working on; the label and badge toggles remain the master switches. Each sprite is
+// its own draw call, so the budgets are tier-scaled: a weak GPU pays for every one of
+// them, while the crowded-scene gain is the same on any machine.
+function pickNearestSprites(ids, budget, reach) {
+  const cp = camera.position, reach2 = reach * reach;
   const near = [];
   const lit = /* @__PURE__ */ new Set();
   for (const id of ids) {
@@ -59972,13 +60035,14 @@ function pickNearestSprites(ids, budget) {
 }
 function updateSprites() {
   camera.getWorldDirection(_v);
-  const crowd = labelSprites.size > LABEL_CROWD;
-  const lit = crowd && atomLabelsVisible ? pickNearestSprites(labelSprites.keys(), LABEL_BUDGET) : null;
+  const td = tier();
+  const crowd = labelSprites.size > td.labelCrowd;
+  const lit = crowd && atomLabelsVisible ? pickNearestSprites(labelSprites.keys(), td.labelBudget, td.labelReach) : null;
   let litBadges = null;
   if (crowd && fcVisible) {
     const charged = [];
     for (const [id] of badgeSprites) if (atomFC.get(id) !== void 0) charged.push(id);
-    litBadges = pickNearestSprites(charged, BADGE_BUDGET);
+    litBadges = pickNearestSprites(charged, td.badgeBudget, td.labelReach);
   }
   for (const [id, sp] of labelSprites) {
     sp.visible = atomLabelsVisible && (!crowd || lit.has(id));
@@ -62102,20 +62166,15 @@ function buildPeriodicTable() {
     const el = ELEMENTS.find((e) => e.z === z);
     const g = gridPos(z);
     const b = document.createElement("button");
-    const unlocked = isElementUnlocked(z);
-    b.className = "el" + (unlocked ? "" : " locked");
+    b.className = "el";
     b.style.gridColumn = g.col;
     b.style.gridRow = g.row;
-    b.style.borderColor = unlocked ? el.color : "var(--muted)";
+    b.style.borderColor = el.color;
     b.dataset.sym = el.sym;
     b.dataset.z = z;
-    b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
-    b.innerHTML = unlocked ? `<span class="z">${z}</span><span class="s">${el.sym}</span><span class="el-qty"></span>` : `<span class="lock"><i data-lucide="lock" class="st-lc"></i></span><span class="s">${el.sym}</span><span class="el-qty"></span>`;
+    b.title = t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
+    b.innerHTML = `<span class="z">${z}</span><span class="s">${el.sym}</span><span class="el-qty"></span>`;
     b.addEventListener("click", () => {
-      if (!isElementUnlocked(z)) {
-        status(`🔒 ${t("rank.elementLocked")}`, "err");
-        return;
-      }
       spawnAtom(el);
     });
     wrap.appendChild(b);
@@ -62145,16 +62204,14 @@ function renderPoolNames() {
   for (const b of document.querySelectorAll("#pool-list .el-chip")) {
     const el = elementBySym(b.dataset.sym);
     if (!el) continue;
-    const unlocked = isElementUnlocked(el.z || 0);
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)} ${fold(el.name)} ${fold(elName(el))}`.toLowerCase();
-    b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
+    b.title = t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
     b.querySelector(".n").textContent = elName(el);
   }
   for (const b of document.querySelectorAll("#ptable .el[data-sym]")) {
     const el = elementBySym(b.dataset.sym);
     if (el) {
-      const unlocked = isElementUnlocked(el.z || 0);
-      b.title = unlocked ? t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds }) : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
+      b.title = t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
     }
   }
 }
@@ -62166,14 +62223,13 @@ function buildPool() {
   allElements.push(...customElements);
   for (const el of allElements) {
     const b = document.createElement("button");
-    const unlocked = el.z ? isElementUnlocked(el.z) : true;
-    b.className = "el-chip" + (unlocked ? "" : " locked");
+    b.className = "el-chip";
     b.dataset.sym = el.sym;
     if (el.z) b.dataset.z = el.z;
     b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)}`.toLowerCase();
-    b.title = unlocked ? `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}` : `🔒 ${t("rank.locked")} — ${t("rank.shopHint")}`;
+    b.title = `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}`;
     const dot = document.createElement("i");
-    dot.style.background = unlocked ? el.color : "var(--muted)";
+    dot.style.background = el.color;
     const s = document.createElement("span");
     s.className = "s";
     s.textContent = el.sym;
@@ -62184,13 +62240,6 @@ function buildPool() {
     qty.className = "el-qty";
     b.append(dot, s, n, qty);
     updatePoolBadge(b, qty);
-    if (!unlocked) {
-      const lock = document.createElement("span");
-      lock.className = "el-lock";
-      lock.innerHTML = '<i data-lucide="lock" class="st-lc"></i>';
-      hydrateIcons(lock);
-      b.appendChild(lock);
-    }
     const isCustom = customElements.includes(el);
     if (isCustom) {
       const del = document.createElement("span");
@@ -62206,10 +62255,6 @@ function buildPool() {
     }
     if (!window.__poolDragActive) {
     b.addEventListener("click", () => {
-      if (!isElementUnlocked(el.z || 0)) {
-        status(`🔒 ${t("rank.elementLocked")}`, "err");
-        return;
-      }
       spawnFromPool(el);
     });
     }
@@ -65603,9 +65648,34 @@ function updateLerp(dt) {
   return active;
 }
 let lastT = performance.now();
+let nextDue = 0;
 let lastPlayerPos = { x: 0, y: 2, z: 0 };
 function frame(now) {
   requestAnimationFrame(frame);
+  // Counted before the pacing gate below, so this is the rate the display offers
+  // rather than the rate the tier agrees to draw.
+  tickSampler.frame(now);
+  // Frame pacing for the tiers that ask for a fixed update rate. Skipping the whole
+  // body rather than only the draw is what spares a weak device, because here the
+  // simulation costs about as much as the render does.
+  // The deadline is a schedule the gate advances by its own step, not a distance
+  // measured from the last frame drawn: a device delivering 40fps is 25ms between
+  // callbacks, and "33ms since the last draw" then rejects one and accepts the next,
+  // holding the low tier at 20fps. Anchored to the schedule it gets three frames in
+  // four callbacks, which is the cap it asked for, and the anchor keeps its own
+  // error instead of passing it on. The 2ms slack takes the callback nearest the
+  // deadline rather than always the next one up, so a device running just over its
+  // cap is not made to wait a whole extra refresh for it.
+  const capFps = TIERS[TIER_ORDER[tierIndex]].maxFps;
+  if (capFps) {
+    if (now + 2 < nextDue) return;
+    const interval = 1e3 / capFps;
+    // Advance from whichever is earlier: a frame accepted ahead of its deadline
+    // must not push the next one out, and a schedule the clock ran away from has
+    // to re-anchor to it rather than let every callback through.
+    nextDue = Math.min(nextDue, now) + interval;
+    if (nextDue <= now) nextDue = now + interval;
+  }
   const dt = Math.min(0.05, (now - lastT) / 1e3);
   lastT = now;
   fpsSampler.frame(now);
@@ -65626,9 +65696,8 @@ function frame(now) {
   } else {
     playerAvatar.position.set(camera.position.x, camera.position.y - 1.8, camera.position.z);
   }
-  const camDir = new Vector3();
-  camera.getWorldDirection(camDir);
-  const angle = Math.atan2(camDir.x, camDir.z);
+  camera.getWorldDirection(_camDir);
+  const angle = Math.atan2(_camDir.x, _camDir.z);
   playerAvatar.rotation.y = angle;
   if (!timeFrozen) active = updateDrift(dt) || active;
   active = updateLerp(dt) || active;
@@ -65934,7 +66003,6 @@ window.__mol3d = {
   progression: {
     rankManager,
     rebuildPool,
-    isElementUnlocked,
     isFeatureUnlocked,
     ranks: () => RANKS
   },
@@ -66024,6 +66092,10 @@ window.__mol3d = {
   setQuality: applyMode,
   quality: () => qualityMode,
   tierKey: () => TIER_ORDER[tierIndex],
+  // The standalone effect scripts size their own budgets, and this is the one
+  // number in the tier table they cannot read for themselves.
+  particleMult: () => tier().particleMult,
+  device: () => DEVICE,
   discoveries: () => [...discoveries],
   saveDiscoveries,
   driftVelocity: (id) => {

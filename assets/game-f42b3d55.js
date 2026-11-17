@@ -48876,7 +48876,37 @@ function isBase(formula) {
   const cls = classifyMolecule(formula, 0, null);
   return cls.key === "base";
 }
+// Every –COOH group donates exactly one proton; the C–H hydrogens of the carbon
+// skeleton stay put. Counting them structurally is what separates acetic acid
+// (1 acidic H out of 4) from a mineral acid where every H is acidic.
+function carboxylGroups(tpl) {
+  const adj = tplAdj(tpl);
+  const groups = [];
+  for (let i = 0; i < tpl.atoms.length; i++) {
+    if (tpl.atoms[i] !== "C") continue;
+    if (!adj[i].some((e) => !e.ionic && e.o === 2 && tpl.atoms[e.n] === "O")) continue;
+    for (const e of adj[i]) {
+      if (e.ionic || e.o !== 1 || tpl.atoms[e.n] !== "O") continue;
+      const h = adj[e.n].find((h2) => !h2.ionic && h2.o === 1 && tpl.atoms[h2.n] === "H");
+      if (h) groups.push({ c: i, o: e.n, h: h.n });
+    }
+  }
+  return groups;
+}
+function acidTemplateOf(formula) {
+  const tpl = productTemplate(formula);
+  if (tpl && Array.isArray(tpl.atoms) && tpl.atoms.length) return tpl;
+  const alias = templateAlias().get(normalizeFormula(formula));
+  const t2 = alias ? productTemplate(alias) : null;
+  return t2 && Array.isArray(t2.atoms) && t2.atoms.length ? t2 : null;
+}
+function acidicHydrogens(formula) {
+  const tpl = acidTemplateOf(formula);
+  return tpl ? carboxylGroups(tpl).length : 0;
+}
 function getAcidHCount(formula) {
+  const ax = acidicHydrogens(formula);
+  if (ax > 0) return ax;
   return parseFormula(formula).get("H") || 0;
 }
 function getBaseOHCount(formula) {
@@ -48906,6 +48936,15 @@ function getAcidAnion(formula) {
   const counts = parseFormula(formula);
   const hCount = counts.get("H") || 0;
   if (hCount === 0) return null;
+  const tpl = acidTemplateOf(formula);
+  const groups = tpl ? carboxylGroups(tpl) : [];
+  if (groups.length > 0) {
+    // A carboxylic acid loses only its –COOH protons; stripping every H would
+    // shred the carbon skeleton (acetic acid is not CO2⁴⁻).
+    const drop = new Set(groups.map((g) => g.h));
+    const rest = tpl.atoms.filter((_, i) => !drop.has(i));
+    return { sym: orderingToFormula(rest), charge: -groups.length };
+  }
   const anionCounts = new Map(counts);
   anionCounts.delete("H");
   const remaining = [...anionCounts.entries()];
@@ -48925,7 +48964,55 @@ function getAcidAnion(formula) {
   const anionSym = oCount > 1 ? `${central[0]}O${oCount}` : oCount === 1 ? `${central[0]}O` : central[0];
   return { sym: anionSym, charge: -hCount };
 }
+// A carboxylate keeps the parent acid's carbon skeleton. The generic star-of-
+// single-bonds fallback would pile every atom onto one carbon and overfill its
+// valence, so the salt is rebuilt from the acid's own structure minus the protons.
+function carboxylateSource(anion) {
+  const counts = parseFormula(anion.sym);
+  if (!counts.has("C") || !counts.has("O")) return null;
+  const k = Math.abs(anion.charge);
+  if (k < 1) return null;
+  const acidAtoms = [];
+  for (const [sym, n] of counts) for (let i = 0; i < n; i++) acidAtoms.push(sym);
+  for (let i = 0; i < k; i++) acidAtoms.push("H");
+  const tpl = acidTemplateOf(orderingToFormula(acidAtoms));
+  if (!tpl) return null;
+  const groups = carboxylGroups(tpl);
+  if (groups.length < k) return null;
+  return { tpl, groups: groups.slice(0, k) };
+}
+function carboxylateSaltTemplate(cation, anion, src) {
+  const cationCharge = Math.abs(cation.charge);
+  const anionCharge = Math.abs(anion.charge);
+  const lcm = cationCharge * anionCharge / gcd(cationCharge, anionCharge);
+  const cationCount = lcm / cationCharge;
+  const anionCount = lcm / anionCharge;
+  const atoms2 = [];
+  for (let i = 0; i < cationCount; i++) atoms2.push(cation.sym);
+  const bonds2 = [];
+  const slots = [];
+  const drop = new Set(src.groups.map((g) => g.h));
+  for (let a = 0; a < anionCount; a++) {
+    const map = /* @__PURE__ */ new Map();
+    for (let i = 0; i < src.tpl.atoms.length; i++) {
+      if (drop.has(i)) continue;
+      map.set(i, atoms2.length);
+      atoms2.push(src.tpl.atoms[i]);
+    }
+    for (const b of src.tpl.bonds) {
+      if (map.has(b[0]) && map.has(b[1])) bonds2.push([map.get(b[0]), map.get(b[1]), b[2], b[3] || 0]);
+    }
+    for (const g of src.groups) slots.push(map.get(g.o));
+  }
+  const totalIonic = anionCharge * anionCount;
+  for (let k = 0; k < totalIonic; k++) {
+    bonds2.push([k % cationCount, slots[k % slots.length], 1, true]);
+  }
+  return { atoms: atoms2, bonds: bonds2 };
+}
 function generateSaltTemplate(cation, anion) {
+  const carboxyl = carboxylateSource(anion);
+  if (carboxyl) return carboxylateSaltTemplate(cation, anion, carboxyl);
   const cationCharge = Math.abs(cation.charge);
   const anionCharge = Math.abs(anion.charge);
   const lcm = cationCharge * anionCharge / gcd(cationCharge, anionCharge);
@@ -49204,7 +49291,8 @@ function tryAcidBaseReaction(formulas) {
     condition: "rt",
     products: [[saltKey, 1], ["H2O", waterCount]],
     equation,
-    dynamic: true
+    dynamic: true,
+    protonTransfer: true
   };
 }
 function generateSaltFormula(cation, anion) {
@@ -49414,19 +49502,28 @@ function getCarbonateCation(formula) {
   const cCount = counts.get("C") || 0;
   const oCount = counts.get("O") || 0;
   if (cCount === 0 || oCount !== cCount * 3) return null;
+  const hCount = counts.get("H") || 0;
+  // Each CO3 framework carries 2−; every H bonded to it (bicarbonate, HCO3−)
+  // neutralizes one of those charges, so the anion charge is 2·C − H, not 2·C.
+  if (hCount > cCount) return null;
   const metalKeys = [...counts.keys()].filter((k) => {
-    if (k === "C" || k === "O") return false;
+    if (k === "C" || k === "O" || k === "H") return false;
     const el = elementBySym$1(k);
     return el && isMetal$1(el);
   });
   if (metalKeys.length !== 1) return null;
   const metalSym = metalKeys[0];
+  // A carbonate/bicarbonate is metal + (H) + C + O only; another element means a
+  // different compound that merely shares the 1:3 C:O ratio.
+  const allowed = new Set(["C", "O", "H", metalSym]);
+  if ([...counts.keys()].some((k) => !allowed.has(k))) return null;
   const metalCount = counts.get(metalSym) || 1;
   const metalEl = elementBySym$1(metalSym);
   if (!metalEl || !metalEl.charges || metalEl.charges.length === 0) return null;
-  const totalNegCharge = cCount * 2;
-  const charge = Math.round(totalNegCharge / metalCount);
-  if (!metalEl.charges.includes(charge)) return null;
+  const totalNegCharge = cCount * 2 - hCount;
+  if (totalNegCharge <= 0) return null;
+  const charge = totalNegCharge / metalCount;
+  if (!Number.isInteger(charge) || !metalEl.charges.includes(charge)) return null;
   return { sym: metalSym, charge };
 }
 function tryCarbonateAcidReaction(formulas) {
@@ -49445,12 +49542,16 @@ function tryCarbonateAcidReaction(formulas) {
   T[saltFormula] = saltTemplate;
   const acidH = getAcidHCount(acid);
   if (acidH === 0) return null;
-  const g2 = gcd(2, acidH);
-  const carbonateCoeff = acidH / g2;
-  const acidCoeff = 2 / g2;
-  const co2Coeff = carbonateCoeff;
-  const h2oCoeff = acidCoeff * acidH / 2;
   const carbCounts = parseFormula(carbonate);
+  const cCount = carbCounts.get("C") || 1;
+  // Each CO3 framework carries 2−; an H already bonded to it (bicarbonate)
+  // neutralizes one charge, so the acid must supply 2·C − H protons, not a fixed 2.
+  const anionCharge = 2 * cCount - (carbCounts.get("H") || 0);
+  const g2 = gcd(anionCharge, acidH);
+  const carbonateCoeff = acidH / g2;
+  const acidCoeff = anionCharge / g2;
+  const co2Coeff = carbonateCoeff * cCount;
+  const h2oCoeff = carbonateCoeff * cCount;
   const cationsInCarbonate = carbCounts.get(cation.sym) || 1;
   const totalCations = carbonateCoeff * cationsInCarbonate;
   const saltCounts = parseFormula(saltFormula);
@@ -49467,7 +49568,8 @@ function tryCarbonateAcidReaction(formulas) {
     condition: "rt",
     products: [[saltFormula, saltCoeff], ["CO2", co2Coeff], ["H2O", h2oCoeff]],
     equation: `${carbPart} + ${acidPart} -> ${saltPart} + ${co2Part} + ${h2oPart}`,
-    dynamic: true
+    dynamic: true,
+    protonTransfer: true
   };
 }
 const REACTIVITY = {
@@ -50233,7 +50335,8 @@ function tryAcidicOxideBase(formulas, have) {
         condition: "rt",
         products: [[saltF, coeffs[2]], ["H2O", coeffs[3]]],
         equation: eqParts([baseF, oxideF], [saltF, "H2O"], coeffs, phases),
-        dynamic: true
+        dynamic: true,
+        protonTransfer: true
       });
     }
     if (ox.acidH >= 2) {
@@ -50249,7 +50352,8 @@ function tryAcidicOxideBase(formulas, have) {
           condition: "rt",
           products: [[saltF, coeffs[2]]],
           equation: eqParts([baseF, oxideF], [saltF], coeffs, phases),
-          dynamic: true
+          dynamic: true,
+          protonTransfer: true
         });
       }
     }
@@ -50489,7 +50593,8 @@ function tryAcidBaseStruct(comps, have) {
           condition: "rt",
           products: [[saltF, coeffs[2]], ["H2O", coeffs[3]]],
           equation: eqParts([acidF, baseF], [saltF, "H2O"], coeffs, phases),
-          dynamic: true
+          dynamic: true,
+          protonTransfer: true
         });
       }
     }
@@ -51168,7 +51273,7 @@ function tryGenericDecomposition(formulas) {
         if (!T[pf]) T[pf] = generateSingleAtomTemplate(pf.split(/(?=[A-Z])/)[0]) || { atoms: [], bonds: [] };
       }
       return {
-        reactants: { [f]: 1 },
+        reactants: { [f]: coeffs[0] },
         condition: "heat",
         products: validProducts.map((pf, i) => [pf, coeffs[1 + i]]),
         equation: eqParts([f], validProducts, coeffs),
@@ -51225,6 +51330,7 @@ function tryGasEvolution(formulas) {
         products: [["NH3", 1], ["H2O", 1]],
         equation: `${formulas[i]} + ${other} -> NH3(g) + H2O + ...`,
         dynamic: true,
+        protonTransfer: true,
         gas: "NH3"
       };
     }
@@ -51249,6 +51355,7 @@ function tryGasEvolution(formulas) {
           products: [["H2S", 1], [buildIonicFormula(metal, getAcidAnion(acid)), 1]],
           equation: `${salt} + ${acid} -> H2S(g) + ${buildIonicFormula(metal, getAcidAnion(acid))}`,
           dynamic: true,
+          protonTransfer: true,
           gas: "H2S"
         };
       }
@@ -51348,7 +51455,7 @@ function tryBuildRedoxProducts(formulas, have, oxidized, reduced) {
               const coeffs = balanceEquation(lhs, products.map((p2) => p2.formula));
               if (coeffs) {
                 const reactantObj = {};
-                for (const f of lhs) reactantObj[f] = 1;
+                lhs.forEach((f, i) => { reactantObj[f] = coeffs[i]; });
                 return {
                   reactants: reactantObj,
                   condition: "heat",
@@ -51374,7 +51481,7 @@ function tryBuildRedoxProducts(formulas, have, oxidized, reduced) {
       const coeffs = balanceEquation(lhs, products.map((p) => p.formula));
       if (!coeffs) continue;
       const reactantObj = {};
-      for (const f of lhs) reactantObj[f] = 1;
+      lhs.forEach((f, i) => { reactantObj[f] = coeffs[i]; });
       return {
         reactants: reactantObj,
         condition: "heat",
@@ -51722,31 +51829,10 @@ function tryCoordinationComplex(formulas) {
 function tryBiochemicalReaction(formulas) {
   if (formulas.length < 2) return null;
   const hasFormula = (f) => formulas.some((x) => normalizeFormula(x) === normalizeFormula(f));
-  if (hasFormula("CO2") && hasFormula("H2O")) {
-    if (!T["HCO3"]) T["HCO3"] = { atoms: [], bonds: [] };
-    return {
-      reactants: { CO2: 1, H2O: 1 },
-      condition: "rt",
-      products: [["HCO3", 1]],
-      equation: "CO2 + H2O ⇌ HCO3- + H+ (carbonic anhydrase)",
-      dynamic: true,
-      biochemical: true,
-      enzyme: "carbonic anhydrase"
-    };
-  }
-  if (hasFormula("ATP") && hasFormula("H2O")) {
-    if (!T["ADP"]) T["ADP"] = { atoms: [], bonds: [] };
-    if (!T["HPO4"]) T["HPO4"] = { atoms: [], bonds: [] };
-    return {
-      reactants: { ATP: 1, H2O: 1 },
-      condition: "rt",
-      products: [["ADP", 1], ["HPO4", 1]],
-      equation: "ATP⁴⁻ + H₂O → ADP³⁻ + HPO₄²⁻ + H⁺ (ΔG° ≈ −30.5 kJ·mol⁻¹)",
-      dynamic: true,
-      biochemical: true,
-      enzyme: "ATPase"
-    };
-  }
+  // Carbonic anhydrase and ATPase act on solvated ions (HCO3-, H+, ATP4-, HPO42-).
+  // This world builds neutral molecules in a gas or condensed phase and ships no
+  // aqueous-ion rows, so those equations could only ever be placeholders; CO2 and
+  // H2O meet honestly through the oxide-hydration route instead.
   if (hasFormula("N2") && hasFormula("H2")) {
     return {
       reactants: { N2: 1, H2: 3 },
@@ -51837,7 +51923,8 @@ function tryMetalOxideAcidReaction(formulas) {
     condition: "rt",
     products: [[saltF, coeffs[2]], ["H2O", coeffs[3]]],
     equation: eqParts([oxideF, acidF], [saltF, "H2O"], coeffs, phases),
-    dynamic: true
+    dynamic: true,
+    protonTransfer: true
   };
 }
 function tryElementalCombustion(formulas) {
@@ -51924,6 +52011,33 @@ const WEAK_ACID_ANIONS = {
   "C2H3O2": { acidF: "HC2H3O2", decomposes: false },
   "SiO3": { acidF: "H2SiO3", decomposes: false }
 };
+// The oxide an acid of this table collapses to, by the acid's own atom inventory:
+// H2CO3 -> CO2 + H2O, H2SO3 -> SO2 + H2O. Molecular carbonic and sulfurous acid
+// have no measured standard-state data anywhere, because they are never isolated
+// — what exists is the hydrated oxide. Matching on counts, not spelling, lets
+// every notation of the acid (H2CO3, CH2O3, CH2O3_carbonic) resolve the same way.
+function decomposingOxyacidGas(formula) {
+  let counts = null;
+  const key = String(formula || "").split("_")[0];
+  const tpl = productTemplate(key) || productTemplate(formula);
+  if (tpl && Array.isArray(tpl.atoms) && tpl.atoms.length) {
+    counts = new Map();
+    for (const s of tpl.atoms) counts.set(s, (counts.get(s) || 0) + 1);
+  } else {
+    try { counts = parseFormula(key); } catch { return null; }
+  }
+  if (!counts || !counts.size) return null;
+  for (const sym of Object.keys(WEAK_ACID_ANIONS)) {
+    const info = WEAK_ACID_ANIONS[sym];
+    if (!info.decomposes || !info.gas) continue;
+    const acid = parseFormula(info.acidF);
+    if (acid.size !== counts.size) continue;
+    let same = true;
+    for (const [el, n] of acid) if (counts.get(el) !== n) { same = false; break; }
+    if (same) return info.gas;
+  }
+  return null;
+}
 function tryWeakAcidDisplacement(formulas) {
   const have = multisetOf(formulas);
   if (have.size !== 2) return null;
@@ -51956,6 +52070,7 @@ function tryWeakAcidDisplacement(formulas) {
       products: allProducts.map((f, i) => [f, coeffs[2 + i]]),
       equation: eqParts([saltF, acidF], allProducts, coeffs, phases),
       dynamic: true,
+      protonTransfer: true,
       gas: weakInfo.gas
     };
   } else {
@@ -51983,7 +52098,8 @@ function tryWeakAcidDisplacement(formulas) {
       condition: "rt",
       products: allProducts.map((f, i) => [f, coeffs[2 + i]]),
       equation: eqParts([saltF, acidF], allProducts, coeffs, phases),
-      dynamic: true
+      dynamic: true,
+      protonTransfer: true
     };
   }
 }
@@ -52137,7 +52253,28 @@ function productTemplate(key, fingerprint) {
       }
     }
   }
-  return T[key];
+  const hit = T[key];
+  if (hit && Array.isArray(hit.atoms) && hit.atoms.length) return hit;
+  // A salt nobody curated still has a structure: the ion tables name its cation
+  // and anion, and the reaction builders' own generator assembles it. Without
+  // this, formula-spawned NaHCO3 scattered into NaH + CO3 and no predictor ever
+  // saw a carbonate. The key is reserved before generating because the
+  // carboxylate path looks its parent acid up through this same function.
+  const alias = templateAlias().get(normalizeFormula(key));
+  if (alias && alias !== key) {
+    const t2 = T[alias];
+    if (t2 && Array.isArray(t2.atoms) && t2.atoms.length) return t2;
+  }
+  const ions = parseIonicCompound(key);
+  if (ions && elementBySym$1(ions.cation.sym)) {
+    T[key] = { atoms: [], bonds: [] };
+    const tpl = generateSaltTemplate(ions.cation, ions.anion);
+    if (tpl && Array.isArray(tpl.atoms) && tpl.atoms.length) {
+      T[key] = tpl;
+      return tpl;
+    }
+  }
+  return hit;
 }
 const AVOGADRO = 602214076e15;
 let elementOf = (sym) => elementBySym$1(sym);
@@ -59970,8 +60107,10 @@ function checkUnstableMolecules() {
     clearMeltdown();
   }
 }
+const instabilityWarned = /* @__PURE__ */ new Map();
 function runSimulationAnalysis() {
   if (!simulation || lastComps.length === 0) return;
+  const liveKeys = /* @__PURE__ */ new Set();
   for (let i = 0; i < lastComps.length; i++) {
     const comp = lastComps[i];
     const compAtoms = comp.atoms.map((id) => atoms.get(id)).filter(Boolean);
@@ -59979,13 +60118,23 @@ function runSimulationAnalysis() {
     if (compAtoms.length === 0) continue;
     const analysis = simulation.analyzeMolecule(compAtoms, compBonds, i);
     comp.simulation = analysis;
-    if (analysis.stability.thermodynamicallyUnstable) {
+    const key = compKey(comp);
+    liveKeys.add(key);
+    // One line per molecule the moment it turns unstable, not once per reanalyze:
+    // the scene re-analyses on every event, and re-logging a still-unstable
+    // molecule each time buried everything else in the console.
+    const thermo = analysis.stability.thermodynamicallyUnstable;
+    const kinetic = analysis.stability.kineticallyUnstable;
+    const prev = instabilityWarned.get(key);
+    if (thermo && (!prev || !prev.thermo)) {
       console.log(`⚠ Molecule ${i} is thermodynamically unstable (ΔG = ${analysis.thermodynamics.dG.toFixed(1)} kJ/mol)`);
     }
-    if (analysis.stability.kineticallyUnstable) {
+    if (kinetic && (!prev || !prev.kinetic)) {
       console.log(`⚠ Molecule ${i} is kinetically unstable (decomposition prob = ${(analysis.kinetics.decompositionProbability * 100).toFixed(1)}%)`);
     }
+    instabilityWarned.set(key, { thermo, kinetic });
   }
+  for (const k of [...instabilityWarned.keys()]) if (!liveKeys.has(k)) instabilityWarned.delete(k);
 }
 function updateCatalystTracking() {
   const currentCatalystKeys = /* @__PURE__ */ new Set();
@@ -66161,6 +66310,7 @@ window.__mol3d = {
     bondEnergies: () => BDE_TABLE,
     catalysts: () => CATALYST_DB.slice(),
     normalize: (f) => normalizeFormula(f),
+    oxyacidGas: (f) => decomposingOxyacidGas(f),
     molarMass: (f) => molarMass(f),
     atomElement: (id) => { const a = atoms.get(id); return a && a.el ? a.el.sym : null; },
     catalystFor: (formula) => getCatalystData(formula),

@@ -46,6 +46,7 @@
     record('NaOH',null,null,{phase:'s',hf:-425.61,s:64.46,source:CODATA+'; sodium hydroxide solid'}),
     record('Na2CO3',null,null,{phase:'s',hf:-1130.68,s:135.0,source:CODATA+'; sodium carbonate solid'}),
     record('NaHCO3',null,null,{phase:'s',hf:-947.66,s:102.09,source:CODATA+'; sodium hydrogen carbonate solid'}),
+    record('NaC2H3O2',null,null,{phase:'s',hf:-709.32,s:138.10,cp:100.83,source:'NBS Tables of Chemical Thermodynamic Properties (Wagman et al. 1982); S° and Cp: NIST WebBook, Franzosini et al. 1983; anhydrous sodium acetate solid',url:'https://webbook.nist.gov/cgi/cbook.cgi?ID=C127093&Units=SI&Mask=2'}),
     record('CaO',null,null,{phase:'s',hf:-635.09,s:39.75,cp:42.05,source:CODATA+'; calcium oxide solid'}),
     record('Ca(OH)2',null,null,{phase:'s',hf:-986.09,s:83.39,source:CODATA+'; calcium hydroxide solid (portlandite)'}),
     record('CaCO3',null,null,{phase:'s',hf:-1207.13,s:92.90,cp:81.3,source:CODATA+'; calcite'}),

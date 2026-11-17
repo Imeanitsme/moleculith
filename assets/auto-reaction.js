@@ -210,28 +210,44 @@
     }
     return out;
   }
-  // The intrinsic barrier is a quarter of the enthalpy of the bonds that have to
-  // break and do not reappear in the products — the measured bond dissociation
-  // table, nothing else.
-  function intrinsicBarrier(reactants, products) {
+  // The intrinsic barrier is a quarter of the enthalpy of the COVALENT bonds that
+  // have to break and do not reappear in the products — the measured bond
+  // dissociation table, nothing else. An ionic contact is not a covalent bond: it
+  // is a non-directional Coulomb association between ions that survive the
+  // rearrangement, so swapping partners (metathesis, neutralization, precipitation)
+  // is capture-controlled and carries no bond-dissociation barrier — the same
+  // reason ion combination is barrierless. This engine bonds metals by electron
+  // transfer and the measured table covers no metal pair, so a metal–nonmetal
+  // contact is ionic here even when the scene's relaxation flags it covalent.
+  const METAL_CATS = ['alkali', 'alkaline', 'transition', 'post', 'lanthanide', 'actinide'];
+  function intrinsicBarrier(reactants, products, protonTransfer) {
+    // A Brønsted neutralization moves the proton heterolytically: the bonding
+    // pair stays on the conjugate base, so homolytic bond energies are the wrong
+    // currency for the step. Favorable proton transfer is capture-controlled
+    // (Eigen), the same reason ion combination is barrierless — the ΔG gate above
+    // still decides whether it happens at all.
+    if (protonTransfer) return { value: 0 };
     if (reactants.some(e => !e.graph) || products.some(e => !e.graph)) {
       return { value: null, reason: L('a species has no bond structure in this scene, so the barrier cannot be built',
         'một loài không có cấu trúc liên kết trong cảnh này, nên không dựng được rào cản') };
     }
+    const a = auto();
+    const isMetalSym = s => { const el = a.elementBySymbol(s); return !!el && METAL_CATS.includes(el.cat); };
     const broken = bondMultiset(reactants);
     const kept = bondMultiset(products);
-    const table = auto().bondEnergies();
+    const table = a.bondEnergies();
     let sum = 0, count = 0, unknown = null;
     for (const [sig, n] of broken) {
       const left = n - (kept.get(sig) || 0);
       if (left <= 0) continue;
-      if (sig.startsWith('ionic:')) {
-        unknown = L('an ionic contact has to break and no measured bond energy covers it',
-          'một liên kết ion phải đứt và chưa có năng lượng liên kết đo lường nào phủ nó');
-        continue;
-      }
-      const order = sig.includes('≡') ? 3 : sig.includes('=') ? 2 : 1;
-      const bde = (table[order] || {})[sig];
+      const core = sig.startsWith('ionic:') ? sig.slice(6) : sig;
+      const sep = core.includes('≡') ? '≡' : core.includes('=') ? '=' : '-';
+      const pair = core.split(sep);
+      // Ionic flag, or either atom a metal: an electrostatic contact, not a
+      // covalent bond, so it rearranges without a bond-dissociation barrier.
+      if (sig.startsWith('ionic:') || isMetalSym(pair[0]) || isMetalSym(pair[1])) continue;
+      const order = sep === '≡' ? 3 : sep === '=' ? 2 : 1;
+      const bde = (table[order] || {})[core];
       if (!Number.isFinite(bde)) {
         unknown = L('no measured bond energy for ' + sig, 'chưa có năng lượng liên kết đo lường cho ' + sig);
         continue;
@@ -240,8 +256,8 @@
       count += left;
     }
     if (unknown) return { value: null, reason: unknown };
-    // No bond breaks: the rearrangement costs nothing to reach its own transition
-    // state, which is why proton transfers and ion combinations are fast.
+    // No covalent bond breaks: the rearrangement costs nothing to reach its own
+    // transition state, which is why proton transfers and ion combinations are fast.
     return { value: count ? 0.25 * sum : 0 };
   }
 
@@ -421,7 +437,8 @@
     if (acts.reason) return Object.assign(base, { state: 'blocked', reason: L('ΔG not priced: ' + acts.reason, 'chưa tính ΔG: ' + acts.reason) });
     const e0 = intrinsicBarrier(
       terms.filter(t => t.nu < 0).map(t => ({ graph: graphOf(t.formula), nu: -t.nu })),
-      terms.filter(t => t.nu > 0).map(t => ({ graph: graphOf(t.formula), nu: t.nu })));
+      terms.filter(t => t.nu > 0).map(t => ({ graph: graphOf(t.formula), nu: t.nu })),
+      !!rx.protonTransfer);
     if (e0.value === null) {
       return Object.assign(base, { state: 'blocked', reason: L('barrier unknown — ' + e0.reason + ', and nothing fires on a guess',
         'chưa rõ rào cản — ' + e0.reason + ', và không có gì được bắn theo phỏng đoán') });
@@ -508,6 +525,65 @@
     };
   }
 
+  // Molecular carbonic and sulfurous acid have no measured standard-state data
+  // anywhere, because they are never isolated: what exists is the hydrated oxide.
+  // A route that carries one of these acids is re-expressed with the acid replaced
+  // by its oxide + water on the same side, which is the chemistry that actually
+  // happens. A route that collapses to the same species on both sides is no
+  // reaction at all and is dropped.
+  function rewriteOxyacids(rx) {
+    const a = auto();
+    if (!a.oxyacidGas) return { rx: rx, drop: false };
+    let touched = false;
+    const expand = (entries, asMap) => {
+      const out = asMap ? new Map() : [];
+      const push = (f, n) => {
+        const gas = a.oxyacidGas(f);
+        if (!gas) {
+          if (asMap) out.set(f, (out.get(f) || 0) + n);
+          else out.push([f, n]);
+          return;
+        }
+        touched = true;
+        if (asMap) {
+          out.set(gas, (out.get(gas) || 0) + n);
+          out.set('H2O', (out.get('H2O') || 0) + n);
+        } else {
+          out.push([gas, n], ['H2O', n]);
+        }
+      };
+      if (asMap) { for (const [f, n] of Object.entries(entries || {})) push(f, n); }
+      else { for (const e of entries || []) push(e[0], e[1]); }
+      return out;
+    };
+    const reactants = expand(rx.reactants, true);
+    const products = expand(rx.products, false);
+    if (!touched) return { rx: rx, drop: false };
+    // An acid that is fully on one side with nothing else there can be cancelled
+    // against equal amounts of the same species on the other side.
+    const pCount = new Map();
+    for (const [f, n] of products) pCount.set(f, (pCount.get(f) || 0) + n);
+    const netR = new Map(), netP = new Map();
+    for (const [f, n] of reactants) {
+      const shared = Math.min(n, pCount.get(f) || 0);
+      if (n > shared) netR.set(f, n - shared);
+      pCount.set(f, (pCount.get(f) || 0) - shared);
+    }
+    for (const [f, n] of pCount) if (n > 0) netP.set(f, n);
+    if (!netR.size || !netP.size) return { rx: rx, drop: true };
+    const termStr = (m, sign) => [...m.entries()].sort()
+      .map(([f, n]) => (n > 1 ? n : '') + f).join(sign === '-' ? ' + ' : ' + ');
+    const eq = termStr(netR, '-') + ' -> ' + termStr(netP, '+');
+    return {
+      rx: Object.assign({}, rx, {
+        reactants: Object.fromEntries(netR),
+        products: [...netP.entries()],
+        equation: eq
+      }),
+      drop: false
+    };
+  }
+
   // --- evaluation cache ------------------------------------------------------
   let cache = { key: null, routes: [], error: null };
   function evaluateAll() {
@@ -524,7 +600,10 @@
     try { candidates = a.candidates(false) || []; } catch (e) { cache = { key, routes: [], error: e.message }; return []; }
     const routes = [];
     const sameRoute = new Map();
-    for (const rx of candidates) {
+    for (const candidate of candidates) {
+      const rewritten = rewriteOxyacids(candidate);
+      if (rewritten.drop) continue;
+      const rx = rewritten.rx;
       let ev;
       try { ev = evaluateRoute(rx, classes, atmo, T, bar); } catch (e) { ev = { state: 'blocked', reason: String((e && e.message) || e) }; }
       ev.rx = rx;

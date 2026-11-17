@@ -40,9 +40,16 @@
   ];
   function packBg(p) { return p.bg || 'linear-gradient(150deg,' + p.hue + ',#031417)'; }
 
+  // How many atoms a crate of each tier gifts per atom drop. The pool's own
+  // count only feeds its display; every roll re-rolls the amount here so the
+  // tiers give visibly different quantities.
+  var ATOM_QTY = {
+    basic: [1, 10], molecular: [10, 15], advanced: [15, 20],
+    elite: [20, 30], jackpot: [30, 40], king: [50, 100]
+  };
+
   function stars(n, r) { return { id: 'stars-' + n, kind: 'stars', rarity: r, value: n, icon: 'star', name: { en: n + ' Stars', vi: n + ' Sao' }, desc: { en: 'Added to your balance.', vi: 'Cộng vào số dư.' } }; }
   function atom(sym, z, n, r, v) { return { id: 'atom-' + sym + '-' + n, kind: 'atom', z: z, count: n, sym: sym, rarity: r, value: v, icon: 'atom', name: { en: n + ' × ' + sym + ' atoms', vi: n + ' × nguyên tử ' + sym }, desc: { en: 'Added to your element stock.', vi: 'Thêm vào kho nguyên tố.' } }; }
-  function mol(f, en, vi, r, v, icon) { return { id: 'mol-' + f, kind: 'molecule', formula: f, sym: f, rarity: r, value: v, icon: icon || 'hexagon', name: { en: en, vi: vi }, desc: { en: 'A molecule card: its atoms go to your stock, and the card can summon ' + f + ' into the scene.', vi: 'Thẻ phân tử: nguyên tử vào kho, thẻ có thể triệu hồi ' + f + ' vào cảnh.' } }; }
   function boost(pct, uses, r, v) { return { id: 'boost-' + pct + '-' + uses, kind: 'boost', rate: 1 - pct / 100, uses: uses, hours: 2, rarity: r, value: v, icon: 'badge-percent', name: { en: 'Catalyst −' + pct + '% ×' + uses, vi: 'Chất xúc tác −' + pct + '% ×' + uses }, desc: { en: 'Your next ' + uses + ' shop purchases within 2 h cost ' + pct + '% less.', vi: uses + ' lần mua tiếp theo trong 2 giờ rẻ hơn ' + pct + '%.' } }; }
   function ammo(n, r, v) { return { id: 'ammo-proton-' + n, kind: 'ammo', ammo: 'proton', count: n, rarity: r, value: v, icon: 'crosshair', name: { en: n + ' proton rounds', vi: n + ' viên proton' }, desc: { en: 'Ammo for the Proton gun.', vi: 'Đạn cho súng Proton.' } }; }
   function feat(id, icon, en, vi, r, v) { return { id: 'feat-' + id, kind: 'feature', feature: id, rarity: r, value: v, icon: icon, name: { en: en, vi: vi }, desc: { en: 'Unlocks the feature. Already owned: pays 35% of its value in stars.', vi: 'Mở khóa tính năng. Nếu đã có: trả 35% giá trị bằng sao.' } }; }
@@ -52,27 +59,34 @@
   function kg(it) { it.k = 1; return it; }
 
   var POOL = {
-    common: [stars(3, 'common'), stars(5, 'common'), stars(8, 'common'), atom('H', 1, 5, 'common', 5), atom('C', 6, 3, 'common', 6), atom('O', 8, 3, 'common', 6), atom('N', 7, 3, 'common', 6)],
-    uncommon: [stars(15, 'uncommon'), stars(20, 'uncommon'), atom('Na', 11, 3, 'uncommon', 12), atom('Cl', 17, 3, 'uncommon', 12), atom('S', 16, 3, 'uncommon', 12), mol('H2O', 'Water', 'Nước', 'uncommon', 15, 'droplets'), mol('CO2', 'Carbon dioxide', 'Cacbon đioxit', 'uncommon', 18, 'cloud'), mol('NH3', 'Ammonia', 'Amoniac', 'uncommon', 18, 'wind'), ammo(10, 'uncommon', 10), boost(10, 2, 'uncommon', 15)],
-    rare: [stars(40, 'rare'), stars(60, 'rare'), mol('CH4', 'Methane', 'Metan', 'rare', 40, 'flame-kindling'), mol('C2H5OH', 'Ethanol', 'Etanol', 'rare', 60, 'wine'), atom('Fe', 26, 3, 'rare', 45), atom('Cu', 29, 3, 'rare', 45), boost(20, 3, 'rare', 50), title('apprentice', 'graduation-cap', 'Lab Apprentice', 'Học việc Phòng thí nghiệm', 'rare', 40),
+    common: [stars(3, 'common'), stars(5, 'common'), stars(8, 'common'), atom('H', 1, 5, 'common', 5), atom('He', 2, 4, 'common', 7), atom('Li', 3, 3, 'common', 9), atom('C', 6, 3, 'common', 6), atom('O', 8, 3, 'common', 6), atom('N', 7, 3, 'common', 6)],
+    uncommon: [stars(15, 'uncommon'), stars(20, 'uncommon'), atom('Na', 11, 3, 'uncommon', 12), atom('Mg', 12, 3, 'uncommon', 13), atom('Al', 13, 3, 'uncommon', 13), atom('Si', 14, 3, 'uncommon', 14), atom('S', 16, 3, 'uncommon', 12), atom('Cl', 17, 3, 'uncommon', 12), atom('K', 19, 3, 'uncommon', 15), atom('Ca', 20, 3, 'uncommon', 15), ammo(10, 'uncommon', 10), boost(10, 2, 'uncommon', 15)],
+    rare: [stars(40, 'rare'), stars(60, 'rare'), atom('Ti', 22, 3, 'rare', 48), atom('Fe', 26, 3, 'rare', 45), atom('Ni', 28, 3, 'rare', 46), atom('Cu', 29, 3, 'rare', 45), atom('Zn', 30, 3, 'rare', 46), atom('Sn', 50, 2, 'rare', 62), boost(20, 3, 'rare', 50), title('apprentice', 'graduation-cap', 'Lab Apprentice', 'Học việc Phòng thí nghiệm', 'rare', 40),
       kg(atom('C', 6, 60, 'rare', 180)), kg(atom('Fe', 26, 15, 'rare', 270))],
-    epic: [stars(120, 'epic'), atom('Ag', 47, 3, 'epic', 120), atom('Au', 79, 2, 'epic', 140), boost(35, 3, 'epic', 130), mol('C6H6', 'Benzene', 'Benzen', 'epic', 120, 'hexagon'), title('chemist', 'flask-round', 'Master Chemist', 'Bậc thầy Hóa học', 'epic', 120),
+    epic: [stars(120, 'epic'), atom('Ag', 47, 3, 'epic', 120), atom('Pt', 78, 2, 'epic', 130), atom('Au', 79, 2, 'epic', 140), atom('Hg', 80, 2, 'epic', 135), atom('Pb', 82, 2, 'epic', 125), boost(35, 3, 'epic', 130), title('chemist', 'flask-round', 'Master Chemist', 'Bậc thầy Hóa học', 'epic', 120),
       kg(atom('Ag', 47, 15, 'epic', 405)), kg(stars(600, 'epic')), kg(title('crowned', 'crown', 'The Crowned', 'Kẻ Đội Vương Miện', 'epic', 450))],
-    legendary: [stars(350, 'legendary'), feat('xray', 'scan-eye', 'X-ray Vision', 'Tầm nhìn X-quang', 'legendary', 300), feat('timeSpeed', 'fast-forward', 'Time Speed', 'Tăng tốc Thời gian', 'legendary', 350), mol('C6H12O6', 'Glucose', 'Glucozơ', 'legendary', 300, 'candy'), title('nobel', 'medal', 'Nobel Laureate', 'Chủ nhân Nobel', 'legendary', 350),
-      kg(atom('U', 92, 12, 'legendary', 960)), kg(atom('Au', 79, 20, 'legendary', 780)), kg(mol('C8H10N4O2', 'Caffeine', 'Caffeine', 'legendary', 600, 'coffee')), kg(title('sovereign', 'gem', 'Sovereign of Matter', 'Chúa tể Vật chất', 'legendary', 1400))],
-    mythical: [stars(1500, 'mythical'), feat('mayhem', 'flame', 'Mayhem Mode', 'Chế độ Hỗn loạn', 'mythical', 1200), feat('timeStop', 'clock', 'Time Stop', 'Ngưng đọng Thời gian', 'mythical', 1200), feat('proton', 'crosshair', 'Proton Gun', 'Súng Proton', 'mythical', 1500), title('alchemist', 'crown', 'Mythic Alchemist', 'Giả kim Thần thoại', 'mythical', 1500),
+    legendary: [stars(350, 'legendary'), feat('xray', 'scan-eye', 'X-ray Vision', 'Tầm nhìn X-quang', 'legendary', 300), feat('timeSpeed', 'fast-forward', 'Time Speed', 'Tăng tốc Thời gian', 'legendary', 350), atom('Bi', 83, 4, 'legendary', 330), atom('Rn', 86, 3, 'legendary', 380), atom('Th', 90, 5, 'legendary', 470), title('nobel', 'medal', 'Nobel Laureate', 'Chủ nhân Nobel', 'legendary', 350),
+      kg(atom('U', 92, 12, 'legendary', 960)), kg(atom('Au', 79, 20, 'legendary', 780)), kg(title('sovereign', 'gem', 'Sovereign of Matter', 'Chúa tể Vật chất', 'legendary', 1400))],
+    mythical: [stars(1500, 'mythical'), feat('mayhem', 'flame', 'Mayhem Mode', 'Chế độ Hỗn loạn', 'mythical', 1200), feat('timeStop', 'clock', 'Time Stop', 'Ngưng đọng Thời gian', 'mythical', 1200), feat('proton', 'crosshair', 'Proton Gun', 'Súng Proton', 'mythical', 1500), atom('Fl', 114, 4, 'mythical', 980), atom('Ts', 117, 3, 'mythical', 1060), title('alchemist', 'crown', 'Mythic Alchemist', 'Giả kim Thần thoại', 'mythical', 1500),
       kg(stars(3000, 'mythical')), kg(atom('Og', 118, 20, 'mythical', 1200)), kg(boost(60, 10, 'mythical', 900)), kg(title('watched', 'eye', 'He Has Seen You', 'Hắn Đã Thấy Bạn', 'mythical', 3200))]
   };
   var BY_ID = {}; Object.keys(POOL).forEach(function (k) { POOL[k].forEach(function (it) { BY_ID[it.id] = it; }); });
   var KING_TITLES = ['title-crowned', 'title-sovereign', 'title-watched'].map(function (id) { return BY_ID[id]; });
-  var KIND_ICON = { stars: 'star', atom: 'atom', molecule: 'hexagon', boost: 'badge-percent', ammo: 'crosshair', feature: 'lock-open', title: 'award' };
+  var KIND_ICON = { stars: 'star', atom: 'atom', boost: 'badge-percent', ammo: 'crosshair', feature: 'lock-open', title: 'award' };
   function iconOf(it) { var p = BY_ID[it.id]; return (p && p.icon) || KIND_ICON[it.kind] || 'box'; }
+  // Atoms gift a per-pack range, so the crate preview shows that range instead
+  // of the pool entry's sample count.
+  function previewName(it, p) {
+    var q = ATOM_QTY[p.id];
+    if (it.kind !== 'atom' || !q) return L(it.name);
+    return L({ en: q[0] + '–' + q[1] + ' × ' + it.sym + ' atoms', vi: q[0] + '–' + q[1] + ' × nguyên tử ' + it.sym });
+  }
   function ic(name, cls) { return '<i data-lucide="' + esc(name) + '" class="pk-lc' + (cls ? ' ' + cls : '') + '"></i>'; }
   function lucideIn(root) { if (root && window.lucide && window.lucide.createIcons) { try { window.lucide.createIcons({ nameAttr: 'data-lucide', root: root }); } catch (e) {} } }
 
   var STR = {
-    en: { tab: 'Lab Crates', open: 'OPEN', items: '{n} samples', rates: 'Stability odds', preview: 'Possible contents', poor: 'Not enough stars ({p} needed)', claimAll: 'COLLECT ALL', back: 'BACK TO SHOP', skip: 'Skip', claimed: 'Collected!', dup: 'Duplicate +{c}★', delivered: 'Recovered an unopened crate: {n} sample(s) delivered.', collection: 'Lab collection', none: 'Nothing collected yet.', summon: 'Summon', fixed: 'Fixed price – discounts and events do not apply.', note: 'Rolls use crypto randomness in your browser; like all saves here it is client-side only.', sfx: 'SFX', music: 'Music', mute: 'Mute', gpName: 'Gift Pack', gpWord: 'A gift is opening…', gpSub: 'From a gift code', gpWorth: 'worth {n}★', gpTotal: 'Total worth {n}★', gpLanded: 'Already added to your crate and collection.', gpGo: 'CONTINUE' },
-    vi: { tab: 'Thùng thí nghiệm', open: 'MỞ', items: '{n} mẫu', rates: 'Tỉ lệ độ bền', preview: 'Nội dung có thể có', poor: 'Không đủ sao (cần {p})', claimAll: 'THU THẬP TẤT CẢ', back: 'QUAY LẠI CỬA HÀNG', skip: 'Bỏ qua', claimed: 'Đã thu thập!', dup: 'Trùng +{c}★', delivered: 'Đã khôi phục một thùng chưa mở: giao {n} mẫu.', collection: 'Bộ sưu tập phòng thí nghiệm', none: 'Chưa sưu tầm gì.', summon: 'Triệu hồi', fixed: 'Giá cố định – không áp dụng giảm giá hay sự kiện.', note: 'Kết quả dùng ngẫu nhiên mật mã trong trình duyệt; như mọi dữ liệu lưu ở đây, chỉ phía máy khách.', sfx: 'Hiệu ứng', music: 'Nhạc', mute: 'Tắt tiếng', gpName: 'Gift Pack', gpWord: 'Đang mở quà…', gpSub: 'Từ mã quà tặng', gpWorth: 'giá trị {n}★', gpTotal: 'Tổng giá trị {n}★', gpLanded: 'Đã cộng vào kho và bộ sưu tập của bạn.', gpGo: 'TIẾP TỤC', kingNote: 'Rương của Vua mở đúng :00 mỗi giờ, trong 10 phút.', kingExcl: 'Kèm 1 danh hiệu độc quyền.' }
+    en: { tab: 'Lab Crates', open: 'OPEN', items: '{n} samples', rates: 'Stability odds', preview: 'Possible contents', poor: 'Not enough stars ({p} needed)', claimAll: 'COLLECT ALL', back: 'BACK TO SHOP', skip: 'Skip', claimed: 'Collected!', dup: 'Duplicate +{c}★', delivered: 'Recovered an unopened crate: {n} sample(s) delivered.', collection: 'Lab collection', none: 'Nothing collected yet.', fixed: 'Fixed price – discounts and events do not apply.', note: 'Rolls use crypto randomness in your browser; like all saves here it is client-side only.', sfx: 'SFX', music: 'Music', mute: 'Mute', gpName: 'Gift Pack', gpWord: 'A gift is opening…', gpSub: 'From a gift code', gpWorth: 'worth {n}★', gpTotal: 'Total worth {n}★', gpLanded: 'Already added to your crate and collection.', gpGo: 'CONTINUE', beatQty: 'Atoms', beatType: 'Type', beatZ: 'Atomic number' },
+    vi: { tab: 'Thùng thí nghiệm', open: 'MỞ', items: '{n} mẫu', rates: 'Tỉ lệ độ bền', preview: 'Nội dung có thể có', poor: 'Không đủ sao (cần {p})', claimAll: 'THU THẬP TẤT CẢ', back: 'QUAY LẠI CỬA HÀNG', skip: 'Bỏ qua', claimed: 'Đã thu thập!', dup: 'Trùng +{c}★', delivered: 'Đã khôi phục một thùng chưa mở: giao {n} mẫu.', collection: 'Bộ sưu tập phòng thí nghiệm', none: 'Chưa sưu tầm gì.', fixed: 'Giá cố định – không áp dụng giảm giá hay sự kiện.', note: 'Kết quả dùng ngẫu nhiên mật mã trong trình duyệt; như mọi dữ liệu lưu ở đây, chỉ phía máy khách.', sfx: 'Hiệu ứng', music: 'Nhạc', mute: 'Tắt tiếng', gpName: 'Gift Pack', gpWord: 'Đang mở quà…', gpSub: 'Từ mã quà tặng', gpWorth: 'giá trị {n}★', gpTotal: 'Tổng giá trị {n}★', gpLanded: 'Đã cộng vào kho và bộ sưu tập của bạn.', gpGo: 'TIẾP TỤC', beatQty: 'Nguyên tử', beatType: 'Loại', beatZ: 'Số nguyên tử', kingNote: 'Rương của Vua mở đúng :00 mỗi giờ, trong 10 phút.', kingExcl: 'Kèm 1 danh hiệu độc quyền.' }
   };
   function S(k, p) { var s = (STR[lang()] || STR.en)[k] || STR.en[k] || k; for (var key in (p || {})) s = s.split('{' + key + '}').join(String(p[key])); return s; }
 
@@ -139,6 +153,46 @@
       [1, 1.25, 1.5, 2].forEach(function (m, i) { tone(base * m, 0.7 + ri * 0.15, ri >= 4 ? 'sawtooth' : 'triangle', 0.1 + ri * 0.02, null, i * 0.09); });
       if (ri >= 4) { noise(1.2, 0.3, 0.1); tone(1046, 1.4, 'sine', 0.08, 2093, 0.35); }
     },
+    // A crowd swell for each dossier beat: band-passed noise that sweeps upward
+    // under a few detuned voices, so quantity/flag/type/Z each land like an
+    // announcement to an arena. `step` raises pitch and volume across the four.
+    cheer: function (step) {
+      if (audio.mute || !(audio.sfx > 0)) return;
+      var c = ac(); if (!c) return;
+      var t0 = c.currentTime, dur = 1.15, sr = c.sampleRate;
+      var len = Math.floor(sr * dur), b = c.createBuffer(1, len, sr), d = b.getChannelData(0);
+      for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      var s = c.createBufferSource(); s.buffer = b;
+      var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 0.55;
+      bp.frequency.setValueAtTime(750 + step * 260, t0);
+      bp.frequency.linearRampToValueAtTime(1900 + step * 320, t0 + dur * 0.45);
+      var hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 480;
+      var g = c.createGain();
+      var v = Math.max(0.0003, (0.3 + step * 0.06) * audio.sfx);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(v, t0 + 0.13);
+      g.gain.setValueAtTime(v, t0 + dur * 0.55);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      s.connect(bp); bp.connect(hp); hp.connect(g); g.connect(c.destination);
+      s.start(t0); s.stop(t0 + dur + 0.05);
+      // Voices: three saws through a vowel-ish lowpass, slightly detuned and
+      // vibrato'd, kept quiet — they give the noise a human edge, not a chord.
+      var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2000; lp.Q.value = 0.7;
+      lp.connect(c.destination);
+      [0, 1, 2].forEach(function (i) {
+        var o = c.createOscillator(), og = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+        o.type = 'sawtooth';
+        o.frequency.value = 240 + Math.random() * 240 + step * 36;
+        lfo.frequency.value = 5.5 + Math.random() * 4; lg.gain.value = 14;
+        lfo.connect(lg); lg.connect(o.frequency);
+        og.gain.setValueAtTime(0.0001, t0);
+        og.gain.exponentialRampToValueAtTime(Math.max(0.0003, 0.022 * audio.sfx), t0 + 0.16 + i * 0.03);
+        og.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.92);
+        o.connect(og); og.connect(lp);
+        var st = t0 + i * 0.05;
+        o.start(st); o.stop(t0 + dur); lfo.start(st); lfo.stop(t0 + dur);
+      });
+    },
     flip: function (ri) { tone(600 + ri * 120, 0.12, 'square', 0.06, 1200 + ri * 200); },
     claim: function () { [523, 659, 784, 1046].forEach(function (f, i) { tone(f, 0.3, 'triangle', 0.12, null, i * 0.07); }); },
     gpPop: function () { tone(150, 0.22, 'sine', 0.3, 330); noise(0.16, 0.2); },
@@ -162,6 +216,15 @@
     }
     // One of the twelve is always an exclusive title, so the crate is never just stars.
     if (p.king) out[out.length - 1] = Object.assign({}, e.pick(KING_TITLES));
+    var q = ATOM_QTY[p.id];
+    if (q) out.forEach(function (it) {
+      if (!it || it.kind !== 'atom') return;
+      var n = q[0] + e.randInt(q[1] - q[0] + 1);
+      var unit = it.value / Math.max(1, it.count || 1);
+      it.count = n;
+      it.value = Math.max(1, Math.round(unit * n));
+      it.name = { en: n + ' × ' + it.sym + ' atoms', vi: n + ' × nguyên tử ' + it.sym };
+    });
     out.sort(function (a, b) { return RIDX[a.rarity] - RIDX[b.rarity]; });
     return out;
   }
@@ -234,6 +297,16 @@
       '#pk-cine .rname{position:absolute;font-size:clamp(34px,8vw,84px);font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--rg);text-shadow:0 0 30px var(--rc),0 0 60px var(--rc);opacity:0;transform:scale(.4)}',
       '#pk-cine.s5 .rname{transition:all .6s cubic-bezier(.2,1.6,.4,1);opacity:1;transform:scale(1)}',
       '#pk-cine.r5.s5 .rname{animation:pkMyth 1.2s linear infinite}@keyframes pkMyth{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}',
+      /* ── Z≥79 dossier beats: one attribute at a time, centred, fading in and
+         out through the .on class. Hidden the moment a card stage takes over. ── */
+      '#pk-cine .attr{position:absolute;left:5%;right:5%;top:50%;transform:translateY(-50%) scale(.7);display:flex;flex-direction:column;align-items:center;gap:16px;opacity:0;pointer-events:none;text-align:center;transition:opacity .45s ease,transform .5s cubic-bezier(.2,1.4,.4,1)}',
+      '#pk-cine .attr.on{opacity:1;transform:translateY(-50%) scale(1)}',
+      '#pk-cine .attr .big{font-size:clamp(76px,17vw,168px);font-weight:900;line-height:.95;color:#fff;text-shadow:0 0 36px var(--rc),0 0 90px var(--rc);font-variant-numeric:tabular-nums}',
+      '#pk-cine .attr .txt{font-size:clamp(30px,6.2vw,64px);font-weight:900;text-transform:uppercase;line-height:1.06;letter-spacing:.03em;color:#fff;text-shadow:0 0 30px var(--rc),0 0 70px var(--rc);max-width:100%;text-wrap:balance}',
+      '#pk-cine .attr .cap{font-size:clamp(12px,1.8vw,16px);font-weight:800;letter-spacing:.34em;text-transform:uppercase;color:var(--rg)}',
+      '#pk-cine .attr .flags{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}',
+      '#pk-cine .attr .flags svg{height:clamp(84px,18vh,160px);width:auto;display:block;border-radius:7px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 3px rgba(255,255,255,.9),0 0 36px rgba(255,255,255,.25)}',
+      '#pk-cine.s6 .attr,#pk-cine.s7 .attr,#pk-cine.s8 .attr{display:none}',
       '#pk-cine .hero{position:absolute;opacity:0;perspective:900px}',
       '#pk-cine.s6 .hero{opacity:1}',
       '.pk-c{width:130px;height:180px;position:relative;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.3,1.4,.5,1)}',
@@ -348,7 +421,7 @@
     PACKS.forEach(function (p) {
       if (p.king) return;
       var rows = RARITIES.map(function (r, i) { return p.rates[i] > 0 ? '<tr><td style="' + rr(r) + '">' + ic(r.icon) + esc(L(r.name)) + '</td><td>' + p.rates[i] + '%</td></tr>' : ''; }).join('');
-      var prev = RARITIES.map(function (r, i) { return p.rates[i] > 0 ? POOL[r.id].filter(function (it) { return !it.k; }).map(function (it) { return '<li style="' + rr(r) + '">' + ic(iconOf(it)) + esc(L(it.name)) + '</li>'; }).join('') : ''; }).join('');
+      var prev = RARITIES.map(function (r, i) { return p.rates[i] > 0 ? POOL[r.id].filter(function (it) { return !it.k; }).map(function (it) { return '<li style="' + rr(r) + '">' + ic(iconOf(it)) + esc(previewName(it, p)) + '</li>'; }).join('') : ''; }).join('');
       h += '<div class="pk-card" data-pack="' + p.id + '"><div class="pk-3d"><div class="pk-box" style="background:' + packBg(p) + '">' + ic(p.icon) + '</div></div>' +
         '<div class="pk-name">' + esc(L(p.name)) + '</div><div class="pk-meta">' + esc(S('items', { n: p.n })) + '</div>' +
         '<button class="pk-buy" data-open="' + p.id + '"' + (bal < p.cost || busy ? ' disabled title="' + esc(S('poor', { p: p.cost })) + '"' : '') + '>' + esc(S('open')) + ' · ' + p.cost + '★</button>' +
@@ -356,12 +429,11 @@
         '<div class="pk-det"><table>' + rows + '</table><ul>' + prev + '</ul></div></div>';
     });
     h += '</div><div class="pk-name" style="text-align:left">' + esc(S('collection')) + '</div><div class="pk-coll">';
-    var inv = e ? e.inventory().filter(function (x) { return x.kind === 'title' || x.kind === 'molecule'; }) : [];
+    var inv = e ? e.inventory().filter(function (x) { return x.kind === 'title'; }) : [];
     if (!inv.length) h += '<span class="pk-note">' + esc(S('none')) + '</span>';
     inv.forEach(function (x) {
       var r = RARITIES[RIDX[x.rarity] || 0];
-      h += '<span class="pk-chip" style="' + rr(r) + '">' + ic(iconOf(x)) + esc(L(x.name)) + ' ×' + x.n +
-        (x.kind === 'molecule' ? ' <button data-redeem="' + esc(x.id) + '">' + esc(S('summon')) + '</button>' : '') + '</span>';
+      h += '<span class="pk-chip" style="' + rr(r) + '">' + ic(iconOf(x)) + esc(L(x.name)) + ' ×' + x.n + '</span>';
     });
     h += '</div><div class="pk-note">' + esc(S('note')) + '</div>';
     root.innerHTML = h;
@@ -370,11 +442,83 @@
       var t = ev.target;
       if (t.dataset.more) { t.closest('.pk-card').classList.toggle('open'); return; }
       if (t.dataset.open) { openPack(t.dataset.open); return; }
-      if (t.dataset.redeem) { var res = econ().redeem(t.dataset.redeem); if (shop()) shop().rerender(); if (!res.ok && window.__mol3dStatus) window.__mol3dStatus(res.reason); }
     });
     return root;
   }
   function tabSig() { var e = econ(); return [lang(), busy, e ? Math.floor(e.balance()) : 0, e ? e.inventory().length : 0, e ? e.inventory().reduce(function (n, x) { return n + x.n; }, 0) : 0].join('|'); }
+
+  /* ── Z≥79 dossier: what a heavy atom announces before its card appears.
+     Type and country come from periodic_table_118_elements.json; the type words
+     reuse the bundle's CAT_VI/CAT_EN spellings so the beat matches the periodic
+     table elsewhere. Flags are flat inline SVGs taken from flagicons.lipis.dev
+     (the USSR flag is on neither CDN offered, so it comes from Wikimedia
+     Commons); "Ancient" predates nations and gets a plaque instead. ── */
+  var HTY = {
+    TM: { en: 'Transition metal', vi: 'Kim loại chuyển tiếp' },
+    PT: { en: 'Post-transition metal', vi: 'Kim loại sau chuyển tiếp' },
+    ML: { en: 'Metalloid', vi: 'Á kim' },
+    NG: { en: 'Noble gas', vi: 'Khí hiếm' },
+    AM: { en: 'Alkali metal', vi: 'Kim loại kiềm' },
+    AE: { en: 'Alkaline earth', vi: 'Kim loại kiềm thổ' },
+    AC: { en: 'Actinide', vi: 'Actinide' },
+    UP: { en: 'Unknown properties', vi: 'Tính chất chưa rõ' }
+  };
+  // z: 'TYPE|Country' — Z 79 (gold) through 118 (oganesson).
+  var HEAVY = {
+    79: 'TM|Ancient', 80: 'TM|Ancient', 81: 'PT|United Kingdom', 82: 'PT|Ancient',
+    83: 'PT|Germany', 84: 'PT|France', 85: 'ML|United States', 86: 'NG|Germany',
+    87: 'AM|France', 88: 'AE|France', 89: 'AC|France', 90: 'AC|Norway / Sweden',
+    91: 'AC|Germany / United Kingdom', 92: 'AC|Germany',
+    93: 'AC|United States', 94: 'AC|United States', 95: 'AC|United States',
+    96: 'AC|United States', 97: 'AC|United States', 98: 'AC|United States',
+    99: 'AC|United States', 100: 'AC|United States', 101: 'AC|United States',
+    102: 'AC|United States / Soviet Union', 103: 'AC|United States / Soviet Union',
+    104: 'TM|United States / Soviet Union', 105: 'TM|United States / Soviet Union',
+    106: 'TM|United States', 107: 'TM|Germany', 108: 'TM|Germany',
+    109: 'UP|Germany', 110: 'UP|Germany', 111: 'UP|Germany', 112: 'TM|Germany',
+    113: 'UP|Japan', 114: 'PT|Russia',
+    115: 'UP|Russia / United States', 116: 'UP|Russia / United States',
+    117: 'UP|Russia / United States', 118: 'UP|Russia / United States'
+  };
+  var COUNTRY = {
+    'Ancient': { en: 'Ancient', vi: 'Cổ đại' },
+    'United Kingdom': { en: 'United Kingdom', vi: 'Vương quốc Anh' },
+    'Germany': { en: 'Germany', vi: 'Đức' },
+    'France': { en: 'France', vi: 'Pháp' },
+    'United States': { en: 'United States', vi: 'Hoa Kỳ' },
+    'Norway': { en: 'Norway', vi: 'Na Uy' },
+    'Sweden': { en: 'Sweden', vi: 'Thụy Điển' },
+    'Soviet Union': { en: 'Soviet Union', vi: 'Liên Xô' },
+    'Japan': { en: 'Japan', vi: 'Nhật Bản' },
+    'Russia': { en: 'Russia', vi: 'Nga' }
+  };
+  var FLAGS = {
+    'Ancient': '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#241b10"/><rect x="18" y="18" width="604" height="444" rx="12" fill="none" stroke="#8a6d2f" stroke-width="10"/><rect x="228" y="116" width="184" height="36" rx="6" fill="#d9a441"/><rect x="250" y="160" width="140" height="18" fill="#d9a441"/><rect x="264" y="186" width="112" height="172" fill="#d9a441"/><rect x="250" y="366" width="140" height="18" fill="#d9a441"/><rect x="228" y="392" width="184" height="36" rx="6" fill="#d9a441"/><g stroke="#241b10" stroke-width="9"><line x1="292" y1="192" x2="292" y2="352"/><line x1="320" y1="192" x2="320" y2="352"/><line x1="348" y1="192" x2="348" y2="352"/></g></svg>',
+    'United Kingdom': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-gb" viewBox="0 0 640 480"><path fill="#012169" d="M0 0h640v480H0z"/><path fill="#FFF" d="m75 0 244 181L562 0h78v62L400 241l240 178v61h-80L320 301 81 480H0v-60l239-178L0 64V0z"/><path fill="#C8102E" d="m424 281 216 159v40L369 281zm-184 20 6 35L54 480H0zM640 0v3L391 191l2-44L590 0zM0 0l239 176h-60L0 42z"/><path fill="#FFF" d="M241 0v480h160V0zM0 160v160h640V160z"/><path fill="#C8102E" d="M0 193v96h640v-96zM273 0v480h96V0z"/></svg>',
+    'Germany': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-de" viewBox="0 0 640 480"><path fill="#fc0" d="M0 320h640v160H0z"/><path fill="#000001" d="M0 0h640v160H0z"/><path fill="red" d="M0 160h640v160H0z"/></svg>',
+    'France': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-fr" viewBox="0 0 640 480"><path fill="#000091" d="M0 0h213.3v480H0z"/><path fill="#fff" d="M213.3 0h213.4v480H213.3z"/><path fill="#e1000f" d="M426.7 0H640v480H426.7z"/></svg>',
+    'United States': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-us" viewBox="0 0 640 480"><path fill="#bd3d44" d="M0 0h640v480H0"/><path stroke="#fff" stroke-width="37" d="M0 55.3h640M0 129h640M0 203h640M0 277h640M0 351h640M0 425h640"/><path fill="#192f5d" d="M0 0h364.8v258.5H0"/><marker id="us-a" markerHeight="30" markerWidth="30"><path fill="#fff" d="m14 0 9 27L0 10h28L5 27z"/></marker><path fill="none" marker-mid="url(#us-a)" d="m0 0 16 11h61 61 61 61 60L47 37h61 61 60 61L16 63h61 61 61 61 60L47 89h61 61 60 61L16 115h61 61 61 61 60L47 141h61 61 60 61L16 166h61 61 61 61 60L47 192h61 61 60 61L16 218h61 61 61 61 60z"/></svg>',
+    'Norway': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-no" viewBox="0 0 640 480"><path fill="#ed2939" d="M0 0h640v480H0z"/><path fill="#fff" d="M180 0h120v480H180z"/><path fill="#fff" d="M0 180h640v120H0z"/><path fill="#002664" d="M210 0h60v480h-60z"/><path fill="#002664" d="M0 210h640v60H0z"/></svg>',
+    'Sweden': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-se" viewBox="0 0 640 480"><path fill="#005293" d="M0 0h640v480H0z"/><path fill="#fecb00" d="M176 0v192H0v96h176v192h96V288h368v-96H272V0z"/></svg>',
+    'Japan': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-jp" viewBox="0 0 640 480"><defs><clipPath id="jp-a"><path fill-opacity=".7" d="M-88 32h640v480H-88z"/></clipPath></defs><g fill-rule="evenodd" stroke-width="1pt" clip-path="url(#jp-a)" transform="translate(88 -32)"><path fill="#fff" d="M-128 32h720v480h-720z"/><circle cx="523.1" cy="344.1" r="194.9" fill="#bc002d" transform="translate(-168.4 8.6)scale(.76554)"/></g></svg>',
+    'Russia': '<svg width="640" height="480" xmlns="http://www.w3.org/2000/svg" id="flag-icons-ru" viewBox="0 0 640 480"><path fill="#fff" d="M0 0h640v160H0z"/><path fill="#0039a6" d="M0 160h640v160H0z"/><path fill="#d52b1e" d="M0 320h640v160H0z"/></svg>',
+    'Soviet Union': '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" id="svg10"><defs id="defs14" /><path fill="#bc0000" fill-opacity="1" d="M0 0h1200v600H0z" id="path2" style="fill:#cc0000;fill-opacity:1" /><path id="path11728" d="m 200.0005,37.5 -8.41933,25.911886 H 164.336 L 186.37777,79.426122 177.95844,105.338 200.0005,89.323465 222.04257,105.338 213.62324,79.426122 235.665,63.411886 h -27.24516 z m 0,13.499987 5.38828,16.583473 h 17.43718 l -14.107,10.249496 5.38827,16.583472 L 200.0005,84.167224 185.89378,94.416428 191.28205,77.832956 177.17504,67.58346 h 17.43718 z" style="fill:#ffd700;fill-opacity:1;stroke:none;stroke-width:0.14999977px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" /><g style="fill:#ffd700;fill-opacity:1" id="g2900" transform="matrix(0.98931879,0,0,0.98673811,3.8297658,3.7659398)"><path id="rect4165-6" d="m 137.43744,171.69421 18.86296,18.9937 17.78834,-17.66589 c 27.05847,29.021 55.43807,56.99501 82.28704,86.12782 4.03444,4.06233 10.59815,4.085 14.66056,0.0506 4.06232,-4.03445 4.08499,-10.59815 0.0506,-14.66056 -28.81871,-27.1901 -57.72545,-54.60143 -86.55328,-81.89095 l 23.96499,-23.80003 -33.34026,-4.61605 z" style="fill:#ffd700;fill-opacity:1;stroke:none;stroke-width:0.48919073;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" /><path id="path4179-3" d="m 198.2887,110.1955 c 15.51743,8.7394 27.29872,21.28122 34.2484,34.3924 7.04394,13.28902 10.13959,27.16218 10.20325,38.25433 0.13054,22.74374 -18.43771,41.18184 -41.18183,41.18184 -12.13597,0 -23.04607,-5.24868 -30.58302,-13.60085 l -4.16863,3.51033 c -0.70999,-0.27231 -1.46387,-0.41221 -2.22429,-0.41276 -1.82948,1.9e-4 -3.56621,0.80531 -4.74859,2.20136 -2.97368,0.38896 -5.46251,2.44529 -6.40534,5.29224 -3.13486,6.28843 -8.63524,11.21997 -15.29104,13.4776 -0.0637,0.0216 -0.11992,0.05 -0.1758,0.0783 -3.07749,1.12758 -6.16259,3.1643 -8.78919,5.80245 -5.19155,5.23656 -7.72858,11.93658 -6.30024,16.63822 -0.14098,0.40857 -0.21361,0.83759 -0.21498,1.26979 1.5e-4,2.17082 1.75991,3.93058 3.93073,3.93073 0.54341,-0.002 1.08053,-0.11639 1.57745,-0.33632 4.69369,1.05881 11.06885,-1.54582 16.05444,-6.55917 2.82624,-2.85072 4.94356,-6.22349 5.98303,-9.53062 2.31696,-6.62278 7.29699,-12.01856 13.62281,-15.05312 0.15105,-0.0725 0.27303,-0.14714 0.38218,-0.22358 2.12082,-1.01408 3.67251,-2.92895 4.225,-5.2139 9.70222,11.44481 24.25255,18.75299 40.51876,19.13577 29.83352,0.70205 52.13299,-21.25802 53.16414,-52.83642 0.51894,-15.89259 -5.62993,-36.3847 -19.6412,-53.19089 -10.70835,-12.84441 -26.40987,-23.50795 -44.18699,-28.20777 z" style="fill:#ffd700;fill-opacity:1;stroke:none;stroke-width:0.50003481;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" /></g></svg>'
+  };
+
+  // The four beats a Z≥79 atom walks through before its card appears:
+  // quantity, discovery flag(s), element type, atomic number. Each fades in,
+  // cheers, fades out; the card that flips open afterwards is this item's.
+  function heavyBeats(it) {
+    var meta = HEAVY[it.z].split('|'), type = HTY[meta[0]], names = meta[1].split(' / ');
+    var flags = names.map(function (n) { return FLAGS[n] || ''; }).join('');
+    var cap = names.map(function (n) { return COUNTRY[n] ? L(COUNTRY[n]) : n; }).join(' · ');
+    return [
+      '<div class="big">' + it.count + '</div><div class="cap">' + esc(S('beatQty')) + '</div>',
+      '<div class="flags">' + flags + '</div><div class="cap">' + esc(cap) + '</div>',
+      '<div class="txt">' + esc(L(type)) + '</div><div class="cap">' + esc(S('beatType')) + '</div>',
+      '<div class="big">' + it.z + '</div><div class="cap">' + esc(S('beatZ')) + '</div>'
+    ];
+  }
 
   /* ── cinematic ── */
   var cine = null;
@@ -385,7 +529,7 @@
     if (e.balance() < p.cost) return;
     var items = rollPack(p);
     var rewards = items.map(function (it) {
-      return { id: it.id, kind: it.kind, name: L(it.name), rarity: it.rarity, icon: it.icon, desc: L(it.desc), value: it.value, count: it.count, z: it.z, ammo: it.ammo, feature: it.feature, rate: it.rate, uses: it.uses, hours: it.hours, formula: it.formula, data: { pack: p.id, i18n: { name: it.name, desc: it.desc } } };
+      return { id: it.id, kind: it.kind, name: L(it.name), rarity: it.rarity, icon: it.icon, desc: L(it.desc), value: it.value, count: it.count, z: it.z, ammo: it.ammo, feature: it.feature, rate: it.rate, uses: it.uses, hours: it.hours, data: { pack: p.id, i18n: { name: it.name, desc: it.desc } } };
     });
     var res = e.purchase({ id: e.uid('pack'), kind: 'pack', cost: p.cost, rewards: rewards, meta: { pack: p.id } });
     if (!res.ok) return;
@@ -397,6 +541,10 @@
   function play(p, items, txId) {
     injectStyles();
     var best = bestOf(items), br = RARITIES[best], timers = [], claimed = false;
+    // The drop's heaviest atom (Z≥79) is what the dossier announces; it becomes
+    // the hero card, wherever it sits in the sorted lineup.
+    var feat = null;
+    items.forEach(function (t) { if (t.kind === 'atom' && t.z >= 79 && HEAVY[t.z] && (!feat || t.z > feat.z)) feat = t; });
     var el = document.createElement('div'); el.id = 'pk-cine'; el.className = 's0 r' + best;
     el.style.setProperty('--rc', br.color); el.style.setProperty('--rg', br.glow);
     var pieces = '';
@@ -411,7 +559,8 @@
       '<button class="skip">' + esc(S('skip')) + ic('skip-forward') + '</button></div><div class="msg"></div>' +
       '<div class="stage"><div class="pack" style="background:' + packBg(p) + '">' + ic(p.icon) + '<span class="lbl">' + esc(L(p.name)) + '</span></div>' + pieces +
       '<div class="burst"></div><div class="rname">' + ic(br.icon) + esc(L(br.name)) + '</div>' +
-      '<div class="hero">' + cardHtml(items[items.length - 1], true) + '</div>' +
+      '<div class="attr"></div>' +
+      '<div class="hero">' + cardHtml(feat || items[items.length - 1], true) + '</div>' +
       '<div class="line">' + items.map(function (it) { return cardHtml(it); }).join('') + '</div></div>' +
       '<div class="bar"><button class="ca">' + ic('check-check') + esc(S('claimAll')) + '</button><button class="bk">' + ic('arrow-left') + esc(S('back')) + '</button></div>';
     document.body.appendChild(el);
@@ -458,11 +607,30 @@
     var tBreak = 2800 + chargeMs;
     at(tBreak, function () { set(3); SFX.crack(); sparks(30 + best * 15); });
     at(tBreak + 1000, function () { set(4); SFX.energy(best); sparks(20 + best * 20); });
-    at(tBreak + 2400, function () { set(5); SFX.reveal(best); });
-    at(tBreak + 4000, function () { set(6); });
-    at(tBreak + 4300, function () { el.querySelector('.hero .pk-c').classList.add('flip'); SFX.flip(best); sparks(25); });
-    at(tBreak + 6400, function () { set(7); lineup(false); });
-    at(tBreak + 6400 + items.length * 260 + 900, results);
+    if (feat) {
+      // Instead of the plain rarity banner: quantity → flag → type → atomic
+      // number, each fading in and out with its own crowd cheer, then the
+      // hero card reveals itself as the element just announced.
+      var beats = heavyBeats(feat), BEAT = 1600, tb = tBreak + 1600;
+      beats.forEach(function (html, i) {
+        at(tb + i * BEAT, function () {
+          var a = el.querySelector('.attr');
+          a.innerHTML = html; a.classList.add('on'); SFX.cheer(i);
+        });
+        at(tb + i * BEAT + 1150, function () { el.querySelector('.attr').classList.remove('on'); });
+      });
+      var tCard = tb + beats.length * BEAT;
+      at(tCard, function () { set(6); SFX.reveal(best); });
+      at(tCard + 350, function () { el.querySelector('.hero .pk-c').classList.add('flip'); SFX.flip(best); sparks(25); });
+      at(tCard + 2400, function () { set(7); lineup(false); });
+      at(tCard + 2400 + items.length * 260 + 900, results);
+    } else {
+      at(tBreak + 2400, function () { set(5); SFX.reveal(best); });
+      at(tBreak + 4000, function () { set(6); });
+      at(tBreak + 4300, function () { el.querySelector('.hero .pk-c').classList.add('flip'); SFX.flip(best); sparks(25); });
+      at(tBreak + 6400, function () { set(7); lineup(false); });
+      at(tBreak + 6400 + items.length * 260 + 900, results);
+    }
 
     function finish(toShop) {
       if (!claimed) {

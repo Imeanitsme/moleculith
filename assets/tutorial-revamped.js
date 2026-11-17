@@ -131,7 +131,7 @@
           "action": "next"
         },
         {
-          "text": "Double-click a molecule to trigger reactions. The game detects acids, bases, redox, combustion, and more!",
+          "text": "Reactions need no menu: the engine prices the scene with Gibbs free energy and activation energy at the current temperature and pressure.",
           "action": "next"
         },
         {
@@ -507,7 +507,7 @@
           "action": "next"
         },
         {
-          "text": "Quick recap: drag elements to build, click bonds to upgrade, double-click for reactions.",
+          "text": "Quick recap: drag elements to build, click bonds to upgrade, and let the Gibbs engine run the reactions.",
           "action": "next"
         },
         {
@@ -541,7 +541,7 @@
     "Atoms bond based on their valence electrons. Hydrogen wants 1 bond, Oxygen wants 2, Carbon wants 4.": "Nguyên tử liên kết dựa trên electron hóa trị. H muốn 1 liên kết, O muốn 2, C muốn 4.",
     "Click a bond (the line between atoms) to lower its order: triple → double → single → broken. Shift+click or right-click raises it back.": "Nhấn vào liên kết (đường nối giữa các nguyên tử) để giảm bậc: ba → đôi → đơn → đứt. Shift+nhấn hoặc chuột phải để tăng lại.",
     "Drag atoms apart to break bonds. Unbonded atoms will drift and seek new partners.": "Kéo các nguyên tử ra xa để phá liên kết. Các nguyên tử không liên kết sẽ trôi và tìm bạn mới.",
-    "Double-click a molecule to trigger reactions. The game detects acids, bases, redox, combustion, and more!": "Nhấn đôi vào phân tử để kích hoạt phản ứng. Game nhận diện axit, bazơ, oxi hóa khử, cháy và hơn thế!",
+    "Reactions need no menu: the engine prices the scene with Gibbs free energy and activation energy at the current temperature and pressure.": "Phản ứng chẳng cần bảng chọn: bộ máy tính năng lượng tự do Gibbs và năng lượng hoạt hóa cho cảnh ở nhiệt độ và áp suất hiện tại.",
     "Every reaction is stoichiometrically balanced. Try combining H and O to make water!": "Mọi phản ứng đều được cân bằng. Hãy thử kết hợp H và O để tạo nước!",
     "This is the simulation clock. It tracks elapsed time in the lab.": "Đây là đồng hồ mô phỏng. Nó theo dõi thời gian trong phòng thí nghiệm.",
     "Open Time Control to adjust simulation speed.": "Mở Điều khiển thời gian để điều chỉnh tốc độ.",
@@ -610,7 +610,7 @@
     "Import Progress loads a saved file. Note: import is one-shot — you can only do it once!": "Nhập tiến độ tải tệp đã lưu. Lưu ý: nhập chỏ được một lần duy nhất!",
     "Replay this tutorial anytime from the menu.": "Phát lại hướng dẫn này bất cứ lúc nào từ menu.",
     "That's everything, {user}! You now know the full lab.": "Đó là tất cả, {user}! Bạn đã biết toàn bộ phòng thí nghiệm.",
-    "Quick recap: drag elements to build, click bonds to upgrade, double-click for reactions.": "Tóm lại: kéo nguyên tố để xây, nhấn liên kết để nâng cấp, nhấn đôi để phản ứng.",
+    "Quick recap: drag elements to build, click bonds to upgrade, and let the Gibbs engine run the reactions.": "Tóm lại: kéo nguyên tố để xây, nhấn liên kết để nâng cấp, và để bộ máy Gibbs chạy phản ứng.",
     "Watch out for radiation, control time and temperature, and unlock all 118 elements!": "Cẩn thận bức xạ, điều khiển thời gian và nhiệt độ, và mở khóa tất cả 118 nguyên tố!",
     "The lab is yours. Experiment, discover, and have fun, {user}!": "Phòng thí nghiệm là của bạn. Hãy thí nghiệm, khám phá và vui vẻ, {user}!",
     "Enter your name": "Nhập tên của bạn",

@@ -24,6 +24,13 @@
     return String(n).split("").map(function (d) { return SUB[d] || d; }).join("");
   }
 
+  // Mass numbers sit above the symbol, so a nuclide on canvas reads ²³⁸U, not 238U.
+  function supDigits(n) {
+    const SUP = { 0: "\u2070", 1: "\u00b9", 2: "\u00b2", 3: "\u00b3", 4: "\u2074",
+      5: "\u2075", 6: "\u2076", 7: "\u2077", 8: "\u2078", 9: "\u2079", '-': "\u207b" };
+    return String(n).split("").map(function (d) { return SUP[d] || d; }).join("");
+  }
+
   // ---------- Internationalization ----------
   const I18N = {
     en: {
@@ -638,8 +645,8 @@
       ],
       quiz: [
         {
-          q: L('Melting 100 g ice needs q with c = 4184 J/(kg·K), ΔT = 20 K for the water. q is about:',
-               'Nung 100 g nước đá (đã tan) với c = 4184 J/(kg·K), ΔT = 20 K. q xấp xỉ:'),
+          q: L('Melting 100 g ice needs q with c = 4184 J·kg⁻¹·K⁻¹, ΔT = 20 K for the water. q is about:',
+               'Nung 100 g nước đá (đã tan) với c = 4184 J·kg⁻¹·K⁻¹, ΔT = 20 K. q xấp xỉ:'),
           opts: [L('8.4 kJ', '8,4 kJ'), L('837 kJ', '837 kJ'), L('84 kJ', '84 kJ'), L('0.84 kJ', '0,84 kJ')],
           a: 0,
           ex: L('q = 0.1 × 4184 × 20 = 8368 J.', 'q = 0,1 × 4184 × 20 = 8368 J.')
@@ -2744,7 +2751,7 @@
 
     label('q = m·c·ΔT', 14, 22, C.accent, 15);
     label('m = ' + mass.toFixed(3) + ' kg', 14, 46, C.text, 12);
-    label('c = ' + c + ' J/(kg·K)', 14, 64, C.text, 12);
+    label('c = ' + c + ' J\u00b7kg\u207b\u00b9\u00b7K\u207b\u00b9', 14, 64, C.text, 12);
     label('ΔT = ' + dT + ' K', 14, 82, C.text, 12);
     label('q = ' + (q / 1000).toFixed(2) + ' kJ', 14, 106, C.green, 15);
     label(q > 0 ? 'absorbed by the water' : 'released', 14, 126, C.dim, 11);
@@ -2915,7 +2922,7 @@
       ctx.fillStyle = C.liquidSoft;
       ctx.fillRect(x - 39, cy - 40, 78, 79);
       label(sym + (col === C.red ? ' → ' + sym + '²⁺ + 2e⁻' : '²⁺ + 2e⁻ → ' + sym), x, cy + 58, C.dim, 10, 'center');
-      label('E° = ' + (E[sym]).toFixed(2) + ' V', x, cy - 86, C.text, 11, 'center');
+      label('E° = ' + (E[sym]).toFixed(2).replace('-', '\u2212') + ' V', x, cy - 86, C.text, 11, 'center');
     }
     halfCell(x1, an, C.red);
     halfCell(x2, cat, C.green);
@@ -3020,11 +3027,12 @@
     }
 
     const Z = 92, A = 238;
-    let sym = 'U', dA = 0, dZ = 0;
-    if (mode === 'alpha') { dA = -4; dZ = -2; sym = 'Th'; }
-    else if (mode === 'beta') { dA = 0; dZ = 1; sym = 'Np'; }
-    else { dA = 0; dZ = 0; sym = 'U'; }
-    label(A + ' → ' + (A + dA) + 'X  (' + mode + ')', 14, 22, C.text, 13);
+    let sym = 'U', dA = 0, dZ = 0, emitted = '', greek = '';
+    if (mode === 'alpha') { dA = -4; dZ = -2; sym = 'Th'; emitted = ' + \u2074He'; greek = '\u03b1'; }
+    else if (mode === 'beta') { dA = 0; dZ = 1; sym = 'Np'; emitted = ' + e\u207b + \u03bd\u0304'; greek = '\u03b2\u207b'; }
+    else { dA = 0; dZ = 0; sym = 'U'; emitted = ' + \u03b3'; greek = '\u03b3'; }
+    label(supDigits(A) + 'U' + (mode === 'gamma' ? '*' : '') + ' \u2192 ' +
+      supDigits(A + dA) + sym + emitted + '   (' + greek + ')', 14, 22, C.text, 13);
     label(mode === 'alpha' ? '⁴He emitted: A −4, Z −2' :
       mode === 'beta' ? 'e⁻ emitted: neutron → proton, Z +1' : 'photon emitted: A and Z unchanged',
       14, 40, C.dim, 11);
@@ -3081,7 +3089,7 @@
     const T = parseFloat(p['param-temp']) || 300;
     const V = parseFloat(p['param-volume']) || 1;
     const n = parseFloat(p['param-moles']) || 1;
-    const P = n * 8.314 * T / (V * 24.94);
+    const P = n * 0.082057366 * T / V;   // R in L·atm·mol⁻¹·K⁻¹
     const x0 = 24, y0 = 24, w = ctx.W * 0.5, h = ctx.H - 48;
     box(x0, y0, w, h, C.dim, C.glass);
 
@@ -3304,7 +3312,7 @@
     const lam = parseFloat(p['param-wavelength']) || 400;
     const phi = parseFloat(p['param-workfn']) || 2.1;
     const hPlanck = 6.62607015e-34, cLight = 2.99792458e8, eCharge = 1.602176634e-19;
-    const E = hPlanck * cLight / (lam * 1e-10) / eCharge; // eV
+    const E = hPlanck * cLight / (lam * 1e-9) / eCharge; // eV
     const Kmax = E - phi;
     const lam0 = 1240 / phi;
     const intensity = parseFloat(p['param-intensity']) || 50;
@@ -3351,10 +3359,10 @@
     label('λ = ' + lam + ' nm', 14, 24, hue, 14);
     label('E = hc/λ = ' + E.toFixed(3) + ' eV', 14, 48, C.text, 12);
     label('φ = ' + phi.toFixed(2) + ' eV', 14, 66, C.text, 12);
-    label('K_max = hf − φ = ' + (Kmax > 0 ? Kmax.toFixed(3) + ' eV' : '0 (below threshold)'),
+    label('Kₘₐₓ = hf − φ = ' + (Kmax > 0 ? Kmax.toFixed(3) + ' eV' : '0 (below threshold)'),
       14, 90, Kmax > 0 ? C.green : C.red, 13);
     label('threshold λ₀ = 1240/φ = ' + lam0.toFixed(0) + ' nm', 14, 110, C.yellow, 12);
-    label(Kmax > 0 ? 'stopping voltage V₀ = K_max/e = ' + Kmax.toFixed(3) + ' V' : 'raise E or lower φ to emit',
+    label(Kmax > 0 ? 'stopping voltage V₀ = Kₘₐₓ/e = ' + Kmax.toFixed(3) + ' V' : 'raise E or lower φ to emit',
       14, ctx.H - 16, C.dim, 11);
   }
 
@@ -3590,9 +3598,9 @@
     label('E + S ⇌ ES → E + P', ex - 54, ey + 62, C.dim, 10);
 
     label('Michaelis–Menten', 14, 22, C.accent, 15);
-    label('v = Vmax·[S] / (Km + [S])', 14, 44, C.text, 12);
-    label('Vmax(app) = ' + Vmaxapp.toFixed(1) + '   Km(app) = ' + Kmapp.toFixed(2), 14, 66, C.yellow, 12);
-    label('[S] = ' + S.toFixed(2) + ' → v = ' + v.toFixed(2) + ' (' + Math.round(100 * v / Vmax) + '% of Vₘₐₛ)', 14, 86, C.green, 12);
+    label('v = Vₘₐₓ·[S] / (Kₘ + [S])', 14, 44, C.text, 12);
+    label('Vₘₐₓ(app) = ' + Vmaxapp.toFixed(1) + '   Kₘ(app) = ' + Kmapp.toFixed(2), 14, 66, C.yellow, 12);
+    label('[S] = ' + S.toFixed(2) + ' → v = ' + v.toFixed(2) + ' (' + Math.round(100 * v / Vmax) + '% of Vₘₐₓ)', 14, 86, C.green, 12);
     label(type === 'none' ? 'no inhibitor' : type + ' inhibition, [I] = ' + I.toFixed(1),
       14, ctx.H - 14, type === 'none' ? C.dim : C.red, 12);
     if (type === 'competitive') label('out-competed by more substrate: Vmax preserved, Km raised', 14, ctx.H - 32, C.dim, 10);

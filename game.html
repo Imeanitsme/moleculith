@@ -9,9 +9,9 @@
   <!-- PeerJS (Peer-to-Peer WebRTC) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <link rel="modulepreload" crossorigin href="data:text/javascript;base64,KGZ1bmN0aW9uIHBvbHlmaWxsKCkgewogIGNvbnN0IHJlbExpc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCJsaW5rIikucmVsTGlzdDsKICBpZiAocmVsTGlzdCAmJiByZWxMaXN0LnN1cHBvcnRzICYmIHJlbExpc3Quc3VwcG9ydHMoIm1vZHVsZXByZWxvYWQiKSkgcmV0dXJuOwogIGZvciAoY29uc3QgbGluayBvZiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCdsaW5rW3JlbD0ibW9kdWxlcHJlbG9hZCJdJykpIHByb2Nlc3NQcmVsb2FkKGxpbmspOwogIG5ldyBNdXRhdGlvbk9ic2VydmVyKChtdXRhdGlvbnMpID0+IHsKICAgIGZvciAoY29uc3QgbXV0YXRpb24gb2YgbXV0YXRpb25zKSB7CiAgICAgIGlmIChtdXRhdGlvbi50eXBlICE9PSAiY2hpbGRMaXN0IikgY29udGludWU7CiAgICAgIGZvciAoY29uc3Qgbm9kZSBvZiBtdXRhdGlvbi5hZGRlZE5vZGVzKSBpZiAobm9kZS50YWdOYW1lID09PSAiTElOSyIgJiYgbm9kZS5yZWwgPT09ICJtb2R1bGVwcmVsb2FkIikgcHJvY2Vzc1ByZWxvYWQobm9kZSk7CiAgICB9CiAgfSkub2JzZXJ2ZShkb2N1bWVudCwgewogICAgY2hpbGRMaXN0OiB0cnVlLAogICAgc3VidHJlZTogdHJ1ZQogIH0pOwogIGZ1bmN0aW9uIGdldEZldGNoT3B0cyhsaW5rKSB7CiAgICBjb25zdCBmZXRjaE9wdHMgPSB7fTsKICAgIGlmIChsaW5rLmludGVncml0eSkgZmV0Y2hPcHRzLmludGVncml0eSA9IGxpbmsuaW50ZWdyaXR5OwogICAgaWYgKGxpbmsucmVmZXJyZXJQb2xpY3kpIGZldGNoT3B0cy5yZWZlcnJlclBvbGljeSA9IGxpbmsucmVmZXJyZXJQb2xpY3k7CiAgICBpZiAobGluay5jcm9zc09yaWdpbiA9PT0gInVzZS1jcmVkZW50aWFscyIpIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJpbmNsdWRlIjsKICAgIGVsc2UgaWYgKGxpbmsuY3Jvc3NPcmlnaW4gPT09ICJhbm9ueW1vdXMiKSBmZXRjaE9wdHMuY3JlZGVudGlhbHMgPSAib21pdCI7CiAgICBlbHNlIGZldGNoT3B0cy5jcmVkZW50aWFscyA9ICJzYW1lLW9yaWdpbiI7CiAgICByZXR1cm4gZmV0Y2hPcHRzOwogIH0KICBmdW5jdGlvbiBwcm9jZXNzUHJlbG9hZChsaW5rKSB7CiAgICBpZiAobGluay5lcCkgcmV0dXJuOwogICAgbGluay5lcCA9IHRydWU7CiAgICBjb25zdCBmZXRjaE9wdHMgPSBnZXRGZXRjaE9wdHMobGluayk7CiAgICBmZXRjaChsaW5rLmhyZWYsIGZldGNoT3B0cyk7CiAgfQp9KSgpOwo=">
-  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=75"></script>
+  <script type="module" crossorigin src="./assets/game-f42b3d55.js?v=76"></script>
   <link rel="modulepreload" crossorigin href="./assets/modulepreload-d41d8cd9.js">
-  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css?v=18">
+  <link rel="stylesheet" crossorigin href="./assets/game-883260dc.css?v=20">
 </head>
 <body>
   <div id="app">
@@ -134,6 +134,13 @@
             <div id="mol-list" class="muted" data-i18n="list.empty">Chưa có phân tử nào.</div>
           </section>
 
+          <!-- Automatic thermodynamic prediction mounts its candidates here -->
+          <section class="panel" id="auto-rxn-panel">
+            <h2 data-i18n="autorxn.title">Phản ứng môi trường dự đoán</h2>
+            <div id="auto-rxn-env" class="auto-rxn-env"></div>
+            <div id="auto-rxn-list" class="muted"></div>
+          </section>
+
           <!-- Science features (guide + molecular engine) mount their buttons here -->
           <section class="panel" id="science-panel">
             <h2 id="science-panel-title">Science</h2>
@@ -210,16 +217,10 @@
         Kéo một nguyên tố từ kho vào cảnh để đặt nó.<br />
         Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />
         Nhấp vào liên kết để xoay bậc (1→2→3→2→1→xóa).<br />
-        Nhấp đôi hai phân tử trở lên để tạo phản ứng, sau đó chọn điều kiện.<br />
+        Phản ứng tự diễn ra: mọi hỗn hợp trong cảnh được tính năng lượng tự do Gibbs ở nhiệt độ và áp suất hiện tại.<br />
         Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.
       </div>
       <div id="fps-chip"></div>
-      <div id="rxn-panel" style="display:none">
-        <div id="rxn-title"><span data-i18n="rxn.title">Phản ứng</span> &middot; <span id="rxn-count"></span></div>
-        <div id="rxn-conds"></div>
-        <div id="rxn-stoich"></div>
-        <button id="rxn-cancel" class="linklike" data-i18n="rxn.cancel">Hủy</button>
-      </div>
       <div id="toast"></div>
 
       <!-- Meltdown Warning Overlay (inside scene for proper positioning) -->
@@ -295,7 +296,7 @@
         <button id="btn-env-menu" class="time-btn" title="Điều Khiển Môi Trường" data-i18n-title="env.title"><i data-lucide="thermometer"></i></button>
       </div>
       <div class="bottom-right">
-        <span id="keys-hint" data-i18n="keys.hint">WASD/phím mũi tên = di chuyển camera · kéo = di chuyển / liên kết · bấm liên kết = xoay bậc · nhấp đôi phân tử = chọn để phản ứng · Del = xóa · Ctrl+Z = hoàn tác · Ctrl+D = nhân đôi</span>
+        <span id="keys-hint" data-i18n="keys.hint">WASD/phím mũi tên = di chuyển camera · kéo = di chuyển / liên kết · bấm liên kết = xoay bậc · phản ứng tự chạy theo năng lượng Gibbs · nhấp đôi người chơi đang nằm = hồi sinh · Del = xóa · Ctrl+Z = hoàn tác · Ctrl+D = nhân đôi</span>
         <button id="btn-menu" class="menu-tab-btn" aria-expanded="false" aria-controls="menu-dropdown" title="Thực đơn" data-i18n-title="ui.menu"><i data-lucide="menu"></i></button>
       </div>
     </div>
@@ -722,7 +723,7 @@
       <div class="env-row">
         <label class="env-label" data-i18n="env.temperature">Nhiệt độ</label>
         <input type="range" id="env-temp-range" class="env-range" min="0" max="100" step="0.1" value="50" />
-        <input type="number" id="env-temp-num" class="env-num" min="0.1" max="6000" step="1" value="298" />
+        <input type="number" id="env-temp-num" class="env-num" min="0.1" max="6000" step="0.05" value="298.15" />
         <span class="env-unit">K</span>
       </div>
 
@@ -780,8 +781,9 @@
   <script src="./assets/learning-content.js?v=3"></script>
   <script src="./assets/learning.js?v=7"></script>
   <script src="./assets/urpe-core.js?v=1"></script>
-  <script src="./assets/urpe-numerics.js?v=2"></script>
-  <script src="./assets/urpe-data.js?v=3"></script>
-  <script src="./assets/urpe-game.js?v=5"></script>
+  <script src="./assets/urpe-numerics.js?v=3"></script>
+  <script src="./assets/urpe-data.js?v=4"></script>
+  <script src="./assets/urpe-game.js?v=7"></script>
+  <script src="./assets/auto-reaction.js?v=2"></script>
 </body>
 </html>

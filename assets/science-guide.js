@@ -48,7 +48,7 @@
         },
         {
           heading: L('Triggering Reactions', 'Kích hoạt phản ứng'),
-          content: L('Double-click a molecule to attempt a reaction. The system checks:<br>• Available reactants nearby<br>• Stoichiometric balance<br>• Thermodynamic feasibility<br>• Activation energy (temperature-dependent)', 'Nháy đúp vào một phân tử để thử phản ứng. Hệ thống kiểm tra:<br>• Chất phản ứng có sẵn ở gần<br>• Cân bằng định lượng<br>• Khả năng xảy ra về nhiệt động lực học<br>• Năng lượng hoạt hóa (phụ thuộc nhiệt độ)')
+          content: L('No pairing is asked of you. Each frame the engine checks:<br>• Which species the scene actually holds<br>• ΔH° = ΣνₚΔHf,ₚ° − ΣνᵣΔHf,ᵣ° and ΔS° the same way<br>• ΔG° = ΔH° − TΔS°, then ΔG = ΔG° + RT ln Q<br>• k = A·e^(−Ea/(R·T)) and ΔG‡ = ΔH‡ − TΔS‡<br>Only routes with ΔG &lt; 0 that are also fast enough at the live temperature and pressure fire.', 'Không cần ghép cặp thủ công. Mỗi khung hình bộ máy kiểm tra:<br>• Cảnh đang thực sự có những loài nào<br>• ΔH° = ΣνₚΔHf,ₚ° − ΣνᵣΔHf,ᵣ° và ΔS° tương tự<br>• ΔG° = ΔH° − TΔS°, rồi ΔG = ΔG° + RT ln Q<br>• k = A·e^(−Ea/(R·T)) và ΔG‡ = ΔH‡ − TΔS‡<br>Chỉ những hướng có ΔG &lt; 0 và đủ nhanh ở nhiệt độ, áp suất đang chạy mới được kích hoạt.')
         },
         {
           heading: L('Stoichiometry', 'Hệ số định lượng'),

@@ -276,7 +276,6 @@
       '.health-bar-label{font-size:var(--fs-md);}',
       '#fps-chip{top:calc(var(--top-h) + 6px);right:max(10px,var(--safe-r));font-size:var(--fs-xs);}',
       '#toast{top:calc(var(--top-h) + 10px);max-width:min(92vw,520px);font-size:var(--fs-sm);}',
-      '#rxn-panel{bottom:calc(10px * var(--ui-scale));max-width:min(94%,560px);}',
       // Stays at the scene's own right edge — the box is positioned inside the
       // scene, so the landscape tool column is already excluded from its frame.
       '.app-name-box{bottom:calc(8px * var(--ui-scale));right:max(8px,var(--safe-r));}',

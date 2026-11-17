@@ -58,11 +58,11 @@
           'Click an existing bond to lower its order: triple, double, single, and one more click breaks it. Shift+click or right-click the bond to raise it back, one step at a time.',
           'Click an atom to inspect it, right-click (or long-press) to remove it.',
           'Locked elements show a padlock. Dragging one tells you where to buy it instead of placing it.',
-          'Double-click two or more molecules to mark them for a reaction; the reaction panel then offers the conditions that actually work.'
+          'Nothing has to be paired by hand: the engine prices every mixture in the scene with Gibbs free energy and only fires the routes that are favourable and fast enough at the current temperature and pressure.'
         ],
         react: [
           'Every reaction keeps the atom count and the total charge identical on both sides. If a product could not be built, the reactants are left untouched.',
-          'Conditions include room temperature, heat, spark, electricity, UV, catalyst and light. The panel only lists the ones valid for your exact selection.',
+          'Every route still carries the energy form it needs — heat, spark, electricity, UV or a catalyst — but that is now read from the mathematics, not picked from a menu.',
           'Products scatter apart and drift on their own; the largest molecule stays at the reaction centre.',
           'Unstable molecules decay over time on real kinetics, and molecules in air react with the atmosphere as an extra reactant.',
           'Stray unbonded atoms keep hunting for partners and fill their octet before they settle.',

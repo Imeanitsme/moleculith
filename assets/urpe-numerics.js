@@ -75,6 +75,190 @@
     return total;
   }
 
+  // --- temperature dependence: the three-regime ladder ------------------------
+  // ΔT = |T − the species reference temperature| decides how much heat-capacity
+  // data an answer is entitled to demand, provided the path stays in one phase:
+  //   ΔT ≤ ELLINGHAM_BAND     Ellingham: ΔG°(T) = ΔH° − T·ΔS° with both held at the
+  //                           tabulated values. Over this band Cp·ΔT and
+  //                           T·Cp·ln(T/Tref) cancel to well under the precision the
+  //                           enthalpies are quoted at, so no Cp is demanded here.
+  //   ΔT ≤ POLYNOMIAL_REGIME  Kirchhoff with a constant ΔCp°: H(T) = H(ref) + Cp(T−ref),
+  //                           S(T) = S(ref) + Cp ln(T/ref).
+  //   beyond, or whenever the path crosses a phase boundary, the published Cp°(T)
+  //   polynomial is integrated over each interval and every boundary contributes
+  //   ΔH_phase to the enthalpy and ΔH_phase/T_phase to the entropy. Adding both is
+  //   what keeps ΔG° continuous through a transition: only its slope changes, which
+  //   is the kink an Ellingham diagram shows at a melting or boiling point.
+  // A species that ships polynomial data uses it as soon as the Ellingham band is
+  // left, because the integral is the same arithmetic with better numbers and it
+  // removes the discontinuity a constant-Cp truncation would introduce at 200 K.
+  // Where a regime's data is absent the answer falls back to the next approximation
+  // down and says so in `model`, rather than refusing to price a route: a species
+  // with no Cp measurement at 1500 K is reported as an Ellingham extrapolation, not
+  // silently passed off as an integration.
+  const ELLINGHAM_BAND = 30;
+  const POLYNOMIAL_REGIME = 200;
+  const T_KINK = 1e-9; // interval edges are read from tables; do not split them twice
+
+  // Shomate form: Cp° = A + B·t + C·t² + D·t³ + E/t² with t = T/1000 and Cp° in
+  // J·mol⁻¹·K⁻¹. Both primitives below are exact, so no quadrature enters the
+  // answer: ∫Cp°dT comes out in J·mol⁻¹ (the 1000 converts dt back to dT) and
+  // ∫Cp°/T dT in J·mol⁻¹·K⁻¹.
+  function shomateEnthalpy(piece, from, to) {
+    const h = t => piece.A * t + piece.B * t * t / 2 + piece.C * t * t * t / 3 +
+      piece.D * t * t * t * t / 4 - piece.E / t;
+    return 1000 * (h(to / 1000) - h(from / 1000));
+  }
+  function shomateEntropy(piece, from, to) {
+    const s = t => piece.A * Math.log(t) + piece.B * t + piece.C * t * t / 2 +
+      piece.D * t * t * t / 3 - piece.E / (2 * t * t);
+    return s(to / 1000) - s(from / 1000);
+  }
+  // Cp°(298.15 K) from a piece, used only to report which model a term used.
+  function shomateCpAt(piece, T) {
+    const t = T / 1000;
+    return piece.A + piece.B * t + piece.C * t * t + piece.D * t * t * t + piece.E / (t * t);
+  }
+
+  function shomatePieces(list, name) {
+    if (absent(list)) return null;
+    if (!Array.isArray(list) || !list.length) fail(name + ' must be a nonempty array');
+    return list.map((piece, i) => {
+      object(piece, name + '[' + i + ']');
+      for (const key of ['A', 'B', 'C', 'D', 'E']) number(piece[key], name + '[' + i + '].' + key);
+      const from = number(piece.from, name + '[' + i + '].from (K)', 0, true);
+      const to = number(piece.to, name + '[' + i + '].to (K)', 0, true);
+      if (!(to > from)) fail(name + '[' + i + '] must satisfy to > from');
+      return { from, to, A: piece.A, B: piece.B, C: piece.C, D: piece.D, E: piece.E };
+    }).sort((x, y) => x.from - y.from);
+  }
+
+  // An interval is one phase of the substance, ordered by increasing temperature.
+  // `to` closes it, `dH` (kJ·mol⁻¹) is the enthalpy absorbed entering it from the
+  // interval below at that boundary, and Cp inside it comes from `cpPoly` where the
+  // polynomial covers the stretch and from the constant `cp` where it does not.
+  function phaseIntervals(term, name) {
+    const direct = shomatePieces(term.cpPoly, name + '.cpPoly');
+    const constant = absent(term.cp) ? null : number(term.cp, name + '.cp', 0);
+    if (absent(term.cpIntervals)) {
+      if (direct === null && constant === null) return null;
+      return [{ phase: term.phase, from: 0, to: Infinity, dH: null, cpPoly: direct, cp: constant }];
+    }
+    if (!Array.isArray(term.cpIntervals) || !term.cpIntervals.length) {
+      fail(name + '.cpIntervals must be a nonempty array');
+    }
+    let floor = 0;
+    return term.cpIntervals.map((iv, i) => {
+      object(iv, name + '.cpIntervals[' + i + ']');
+      if (!['g', 'aq', 'l', 's'].includes(iv.phase)) fail(name + '.cpIntervals[' + i + '].phase is invalid');
+      const from = i === 0 ? 0 : floor;
+      const to = absent(iv.to) ? Infinity : number(iv.to, name + '.cpIntervals[' + i + '].to (K)', 0, true);
+      if (!(to > from)) fail(name + '.cpIntervals[' + i + '] must rise above the interval below it');
+      floor = to;
+      const dH = absent(iv.dH) ? null : number(iv.dH, name + '.cpIntervals[' + i + '].dH (kJ·mol⁻¹)', 0);
+      if (i > 0 && dH === null) fail(name + '.cpIntervals[' + i + '].dH is required above the first interval');
+      const pieces = shomatePieces(iv.cpPoly, name + '.cpIntervals[' + i + '].cpPoly');
+      const cp = absent(iv.cp) ? constant : number(iv.cp, name + '.cpIntervals[' + i + '].cp', 0);
+      if (pieces === null && cp === null) {
+        fail(name + '.cpIntervals[' + i + '] needs cpPoly or cp: nothing integrates inside it');
+      }
+      return { phase: iv.phase, from, to, dH, cpPoly: pieces, cp };
+    });
+  }
+
+  // Integrate one interval between a and b. Polynomial pieces are used wherever
+  // they reach; an uncovered stretch uses the interval's constant Cp, and a stretch
+  // neither covers is returned as a gap for the caller to downgrade over.
+  function intervalStretch(iv, a, b) {
+    const out = { dH: 0, dS: 0, polynomial: false, constant: false, gaps: [] };
+    const finish = (from, to) => {
+      if (!(to > from)) return;
+      if (iv.cp !== null) {
+        out.dH += iv.cp * (to - from);
+        out.dS += iv.cp * (Math.log(to) - Math.log(from));
+        out.constant = true;
+      } else out.gaps.push({ from, to });
+    };
+    if (b <= a) return out;
+    if (!iv.cpPoly) { finish(a, b); return out; }
+    let cursor = a;
+    for (const piece of iv.cpPoly) {
+      if (piece.to <= cursor + T_KINK) continue;
+      if (piece.from > cursor) {
+        finish(cursor, Math.min(piece.from, b));
+        cursor = Math.min(piece.from, b);
+        if (cursor >= b) break;
+      }
+      const from = Math.max(cursor, piece.from), to = Math.min(b, piece.to);
+      if (to > from + T_KINK) {
+        out.dH += shomateEnthalpy(piece, from, to);
+        out.dS += shomateEntropy(piece, from, to);
+        out.polynomial = true;
+        cursor = to;
+      }
+      if (cursor >= b) break;
+    }
+    finish(cursor, b);
+    return out;
+  }
+
+  // Walk the ladder from the reference temperature to T. Returns the signed
+  // enthalpy (J·mol⁻¹) and entropy (J·mol⁻¹·K⁻¹) differences, the boundaries
+  // crossed, and every stretch the supplied data could not integrate.
+  function heatPath(intervals, Tref, T) {
+    let reference = -1;
+    for (let i = 0; i < intervals.length; i++) {
+      if (Tref >= intervals[i].from && Tref < intervals[i].to) { reference = i; break; }
+    }
+    if (reference < 0) return { gap: 'the reference temperature lies outside the supplied phase intervals' };
+    const lo = Math.min(Tref, T), highest = Math.max(Tref, T);
+    // The walk covers exactly what the ladder publishes. A temperature above the
+    // ladder's top still accumulates every interval below it and reports the
+    // uncovered tail as a gap: discarding the whole correction would snap ΔG°(T)
+    // back to its 298.15 K reference values the moment the top is passed.
+    const ceiling = intervals[intervals.length - 1].to;
+    const hi = Math.min(highest, ceiling);
+    const sign = T >= Tref ? 1 : -1;
+    const crossed = [];
+    const gaps = [];
+    let dH = 0, dS = 0, polynomial = false, constant = false;
+    for (let i = 0; i < intervals.length; i++) {
+      const iv = intervals[i];
+      const from = Math.max(lo, iv.from), to = Math.min(hi, iv.to);
+      if (to > from) {
+        const stretch = intervalStretch(iv, from, to);
+        dH += stretch.dH;
+        dS += stretch.dS;
+        polynomial = polynomial || stretch.polynomial;
+        constant = constant || stretch.constant;
+        for (const gap of stretch.gaps) gaps.push(gap);
+      }
+    }
+    // A boundary strictly inside the path contributes its latent heat. Entropy
+    // takes the same heat at the boundary temperature, which is why ΔG° through a
+    // transition stays continuous and only changes slope. Going upward the substance
+    // absorbs it; going downward the same crossing releases it.
+    for (let i = 1; i < intervals.length; i++) {
+      const boundary = intervals[i].from;
+      if (!(boundary > lo + T_KINK && boundary < hi - T_KINK)) continue;
+      if (intervals[i].dH === null) { gaps.push({ from: boundary, to: boundary, boundary: true }); continue; }
+      const absorbed = sign > 0;
+      crossed.push({
+        temperature: boundary,
+        dH: absorbed ? intervals[i].dH : -intervals[i].dH,
+        from: absorbed ? intervals[i - 1].phase : intervals[i].phase,
+        to: absorbed ? intervals[i].phase : intervals[i - 1].phase,
+        absorbed
+      });
+      // Accumulated over the ascending span; the single `sign` in the return value
+      // below turns the whole path around for cooling.
+      dH += intervals[i].dH * 1000;
+      dS += intervals[i].dH * 1000 / boundary;
+    }
+    if (highest > ceiling) gaps.push({ from: ceiling, to: highest });
+    return { dH: dH * sign, dS: dS * sign, crossed, gaps, polynomial, constant, sign };
+  }
+
   function thermo(terms, T, options = {}) {
     number(T, 'T (K)', 0, true);
     object(options, 'thermo options');
@@ -86,7 +270,8 @@
     }
     const assumptions = [
       'dH and dG are kJ·mol⁻¹ of reaction; dS is J·mol⁻¹·K⁻¹; T is K.',
-      'Activities and K are dimensionless; no activity coefficients or phase changes are inferred.',
+      'Activities and K are dimensionless; no activity coefficients are inferred.',
+      'Temperature dependence follows the three-regime ladder documented under "Temperature model"; phase transitions are added only where the term ships them.',
       'Reference temperatures and standard states must be supplied; pressure standards apply to all phases, concentration standards to aqueous terms.'
     ];
     const missing = [];
@@ -111,7 +296,7 @@
       if (absent(term.referenceTemperature)) note(name + '.referenceTemperature');
       if (absent(term.hf)) note(name + '.hf');
       if (absent(term.s)) note(name + '.s');
-      return { term, name, origin, trusted };
+      return { term, name, index, origin, trusted, intervals: phaseIntervals(term, name) };
     });
 
     let standardsKnown = true;
@@ -140,26 +325,88 @@
     if (!commonReference) note('Incompatible formation-enthalpy reference temperatures: elemental reference corrections required');
     let hKnown = standardsKnown && commonReference;
     let sKnown = standardsKnown;
-    let hasCpCorrection = false;
     let defaultPureActivity = false;
     let qKnown = true;
     let zeroReactant = false;
     let zeroProduct = false;
     const logarithms = [];
-    for (const { term, name, trusted } of prepared) {
+    // Which rung of the ladder each term was priced with, and what had to be left
+    // out on that rung. The panels show this instead of a bare number so a value
+    // carried 2000 K on tabulated enthalpies is never read as an integration.
+    const model = {
+      T, band: ELLINGHAM_BAND, polynomialRegime: POLYNOMIAL_REGIME,
+      regime: 'standard state', maxAbsDT: 0, crossings: 0, terms: [], caveats: []
+    };
+    const caveat = message => { if (!model.caveats.includes(message)) model.caveats.push(message); };
+    for (const { term, name, index, trusted, intervals } of prepared) {
       const refKnown = !absent(term.referenceTemperature);
-      const correctionNeeded = refKnown && T !== term.referenceTemperature;
-      const correctionKnown = !correctionNeeded || !absent(term.cp);
-      if (!correctionKnown) note(name + '.cp required away from its reference temperature');
-      const usable = trusted && refKnown && correctionKnown;
+      const usable = trusted && refKnown;
       let h = term.hf;
       let s = term.s;
-      if (usable && correctionNeeded) {
-        hasCpCorrection = true;
-        if (!absent(h)) h += (term.cp / 1000) * (T - term.referenceTemperature);
-        // Subtracting logarithms avoids overflowing the temperature ratio.
-        if (!absent(s)) s += term.cp * (Math.log(T) - Math.log(term.referenceTemperature));
+      const entry = {
+        index, reference: refKnown ? term.referenceTemperature : null,
+        dT: refKnown ? Math.abs(T - term.referenceTemperature) : null,
+        regime: 'standard state', basis: 'ΔfH° and S° as tabulated at the reference temperature',
+        crossings: [], gaps: []
+      };
+      if (usable && entry.dT > 0) {
+        const lo = Math.min(T, term.referenceTemperature), hi = Math.max(T, term.referenceTemperature);
+        const crosses = intervals ? intervals.some((iv, i) =>
+          i > 0 && iv.from > lo + T_KINK && iv.from < hi - T_KINK) : false;
+        const demanded = crosses || entry.dT > POLYNOMIAL_REGIME ? 3 : entry.dT > ELLINGHAM_BAND ? 2 : 1;
+        entry.regime = demanded === 1 ? 'Ellingham' : demanded === 2 ? 'Kirchhoff, constant ΔCp°' : 'Cp°(T) integration';
+        if (demanded !== 1) {
+          if (!intervals) {
+            entry.regime = 'Ellingham (no Cp° published)';
+            entry.basis = 'no heat capacity published: ΔH° and ΔS° held at their reference values';
+            caveat(name + ': no measured heat capacity, so ΔG°(T) is an Ellingham extrapolation ' +
+              entry.dT.toFixed(2) + ' K off its reference temperature.');
+          } else {
+            const path = heatPath(intervals, term.referenceTemperature, T);
+            if (path.gap) {
+              entry.regime = 'Ellingham (Cp° does not reach this far)';
+              caveat(name + ' (' + (demanded === 3 ? 'Cp°(T) integration' : 'Kirchhoff') + '): ' + path.gap +
+                ', so ΔH° and ΔS° stay at their reference values.');
+              entry.basis = 'phase intervals do not span the path; reference values held';
+            } else {
+              if (!absent(h)) h += path.dH / 1000;
+              if (!absent(s)) s += path.dS;
+              entry.crossings = path.crossed;
+              entry.gaps = path.gaps;
+              model.crossings += path.crossed.length;
+              // Report the arithmetic that actually ran, not the rung the shift asked
+              // for: a 1500 K path over a species with only a constant Cp° is a
+              // Kirchhoff correction, and calling it an integration would be a lie.
+              entry.regime = path.polynomial ? 'Cp°(T) integration'
+                : path.constant ? 'Kirchhoff, constant ΔCp°'
+                : 'Ellingham (no Cp° published)';
+              entry.basis = path.polynomial && path.constant
+                ? 'Cp°(T) integrated where published, constant Cp° where the polynomial stops'
+                : path.polynomial ? 'Shomate Cp°(T) integrated across every interval'
+                : path.constant ? 'constant Cp° integrated across every interval'
+                : 'no Cp° published above the reference temperature';
+              for (const c of path.crossed) {
+                caveat(name + ': crosses the ' + c.from + '→' + c.to +
+                  ' boundary at ' + c.temperature.toFixed(2) + ' K, which ' +
+                  (c.absorbed ? 'absorbs ' : 'releases ') + Math.abs(c.dH).toFixed(3) +
+                  ' kJ·mol⁻¹ into the enthalpy and the same over ' + c.temperature.toFixed(2) +
+                  ' K into the entropy.');
+              }
+              for (const g of path.gaps) {
+                caveat(name + ': no Cp° data ' +
+                  (g.boundary ? 'for the phase boundary at ' + g.from.toFixed(2) + ' K'
+                    : 'from ' + g.from.toFixed(2) + ' to ' + g.to.toFixed(2) + ' K') +
+                  ', so that stretch contributes nothing.');
+              }
+            }
+          }
+        }
+        if (entry.dT > model.maxAbsDT) model.maxAbsDT = entry.dT;
       }
+      if (Number.isFinite(entry.dT) && entry.dT > 373.15 && term.phase === 'aq') {
+        caveat(name + ': the aqueous standard state is used above the boiling point of water at 1 bar.');
+      }
+      model.terms.push(entry);
       if (usable && !absent(h) && Number.isFinite(term.nu * h)) enthalpies.push(term.nu * h);
       else { hKnown = false; if (usable && !absent(h)) note(name + ': enthalpy arithmetic overflow'); }
       if (usable && !absent(s) && Number.isFinite(term.nu * s)) entropies.push(term.nu * s);
@@ -179,7 +426,25 @@
         logarithms.push(term.nu * Math.log(activity));
       }
     }
-    if (hasCpCorrection) assumptions.push('Constant species Cp approximation: H(T)=H(ref)+Cp(T-ref), S(T)=S(ref)+Cp ln(T/ref); supplied Cp validity and absence of phase transitions are caller responsibilities.');
+    const regimes = new Set(model.terms.map(entry => entry.regime));
+    model.regime = regimes.size === 1 ? [...regimes][0] : 'mixed: ' + [...regimes].sort().join(', ');
+    if (model.maxAbsDT > 0) {
+      assumptions.push('Temperature model: ΔT ≤ ' + ELLINGHAM_BAND +
+        ' K in one phase uses the Ellingham form ΔG°(T)=ΔH°−T·ΔS° with both held at the reference; ' +
+        'ΔT ≤ ' + POLYNOMIAL_REGIME + ' K uses Kirchhoff with a constant ΔCp°; beyond that, or across a ' +
+        'phase boundary, Cp°(T) is integrated over each interval and each boundary adds ΔH_phase to H° and ' +
+        'ΔH_phase/T_phase to S°. Where a species ships Cp°(T) it is used as soon as the Ellingham band is left.');
+    }
+    if (model.crossings) {
+      assumptions.push('Phase transitions on the path: ' + model.crossings +
+        ' boundary(ies) crossed. ΔG° is continuous through each because a transition at equilibrium carries zero Gibbs energy; only its slope changes.');
+    }
+    if (model.terms.some(entry => entry.regime.indexOf('Ellingham (no Cp° published)') === 0 && entry.dT > ELLINGHAM_BAND)) {
+      assumptions.push('At least one species has no measured heat capacity: its ΔH° and ΔS° are carried flat, so its share of ΔG°(T) is an extrapolation, not an integration.');
+    }
+    if (T > 2000) {
+      assumptions.push('Above 2000 K no thermal dissociation or ionization is modelled, so a species whose tabulated phase has ceased to exist is still priced as that species.');
+    }
     if (defaultPureActivity) assumptions.push('Unspecified pure liquid/solid activities are unity.');
     const dH = hKnown ? finiteOrNull(sum(enthalpies)) : null;
     const dS = sKnown ? finiteOrNull(sum(entropies)) : null;
@@ -211,7 +476,7 @@
     }
     const origins = new Set(prepared.map(entry => entry.trusted ? entry.origin : 'unknown'));
     const origin = origins.has('unknown') ? 'unknown' : origins.size === 1 ? [...origins][0] : 'mixed';
-    return { dH, dS, dG0, dG, lnK, K, lnQ, provenance: origin, assumptions, missing };
+    return { dH, dS, dG0, dG, lnK, K, lnQ, model, provenance: origin, assumptions, missing };
   }
 
   function rate(parameters, T, order = 1) {

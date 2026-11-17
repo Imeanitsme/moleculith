@@ -7,9 +7,16 @@
   // canonical atom-count string.
   function canon(f) {
     const counts = Object.create(null);
+    const raw = String(f).replace(/\((?:s|l|g|aq)\)$/, '').replace(/\s+/g, '');
+    // The charge is part of the species, not decoration: Cl and Cl- are different
+    // substances with different enthalpies, so the sign survives in the key instead
+    // of being dropped by the atom-count parser.
+    const tail = raw.match(/[+-]\d*$/);
+    const charge = tail ? (tail[0][0] === '-' ? -1 : 1) * (+tail[0].slice(1) || 1) : 0;
+    const body = charge ? raw.slice(0, raw.length - tail[0].length) : raw;
     const re = /([A-Z][a-z]?)(\d*)|\(([^)]*)\)(\d*)/g;
     let m;
-    while ((m = re.exec(String(f).replace(/\((?:s|l|g|aq)\)$/, '').replace(/\s+/g, '')))) {
+    while ((m = re.exec(body))) {
       if (m[3] !== undefined) {
         const mult = +m[4] || 1;
         const re2 = /([A-Z][a-z]?)(\d*)/g;
@@ -20,7 +27,8 @@
       }
     }
     const keys = Object.keys(counts).sort();
-    return keys.length ? keys.map(k => k + counts[k]).join('') : String(f);
+    const atomKey = keys.length ? keys.map(k => k + counts[k]).join('') : raw;
+    return charge ? atomKey + (charge > 0 ? '+' : '-') + Math.abs(charge) : atomKey;
   }
   const byCanon = new Map();
   for (const [k, r] of byFormula) { const c = canon(k); if (!byCanon.has(c)) byCanon.set(c, r); }
@@ -101,7 +109,8 @@
     const d = entry.data;
     const term = { nu: entry.nu, phase: d.phase, hf: d.hf, s: d.s,
       referenceTemperature: d.referenceTemperature, pStandard: d.pStandard, cStandard: d.cStandard,
-      cp: d.cp, provenance: d.provenance, source: d.source };
+      cp: d.cp, cpPoly: d.cpPoly, cpIntervals: d.cpIntervals,
+      provenance: d.provenance, source: d.source };
     if (activity !== undefined) term.activity = activity;
     return term;
   }
@@ -133,10 +142,10 @@
     return { acts: out, reason: null, reactantGases: reactantGases.length > 0 };
   }
 
-  // Solve dG0(T) = 0 numerically on a log grid, then bisect. Constant-Cp
-  // Kirchhoff is the model, so the answer is indicative above its validity range.
+  // Solve dG0(T) = 0 numerically on a log grid, then bisect. The temperature ladder
+  // is the model, so the search runs whether or not heat capacities are published;
+  // `model` reports which rung each crossing point was priced with.
   function crossover(list) {
-    if (!list.every(t => t.data && Number.isFinite(t.data.cp))) return { reason: 'no-cp' };
     const value = T => {
       try { return N.thermo(list.map(t => thermoTerm(t)), T).dG0; } catch (e) { return null; }
     };
@@ -223,18 +232,31 @@
     } else if (q.reason) {
       rows.push('<div class="rxn-gibbs-note">' + esc(L('ΔG not priced: ', 'Chưa tính ΔG: ') + q.reason + '.') + '</div>');
     }
+    // Say how the number was carried to this temperature. The three-regime ladder
+    // always prices a route, so a value 2000 K off the table is displayed with the
+    // rung that produced it rather than looking like an integration that never ran.
+    if (r.model) {
+      const rungs = [...new Set((r.model.terms || []).map(t => t.regime))];
+      const line = L('Temperature model: ΔT = ' + r.model.maxAbsDT.toFixed(2) + ' K, priced by ' + rungs.join(' + ') +
+        (r.model.crossings ? ' across ' + r.model.crossings + ' phase transition(s)' : '') + '.',
+        'Mô hình nhiệt độ: ΔT = ' + r.model.maxAbsDT.toFixed(2) + ' K, tính bằng ' + rungs.join(' + ') +
+        (r.model.crossings ? ' qua ' + r.model.crossings + ' chuyển pha' : '') + '.');
+      rows.push('<div class="rxn-gibbs-note">' + esc(line) +
+        (r.model.caveats && r.model.caveats.length
+          ? esc(' ' + L('Caveat: ', 'Cảnh báo: ') + r.model.caveats.slice(0, 2).join('; ') +
+            (r.model.caveats.length > 2 ? ' (+' + (r.model.caveats.length - 2) + ')' : ''))
+          : '') +
+        '</div>');
+    }
     const cross = crossover(list);
     if (cross.T !== undefined) {
       rows.push('<div class="rxn-gibbs-note">' + esc(L('ΔG°(T) = 0 at T ≈ ' + cross.T.toFixed(0) + ' K: ',
         'ΔG°(T) = 0 tại T ≈ ' + cross.T.toFixed(0) + ' K: ')) +
         esc(cross.above ? L('favourable above this temperature', 'thuận lợi trên nhiệt độ này')
           : L('favourable below this temperature', 'thuận lợi dưới nhiệt độ này')) +
-        esc(L(' (constant-Cp extrapolation).', ' (ngoại suy Cp không đổi).')) + '</div>');
+        esc(L(' as the temperature model prices it.', ' theo đúng mô hình nhiệt độ đang dùng.')) + '</div>');
     } else if (cross.none) {
       rows.push('<div class="rxn-gibbs-note">' + esc(L('ΔG°(T) keeps its sign over 100–6000 K.', 'ΔG°(T) giữ nguyên dấu trong khoảng 100–6000 K.')) + '</div>');
-    } else if (cross.reason === 'no-cp') {
-      rows.push('<div class="rxn-gibbs-note">' + esc(L('No crossover search: at least one species has no measured Cp, so ΔG°(T) cannot be moved off its reference temperature.',
-        'Không tìm điểm đổi dấu: ít nhất một loài chưa có Cp đo lường, nên ΔG°(T) không rời được nhiệt độ chuẩn.')) + '</div>');
     }
     // Map the solver's internal paths back onto the species they came from, so the
     // panel names a chemical instead of an array index.
@@ -256,9 +278,14 @@
         gaps.slice(0, 6).map(esc).join('; ') +
         (gaps.length > 6 ? esc(L(' (+' + (gaps.length - 6) + ' more)', ' (+ ' + (gaps.length - 6) + ' nữa)')) : '') + '.</div>');
     }
+    const cpLabel = d => {
+      if (d.cpIntervals) return ' · Cp°(T) over ' + d.cpIntervals.length + ' phase interval(s)';
+      if (d.cpPoly) return ' · Cp°(T) ' + d.cpPoly.length + ' piece(s)';
+      return Number.isFinite(d.cp) ? ' · Cp ' + sci(d.cp, 2) : '';
+    };
     const per = list.map(t => '<div>' + esc(t.formula) + ' ' + (t.nu < 0 ? L('reactant', 'chất tham gia') : L('product', 'sản phẩm')) +
       ' · ΔfH° ' + sci(t.data.hf, 2) + ' kJ·mol⁻¹ · S° ' + sci(t.data.s, 2) + ' J·mol⁻¹·K⁻¹ · ' + esc(phaseName(t.data.phase)) +
-      (Number.isFinite(t.data.cp) ? ' · Cp ' + sci(t.data.cp, 2) : '') + '</div>');
+      cpLabel(t.data) + '</div>');
     const titles = list.map(t => att(t.formula + ': ' + t.data.source)).join('\n');
     return '<div class="rxn-gibbs" title="' + titles + '">' +
       '<div class="rxn-gibbs-head">' + esc(L('Gibbs prediction at the environment setting', 'Dự đoán Gibbs theo điều kiện môi trường')) +
@@ -364,5 +391,5 @@
     }, 0);
   });
 
-  root.URPEGame = { evaluate, panelHtml };
+  root.URPEGame = { evaluate, panelHtml, lookup, canon, parse, envState, thermoTerm, sci };
 })(window);

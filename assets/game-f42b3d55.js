@@ -44255,11 +44255,8 @@ const UI = {
     "pool.hint": "Drag an element into the scene to place it. Metals bond ionically (electron transfer). Noble gases are inert — Kr, Xe and Rn react only with F or O.",
     "ptable.ph": "La–Lu · Ac–Lr below",
     // scene hint (HTML)
-    "hint.html": "Drag an element from the pool into the scene to place it.<br />Drag atoms together to bond them — green ghost means a legal bond, red means forbidden.<br />Click a bond to lower its order (3→2→1→delete); Shift+click or right-click raises it again.<br />Double-click two or more molecules to set up a reaction, then pick a condition.<br />Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.",
+    "hint.html": "Drag an element from the pool into the scene to place it.<br />Drag atoms together to bond them — green ghost means a legal bond, red means forbidden.<br />Click a bond to lower its order (3→2→1→delete); Shift+click or right-click raises it again.<br />Reactions run themselves: every mixture in the scene is priced by Gibbs free energy at the current temperature and pressure.<br />Move around with WASD / arrow keys (Q/E = down/up) or the touch joystick.",
     // reaction panel
-    "rxn.title": "Reaction",
-    "rxn.count": "{n} molecule{s} selected",
-    "rxn.cancel": "Cancel",
     // selection / molecule panels
     "sel.title": "Selection",
     "sel.empty": "Click an atom to inspect it.",
@@ -44293,7 +44290,8 @@ const UI = {
     "stoich.molLbl": "Moles",
     "stoich.partLbl": "Particles",
     "stoich.freeAtom": "Single atom — molar mass of the element.",
-    "stoich.rxnTitle": "Amounts & yield",
+    "stoich.rxnTitle": "Amounts, yield and the data used",
+    "autorxn.title": "Reactions the environment predicts",
     "stoich.enterAll": "Enter a mass for each reactant.",
     "stoich.limiting": "Limiting",
     "stoich.left": "left over",
@@ -44325,7 +44323,7 @@ const UI = {
     "tab.pool": "Pool",
     "tab.info": "Info",
     "tab.dex": "Dex",
-    "keys.hint": "WASD/arrows = move camera · drag = move / bond · click bond = lower order · Shift/right-click bond = raise order · double-click molecule = select for reaction · Del = remove · Ctrl+Z = undo · Ctrl+D = duplicate",
+    "keys.hint": "WASD/arrows = move camera · drag = move / bond · click bond = lower order · Shift/right-click bond = raise order · reactions run automatically from Gibbs energy and activation energy at the set T and P · double-click a downed player = revive · Del = remove · Ctrl+Z = undo · Ctrl+D = duplicate",
     // quality
     "quality.auto": "Auto (adapts to fps)",
     "quality.autoShort": "Auto",
@@ -44335,6 +44333,7 @@ const UI = {
     "quality.ultra": "Ultra High",
     // conditions
     "cond.rt": "Room temperature",
+    "cond.env": "Environment",
     "cond.heat": "Heat",
     "cond.spark": "Spark",
     "cond.electricity": "Electricity",
@@ -44388,21 +44387,12 @@ const UI = {
     "status.chargeSet": "Ion charge set to {v}.",
     "status.chargeAuto": "Ion charge: automatic.",
     "status.chalReset": "Challenge progress reset.",
-    "status.reactionCancelled": "Reaction cancelled.",
-    "status.noReaction": "No known reaction for this combination of molecules.",
-    "status.notEnough": "Not enough reactants — add {more} for a {cond} reaction.",
-    "status.nothingHappens": "Nothing happens under {cond}.",
-    "status.nothingHappensTry": "Nothing happens under {cond}. Try: {valid}.",
-    "status.sceneChanged": "Scene changed — the selection no longer matches a reaction.",
     "status.reactionDone": "Reaction ({cond}): {eq}",
     "status.reactionFailed": "Reaction failed: missing template for {product}.",
     "status.reactionRepaired": "⚠️ {n} reaction product(s) needed repair — the details are in the browser devtools.",
     "status.mayhemEffect": "{effect} {eq}",
     "status.mayhemOn": "Mayhem mode ON — exotic elements unlocked!",
     "status.mayhemOff": "Mayhem mode OFF",
-    "status.selCleared": "Reaction selection cleared.",
-    "status.selRemoved": "Molecule removed from reaction selection.",
-    "status.selAdded": "Molecule added to reaction selection ({n}). Pick a condition below.",
     "status.autoAdjusted": "Graphics auto-adjusted to {tier} ({fps} fps).",
     "status.quality": "Graphics quality: {mode}",
     "status.theme": "Theme: {mode}",
@@ -44815,7 +44805,7 @@ const UI = {
     "el.title": "{name} · {cat} · tối đa {max} liên kết",
     "pool.hint": "Kéo một nguyên tố vào cảnh để đặt nguyên tử. Kim loại liên kết ion (chuyển electron). Khí hiếm trơ — Kr, Xe và Rn chỉ phản ứng với F hoặc O.",
     "ptable.ph": "La–Lu · Ac–Lr ở dưới",
-    "hint.html": "Kéo một nguyên tố từ kho vào cảnh để đặt nó.<br />Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />Nhấp vào liên kết để giảm bậc (3→2→1→xóa); Shift+click hoặc click phải để tăng lại.<br />Nhấp đôi hai phân tử trở lên để tạo phản ứng, sau đó chọn điều kiện.<br />Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.",
+    "hint.html": "Kéo một nguyên tố từ kho vào cảnh để đặt nó.<br />Kéo các nguyên tử vào nhau để liên kết — bóng xanh nghĩa là liên kết hợp lệ, đỏ nghĩa là bị cấm.<br />Nhấp vào liên kết để giảm bậc (3→2→1→xóa); Shift+click hoặc click phải để tăng lại.<br />Phản ứng tự diễn ra: mọi hỗn hợp trong cảnh được tính năng lượng tự do Gibbs ở nhiệt độ và áp suất hiện tại.<br />Di chuyển bằng WASD / phím mũi tên (Q/E = xuống/lên) hoặc joystick cảm ứng.",
     "rxn.title": "Phản ứng",
     "rxn.count": "{n} phân tử đã chọn",
     "rxn.cancel": "Hủy",
@@ -44851,7 +44841,8 @@ const UI = {
     "stoich.molLbl": "Số mol",
     "stoich.partLbl": "Số hạt",
     "stoich.freeAtom": "Nguyên tử đơn lẻ — khối lượng mol của nguyên tố.",
-    "stoich.rxnTitle": "Lượng chất & hiệu suất",
+    "stoich.rxnTitle": "Lượng chất, hiệu suất và dữ liệu đã dùng",
+    "autorxn.title": "Phản ứng môi trường dự đoán",
     "stoich.enterAll": "Nhập khối lượng cho mỗi chất phản ứng.",
     "stoich.limiting": "Chất hạn chế",
     "stoich.left": "còn dư",
@@ -44881,7 +44872,7 @@ const UI = {
     "tab.pool": "Nguyên tố",
     "tab.info": "Thông tin",
     "tab.dex": "Sổ tay",
-    "keys.hint": "WASD/phím mũi tên = di chuyển camera · kéo = di chuyển / liên kết · bấm liên kết = giảm bậc · Shift/click phải liên kết = tăng bậc · nhấp đôi phân tử = chọn để phản ứng · Del = xóa · Ctrl+Z = hoàn tác · Ctrl+D = nhân đôi",
+    "keys.hint": "WASD/phím mũi tên = di chuyển camera · kéo = di chuyển / liên kết · bấm liên kết = giảm bậc · Shift/click phải liên kết = tăng bậc · phản ứng tự chạy theo năng lượng Gibbs và năng lượng hoạt hóa ở nhiệt độ & áp suất đã đặt · nhấp đôi người chơi đang nằm = hồi sinh · Del = xóa · Ctrl+Z = hoàn tác · Ctrl+D = nhân đôi",
     "quality.auto": "Tự động (điều chỉnh theo fps)",
     "quality.autoShort": "Tự động",
     "quality.low": "Thấp",
@@ -44889,6 +44880,7 @@ const UI = {
     "quality.high": "Cao",
     "quality.ultra": "Cực cao",
     "cond.rt": "Nhiệt độ phòng",
+    "cond.env": "Môi trường",
     "cond.heat": "Nhiệt",
     "cond.spark": "Tia lửa điện",
     "cond.electricity": "Dòng điện",
@@ -44941,21 +44933,12 @@ const UI = {
     "status.chargeSet": "Đã đặt điện tích ion thành {v}.",
     "status.chargeAuto": "Điện tích ion: tự động.",
     "status.chalReset": "Đã đặt lại tiến trình thử thách.",
-    "status.reactionCancelled": "Đã hủy phản ứng.",
-    "status.noReaction": "Không có phản ứng đã biết cho tổ hợp phân tử này.",
-    "status.notEnough": "Chưa đủ chất phản ứng — thêm {more} cho phản ứng {cond}.",
-    "status.nothingHappens": "Không có gì xảy ra với {cond}.",
-    "status.nothingHappensTry": "Không có gì xảy ra với {cond}. Thử: {valid}.",
-    "status.sceneChanged": "Khung cảnh đã thay đổi — lựa chọn không còn khớp phản ứng nào.",
     "status.reactionDone": "Phản ứng ({cond}): {eq}",
     "status.reactionFailed": "Phản ứng thất bại: thiếu mẫu cho {product}.",
     "status.reactionRepaired": "⚠️ {n} sản phẩm phản ứng cần được sửa — chi tiết nằm trong devtools của trình duyệt.",
     "status.mayhemEffect": "{effect} {eq}",
     "status.mayhemOn": "Chế độ Hỗn Loạn BẬT — mở khóa các nguyên tố ngoại lai!",
     "status.mayhemOff": "Chế độ Hỗn Loạn TẮT",
-    "status.selCleared": "Đã xóa lựa chọn phản ứng.",
-    "status.selRemoved": "Đã bỏ phân tử khỏi lựa chọn phản ứng.",
-    "status.selAdded": "Đã thêm phân tử vào lựa chọn phản ứng ({n}). Chọn điều kiện bên dưới.",
     "status.autoAdjusted": "Đã tự động điều chỉnh đồ họa xuống {tier} ({fps} fps).",
     "status.quality": "Chất lượng đồ họa: {mode}",
     "status.theme": "Giao diện: {mode}",
@@ -48885,7 +48868,6 @@ const CONDITIONS = [
   { key: "catalyst", label: "Catalyst" },
   { key: "uv", label: "UV light" }
 ];
-const CONDITION_LABEL = Object.fromEntries(CONDITIONS.map((c) => [c.key, c.label]));
 function isAcid(formula) {
   const cls = classifyMolecule(formula, 0, null);
   return cls.key === "acid" || cls.key === "carboxylicAcid";
@@ -51013,35 +50995,21 @@ const STRUCT_CHECKS = {
   catalyst: [tryEsterificationStruct, tryEsterHydrolysisStruct, tryAlkeneHydrationStruct, tryFriedelCraftsAlkylation, tryAmideFormation],
   heat: [tryNitration, tryElimination]
 };
+// The matcher used to walk one of these lists per chosen condition. The automatic
+// scanner walks their union once per species subset, which covers every condition
+// a builder can emit (each one stamps its own condition on the result).
+const DYNAMIC_CHECKS = {
+  "rt": [tryAcidBaseReaction, tryMetalOxideAcidReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryWeakAcidDisplacement, tryNonMetalHalideHydrolysis, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction, tryWeakAcidDissociation, tryFluorineWaterReaction, tryHalogenDisproportionation],
+  "spark": [tryCombustion, tryElementalCombustion],
+  "heat": [tryCombustion, tryMetalOxideReduction, tryMetalHalogenSynthesis, tryMetalDimerFormation, tryMetalDimerDecomposition, tryDehydration, tryAdvancedDecomposition, tryGenericDecomposition, tryDisproportionation],
+  "catalyst": [tryEsterification, tryHydrogenation, tryAlkeneHydration, tryEsterHydrolysis, tryBiochemicalReaction],
+  "uv": [tryHalogenation]
+};
+const ALL_DYNAMIC_CHECKS = [...new Set(Object.values(DYNAMIC_CHECKS).flat())];
+const ALL_STRUCT_CHECKS = [...new Set(Object.values(STRUCT_CHECKS).flat())];
 function candidatesOf(r) {
   if (!r) return [];
   return Array.isArray(r) ? r.filter(Boolean) : [r];
-}
-function matchDynamic(rx, have, bonusReactants = /* @__PURE__ */ new Set()) {
-  if (matches(rx, have, bonusReactants)) return rx;
-  const reactantKeys = Object.keys(rx.reactants).filter((f) => !bonusReactants.has(normalizeFormula(f)));
-  if (reactantKeys.length !== have.size) return null;
-  let s = 0;
-  for (const [f, n] of Object.entries(rx.reactants)) {
-    const norm = normalizeFormula(f);
-    const isBonus = bonusReactants.has(norm);
-    if (isBonus) {
-      continue;
-    }
-    let hc = 0;
-    for (const [hf, hn] of have) if (normalizeFormula(hf) === norm) hc = hn;
-    if (hc === 0 || hc % n !== 0) return null;
-    const k = hc / n;
-    if (s !== 0 && s !== k) return null;
-    s = k;
-  }
-  if (s <= 1) return null;
-  const reactants = {};
-  for (const [f, n] of Object.entries(rx.reactants)) reactants[f] = n * s;
-  const products = rx.products.map(([f, n]) => [f, n * s]);
-  const fmt = ([f, n]) => `${n === 1 ? "" : n}${f}${rx.phases && rx.phases[f] || ""}`;
-  const equation = `${Object.entries(reactants).map(([f, n]) => fmt([f, n])).join(" + ")} -> ${products.map(fmt).join(" + ")}`;
-  return { ...rx, reactants, products, equation };
 }
 function parseIonicCompound(formula) {
   const f = normalizeFormula(formula);
@@ -52026,32 +51994,7 @@ function multisetOf(formulas) {
 }
 function normalizeFormula(f) {
   const counts = parseFormula(f);
-  return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([sym, n]) => `${sym}${n}`).join("");
-}
-function matches(rx, have, bonusReactants = /* @__PURE__ */ new Set()) {
-  const need = Object.entries(rx.reactants);
-  const haveNorm = /* @__PURE__ */ new Map();
-  for (const [f, n] of have) {
-    const norm = normalizeFormula(f);
-    haveNorm.set(norm, (haveNorm.get(norm) || 0) + n);
-  }
-  for (const [f, n] of need) {
-    const norm = normalizeFormula(f);
-    const haveCount = haveNorm.get(norm) || 0;
-    const isBonus = bonusReactants.has(norm);
-    if (haveCount === 0 && !isBonus) return false;
-    if (haveCount > n) return false;
-  }
-  for (const [f, n] of have) {
-    const norm = normalizeFormula(f);
-    if (bonusReactants.has(norm)) continue;
-    let needed = 0;
-    for (const [rf, rn] of need) {
-      if (normalizeFormula(rf) === norm) needed = rn;
-    }
-    if (n !== needed) return false;
-  }
-  return true;
+  return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([sym, n]) => `${sym}${n === 1 ? "" : n}`).join("");
 }
 const STRONG_ACIDS = /* @__PURE__ */ new Set(["HCl", "HBr", "HI", "HNO3", "H2SO4", "HClO4", "HClO3"]);
 function tryWeakAcidDissociation(formulas) {
@@ -52178,177 +52121,6 @@ function tryHalogenDisproportionation(formulas) {
     equation: `${scale === 1 ? "" : scale}${other} + ${scale === 1 ? "" : scale}H2O ⇌ ${scale === 1 ? "" : scale}${hxFormula} + ${scale === 1 ? "" : scale}${hoxFormula}`,
     dynamic: true
   };
-}
-function findReaction(formulas, conditionKey, comps = null, atmosphereGases = []) {
-  const have = multisetOf(formulas);
-  const bonusReactants = new Set(atmosphereGases.map((f) => normalizeFormula(f)));
-  const structsValid = Array.isArray(comps) && comps.length > 0 && comps.every((c) => c && Array.isArray(c.atoms));
-  if (structsValid) {
-    for (const tryFn of STRUCT_CHECKS[conditionKey] || []) {
-      for (const rx of candidatesOf(tryFn(comps, have))) {
-        const m = matchDynamic(rx, have, bonusReactants);
-        if (m) {
-          const ok = acceptReaction(m);
-          if (ok) return ok;
-        }
-      }
-    }
-  }
-  for (const rx of REACTIONS) {
-    if (rx.condition !== conditionKey) continue;
-    if (matches(rx, have, bonusReactants)) {
-      const ok = acceptReaction(rx);
-      if (ok) return ok;
-    }
-  }
-  for (const rx of MAYHEM_REACTIONS) {
-    if (rx.condition !== conditionKey) continue;
-    if (matches(rx, have, bonusReactants)) {
-      const ok = acceptReaction(rx);
-      if (ok) return ok;
-    }
-  }
-  const dynamicChecks = {
-    "rt": [tryAcidBaseReaction, tryMetalOxideAcidReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryWeakAcidDisplacement, tryNonMetalHalideHydrolysis, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction, tryWeakAcidDissociation, tryFluorineWaterReaction, tryHalogenDisproportionation],
-    "spark": [tryCombustion, tryElementalCombustion],
-    "heat": [tryCombustion, tryMetalOxideReduction, tryMetalHalogenSynthesis, tryMetalDimerFormation, tryMetalDimerDecomposition, tryDehydration, tryAdvancedDecomposition, tryGenericDecomposition, tryDisproportionation],
-    "catalyst": [tryEsterification, tryHydrogenation, tryAlkeneHydration, tryEsterHydrolysis, tryBiochemicalReaction],
-    "uv": [tryHalogenation]
-  };
-  const checks = dynamicChecks[conditionKey] || [];
-  for (const tryFn of checks) {
-    for (const rx of candidatesOf(tryFn([...have.keys()], have))) {
-      const m = matchDynamic(rx, have, bonusReactants);
-      if (m) {
-        const ok = acceptReaction(m);
-        if (ok) return ok;
-      }
-    }
-  }
-  return null;
-}
-function conditionsFor(formulas, comps = null, atmosphereGases = []) {
-  const have = multisetOf(formulas);
-  const bonusReactants = new Set(atmosphereGases.map((f) => normalizeFormula(f)));
-  const set = /* @__PURE__ */ new Set();
-  const subsetOk = (reactants) => {
-    for (const [f, n] of have) {
-      const fNorm = normalizeFormula(f);
-      let found = 0;
-      for (const [rf, rn] of Object.entries(reactants)) {
-        if (normalizeFormula(rf) === fNorm) found = rn;
-      }
-      if (found < n) return false;
-    }
-    return true;
-  };
-  const structsValid = Array.isArray(comps) && comps.length > 0 && comps.every((c) => c && Array.isArray(c.atoms));
-  if (structsValid) {
-    for (const [cond, fns] of Object.entries(STRUCT_CHECKS)) {
-      for (const tryFn of fns) {
-        let hit = false;
-        for (const rx of candidatesOf(tryFn(comps, have))) {
-          if (subsetOk(rx.reactants)) {
-            hit = true;
-            break;
-          }
-        }
-        if (hit) {
-          set.add(cond);
-          break;
-        }
-      }
-    }
-  }
-  for (const rx of REACTIONS) {
-    if (subsetOk(rx.reactants)) set.add(rx.condition);
-  }
-  for (const rx of MAYHEM_REACTIONS) {
-    if (subsetOk(rx.reactants)) set.add(rx.condition);
-  }
-  const allChecks = [
-    { fn: tryAcidBaseReaction, cond: "rt" },
-    { fn: tryMetalAcidReaction, cond: "rt" },
-    { fn: tryMetalWaterReaction, cond: "rt" },
-    { fn: tryCarbonateAcidReaction, cond: "rt" },
-    { fn: tryAcidicOxideBase, cond: "rt" },
-    { fn: tryOxideHydration, cond: "rt" },
-    { fn: tryAmphotericBase, cond: "rt" },
-    { fn: tryCombustion, cond: "spark" },
-    { fn: tryMetalOxideReduction, cond: "heat" },
-    { fn: trySingleDisplacement, cond: "rt" },
-    { fn: tryMetalHalogenSynthesis, cond: "heat" },
-    { fn: tryEsterification, cond: "catalyst" },
-    { fn: tryHydrogenation, cond: "catalyst" },
-    { fn: tryHalogenation, cond: "uv" },
-    { fn: tryDehydration, cond: "heat" },
-    { fn: tryAlkeneAdditionHX, cond: "rt" },
-    { fn: tryAlkeneHydration, cond: "catalyst" },
-    { fn: tryEsterHydrolysis, cond: "catalyst" },
-    { fn: tryPrecipitation, cond: "rt" },
-    { fn: tryGasEvolution, cond: "rt" },
-    { fn: tryRedoxBalancing, cond: "rt" },
-    { fn: tryComproportionation, cond: "rt" },
-    { fn: tryHydrateFormation, cond: "rt" },
-    { fn: tryDisproportionation, cond: "heat" },
-    { fn: tryGenericDecomposition, cond: "heat" },
-    { fn: tryAdvancedDecomposition, cond: "heat" },
-    { fn: tryCoordinationComplex, cond: "rt" },
-    { fn: tryBiochemicalReaction, cond: "rt" },
-    { fn: tryBiochemicalReaction, cond: "catalyst" },
-    { fn: tryMetalOxideAcidReaction, cond: "rt" },
-    { fn: tryElementalCombustion, cond: "spark" },
-    { fn: tryNonMetalHalideHydrolysis, cond: "rt" },
-    { fn: tryWeakAcidDisplacement, cond: "rt" },
-    { fn: tryWeakAcidDissociation, cond: "rt" },
-    { fn: tryFluorineWaterReaction, cond: "rt" },
-    { fn: tryHalogenDisproportionation, cond: "rt" }
-  ];
-  for (const { fn, cond } of allChecks) {
-    let hit = false;
-    for (const rx of candidatesOf(fn([...have.keys()], have))) {
-      if (subsetOk(rx.reactants)) {
-        hit = true;
-        break;
-      }
-    }
-    if (hit) set.add(cond);
-  }
-  return set;
-}
-function missingFor(formulas, condKey, atmosphereGases = []) {
-  const have = multisetOf(formulas);
-  const bonusReactants = new Set(atmosphereGases.map((f) => normalizeFormula(f)));
-  const options = [];
-  for (const rx of REACTIONS) {
-    if (rx.condition !== condKey) continue;
-    let ok = true;
-    for (const [f, n] of have) {
-      const fNorm = normalizeFormula(f);
-      let found = 0;
-      for (const [rf, rn] of Object.entries(rx.reactants)) {
-        if (normalizeFormula(rf) === fNorm) found = rn;
-      }
-      if (found < n) {
-        ok = false;
-        break;
-      }
-    }
-    if (!ok) continue;
-    const missing = [];
-    for (const [f, n] of Object.entries(rx.reactants)) {
-      const fNorm = normalizeFormula(f);
-      if (bonusReactants.has(fNorm)) continue;
-      let haveCount = 0;
-      for (const [hf, hn] of have) {
-        if (normalizeFormula(hf) === fNorm) haveCount = hn;
-      }
-      const need = n - haveCount;
-      if (need > 0) missing.push(need === 1 ? f : `${need}${f}`);
-    }
-    if (missing.length) options.push(missing.join(" + "));
-  }
-  return options.length ? [...new Set(options)].join(" or ") : null;
 }
 function productTemplate(key, fingerprint) {
   if (fingerprint) {
@@ -52934,6 +52706,38 @@ const K_COULOMB = 89875517923e-1;
 const E_CHARGE = 1602176634e-28;
 const H_PLANCK = 662607015e-42;
 const N_AVOGADRO = 602214076e15;
+// Mean bond dissociation enthalpies, kJ/mol at 298.15 K. A bonded pair the table
+// does not name has no measured value, so lookups against it answer null rather
+// than a substitute number.
+// The halogen rows come from the same published compilation as the rest (Huheey,
+// "Inorganic Chemistry", after Cottrell, Darwent and Benson); they were missing,
+// and a missing row blocks a route outright, which is why F2 + H2O and Cl2 + H2
+// were priced as spontaneous and then never fired.
+const BDE_TABLE = {
+  1: {
+    "H-H": 436,
+    "C-H": 413,
+    "C-C": 348,
+    "C-O": 358,
+    "H-O": 463,
+    "H-N": 391,
+    "C-N": 305,
+    "O-O": 146,
+    "C-F": 485,
+    "C-Cl": 339,
+    "F-F": 155,
+    "Cl-Cl": 240,
+    "Br-Br": 190,
+    "I-I": 148,
+    "F-H": 565,
+    "Cl-H": 428,
+    "Br-H": 362,
+    "H-I": 295,
+    "N-O": 201
+  },
+  2: { "C=C": 614, "C=O": 799, "N=N": 418, "O=O": 498, "N=O": 607, "O=S": 522 },
+  3: { "C≡C": 839, "C≡N": 891, "N≡N": 945 }
+};
 class ThermodynamicSystem {
   constructor() {
     // Standard-state data at 298.15 K: h = ΔfH° (kJ/mol of the species as listed),
@@ -53152,22 +52956,6 @@ class ThermodynamicSystem {
    * Get bond dissociation energy (kJ/mol)
    */
   getBondDissociationEnergy(bond, atomsMap) {
-    const bdeTable = {
-      1: {
-        "H-H": 436,
-        "C-H": 413,
-        "C-C": 348,
-        "C-O": 358,
-        "H-O": 463,
-        "H-N": 391,
-        "C-N": 305,
-        "O-O": 146,
-        "C-F": 485,
-        "C-Cl": 339
-      },
-      2: { "C=C": 614, "C=O": 799, "N=N": 418, "O=O": 498 },
-      3: { "C≡C": 839, "C≡N": 891, "N≡N": 945 }
-    };
     const order = bond.order || 1;
     const atomA = atomsMap instanceof Map ? atomsMap.get(bond.a) : atomsMap.find((a) => a.id === bond.a);
     const atomB = atomsMap instanceof Map ? atomsMap.get(bond.b) : atomsMap.find((a) => a.id === bond.b);
@@ -53175,7 +52963,7 @@ class ThermodynamicSystem {
     const syms = [atomA.el.sym, atomB.el.sym].sort();
     const bondChar = order === 1 ? "-" : order === 2 ? "=" : "≡";
     const key = `${syms[0]}${bondChar}${syms[1]}`;
-    return bdeTable[order]?.[key] || 350;
+    return (BDE_TABLE[order] || {})[key] ?? 350;
   }
   /**
    * Get formation energy for an element (kJ/mol)
@@ -58049,9 +57837,6 @@ let snapTargetId = null;
 let snapLegal = false;
 let snapMsg = "";
 let downInfo = null;
-let lastPointerType = "mouse";
-const reactionSel = /* @__PURE__ */ new Set();
-const reactionSelIds = /* @__PURE__ */ new Set();
 const discoveries = [];
 const seenDisc = /* @__PURE__ */ new Set();
 let discUnsaved = false;
@@ -59648,7 +59433,6 @@ const C_ION = new Color(15774761);
 const C_SEL = new Color(5809919);
 const C_OK = new Color(4176208);
 const C_ERR = new Color(16273737);
-const C_RXN = new Color(15774761);
 const OFF1 = [0], OFF2 = [-0.12, 0.12], OFF3 = [-0.18, 0, 0.18], OFF4 = [-0.22, -0.07, 0.07, 0.22];
 const atomMatM = new MeshPhongMaterial({ color: 16777215, shininess: 70, specular: 5592405 });
 const atomMatN = new MeshPhongMaterial({ color: 16777215, shininess: 20, specular: 1579032 });
@@ -59953,7 +59737,6 @@ function spawnScale(id, now) {
 function atomColor(id, col) {
   const at = atoms.get(id);
   col.set(at.el.color);
-  if (reactionSelIds.has(id)) col.lerp(C_RXN, 0.5);
   if (id === snapTargetId) col.lerp(snapLegal ? C_OK : C_ERR, 0.55);
   else if (id === selectedId) col.lerp(C_SEL, 0.45);
   else if (id === hoverId) col.lerp(C_SEL, 0.18);
@@ -60073,7 +59856,7 @@ function pickNearestSprites(ids, budget, reach) {
   const near = [];
   const lit = /* @__PURE__ */ new Set();
   for (const id of ids) {
-    if (id === selectedId || id === hoverId || reactionSelIds.has(id)) {
+    if (id === selectedId || id === hoverId) {
       lit.add(id);
       continue;
     }
@@ -60250,9 +60033,6 @@ function reanalyze(pinnedIds = /* @__PURE__ */ new Set()) {
   const keySet = new Set(lastComps.map(compKey));
   for (const k of [...overrides.keys()]) if (!keySet.has(k)) overrides.delete(k);
   for (const k of [...isoSel.keys()]) if (!keySet.has(k)) isoSel.delete(k);
-  for (const k of [...reactionSel]) if (!keySet.has(k)) reactionSel.delete(k);
-  rebuildReactionSelIds();
-  updateRxnPanel();
   analyses = lastComps.map((c) => analyzeComponent(atoms, bonds, c, overrides.has(compKey(c)) ? overrides.get(compKey(c)) : null));
   checkUnstableMolecules();
   runSimulationAnalysis();
@@ -60967,7 +60747,6 @@ function clearAll() {
   driftState.clear();
   selectedId = null;
   hoverId = null;
-  clearReactionSel();
   reanalyze();
   status(t("status.cleared"), "info");
 }
@@ -61039,7 +60818,6 @@ function undo() {
       crateRecover(a.atoms);
       selectedId = null;
       hoverId = null;
-      clearReactionSel();
       reanalyze();
       break;
     }
@@ -61132,75 +60910,21 @@ function updateDrift(dt) {
   }
   return any;
 }
-const rxnPanel = document.getElementById("rxn-panel");
-const rxnCount = document.getElementById("rxn-count");
-const rxnConds = document.getElementById("rxn-conds");
 const condLabel = (k) => t(`cond.${k}`);
-function rebuildReactionSelIds() {
-  reactionSelIds.clear();
-  for (const comp of lastComps) {
-    if (!reactionSel.has(compKey(comp))) continue;
-    for (const id of comp.atoms) reactionSelIds.add(id);
-  }
-}
-function clearReactionSel() {
-  if (!reactionSel.size) return;
-  reactionSel.clear();
-  reactionSelIds.clear();
-  updateRxnPanel();
-  invalidate();
-}
-function updateRxnPanel() {
-  if (!rxnPanel) return;
-  updateRxnStoich();
-  if (reactionSel.size === 0) {
-    rxnPanel.style.display = "none";
-    return;
-  }
-  rxnPanel.style.display = "flex";
-  rxnCount.textContent = t("rxn.count", { n: reactionSel.size, s: reactionSel.size > 1 ? "s" : "" });
-  updateRxnStoich();
-}
-const rxnStoichBox = document.getElementById("rxn-stoich");
-function updateRxnStoich() {
-  if (!rxnStoichBox) return;
-  rxnStoichBox.innerHTML = "";
-  rxnStoichBox.style.display = "none";
-  if (reactionSel.size === 0) return;
-  const formulas = selectedFormulas();
-  const atmosphereGases = envAtmosphereGases();
-  const seen = /* @__PURE__ */ new Set();
-  const matched = [];
-  for (const c of CONDITIONS) {
-    const rx = findReaction(formulas, c.key, selectedStructures(), atmosphereGases);
-    if (!rx || rx.effect) continue;
-    const k = `${rx.equation}|${rx.condition}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    matched.push(rx);
-  }
-  if (!matched.length) return;
-  rxnStoichBox.style.display = "flex";
-  const title = document.createElement("div");
-  title.className = "rxn-stoich-title";
-  title.textContent = t("stoich.rxnTitle");
-  rxnStoichBox.appendChild(title);
-  for (const rx of matched) rxnStoichBox.appendChild(buildRxnStoichBlock(rx));
-}
-function buildRxnStoichBlock(rx) {
+function buildAutoStoichBlock(rx) {
   const block = document.createElement("div");
-  block.className = "rxn-stoich-block";
+  block.className = "arxn-block";
   const eq = document.createElement("div");
-  eq.className = "rxn-stoich-eq";
+  eq.className = "arxn-eq";
   eq.innerHTML = `${prettyEq(rx.equation)} <span class="cond-chip">${condLabel(rx.condition)}</span>`;
   block.appendChild(eq);
   const reactants = Object.entries(rx.reactants);
   const inputs = [];
   for (const [f, coeff] of reactants) {
     const row = document.createElement("div");
-    row.className = "rxn-stoich-row";
+    row.className = "arxn-row";
     const lbl = document.createElement("span");
-    lbl.className = "rxn-stoich-f";
+    lbl.className = "arxn-f";
     lbl.innerHTML = `${prettyFormula(f)}${coeff > 1 ? ` <span class="muted">&times;${coeff}</span>` : ""}`;
     const inp = document.createElement("input");
     inp.type = "number";
@@ -61209,18 +60933,18 @@ function buildRxnStoichBlock(rx) {
     inp.placeholder = "g";
     inp.setAttribute("aria-label", `${t("stoich.massLbl")} ${f}`);
     const molSpan = document.createElement("span");
-    molSpan.className = "rxn-stoich-mol";
+    molSpan.className = "arxn-mol";
     row.append(lbl, inp, molSpan);
     block.appendChild(row);
     inputs.push({ f, coeff, inp, molSpan });
   }
   const out = document.createElement("div");
-  out.className = "rxn-stoich-out";
+  out.className = "arxn-out";
   block.appendChild(out);
   const yieldRow = document.createElement("div");
-  yieldRow.className = "rxn-stoich-row";
+  yieldRow.className = "arxn-row";
   const yieldLbl = document.createElement("span");
-  yieldLbl.className = "rxn-stoich-f";
+  yieldLbl.className = "arxn-f";
   yieldLbl.textContent = t("stoich.yieldLbl");
   const yieldInp = document.createElement("input");
   yieldInp.type = "number";
@@ -61304,26 +61028,6 @@ function buildRxnStoichBlock(rx) {
   paintGibbs(/* @__PURE__ */ new Map());
   return block;
 }
-function selectedFormulas() {
-  const out = [];
-  for (let i = 0; i < lastComps.length; i++) {
-    if (reactionSel.has(compKey(lastComps[i]))) {
-      const an = analyses[i];
-      out.push(an ? an.displayFormula || an.formula : "");
-    }
-  }
-  return out;
-}
-function selectedStructures() {
-  const out = [];
-  for (let i = 0; i < lastComps.length; i++) {
-    if (!reactionSel.has(compKey(lastComps[i]))) continue;
-    const an = analyses[i];
-    if (!an) continue;
-    out.push(structureTplOf(lastComps[i], an).tpl);
-  }
-  return out;
-}
 function prettyEq(eq) {
   const sub = "₀₁₂₃₄₅₆₇₈₉";
   return eq.replace(/->/g, "→").replace(new RegExp("(?<=[A-Za-z)\\]])\\d+", "g"), (m) => [...m].map((c) => sub[+c]).join(""))
@@ -61337,40 +61041,6 @@ function prettyEq(eq) {
     // A bare negative number is the one place ASCII still sneaks a hyphen into an
     // equation, and here it can only ever be subtraction's opposite.
     .replace(/(?<=[\s(=<>≈≤≥])-(?=[\d.])/g, MINUS);
-}
-function buildRxnPanel() {
-  if (!rxnConds) return;
-  for (const c of CONDITIONS) {
-    const b = document.createElement("button");
-    b.textContent = condLabel(c.key);
-    b.dataset.cond = c.key;
-    b.addEventListener("click", () => onConditionPick(c.key));
-    rxnConds.appendChild(b);
-  }
-  document.getElementById("rxn-cancel").addEventListener("click", () => {
-    clearReactionSel();
-    status(t("status.reactionCancelled"));
-  });
-}
-function onConditionPick(cond) {
-  const formulas = selectedFormulas();
-  const atmosphereGases = envAtmosphereGases();
-  const rx = findReaction(formulas, cond, selectedStructures(), atmosphereGases);
-  if (rx) {
-    executeReaction(rx);
-    return;
-  }
-  const valid = conditionsFor(formulas, selectedStructures(), atmosphereGases);
-  if (!valid.size) {
-    status(t("status.noReaction"), "err");
-    return;
-  }
-  if (valid.has(cond)) {
-    const more = missingFor(formulas, cond, atmosphereGases);
-    status(more ? t("status.notEnough", { more: prettyEq(more), cond: condLabel(cond).toLowerCase() }) : t("status.nothingHappens", { cond: condLabel(cond) }), "err");
-    return;
-  }
-  status(t("status.nothingHappensTry", { cond: condLabel(cond), valid: [...valid].map((k) => condLabel(k)).join(", ") }), "err");
 }
 let rxnOverlayTimer = null;
 function escHtml(s) {
@@ -61447,21 +61117,361 @@ function verifyReactionProducts(rx, newCompKeys, consumedCount) {
   }
   return problems;
 }
-function executeReaction(rx) {
-  const selComps = lastComps.filter((c) => reactionSel.has(compKey(c)));
-  if (!selComps.length) return;
-  updateCatalystTracking();
-  const formulas = selComps.map((c) => {
-    const an = analyses[lastComps.indexOf(c)];
-    return an ? an.displayFormula || an.formula : "";
-  });
-  const atmosphereGases = envAtmosphereGases();
-  const structs = selComps.map((c) => structureTplOf(c, analyses[lastComps.indexOf(c)]).tpl);
-  if (!findReaction(formulas, rx.condition, structs, atmosphereGases)) {
-    status(t("status.sceneChanged"), "err");
-    clearReactionSel();
-    return;
+// A reaction's reactant side is a count of molecules, so the scene has to supply
+// that many components of each matching species; nothing is asked of the player.
+// A species the atmosphere is entitled to donate may be thinner in the scene than
+// the equation demands, and the shortfall materialises in the product build the
+// same way the atmosphere always donated it.
+function reactantComps(rx) {
+  const bonus = /* @__PURE__ */ new Set(envAtmosphereGases().map((f) => normalizeFormula(f)));
+  const byClass = /* @__PURE__ */ new Map();
+  for (let i = 0; i < lastComps.length; i++) {
+    const an = analyses[i];
+    const norm = normalizeFormula(an ? an.displayFormula || an.formula || "" : "");
+    if (!norm) continue;
+    if (!byClass.has(norm)) byClass.set(norm, []);
+    byClass.get(norm).push(i);
   }
+  const out = [];
+  for (const [f, n] of Object.entries(rx.reactants)) {
+    if (!Number.isInteger(n) || n < 1) return null;
+    const norm = normalizeFormula(f);
+    const have = byClass.get(norm) || [];
+    if (have.length < n && !bonus.has(norm)) return null;
+    for (let k = 0; k < Math.min(n, have.length); k++) out.push(lastComps[have[k]]);
+  }
+  return out.length ? out : null;
+}
+/* ── Automatic prediction: which equations the scene could run at all ── */
+// The catalog and the builders only say which rearrangements have structures this
+// world is able to build. They never say whether one happens: that question is
+// answered by the thermodynamics and kinetics module from the environment alone.
+const AUTO_MAX_CLASSES = 10;
+const AUTO_MAX_COPIES = 6;
+const AUTO_MAX_SUBSET = 3;
+const AUTO_MAX_CANDIDATES = 64;
+// An equation can read perfectly balanced and still carry the wrong numbers: the
+// sentence is what a builder writes, but the reactants and products objects are
+// what the scene consumes and builds, and what the thermodynamics prices. Firing a
+// route whose objects disagree creates or destroys atoms, so every candidate is
+// checked against its own arithmetic before it is accepted. A species this world
+// cannot parse is not a violation, so it is left to the other gates.
+let elementSymbols = null;
+function conservesEveryElement(rx) {
+  if (!elementSymbols) elementSymbols = new Set(ELEMENTS.map((e) => e.sym));
+  const net = new Map();
+  let verifiable = true;
+  const add = (formula, count, sign) => {
+    if (!Number.isFinite(count) || count <= 0) { verifiable = false; return; }
+    const counts = parseFormula(String(formula));
+    if (!counts.size) { verifiable = false; return; }
+    for (const [el, k] of counts) {
+      if (!elementSymbols.has(el)) { verifiable = false; continue; }
+      net.set(el, (net.get(el) || 0) + sign * k * count);
+    }
+  };
+  for (const [f, n] of Object.entries(rx.reactants || {})) add(f, n, -1);
+  for (const entry of rx.products || []) add(entry && entry[0], entry && entry[1], 1);
+  if (!verifiable || !net.size) return true;
+  for (const v of net.values()) {
+    if (v === 0) continue;
+    console.warn("[auto] dropped candidate that does not conserve elements:", rx.equation, [...net.entries()].filter(([, c]) => c !== 0).map(([e, c]) => e + (c > 0 ? "+" : "") + c).join(" "));
+    return false;
+  }
+  return true;
+}
+function sceneSpeciesClasses() {
+  const classes = /* @__PURE__ */ new Map();
+  for (let i = 0; i < analyses.length; i++) {
+    const an = analyses[i];
+    const norm = normalizeFormula(an && an.displayFormula || an && an.formula || "");
+    if (!norm) continue;
+    if (!displayByNorm.has(norm)) displayByNorm.set(norm, String(an.displayFormula || an.formula));
+    classes.set(norm, (classes.get(norm) || 0) + 1);
+  }
+  return classes;
+}
+function sceneSignature() {
+  const classes = sceneSpeciesClasses();
+  return [...classes.entries()].map(([f, n]) => f + "x" + n).sort().join(",") +
+    "|" + envAtmosphereGases().slice().sort().join(",");
+}
+function requirementOf(rx) {
+  const req = [];
+  for (const [f, n] of Object.entries(rx.reactants)) {
+    if (!Number.isInteger(n) || n < 1) return null;
+    req.push({ norm: normalizeFormula(f), n });
+  }
+  return req.length ? req : null;
+}
+let autoCatalogCache = null;
+function autoCatalog() {
+  if (autoCatalogCache) return autoCatalogCache;
+  const list = [];
+  for (const rx of REACTIONS.concat(MAYHEM_REACTIONS)) {
+    const req = requirementOf(rx);
+    if (!req) continue;
+    let buildable = true;
+    for (const entry of rx.products) {
+      const n = entry[1];
+      if (!Number.isInteger(n) || n < 1 || !productTemplate(entry[0])) { buildable = false; break; }
+    }
+    if (!buildable) continue;
+    list.push({ rx, req });
+  }
+  autoCatalogCache = list;
+  return list;
+}
+// How many whole copies of an equation the scene can pay for. A species the
+// atmosphere is entitled to donate is not counted: it arrives with the environment.
+function autoScaled(rx, req, classes, bonus) {
+  if (!req) return null;
+  let s = AUTO_MAX_COPIES;
+  for (const { norm, n } of req) {
+    if (bonus.has(norm)) continue;
+    const avail = classes.get(norm) || 0;
+    if (avail < n) return null;
+    s = Math.min(s, Math.floor(avail / n));
+  }
+  if (s < 1) return null;
+  if (s === 1) return rx;
+  const reactants = {};
+  for (const [f, n] of Object.entries(rx.reactants)) reactants[f] = n * s;
+  const products = rx.products.map(([f, n]) => [f, n * s]);
+  const fmt = ([f, n]) => `${n === 1 ? "" : n}${f}${rx.phases && rx.phases[f] || ""}`;
+  return { ...rx, reactants, products, equation: `${Object.entries(reactants).map(([f, n]) => fmt([f, n])).join(" + ")} -> ${products.map(fmt).join(" + ")}` };
+}
+
+// The scene keys its species by the sorted atom-count spelling, while the structure
+// table is keyed by whatever formula its author wrote (CaOH2 for calcium hydroxide).
+// The builders only find a species when they are handed the spelling the table
+// answers to, so the two are joined through an alias index that follows T.
+const displayByNorm = /* @__PURE__ */ new Map();
+let templateAliasCache = null;
+function templateAlias() {
+  const size = Object.keys(T).length;
+  if (templateAliasCache && templateAliasCache.size === size) return templateAliasCache.map;
+  const m = /* @__PURE__ */ new Map();
+  for (const key of Object.keys(T)) {
+    const norm = normalizeFormula(key);
+    if (!m.has(norm)) m.set(norm, key);
+  }
+  templateAliasCache = { size, map: m };
+  return m;
+}
+function sceneSpellings(classes) {
+  const alias = templateAlias();
+  const out = /* @__PURE__ */ new Map();
+  for (const norm of classes.keys()) out.set(norm, alias.get(norm) || displayByNorm.get(norm) || norm);
+  return out;
+}
+/* ── Generated routes: balanced rearrangements nobody wrote down ── */
+// The catalog and the builders can only offer equations somebody authored. This
+// enumerator covers the rest: it takes the species the world can supply right now
+// and searches for whole-number product sets that conserve every element. A route
+// is offered only when the reference table cites every species in it and a
+// structure exists to build each product from, so what comes out is priced and
+// executable rather than merely balanced on paper.
+const AUTO_GEN_MAX_SPECIES = 8;
+const AUTO_GEN_MAX_RHS = 3;
+const AUTO_GEN_MAX_COEFF = 4;
+const AUTO_GEN_MAX_PRODUCT_COEFF = 8;
+const AUTO_GEN_MAX_WORK = 150000;
+const AUTO_GEN_MAX_ROUTES = 32;
+let genUniverse = null;
+function generatedUniverse() {
+  const rows = typeof window === "undefined" ? null : window.URPEReferenceData;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const keys = Object.keys(T).length;
+  if (genUniverse && genUniverse.rows === rows && genUniverse.keys === keys) return genUniverse.list;
+  const list = [];
+  for (const row of rows) {
+    const f = row && row.formula;
+    // An ion needs a counter-ion the scene has no way to price, and a species with
+    // no cited enthalpy or entropy cannot be priced either.
+    if (!f || /[+\-]/.test(f)) continue;
+    const d = row.data || {};
+    if (!Number.isFinite(d.hf) || !Number.isFinite(d.s)) continue;
+    if (d.phase === "aq") continue;
+    const tpl = productTemplate(f);
+    if (!tpl || !Array.isArray(tpl.atoms) || !tpl.atoms.length) continue;
+    const comp = parseFormula(f);
+    if (!comp.size) continue;
+    list.push({ formula: f, norm: normalizeFormula(f), parts: [...comp.entries()] });
+  }
+  list.sort((x, y) => x.formula.localeCompare(y.formula));
+  genUniverse = { rows, keys, list };
+  return list;
+}
+function generatedCandidates(classes, bonus, emit) {
+  const uni = generatedUniverse();
+  if (!uni || uni.length < 2) return;
+  const supply = [];
+  for (const sp of uni) {
+    const have = classes.get(sp.norm) || 0;
+    if (have > 0) supply.push({ sp, max: Math.min(have, AUTO_GEN_MAX_COEFF), scene: true });
+    else if (bonus.has(sp.norm)) supply.push({ sp, max: AUTO_GEN_MAX_COEFF, scene: false });
+  }
+  if (!supply.length) return;
+  supply.sort((x, y) => x.scene === y.scene ? y.max - x.max || x.sp.formula.localeCompare(y.sp.formula) : (x.scene ? -1 : 1));
+  const side = supply.slice(0, AUTO_GEN_MAX_SPECIES);
+  // One, two or three species on the left, each with 1..4 molecules; three-species
+  // sides stay small because the count of sides, not the chemistry, is the cost.
+  const sides = [];
+  for (let i = 0; i < side.length; i++)
+    for (let a = 1; a <= side[i].max; a++) sides.push([[i, a]]);
+  for (let i = 0; i < side.length; i++)
+    for (let j = i + 1; j < side.length; j++)
+      for (let a = 1; a <= side[i].max; a++)
+        for (let b = 1; b <= side[j].max; b++) sides.push([[i, a], [j, b]]);
+  for (let i = 0; i < side.length; i++)
+    for (let j = i + 1; j < side.length; j++)
+      for (let k = j + 1; k < side.length; k++)
+        for (let a = 1; a <= 3; a++)
+          for (let b = 1; b <= 3; b++)
+            for (let c = 1; c <= 3; c++)
+              if (a + b + c <= 5) sides.push([[i, a], [j, b], [k, c]]);
+  const gcd2 = (x, y) => y ? gcd2(y, x % y) : x;
+  const seenRoute = new Set();
+  let work = AUTO_GEN_MAX_WORK;
+  let routes = 0;
+  const emitRoute = (spec, products) => {
+    const net = new Map();
+    for (const [i, c] of spec) { const f = side[i].sp.formula; net.set(f, (net.get(f) || 0) - c); }
+    for (const [sp, c] of products) net.set(sp.formula, (net.get(sp.formula) || 0) + c);
+    let g = 0, left = 0, right = 0, paid = false;
+    for (const [f, nu] of net) {
+      if (!nu) continue;
+      g = gcd2(g, Math.abs(nu));
+      if (nu < 0) {
+        left++;
+        // A species the atmosphere donates arrives with the environment; the scene
+        // still has to consume a molecule of its own or nothing would react.
+        if ((classes.get(normalizeFormula(f)) || 0) >= -nu) paid = true;
+      } else right++;
+    }
+    if (!left || !right || !paid || g > 1) return;
+    // A species the enumerator both consumes and makes cancels out of the net
+    // equation entirely; writing it with a coefficient of zero would be a term
+    // that does not exist.
+    const lhs = [], rhs = [];
+    for (const [f, nu] of [...net.entries()].sort((x, y) => x[0].localeCompare(y[0]))) {
+      if (!nu) continue;
+      if (nu < 0) lhs.push([f, -nu]);
+      else rhs.push([f, nu]);
+    }
+    const fmt = ([f, n]) => `${n === 1 ? "" : n}${f}`;
+    const equation = `${lhs.map(fmt).join(" + ")} -> ${rhs.map(fmt).join(" + ")}`;
+    if (seenRoute.has(equation)) return;
+    seenRoute.add(equation);
+    routes++;
+    emit({ reactants: Object.fromEntries(lhs), products: rhs, condition: "env", equation, generated: true });
+  };
+  for (const spec of sides) {
+    if (work <= 0 || routes >= AUTO_GEN_MAX_ROUTES) break;
+    if (!spec.some(([i]) => side[i].scene)) continue;
+    const budget = new Map();
+    for (const [i, c] of spec)
+      for (const [el, k] of side[i].sp.parts) budget.set(el, (budget.get(el) || 0) + k * c);
+    const usable = [];
+    for (const sp of uni) {
+      let fits = true;
+      for (const [el, k] of sp.parts) if ((budget.get(el) || 0) < k) { fits = false; break; }
+      if (fits) usable.push(sp);
+    }
+    work -= usable.length + 4;
+    if (!usable.length) continue;
+    const left = new Map(budget);
+    const chosen = [];
+    const dfs = (from, depth) => {
+      for (let i = from; i < usable.length; i++) {
+        // Charge the search per species visited, not per recursion level: one level
+        // loops over the whole usable list, so counting levels would let the real
+        // cost run far ahead of the budget and stall the frame.
+        if (work-- <= 0 || routes >= AUTO_GEN_MAX_ROUTES) return;
+        const sp = usable[i];
+        let c = 0;
+        // Each round takes one more copy of this species on top of the ones already
+        // taken, so the entries in chosen and the counts in left always agree.
+        for (; c < AUTO_GEN_MAX_PRODUCT_COEFF; c++) {
+          if (work-- <= 0 || routes >= AUTO_GEN_MAX_ROUTES) break;
+          let fits = true;
+          for (const [el, k] of sp.parts) if ((left.get(el) || 0) < k) { fits = false; break; }
+          if (!fits) break;
+          for (const [el, k] of sp.parts) left.set(el, left.get(el) - k);
+          chosen.push([sp, c + 1]);
+          let spent = true;
+          for (const v of left.values()) if (v > 0) { spent = false; break; }
+          if (spent) emitRoute(spec, chosen);
+          else if (depth + 1 < AUTO_GEN_MAX_RHS) dfs(i + 1, depth + 1);
+          chosen.pop();
+        }
+        for (let u = 0; u < c; u++) for (const [el, k] of sp.parts) left.set(el, left.get(el) + k);
+      }
+    };
+    dfs(0, 0);
+  }
+}
+let autoScan = { sig: null, list: [] };
+function autoReactionCandidates(force) {
+  const sig = sceneSignature();
+  if (!force && sig === autoScan.sig) return autoScan.list;
+  const classes = sceneSpeciesClasses();
+  const out = [];
+  if (classes.size) {
+    const bonus = new Set(envAtmosphereGases().map((f) => normalizeFormula(f)));
+    const spell = sceneSpellings(classes);
+    const seen = new Set();
+    const push = (cand) => {
+      if (!cand || out.length >= AUTO_MAX_CANDIDATES) return;
+      if (!conservesEveryElement(cand)) return;
+      const stamped = acceptReaction(cand);
+      if (!stamped) return;
+      const key = stamped.equation + "@" + stamped.condition;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(stamped);
+    };
+    for (const route of autoCatalog()) {
+      if (!route.req.some((r) => classes.has(r.norm))) continue;
+      push(autoScaled(route.rx, route.req, classes, bonus));
+    }
+    // Each builder is written against a two- or three-species mixture, so the
+    // scene is offered to them one species subset at a time.
+    const names = [...classes.keys()].sort((a, b) => classes.get(b) - classes.get(a) || a.localeCompare(b)).slice(0, AUTO_MAX_CLASSES);
+    const combos = [];
+    const walk = (start, pick) => {
+      if (pick.length) combos.push(pick.slice());
+      if (pick.length >= AUTO_MAX_SUBSET) return;
+      for (let i = start; i < names.length; i++) { pick.push(names[i]); walk(i + 1, pick); pick.pop(); }
+    };
+    walk(0, []);
+    for (const subset of combos) {
+      const have = new Map();
+      for (const f of subset) have.set(f, classes.get(f));
+      const keys = [...have.keys()].map((f) => spell.get(f) || f);
+      for (const tryFn of ALL_DYNAMIC_CHECKS) {
+        for (const cand of candidatesOf(tryFn(keys, have))) push(autoScaled(cand, requirementOf(cand), classes, bonus));
+      }
+      if (subset.length >= 2) {
+        const comps = keys.map((f) => productTemplate(f));
+        if (comps.every((c) => c && Array.isArray(c.atoms) && c.atoms.length)) {
+          for (const tryFn of ALL_STRUCT_CHECKS) {
+            for (const cand of candidatesOf(tryFn(comps, have))) push(autoScaled(cand, requirementOf(cand), classes, bonus));
+          }
+        }
+      }
+      if (out.length >= AUTO_MAX_CANDIDATES) break;
+    }
+    if (out.length < AUTO_MAX_CANDIDATES) generatedCandidates(classes, bonus, push);
+  }
+  autoScan = { sig, list: out };
+  return autoScan.list;
+}
+function executeReaction(rx) {
+  updateCatalystTracking();
+  const selComps = reactantComps(rx);
+  if (!selComps) return false;
   const consumedIds = [];
   for (const c of selComps) for (const id of c.atoms) consumedIds.push(id);
   const consumedSet = new Set(consumedIds);
@@ -61488,8 +61498,7 @@ function executeReaction(rx) {
   for (const [key, n] of rx.products) {
     if (!Number.isInteger(n) || n < 1 || !productTemplate(key)) {
       status(t("status.reactionFailed", { product: key }), "err");
-      clearReactionSel();
-      return;
+      return false;
     }
     for (let i = 0; i < n; i++) instances.push(key);
   }
@@ -61507,7 +61516,7 @@ function executeReaction(rx) {
   if (rx.effect) {
     executeMayhemEffect(rx, consumedIds, cen);
     catalystFX.dispose();
-    return;
+    return true;
   }
   const pool = /* @__PURE__ */ new Map();
   for (const id of consumedIds) {
@@ -61542,8 +61551,7 @@ function executeReaction(rx) {
         const el = elementBySym(sym);
         if (!el) {
           status(t("status.reactionFailed", { product: instances[i] }), "err");
-          clearReactionSel();
-          return;
+          return false;
         }
         id = nextId++;
         atoms.set(id, { id, el, pos: { x: center.x, y: center.y, z: center.z } });
@@ -61569,7 +61577,6 @@ function executeReaction(rx) {
   for (const [, arr] of pool) {
     for (const id of arr) atoms.delete(id);
   }
-  clearReactionSel();
   selectedId = null;
   // The spiral a product is written on says where the molecule appeared, not what
   // it looks like: carbon dioxide comes out with both oxygens on the same side of
@@ -61598,7 +61605,7 @@ function executeReaction(rx) {
   status(t("status.reactionDone", { cond: condLabel(rx.condition), eq: prettyEq(rx.equation) }), "ok");
   verifyReactionProducts(rx, newCompKeys, consumedIds.length);
   window.dispatchEvent(new CustomEvent("mol3d:reaction-completed", { detail: {
-    equation: rx.equation, condition: rx.condition, reactants: formulas,
+    equation: rx.equation, condition: rx.condition, reactants: Object.keys(rx.reactants || {}),
     productIds: newCompKeys.flatMap(({ key }) => key.split(",").map(Number))
   } }));
   showRxnOverlay(rx);
@@ -61631,11 +61638,11 @@ function executeReaction(rx) {
     questManager.checkReaction(rx.type);
   }
   worldSync.sendWorldSync(getWorldState);
+  return true;
 }
 const mayhemParticles = [];
 function executeMayhemEffect(rx, consumedIds, cen) {
   for (const id of consumedIds) atoms.delete(id);
-  clearReactionSel();
   selectedId = null;
   reanalyze();
   const effectColors = {
@@ -62000,7 +62007,6 @@ function pickBond() {
   return best;
 }
 function onPointerDown(e) {
-  lastPointerType = e.pointerType || "mouse";
   if (e.button === 2) {
     setNDC(e);
     // Recorded so pointerup can tell a right-click on a bond from a pan drag;
@@ -62107,7 +62113,6 @@ function updateGhost() {
   ghost.visible = true;
 }
 function onPointerUp(e) {
-  trackDoubleTap(e);
   if (drag) {
     const d = drag;
     drag = null;
@@ -62154,27 +62159,9 @@ function onPointerUp(e) {
     }
   }
 }
-let tapT = 0, tapX = 0, tapY = 0;
-function trackDoubleTap(e) {
-  if ((e.pointerType || "mouse") !== "touch" || e.target !== renderer.domElement) return;
-  const now = performance.now();
-  if (tapT && now - tapT < 350 && Math.hypot(e.clientX - tapX, e.clientY - tapY) < 32) {
-    tapT = 0;
-    handleReactionPick(e);
-  } else {
-    tapT = now;
-    tapX = e.clientX;
-    tapY = e.clientY;
-  }
-}
 renderer.domElement.addEventListener("dblclick", (e) => {
-  if (lastPointerType === "touch") return;
   const remotePlayer = pickRemotePlayer(e);
-  if (remotePlayer && remotePlayer.isDead && !isPlayerDead) {
-    showReviveModal(remotePlayer);
-    return;
-  }
-  handleReactionPick(e);
+  if (remotePlayer && remotePlayer.isDead && !isPlayerDead) showReviveModal(remotePlayer);
 });
 function pickRemotePlayer(e) {
   setNDC(e);
@@ -62204,27 +62191,6 @@ function showReviveModal(remotePlayer) {
     modal.style.display = "flex";
     modal.dataset.targetPlayerId = remotePlayer.peerId;
   }
-}
-function handleReactionPick(e) {
-  setNDC(e);
-  const hit = pickAtom();
-  if (hit === null) {
-    clearReactionSel();
-    status(t("status.selCleared"));
-    return;
-  }
-  const comp = componentOf(atoms, bonds, hit);
-  const key = compKey(comp);
-  if (reactionSel.has(key)) {
-    reactionSel.delete(key);
-    status(t("status.selRemoved"));
-  } else {
-    reactionSel.add(key);
-    status(t("status.selAdded", { n: reactionSel.size }), "info");
-  }
-  rebuildReactionSelIds();
-  updateRxnPanel();
-  invalidate();
 }
 function buildPeriodicTable() {
   const wrap = document.getElementById("ptable");
@@ -64940,6 +64906,7 @@ const environment = {
   ]
 };
 const ENV_TEMP_SPAN = { min: 1, max: 6000 };
+const ENV_STANDARD_TEMP_K = 298.15;
 const ENV_PRESSURE_SPAN = { min: 1e-6, max: 2000 };
 const ENV_PRESETS = {
   air: { temperatureK: 298.15, pressureAtm: 1, gases: [{ formula: "N2", ratio: 78 }, { formula: "O2", ratio: 21 }, { formula: "Ar", ratio: 0.93 }, { formula: "CO2", ratio: 0.04 }] },
@@ -65339,6 +65306,10 @@ document.getElementById("btn-env-menu").addEventListener("click", openEnvModal);
 document.getElementById("env-modal-close").addEventListener("click", closeEnvModal);
 document.getElementById("env-temp-range").addEventListener("input", (e) => {
   environment.temperatureK = envValueFromSlider(parseFloat(e.target.value), ENV_TEMP_SPAN);
+  // A 0-100 slider mapped onto 1-6000 K cannot land on 298.15 K, and every species
+  // without a measured heat capacity is unusable once the room is off its reference.
+  // Passing through standard state therefore parks on it exactly.
+  if (Math.abs(environment.temperatureK - ENV_STANDARD_TEMP_K) <= 1) environment.temperatureK = ENV_STANDARD_TEMP_K;
   const num = document.getElementById("env-temp-num");
   if (num) num.value = String(Math.round(environment.temperatureK * 100) / 100);
   applyEnvironment();
@@ -65501,7 +65472,6 @@ window.addEventListener("keydown", (e) => {
     }
   } else if (e.key === "Escape") {
     closeMobileSheets();
-    clearReactionSel();
     selectAtom(null);
   }
 });
@@ -65593,9 +65563,6 @@ function refreshTranslations() {
   if (ph) ph.textContent = t("ptable.ph");
   buildLegend();
   renderPoolNames();
-  for (const b of document.querySelectorAll("#rxn-conds button"))
-    b.textContent = condLabel(b.dataset.cond);
-  updateRxnPanel();
   updateInspector();
   updateMoleculeList();
   updateDiscList();
@@ -65779,6 +65746,7 @@ function frame(now) {
   for (const [, at] of atoms) { if (at._decayShake) { active = true; break; } }
   updateMolecularDecay(now, dt);
   updateReactivitySweep(now);
+  if (window.__mol3dAuto) window.__mol3dAuto.tick(now, timeFrozen ? 0 : dt * timeSpeed);
   checkAndRearrangeMolecules();
   updateHealth(now, dt);
   updatePhaseState(dt);
@@ -66127,35 +66095,6 @@ window.__mol3d = {
   devOrder: (bid, n) => setBondOrder(bid, n),
   devUnbond: (bid) => removeBond(bid),
   devRemove: (id) => removeAtom(id),
-  reaction: {
-    selectByFormula: (f) => {
-      for (const c of lastComps) {
-        const k = compKey(c);
-        if (reactionSel.has(k)) continue;
-        const i = lastComps.indexOf(c);
-        if (analyses[i]?.displayFormula === f || analyses[i]?.formula === f) {
-          reactionSel.add(k);
-          rebuildReactionSelIds();
-          updateRxnPanel();
-          invalidate();
-          return true;
-        }
-      }
-      return false;
-    },
-    pick: (cond) => {
-      const fs = selectedFormulas();
-      const atmosphereGases = envAtmosphereGases();
-      const rx = findReaction(fs, cond, selectedStructures(), atmosphereGases);
-      if (rx) {
-        executeReaction(rx);
-        return rx.equation;
-      }
-      const valid = conditionsFor(fs, selectedStructures(), atmosphereGases);
-      return valid.size ? `wrong-condition:${[...valid].join(",")}` : "none";
-    },
-    clear: clearReactionSel
-  },
   fc: () => fcVisible,
   setFc: setFcVisible,
   labels: () => atomLabelsVisible,
@@ -66210,6 +66149,28 @@ window.__mol3d = {
   },
   get invalidate() {
     return invalidate;
+  },
+  auto: {
+    candidates: (force) => autoReactionCandidates(force),
+    species: () => sceneSpeciesClasses(),
+    signature: () => sceneSignature(),
+    execute: (rx) => executeReaction(rx),
+    stoichBlock: (rx) => buildAutoStoichBlock(rx),
+    atmosphereGases: () => envAtmosphereGases(),
+    template: (f) => productTemplate(f),
+    bondEnergies: () => BDE_TABLE,
+    catalysts: () => CATALYST_DB.slice(),
+    normalize: (f) => normalizeFormula(f),
+    molarMass: (f) => molarMass(f),
+    atomElement: (id) => { const a = atoms.get(id); return a && a.el ? a.el.sym : null; },
+    catalystFor: (formula) => getCatalystData(formula),
+    elementBySymbol: (sym) => ELEMENTS.find((e) => e.sym === sym) || null,
+    conditions: () => CONDITIONS.map((c) => c.key),
+    condLabel: (k) => condLabel(k),
+    prettyEq: (s) => prettyEq(s),
+    mayhemOn: () => mayhemMode,
+    lang: () => getLang(),
+    t: (key, params) => t(key, params)
   }
 };
 console.log("%c🧪 MOLECULITH loaded", "color: #4CAF50; font-weight: bold;");
@@ -66242,7 +66203,6 @@ load();
 loadDiscoveries();
 buildPool();
 buildLegend();
-buildRxnPanel();
 initStoichPanel();
 updateChallengeList();
 updateDiscList();
@@ -66352,7 +66312,7 @@ function initBackgroundMusic() {
     base: "https://tokenharbor.ai/v1",
     key: "thk_live_fMbZYtHtJRrpNDbOUhWKqCyw98_mzyB0jcf8sMHfXz0zEXkUGle3NYg6zVIiAEDk",
     model: "mimo-v2.6-flash:free",
-    cooldownMs: 10000,
+    cooldownMs: 30000,
   }, (typeof window !== "undefined" && window.__QUEST_API) || {});
   let qMode = null;
   let lastGuestAt = 0;
@@ -66565,7 +66525,7 @@ ${scene}`;
         setQuestMode("account");
       } catch (e) { addQuestMessage("system", t("quest.signinFailed", { error: e.message || t("quest.unknownError") })); }
     });
-    mk(qt("⚡ Guest API · 1 msg / 10 s", "⚡ API khách · 1 tin / 10 s"), () => setQuestMode("guest"));
+    mk(qt("⚡ Guest API · 1 msg / " + GUEST.cooldownMs / 1000 + " s", "⚡ API khách · 1 tin / " + GUEST.cooldownMs / 1000 + " s"), () => setQuestMode("guest"));
     questMessages.appendChild(wrap);
     addQuestMessage("system", qt("Sign-in is unlimited. Guest uses the app\u2019s API key with a 10-second cooldown between messages.", "Đăng nhập không giới hạn. Chế độ khách dùng API key của ứng dụng với thời gian chờ 10 giây giữa mỗi tin nhắn."));
   }

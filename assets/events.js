@@ -75,7 +75,7 @@
       kingPaidAll: 'Refunded {n} atoms from the crate for {v}★',
       kingProg: '{n} atoms refunded · {v}★ paid · bonus {b}/{c}★ used',
       kingCrate: 'HIS CRATE', kingCrateNote: 'Never on the crate shelf — it is only here, and only while He watches.',
-      kingCrateItems: '{n} samples · 1 exclusive title', kingOpen: 'OPEN'
+      kingCrateItems: '{n} samples · the best odds in the game', kingOpen: 'OPEN'
     },
     vi: {
       status: 'TRẠNG THÁI SỰ KIỆN', none: 'Không có sự kiện nào', next: 'Lần kiểm tra sự kiện tới sau',
@@ -104,7 +104,7 @@
       kingPaidAll: 'Đã hoàn {n} nguyên tử trong kho lấy {v}★',
       kingProg: 'đã hoàn {n} nguyên tử · trả {v}★ · dùng {b}/{c}★ thưởng',
       kingCrate: 'RƯƠNG CỦA NGƯỜI', kingCrateNote: 'Chưa bao giờ bày ở kệ thùng — chỉ có ở đây, và chỉ khi Người đang ngắm.',
-      kingCrateItems: '{n} mẫu · kèm 1 danh hiệu độc quyền', kingOpen: 'MỞ'
+      kingCrateItems: '{n} mẫu · tỉ lệ hiếm cao nhất game', kingOpen: 'MỞ'
     }
   };
 

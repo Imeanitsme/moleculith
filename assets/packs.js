@@ -48,30 +48,35 @@
     elite: [20, 30], jackpot: [30, 40], king: [50, 100]
   };
 
+  // The crate animation that runs behind a dossier. The file is 800x450, 209
+  // frames, one pass = 6970 ms, and the shortest dossier lasts 6400 ms, so it is
+  // always pulled before the gif could restart - one pass per cutscene.
+  var PACK_GIF = './OtherAssets/PACKANIMATION.gif';
+  var gifPreloaded = null;
+  function preloadGif() { if (!gifPreloaded) { gifPreloaded = new Image(); gifPreloaded.src = PACK_GIF; } }
+
   function stars(n, r) { return { id: 'stars-' + n, kind: 'stars', rarity: r, value: n, icon: 'star', name: { en: n + ' Stars', vi: n + ' Sao' }, desc: { en: 'Added to your balance.', vi: 'Cộng vào số dư.' } }; }
   function atom(sym, z, n, r, v) { return { id: 'atom-' + sym + '-' + n, kind: 'atom', z: z, count: n, sym: sym, rarity: r, value: v, icon: 'atom', name: { en: n + ' × ' + sym + ' atoms', vi: n + ' × nguyên tử ' + sym }, desc: { en: 'Added to your element stock.', vi: 'Thêm vào kho nguyên tố.' } }; }
   function boost(pct, uses, r, v) { return { id: 'boost-' + pct + '-' + uses, kind: 'boost', rate: 1 - pct / 100, uses: uses, hours: 2, rarity: r, value: v, icon: 'badge-percent', name: { en: 'Catalyst −' + pct + '% ×' + uses, vi: 'Chất xúc tác −' + pct + '% ×' + uses }, desc: { en: 'Your next ' + uses + ' shop purchases within 2 h cost ' + pct + '% less.', vi: uses + ' lần mua tiếp theo trong 2 giờ rẻ hơn ' + pct + '%.' } }; }
   function ammo(n, r, v) { return { id: 'ammo-proton-' + n, kind: 'ammo', ammo: 'proton', count: n, rarity: r, value: v, icon: 'crosshair', name: { en: n + ' proton rounds', vi: n + ' viên proton' }, desc: { en: 'Ammo for the Proton gun.', vi: 'Đạn cho súng Proton.' } }; }
   function feat(id, icon, en, vi, r, v) { return { id: 'feat-' + id, kind: 'feature', feature: id, rarity: r, value: v, icon: icon, name: { en: en, vi: vi }, desc: { en: 'Unlocks the feature. Already owned: pays 35% of its value in stars.', vi: 'Mở khóa tính năng. Nếu đã có: trả 35% giá trị bằng sao.' } }; }
   function title(id, icon, en, vi, r, v) { return { id: 'title-' + id, kind: 'title', rarity: r, value: v, icon: icon, name: { en: en, vi: vi }, desc: { en: 'A collectible title shown in your lab collection. Duplicates pay 35% of its value.', vi: 'Danh hiệu sưu tầm hiển thị trong bộ sưu tập. Trùng lặp trả 35% giá trị.' } }; }
-  // k: 1 marks loot that only the King Pack holds - the three exclusive titles and
-  // the bulk stacks. rollPack() hides these from every ordinary crate.
-  function kg(it) { it.k = 1; return it; }
-
+  // Every crate draws from this one table. The tiers differ only in how often
+  // each rarity comes up (PACKS.rates) and how many atoms a drop gifts
+  // (ATOM_QTY) - never in what can be found inside.
   var POOL = {
     common: [stars(3, 'common'), stars(5, 'common'), stars(8, 'common'), atom('H', 1, 5, 'common', 5), atom('He', 2, 4, 'common', 7), atom('Li', 3, 3, 'common', 9), atom('C', 6, 3, 'common', 6), atom('O', 8, 3, 'common', 6), atom('N', 7, 3, 'common', 6)],
     uncommon: [stars(15, 'uncommon'), stars(20, 'uncommon'), atom('Na', 11, 3, 'uncommon', 12), atom('Mg', 12, 3, 'uncommon', 13), atom('Al', 13, 3, 'uncommon', 13), atom('Si', 14, 3, 'uncommon', 14), atom('S', 16, 3, 'uncommon', 12), atom('Cl', 17, 3, 'uncommon', 12), atom('K', 19, 3, 'uncommon', 15), atom('Ca', 20, 3, 'uncommon', 15), ammo(10, 'uncommon', 10), boost(10, 2, 'uncommon', 15)],
     rare: [stars(40, 'rare'), stars(60, 'rare'), atom('Ti', 22, 3, 'rare', 48), atom('Fe', 26, 3, 'rare', 45), atom('Ni', 28, 3, 'rare', 46), atom('Cu', 29, 3, 'rare', 45), atom('Zn', 30, 3, 'rare', 46), atom('Sn', 50, 2, 'rare', 62), boost(20, 3, 'rare', 50), title('apprentice', 'graduation-cap', 'Lab Apprentice', 'Học việc Phòng thí nghiệm', 'rare', 40),
-      kg(atom('C', 6, 60, 'rare', 180)), kg(atom('Fe', 26, 15, 'rare', 270))],
+      atom('C', 6, 60, 'rare', 180), atom('Fe', 26, 15, 'rare', 270)],
     epic: [stars(120, 'epic'), atom('Ag', 47, 3, 'epic', 120), atom('Pt', 78, 2, 'epic', 130), atom('Au', 79, 2, 'epic', 140), atom('Hg', 80, 2, 'epic', 135), atom('Pb', 82, 2, 'epic', 125), boost(35, 3, 'epic', 130), title('chemist', 'flask-round', 'Master Chemist', 'Bậc thầy Hóa học', 'epic', 120),
-      kg(atom('Ag', 47, 15, 'epic', 405)), kg(stars(600, 'epic')), kg(title('crowned', 'crown', 'The Crowned', 'Kẻ Đội Vương Miện', 'epic', 450))],
+      atom('Ag', 47, 15, 'epic', 405), stars(600, 'epic'), title('crowned', 'crown', 'The Crowned', 'Kẻ Đội Vương Miện', 'epic', 450)],
     legendary: [stars(350, 'legendary'), feat('xray', 'scan-eye', 'X-ray Vision', 'Tầm nhìn X-quang', 'legendary', 300), feat('timeSpeed', 'fast-forward', 'Time Speed', 'Tăng tốc Thời gian', 'legendary', 350), atom('Bi', 83, 4, 'legendary', 330), atom('Rn', 86, 3, 'legendary', 380), atom('Th', 90, 5, 'legendary', 470), title('nobel', 'medal', 'Nobel Laureate', 'Chủ nhân Nobel', 'legendary', 350),
-      kg(atom('U', 92, 12, 'legendary', 960)), kg(atom('Au', 79, 20, 'legendary', 780)), kg(title('sovereign', 'gem', 'Sovereign of Matter', 'Chúa tể Vật chất', 'legendary', 1400))],
+      atom('U', 92, 12, 'legendary', 960), atom('Au', 79, 20, 'legendary', 780), title('sovereign', 'gem', 'Sovereign of Matter', 'Chúa tể Vật chất', 'legendary', 1400)],
     mythical: [stars(1500, 'mythical'), feat('mayhem', 'flame', 'Mayhem Mode', 'Chế độ Hỗn loạn', 'mythical', 1200), feat('timeStop', 'clock', 'Time Stop', 'Ngưng đọng Thời gian', 'mythical', 1200), feat('proton', 'crosshair', 'Proton Gun', 'Súng Proton', 'mythical', 1500), atom('Fl', 114, 4, 'mythical', 980), atom('Ts', 117, 3, 'mythical', 1060), title('alchemist', 'crown', 'Mythic Alchemist', 'Giả kim Thần thoại', 'mythical', 1500),
-      kg(stars(3000, 'mythical')), kg(atom('Og', 118, 20, 'mythical', 1200)), kg(boost(60, 10, 'mythical', 900)), kg(title('watched', 'eye', 'He Has Seen You', 'Hắn Đã Thấy Bạn', 'mythical', 3200))]
+      stars(3000, 'mythical'), atom('Og', 118, 20, 'mythical', 1200), boost(60, 10, 'mythical', 900), title('watched', 'eye', 'He Has Seen You', 'Hắn Đã Thấy Bạn', 'mythical', 3200)]
   };
   var BY_ID = {}; Object.keys(POOL).forEach(function (k) { POOL[k].forEach(function (it) { BY_ID[it.id] = it; }); });
-  var KING_TITLES = ['title-crowned', 'title-sovereign', 'title-watched'].map(function (id) { return BY_ID[id]; });
   var KIND_ICON = { stars: 'star', atom: 'atom', boost: 'badge-percent', ammo: 'crosshair', feature: 'lock-open', title: 'award' };
   function iconOf(it) { var p = BY_ID[it.id]; return (p && p.icon) || KIND_ICON[it.kind] || 'box'; }
   // Atoms gift a per-pack range, so the crate preview shows that range instead
@@ -86,7 +91,7 @@
 
   var STR = {
     en: { tab: 'Lab Crates', open: 'OPEN', items: '{n} samples', rates: 'Stability odds', preview: 'Possible contents', poor: 'Not enough stars ({p} needed)', claimAll: 'COLLECT ALL', back: 'BACK TO SHOP', skip: 'Skip', claimed: 'Collected!', dup: 'Duplicate +{c}★', delivered: 'Recovered an unopened crate: {n} sample(s) delivered.', collection: 'Lab collection', none: 'Nothing collected yet.', fixed: 'Fixed price – discounts and events do not apply.', note: 'Rolls use crypto randomness in your browser; like all saves here it is client-side only.', sfx: 'SFX', music: 'Music', mute: 'Mute', gpName: 'Gift Pack', gpWord: 'A gift is opening…', gpSub: 'From a gift code', gpWorth: 'worth {n}★', gpTotal: 'Total worth {n}★', gpLanded: 'Already added to your crate and collection.', gpGo: 'CONTINUE', beatQty: 'Atoms', beatType: 'Type', beatZ: 'Atomic number' },
-    vi: { tab: 'Thùng thí nghiệm', open: 'MỞ', items: '{n} mẫu', rates: 'Tỉ lệ độ bền', preview: 'Nội dung có thể có', poor: 'Không đủ sao (cần {p})', claimAll: 'THU THẬP TẤT CẢ', back: 'QUAY LẠI CỬA HÀNG', skip: 'Bỏ qua', claimed: 'Đã thu thập!', dup: 'Trùng +{c}★', delivered: 'Đã khôi phục một thùng chưa mở: giao {n} mẫu.', collection: 'Bộ sưu tập phòng thí nghiệm', none: 'Chưa sưu tầm gì.', fixed: 'Giá cố định – không áp dụng giảm giá hay sự kiện.', note: 'Kết quả dùng ngẫu nhiên mật mã trong trình duyệt; như mọi dữ liệu lưu ở đây, chỉ phía máy khách.', sfx: 'Hiệu ứng', music: 'Nhạc', mute: 'Tắt tiếng', gpName: 'Gift Pack', gpWord: 'Đang mở quà…', gpSub: 'Từ mã quà tặng', gpWorth: 'giá trị {n}★', gpTotal: 'Tổng giá trị {n}★', gpLanded: 'Đã cộng vào kho và bộ sưu tập của bạn.', gpGo: 'TIẾP TỤC', beatQty: 'Nguyên tử', beatType: 'Loại', beatZ: 'Số nguyên tử', kingNote: 'Rương của Vua mở đúng :00 mỗi giờ, trong 10 phút.', kingExcl: 'Kèm 1 danh hiệu độc quyền.' }
+    vi: { tab: 'Thùng thí nghiệm', open: 'MỞ', items: '{n} mẫu', rates: 'Tỉ lệ độ bền', preview: 'Nội dung có thể có', poor: 'Không đủ sao (cần {p})', claimAll: 'THU THẬP TẤT CẢ', back: 'QUAY LẠI CỬA HÀNG', skip: 'Bỏ qua', claimed: 'Đã thu thập!', dup: 'Trùng +{c}★', delivered: 'Đã khôi phục một thùng chưa mở: giao {n} mẫu.', collection: 'Bộ sưu tập phòng thí nghiệm', none: 'Chưa sưu tầm gì.', fixed: 'Giá cố định – không áp dụng giảm giá hay sự kiện.', note: 'Kết quả dùng ngẫu nhiên mật mã trong trình duyệt; như mọi dữ liệu lưu ở đây, chỉ phía máy khách.', sfx: 'Hiệu ứng', music: 'Nhạc', mute: 'Tắt tiếng', gpName: 'Gift Pack', gpWord: 'Đang mở quà…', gpSub: 'Từ mã quà tặng', gpWorth: 'giá trị {n}★', gpTotal: 'Tổng giá trị {n}★', gpLanded: 'Đã cộng vào kho và bộ sưu tập của bạn.', gpGo: 'TIẾP TỤC', beatQty: 'Nguyên tử', beatType: 'Loại', beatZ: 'Số nguyên tử' }
   };
   function S(k, p) { var s = (STR[lang()] || STR.en)[k] || STR.en[k] || k; for (var key in (p || {})) s = s.split('{' + key + '}').join(String(p[key])); return s; }
 
@@ -208,14 +213,13 @@
   function rollPack(p) {
     var e = econ(), out = [];
     var hold = {};
-    RARITIES.forEach(function (r) { hold[r.id] = POOL[r.id].filter(function (it) { return p.king || !it.k; }); });
+    // One shared prize table: the tier only changes the odds and the amounts.
+    RARITIES.forEach(function (r) { hold[r.id] = POOL[r.id]; });
     for (var i = 0; i < p.n; i++) {
       var r = e.weighted(RARITIES.map(function (x, k) { return { w: p.rates[k], id: x.id }; }));
       var it = e.pick(hold[r.id]);
       out.push(Object.assign({}, it, { name: it.name, desc: it.desc }));
     }
-    // One of the twelve is always an exclusive title, so the crate is never just stars.
-    if (p.king) out[out.length - 1] = Object.assign({}, e.pick(KING_TITLES));
     var q = ATOM_QTY[p.id];
     if (q) out.forEach(function (it) {
       if (!it || it.kind !== 'atom') return;
@@ -297,15 +301,18 @@
       '#pk-cine .rname{position:absolute;font-size:clamp(34px,8vw,84px);font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--rg);text-shadow:0 0 30px var(--rc),0 0 60px var(--rc);opacity:0;transform:scale(.4)}',
       '#pk-cine.s5 .rname{transition:all .6s cubic-bezier(.2,1.6,.4,1);opacity:1;transform:scale(1)}',
       '#pk-cine.r5.s5 .rname{animation:pkMyth 1.2s linear infinite}@keyframes pkMyth{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}',
-      /* ── Z≥79 dossier beats: one attribute at a time, centred, fading in and
-         out through the .on class. Hidden the moment a card stage takes over. ── */
+      /* ── Grand prize dossier beats: one attribute at a time, centred, fading in
+         and out through the .on class. Hidden the moment a card stage takes over. ── */
       '#pk-cine .attr{position:absolute;left:5%;right:5%;top:50%;transform:translateY(-50%) scale(.7);display:flex;flex-direction:column;align-items:center;gap:16px;opacity:0;pointer-events:none;text-align:center;transition:opacity .45s ease,transform .5s cubic-bezier(.2,1.4,.4,1)}',
       '#pk-cine .attr.on{opacity:1;transform:translateY(-50%) scale(1)}',
       '#pk-cine .attr .big{font-size:clamp(76px,17vw,168px);font-weight:900;line-height:.95;color:#fff;text-shadow:0 0 36px var(--rc),0 0 90px var(--rc);font-variant-numeric:tabular-nums}',
       '#pk-cine .attr .txt{font-size:clamp(30px,6.2vw,64px);font-weight:900;text-transform:uppercase;line-height:1.06;letter-spacing:.03em;color:#fff;text-shadow:0 0 30px var(--rc),0 0 70px var(--rc);max-width:100%;text-wrap:balance}',
       '#pk-cine .attr .cap{font-size:clamp(12px,1.8vw,16px);font-weight:800;letter-spacing:.34em;text-transform:uppercase;color:var(--rg)}',
       '#pk-cine .attr .flags{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}',
-      '#pk-cine .attr .flags svg{height:clamp(84px,18vh,160px);width:auto;display:block;border-radius:7px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 3px rgba(255,255,255,.9),0 0 36px rgba(255,255,255,.25)}',
+      '#pk-cine .attr .flags svg,#pk-cine .attr .flags img{height:clamp(84px,18vh,160px);width:auto;display:block;border-radius:7px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 0 3px rgba(255,255,255,.9),0 0 36px rgba(255,255,255,.25)}',
+      '#pk-cine .gbg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .5s ease}',
+      '#pk-cine .gbg.on{opacity:.5}',
+      '#pk-cine .gbg img{width:min(94vw,1000px);height:auto;max-height:86vh;object-fit:contain;filter:saturate(1.15) brightness(.86)}',
       '#pk-cine.s6 .attr,#pk-cine.s7 .attr,#pk-cine.s8 .attr{display:none}',
       '#pk-cine .hero{position:absolute;opacity:0;perspective:900px}',
       '#pk-cine.s6 .hero{opacity:1}',
@@ -421,7 +428,7 @@
     PACKS.forEach(function (p) {
       if (p.king) return;
       var rows = RARITIES.map(function (r, i) { return p.rates[i] > 0 ? '<tr><td style="' + rr(r) + '">' + ic(r.icon) + esc(L(r.name)) + '</td><td>' + p.rates[i] + '%</td></tr>' : ''; }).join('');
-      var prev = RARITIES.map(function (r, i) { return p.rates[i] > 0 ? POOL[r.id].filter(function (it) { return !it.k; }).map(function (it) { return '<li style="' + rr(r) + '">' + ic(iconOf(it)) + esc(previewName(it, p)) + '</li>'; }).join('') : ''; }).join('');
+      var prev = RARITIES.map(function (r, i) { return p.rates[i] > 0 ? POOL[r.id].map(function (it) { return '<li style="' + rr(r) + '">' + ic(iconOf(it)) + esc(previewName(it, p)) + '</li>'; }).join('') : ''; }).join('');
       h += '<div class="pk-card" data-pack="' + p.id + '"><div class="pk-3d"><div class="pk-box" style="background:' + packBg(p) + '">' + ic(p.icon) + '</div></div>' +
         '<div class="pk-name">' + esc(L(p.name)) + '</div><div class="pk-meta">' + esc(S('items', { n: p.n })) + '</div>' +
         '<button class="pk-buy" data-open="' + p.id + '"' + (bal < p.cost || busy ? ' disabled title="' + esc(S('poor', { p: p.cost })) + '"' : '') + '>' + esc(S('open')) + ' · ' + p.cost + '★</button>' +
@@ -447,50 +454,83 @@
   }
   function tabSig() { var e = econ(); return [lang(), busy, e ? Math.floor(e.balance()) : 0, e ? e.inventory().length : 0, e ? e.inventory().reduce(function (n, x) { return n + x.n; }, 0) : 0].join('|'); }
 
-  /* ── Z≥79 dossier: what a heavy atom announces before its card appears.
-     Type and country come from periodic_table_118_elements.json; the type words
-     reuse the bundle's CAT_VI/CAT_EN spellings so the beat matches the periodic
-     table elsewhere. Flags are flat inline SVGs taken from flagicons.lipis.dev
-     (the USSR flag is on neither CDN offered, so it comes from Wikimedia
-     Commons); "Ancient" predates nations and gets a plaque instead. ── */
-  var HTY = {
-    TM: { en: 'Transition metal', vi: 'Kim loại chuyển tiếp' },
-    PT: { en: 'Post-transition metal', vi: 'Kim loại sau chuyển tiếp' },
-    ML: { en: 'Metalloid', vi: 'Á kim' },
-    NG: { en: 'Noble gas', vi: 'Khí hiếm' },
-    AM: { en: 'Alkali metal', vi: 'Kim loại kiềm' },
-    AE: { en: 'Alkaline earth', vi: 'Kim loại kiềm thổ' },
-    AC: { en: 'Actinide', vi: 'Actinide' },
-    UP: { en: 'Unknown properties', vi: 'Tính chất chưa rõ' }
+  /* ── Grand prize dossier: what the crate's most valuable item announces before
+     its card appears. The element type is read from the shipped element table
+     (el.cat), so the beat spells the class exactly as the periodic table does;
+     the country is where the element was first isolated or named, and joint
+     credits are split on ' / '. Flags stay flat: the nations the crate announces
+     most often are drawn inline, the rest load from flagcdn. "Ancient" predates
+     nations and gets a plaque; the USSR is on no CDN, so it is drawn here. ── */
+  var CAT = {
+    alkali: { en: 'Alkali metal', vi: 'Kim loại kiềm' },
+    alkaline: { en: 'Alkaline earth', vi: 'Kim loại kiềm thổ' },
+    transition: { en: 'Transition metal', vi: 'Kim loại chuyển tiếp' },
+    post: { en: 'Post-transition metal', vi: 'Kim loại sau chuyển tiếp' },
+    metalloid: { en: 'Metalloid', vi: 'Á kim' },
+    nonmetal: { en: 'Reactive nonmetal', vi: 'Phi kim' },
+    halogen: { en: 'Halogen', vi: 'Halogen' },
+    noble: { en: 'Noble gas', vi: 'Khí hiếm' },
+    lanthanide: { en: 'Lanthanide', vi: 'Lantanide' },
+    actinide: { en: 'Actinide', vi: 'Actinide' },
+    exotic: { en: 'Exotic', vi: 'Kỳ lạ' }
   };
-  // z: 'TYPE|Country' — Z 79 (gold) through 118 (oganesson).
-  var HEAVY = {
-    79: 'TM|Ancient', 80: 'TM|Ancient', 81: 'PT|United Kingdom', 82: 'PT|Ancient',
-    83: 'PT|Germany', 84: 'PT|France', 85: 'ML|United States', 86: 'NG|Germany',
-    87: 'AM|France', 88: 'AE|France', 89: 'AC|France', 90: 'AC|Norway / Sweden',
-    91: 'AC|Germany / United Kingdom', 92: 'AC|Germany',
-    93: 'AC|United States', 94: 'AC|United States', 95: 'AC|United States',
-    96: 'AC|United States', 97: 'AC|United States', 98: 'AC|United States',
-    99: 'AC|United States', 100: 'AC|United States', 101: 'AC|United States',
-    102: 'AC|United States / Soviet Union', 103: 'AC|United States / Soviet Union',
-    104: 'TM|United States / Soviet Union', 105: 'TM|United States / Soviet Union',
-    106: 'TM|United States', 107: 'TM|Germany', 108: 'TM|Germany',
-    109: 'UP|Germany', 110: 'UP|Germany', 111: 'UP|Germany', 112: 'TM|Germany',
-    113: 'UP|Japan', 114: 'PT|Russia',
-    115: 'UP|Russia / United States', 116: 'UP|Russia / United States',
-    117: 'UP|Russia / United States', 118: 'UP|Russia / United States'
+  function typeOf(z) {
+    var list = (window.__mol3d && window.__mol3d.ELEMENTS) || [];
+    for (var i = 0; i < list.length; i++) { if (list[i].z === z) return CAT[list[i].cat] || null; }
+    return null;
+  }
+  // z: country (or countries) of discovery. Below Z 19 there is no dossier -
+  // those turns keep the plain rarity banner.
+  var DISC = {
+    19: 'United Kingdom', 20: 'United Kingdom', 21: 'Sweden', 22: 'United Kingdom',
+    23: 'Mexico / Sweden', 24: 'France', 25: 'Sweden', 26: 'Ancient', 27: 'France',
+    28: 'Sweden', 29: 'Ancient', 30: 'India', 31: 'France', 32: 'Germany',
+    33: 'Germany', 34: 'Sweden', 35: 'France', 36: 'United Kingdom', 37: 'Germany',
+    38: 'United Kingdom', 39: 'Finland / Sweden', 40: 'Germany', 41: 'Sweden',
+    42: 'Spain / Sweden', 43: 'Italy', 44: 'Russia', 45: 'United Kingdom',
+    46: 'United Kingdom', 47: 'Ancient', 48: 'Germany', 49: 'Germany', 50: 'Ancient',
+    51: 'Ancient', 52: 'Hungary / Romania', 53: 'France', 54: 'United Kingdom',
+    55: 'Germany', 56: 'United Kingdom', 57: 'Sweden', 58: 'Sweden', 59: 'Austria',
+    60: 'Austria', 61: 'United States', 62: 'France', 63: 'France', 64: 'Switzerland',
+    65: 'Sweden', 66: 'France', 67: 'Sweden', 68: 'Sweden', 69: 'Sweden',
+    70: 'Switzerland', 71: 'France', 72: 'Denmark', 73: 'Sweden', 74: 'Spain',
+    75: 'Germany', 76: 'United Kingdom', 77: 'United Kingdom', 78: 'Spain',
+    79: 'Ancient', 80: 'Ancient', 81: 'United Kingdom', 82: 'Ancient',
+    83: 'Germany', 84: 'France', 85: 'United States', 86: 'Germany',
+    87: 'France', 88: 'France', 89: 'France', 90: 'Norway / Sweden',
+    91: 'Germany / United Kingdom', 92: 'Germany',
+    93: 'United States', 94: 'United States', 95: 'United States',
+    96: 'United States', 97: 'United States', 98: 'United States',
+    99: 'United States', 100: 'United States', 101: 'United States',
+    102: 'United States / Soviet Union', 103: 'United States / Soviet Union',
+    104: 'United States / Soviet Union', 105: 'United States / Soviet Union',
+    106: 'United States', 107: 'Germany', 108: 'Germany',
+    109: 'Germany', 110: 'Germany', 111: 'Germany', 112: 'Germany',
+    113: 'Japan', 114: 'Russia',
+    115: 'Russia / United States', 116: 'Russia / United States',
+    117: 'Russia / United States', 118: 'Russia / United States'
   };
   var COUNTRY = {
     'Ancient': { en: 'Ancient', vi: 'Cổ đại' },
-    'United Kingdom': { en: 'United Kingdom', vi: 'Vương quốc Anh' },
-    'Germany': { en: 'Germany', vi: 'Đức' },
-    'France': { en: 'France', vi: 'Pháp' },
-    'United States': { en: 'United States', vi: 'Hoa Kỳ' },
-    'Norway': { en: 'Norway', vi: 'Na Uy' },
-    'Sweden': { en: 'Sweden', vi: 'Thụy Điển' },
+    'United Kingdom': { en: 'United Kingdom', vi: 'Vương quốc Anh', cc: 'gb' },
+    'Germany': { en: 'Germany', vi: 'Đức', cc: 'de' },
+    'France': { en: 'France', vi: 'Pháp', cc: 'fr' },
+    'United States': { en: 'United States', vi: 'Hoa Kỳ', cc: 'us' },
+    'Norway': { en: 'Norway', vi: 'Na Uy', cc: 'no' },
+    'Sweden': { en: 'Sweden', vi: 'Thụy Điển', cc: 'se' },
     'Soviet Union': { en: 'Soviet Union', vi: 'Liên Xô' },
-    'Japan': { en: 'Japan', vi: 'Nhật Bản' },
-    'Russia': { en: 'Russia', vi: 'Nga' }
+    'Japan': { en: 'Japan', vi: 'Nhật Bản', cc: 'jp' },
+    'Russia': { en: 'Russia', vi: 'Nga', cc: 'ru' },
+    'Finland': { en: 'Finland', vi: 'Phần Lan', cc: 'fi' },
+    'Denmark': { en: 'Denmark', vi: 'Đan Mạch', cc: 'dk' },
+    'Switzerland': { en: 'Switzerland', vi: 'Thụy Sĩ', cc: 'ch' },
+    'Austria': { en: 'Austria', vi: 'Áo', cc: 'at' },
+    'Italy': { en: 'Italy', vi: 'Ý', cc: 'it' },
+    'Spain': { en: 'Spain', vi: 'Tây Ban Nha', cc: 'es' },
+    'Mexico': { en: 'Mexico', vi: 'Mexico', cc: 'mx' },
+    'India': { en: 'India', vi: 'Ấn Độ', cc: 'in' },
+    'Hungary': { en: 'Hungary', vi: 'Hungary', cc: 'hu' },
+    'Romania': { en: 'Romania', vi: 'Romania', cc: 'ro' }
   };
   var FLAGS = {
     'Ancient': '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#241b10"/><rect x="18" y="18" width="604" height="444" rx="12" fill="none" stroke="#8a6d2f" stroke-width="10"/><rect x="228" y="116" width="184" height="36" rx="6" fill="#d9a441"/><rect x="250" y="160" width="140" height="18" fill="#d9a441"/><rect x="264" y="186" width="112" height="172" fill="#d9a441"/><rect x="250" y="366" width="140" height="18" fill="#d9a441"/><rect x="228" y="392" width="184" height="36" rx="6" fill="#d9a441"/><g stroke="#241b10" stroke-width="9"><line x1="292" y1="192" x2="292" y2="352"/><line x1="320" y1="192" x2="320" y2="352"/><line x1="348" y1="192" x2="348" y2="352"/></g></svg>',
@@ -505,19 +545,39 @@
     'Soviet Union': '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" id="svg10"><defs id="defs14" /><path fill="#bc0000" fill-opacity="1" d="M0 0h1200v600H0z" id="path2" style="fill:#cc0000;fill-opacity:1" /><path id="path11728" d="m 200.0005,37.5 -8.41933,25.911886 H 164.336 L 186.37777,79.426122 177.95844,105.338 200.0005,89.323465 222.04257,105.338 213.62324,79.426122 235.665,63.411886 h -27.24516 z m 0,13.499987 5.38828,16.583473 h 17.43718 l -14.107,10.249496 5.38827,16.583472 L 200.0005,84.167224 185.89378,94.416428 191.28205,77.832956 177.17504,67.58346 h 17.43718 z" style="fill:#ffd700;fill-opacity:1;stroke:none;stroke-width:0.14999977px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" /><g style="fill:#ffd700;fill-opacity:1" id="g2900" transform="matrix(0.98931879,0,0,0.98673811,3.8297658,3.7659398)"><path id="rect4165-6" d="m 137.43744,171.69421 18.86296,18.9937 17.78834,-17.66589 c 27.05847,29.021 55.43807,56.99501 82.28704,86.12782 4.03444,4.06233 10.59815,4.085 14.66056,0.0506 4.06232,-4.03445 4.08499,-10.59815 0.0506,-14.66056 -28.81871,-27.1901 -57.72545,-54.60143 -86.55328,-81.89095 l 23.96499,-23.80003 -33.34026,-4.61605 z" style="fill:#ffd700;fill-opacity:1;stroke:none;stroke-width:0.48919073;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" /><path id="path4179-3" d="m 198.2887,110.1955 c 15.51743,8.7394 27.29872,21.28122 34.2484,34.3924 7.04394,13.28902 10.13959,27.16218 10.20325,38.25433 0.13054,22.74374 -18.43771,41.18184 -41.18183,41.18184 -12.13597,0 -23.04607,-5.24868 -30.58302,-13.60085 l -4.16863,3.51033 c -0.70999,-0.27231 -1.46387,-0.41221 -2.22429,-0.41276 -1.82948,1.9e-4 -3.56621,0.80531 -4.74859,2.20136 -2.97368,0.38896 -5.46251,2.44529 -6.40534,5.29224 -3.13486,6.28843 -8.63524,11.21997 -15.29104,13.4776 -0.0637,0.0216 -0.11992,0.05 -0.1758,0.0783 -3.07749,1.12758 -6.16259,3.1643 -8.78919,5.80245 -5.19155,5.23656 -7.72858,11.93658 -6.30024,16.63822 -0.14098,0.40857 -0.21361,0.83759 -0.21498,1.26979 1.5e-4,2.17082 1.75991,3.93058 3.93073,3.93073 0.54341,-0.002 1.08053,-0.11639 1.57745,-0.33632 4.69369,1.05881 11.06885,-1.54582 16.05444,-6.55917 2.82624,-2.85072 4.94356,-6.22349 5.98303,-9.53062 2.31696,-6.62278 7.29699,-12.01856 13.62281,-15.05312 0.15105,-0.0725 0.27303,-0.14714 0.38218,-0.22358 2.12082,-1.01408 3.67251,-2.92895 4.225,-5.2139 9.70222,11.44481 24.25255,18.75299 40.51876,19.13577 29.83352,0.70205 52.13299,-21.25802 53.16414,-52.83642 0.51894,-15.89259 -5.62993,-36.3847 -19.6412,-53.19089 -10.70835,-12.84441 -26.40987,-23.50795 -44.18699,-28.20777 z" style="fill:#ffd700;fill-opacity:1;stroke:none;stroke-width:0.50003481;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" /></g></svg>'
   };
 
-  // The four beats a Z≥79 atom walks through before its card appears:
-  // quantity, discovery flag(s), element type, atomic number. Each fades in,
-  // cheers, fades out; the card that flips open afterwards is this item's.
-  function heavyBeats(it) {
-    var meta = HEAVY[it.z].split('|'), type = HTY[meta[0]], names = meta[1].split(' / ');
-    var flags = names.map(function (n) { return FLAGS[n] || ''; }).join('');
-    var cap = names.map(function (n) { return COUNTRY[n] ? L(COUNTRY[n]) : n; }).join(' · ');
-    return [
-      '<div class="big">' + it.count + '</div><div class="cap">' + esc(S('beatQty')) + '</div>',
-      '<div class="flags">' + flags + '</div><div class="cap">' + esc(cap) + '</div>',
-      '<div class="txt">' + esc(L(type)) + '</div><div class="cap">' + esc(S('beatType')) + '</div>',
-      '<div class="big">' + it.z + '</div><div class="cap">' + esc(S('beatZ')) + '</div>'
-    ];
+  // Flat flag markup: the hand-drawn SVG first, then flagcdn for nations with no
+  // local file. A flag that cannot load leaves only its caption.
+  function flagHtml(name) {
+    if (FLAGS[name]) return FLAGS[name];
+    var c = COUNTRY[name];
+    if (!c || !c.cc) return '';
+    return '<img src="https://flagcdn.com/w640/' + c.cc + '.png" alt="' + esc(name) + '" onerror="this.remove()">';
+  }
+  // The beats the grand prize walks through before its card appears: quantity,
+  // discovery flag(s), element type, atomic number. Each fades in, cheers, fades
+  // out, and the card that flips open afterwards is the item just announced.
+  function dossierBeats(it) {
+    var beats = ['<div class="big">' + it.count + '</div><div class="cap">' + esc(S('beatQty')) + '</div>'];
+    // Elements no record names get no flag beat instead of an invented nation.
+    var disc = DISC[it.z];
+    if (disc) {
+      var names = String(disc).split(' / ');
+      beats.push('<div class="flags">' + names.map(flagHtml).join('') + '</div><div class="cap">' +
+        esc(names.map(function (n) { return COUNTRY[n] ? L(COUNTRY[n]) : n; }).join(' · ')) + '</div>');
+    }
+    // No invented classes: if the element table holds no category for this Z,
+    // the type beat is left out.
+    var type = typeOf(it.z);
+    if (type) beats.push('<div class="txt">' + esc(L(type)) + '</div><div class="cap">' + esc(S('beatType')) + '</div>');
+    beats.push('<div class="big">' + it.z + '</div><div class="cap">' + esc(S('beatZ')) + '</div>');
+    return beats;
+  }
+  // The turn's grand prize - the single most valuable drop - or null unless it
+  // is an element heavy enough (Z>18) for the dossier cutscene.
+  function grandPrize(items) {
+    var g = null;
+    items.forEach(function (t) { if (t.value > (g ? g.value : -1)) g = t; });
+    return g && g.kind === 'atom' && g.z > 18 ? g : null;
   }
 
   /* ── cinematic ── */
@@ -528,6 +588,9 @@
     if (p.king && !kingLive()) return;
     if (e.balance() < p.cost) return;
     var items = rollPack(p);
+    // Only fetch the crate animation when this roll actually earns a dossier;
+    // it starts decoding while the pack is still falling.
+    if (grandPrize(items)) preloadGif();
     var rewards = items.map(function (it) {
       return { id: it.id, kind: it.kind, name: L(it.name), rarity: it.rarity, icon: it.icon, desc: L(it.desc), value: it.value, count: it.count, z: it.z, ammo: it.ammo, feature: it.feature, rate: it.rate, uses: it.uses, hours: it.hours, data: { pack: p.id, i18n: { name: it.name, desc: it.desc } } };
     });
@@ -541,17 +604,16 @@
   function play(p, items, txId) {
     injectStyles();
     var best = bestOf(items), br = RARITIES[best], timers = [], claimed = false;
-    // The drop's heaviest atom (Z≥79) is what the dossier announces; it becomes
-    // the hero card, wherever it sits in the sorted lineup.
-    var feat = null;
-    items.forEach(function (t) { if (t.kind === 'atom' && t.z >= 79 && HEAVY[t.z] && (!feat || t.z > feat.z)) feat = t; });
+    // The dossier announces the GRAND PRIZE: the most valuable item of this
+    // turn, and it becomes the hero card wherever it sits in the sorted lineup.
+    var feat = grandPrize(items);
     var el = document.createElement('div'); el.id = 'pk-cine'; el.className = 's0 r' + best;
     el.style.setProperty('--rc', br.color); el.style.setProperty('--rg', br.glow);
     var pieces = '';
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (q) {
       pieces += '<div class="piece" style="background:' + packBg(p) + ';--dx:' + (q[0] * 45) + 'vw;--dy:' + (q[1] * 45) + 'vh;--dr:' + (q[0] * 200) + 'deg;translate:' + (q[0] * 38) + 'px ' + (q[1] * 53) + 'px"></div>';
     });
-    el.innerHTML = '<div class="rays"></div><div class="floor"></div>' +
+    el.innerHTML = '<div class="rays"></div><div class="floor"></div><div class="gbg"></div>' +
       '<div class="top"><div style="display:flex;gap:10px;flex-wrap:wrap">' +
       '<label>' + ic('volume2') + esc(S('sfx')) + '<input type="range" min="0" max="1" step="0.05" data-a="sfx" value="' + audio.sfx + '"></label>' +
       '<label>' + ic('music') + esc(S('music')) + '<input type="range" min="0" max="1" step="0.05" data-a="music" value="' + audio.music + '"></label>' +
@@ -593,7 +655,20 @@
         if (fast) go(); else at(i * 260, go);
       });
     }
-    function results() { timers.forEach(clearTimeout); timers = []; set(8); lineup(true); musicStop(); }
+    function results() { timers.forEach(clearTimeout); timers = []; set(8); lineup(true); musicStop(); gifHide(); }
+
+    // The crate animation, mounted fresh for the dossier and pulled before its
+    // loop can restart (see PACK_GIF), so it always plays exactly once.
+    function gifShow() {
+      var g = el.querySelector('.gbg');
+      g.innerHTML = '<img src="' + PACK_GIF + '" alt="" onerror="this.remove()">';
+      g.classList.add('on');
+    }
+    function gifHide() {
+      var g = el.querySelector('.gbg');
+      g.classList.remove('on');
+      setTimeout(function () { g.innerHTML = ''; }, 600);
+    }
 
     musicStart(); SFX.open();
     at(1200, function () { set(1); });
@@ -611,7 +686,8 @@
       // Instead of the plain rarity banner: quantity → flag → type → atomic
       // number, each fading in and out with its own crowd cheer, then the
       // hero card reveals itself as the element just announced.
-      var beats = heavyBeats(feat), BEAT = 1600, tb = tBreak + 1600;
+      var beats = dossierBeats(feat), BEAT = 1600, tb = tBreak + 1600;
+      at(tb, gifShow);
       beats.forEach(function (html, i) {
         at(tb + i * BEAT, function () {
           var a = el.querySelector('.attr');
@@ -620,6 +696,7 @@
         at(tb + i * BEAT + 1150, function () { el.querySelector('.attr').classList.remove('on'); });
       });
       var tCard = tb + beats.length * BEAT;
+      at(tCard, gifHide);
       at(tCard, function () { set(6); SFX.reveal(best); });
       at(tCard + 350, function () { el.querySelector('.hero .pk-c').classList.add('flip'); SFX.flip(best); sparks(25); });
       at(tCard + 2400, function () { set(7); lineup(false); });

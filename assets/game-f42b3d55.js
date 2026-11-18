@@ -44417,7 +44417,7 @@ const UI = {
     "kinetics.dg": "Activation free energy",
     "kinetics.kappa": "Tunnelling factor",
     "kinetics.kappaReliable": "Wigner parabolic-barrier estimate, inside its valid range",
-    "kinetics.kappaLimit": "Barrier motion is past the range the Wigner estimate is valid for, so the factor is held at that limit",
+    "kinetics.kappaLimit": "* Barrier motion is past the range the Wigner estimate is valid for, so the factor is held at that limit",
     "kinetics.graph": "Concentration vs Time",
     "status.lang": "Language: English",
     "status.saveFail": "Could not save discoveries (storage unavailable).",
@@ -44963,7 +44963,7 @@ const UI = {
     "kinetics.dg": "Năng lượng tự do hoạt hóa",
     "kinetics.kappa": "Hệ số chui hầm",
     "kinetics.kappaReliable": "Ước lượng Wigner hàng rào parabol, trong khoảng hợp lệ",
-    "kinetics.kappaLimit": "Chuyển động hàng rào vượt ngoài khoảng ước lượng Wigner hợp lệ, nên hệ số bị giữ ở giới hạn đó",
+    "kinetics.kappaLimit": "* Chuyển động hàng rào vượt ngoài khoảng ước lượng Wigner hợp lệ, nên hệ số bị giữ ở giới hạn đó",
     "kinetics.graph": "Nồng độ theo thời gian",
     "status.lang": "Ngôn ngữ: Tiếng Việt",
     "status.saveFail": "Không thể lưu khám phá (bộ nhớ không khả dụng).",
@@ -62663,6 +62663,7 @@ const kineticDhEl = document.getElementById("kinetic-dh");
 const kineticDsEl = document.getElementById("kinetic-ds");
 const kineticDgEl = document.getElementById("kinetic-dg");
 const kineticKappaEl = document.getElementById("kinetic-kappa");
+const kineticsNoteEl = document.getElementById("kinetics-note");
 function updateKineticsPanel(comp, an) {
   if (!comp || comp.bonds.length === 0 || !an) {
     kineticsBody.hidden = true;
@@ -62697,7 +62698,18 @@ function updateKineticsPanel(comp, an) {
   kineticDsEl.textContent = mathUnit(kin.deltaS, "J·mol⁻¹·K⁻¹", 1);
   const kappaShown = typeof kin.kappa === "number" && isFinite(kin.kappa) && kin.kappa > 1;
   kineticKappaEl.textContent = kappaShown ? `${kin.kappa.toFixed(2)}${kin.tunnelingReliable ? "" : " *"}` : "—";
-  kineticKappaEl.title = kappaShown ? (kin.tunnelingReliable ? t("kinetics.kappaReliable") : t("kinetics.kappaLimit")) : "";
+  // The asterisk has to be readable on a touch screen, where there is no hover to
+  // discover a title with, so the footnote it points at is printed under the values
+  // and carries a data-i18n key to follow the language switch.
+  const kappaNoteKey = kappaShown ? (kin.tunnelingReliable ? "kinetics.kappaReliable" : "kinetics.kappaLimit") : "";
+  const kappaNote = kappaNoteKey ? t(kappaNoteKey) : "";
+  kineticKappaEl.title = kappaNote;
+  if (kineticsNoteEl) {
+    if (kappaNoteKey) kineticsNoteEl.dataset.i18n = kappaNoteKey;
+    else delete kineticsNoteEl.dataset.i18n;
+    kineticsNoteEl.textContent = kappaNote;
+    kineticsNoteEl.hidden = !kappaShown;
+  }
   drawKineticsGraph(rateConstant);
 }
 function formatTime(seconds) {

@@ -334,9 +334,144 @@
     }, 0);
   });
 
+  // --- Theoretical standard-state estimator ---------------------------------
+  // Measured rows cover only a few dozen species while the builder makes any
+  // molecule, so the readout finishes the job with a calculation instead of a
+  // refusal. Two textbook relations and no per-molecule fitting:
+  //   ΔfH° = Σ n_E·ΔatH°(E) − Σ D(bond)      Hess cycle through gaseous atoms
+  //   S°   = S_trans + S_rot + S_vib         ideal-gas statistical mechanics:
+  //        Sackur–Tetrode, rigid rotor on the coordinates the scene actually drew,
+  //        harmonic stretches whose force constants come from the same D(bond)
+  // Biases left visible instead of tuned away: rotational symmetry σ = 1 (S° high
+  // by R·ln σ), bending and torsion modes omitted (S° low), electronic/spin
+  // entropy ignored, and average bond enthalpies are rough for ionic bonds.
+  // Where an element has no atomisation datum, the whole species is referred to
+  // its free gaseous atoms instead of its standard state, and the readout says so.
+  const H_PLANCK = 6.62607015e-34, K_BOLTZ = 1.380649e-23, N_AV = 6.02214076e23, R_GAS = 8.31446261815324;
+  const T_REF = 298.15, P_REF = 1e5;          // 1 bar
+  const UNIT_M = 55e-12;                      // scene unit → m: bondLength() divides pm by 55
+  const MORSE_A = 1.9e10;                     // m⁻¹, range parameter for the stretch estimate
+
+  // Standard enthalpy of formation of one mole of GASEOUS atoms at 298.15 K
+  // (kJ/mol) — the element's atomisation enthalpy. Anything absent here has no
+  // entry in this list and drops the species onto the gaseous-atom reference.
+  const ATOM_DH = {
+    H: 218.0, He: 0, Li: 159.3, Be: 324.0, B: 565.0, C: 716.7, N: 472.7, O: 249.2,
+    F: 79.4, Ne: 0, Na: 107.3, Mg: 148.0, Al: 330.0, Si: 450.0, P: 314.6, S: 277.2,
+    Cl: 121.3, Ar: 0, K: 89.0, Ca: 178.0, Ti: 473.0, V: 524.7, Cr: 397.0, Mn: 280.3,
+    Fe: 416.3, Co: 424.7, Ni: 429.7, Cu: 337.4, Zn: 147.1, Ga: 277.1, Ge: 376.6,
+    As: 302.0, Se: 227.0, Br: 111.9, Kr: 0, Rb: 80.9, Sr: 164.5, Mo: 658.1, Zr: 624.3,
+    Nb: 726.2, Ag: 284.9, Cd: 112.7, In: 243.7, Sn: 301.7, Sb: 254.9, Te: 193.8,
+    I: 106.8, Xe: 0, Cs: 76.6, Hf: 654.0, Ta: 785.0, W: 849.3, Pt: 565.0, Au: 368.5,
+    Hg: 61.4, Tl: 197.1, Pb: 195.6, Bi: 207.0
+  };
+  // Elements whose standard state at 298.15 K is not a solid; only needed to give
+  // the gaseous-atom reference an entropy when measured data is missing.
+  const GAS_ELEM = { H: 1, N: 1, O: 1, F: 1, Cl: 1, He: 1, Ne: 1, Ar: 1, Kr: 1, Xe: 1, Rn: 1, Og: 1 };
+  const LIQUID_ELEM = { Br: 1, Hg: 1 };
+
+  function transEntropy(massG, T, P) {
+    const m = massG * 1e-3 / N_AV;
+    const q = Math.pow(2 * Math.PI * m * K_BOLTZ * T / (H_PLANCK * H_PLANCK), 1.5) * (K_BOLTZ * T / P);
+    return R_GAS * (2.5 + Math.log(q));
+  }
+  // Eigenvalues of a real symmetric 3×3 (Numerical Recipes trigonometric form).
+  function eigSym3(a) {
+    const p1 = a[0][1] * a[0][1] + a[0][2] * a[0][2] + a[1][2] * a[1][2];
+    const q = (a[0][0] + a[1][1] + a[2][2]) / 3;
+    if (!(p1 > 0)) return [a[0][0], a[1][1], a[2][2]].sort((x, y) => x - y);
+    const p2 = Math.pow(a[0][0] - q, 2) + Math.pow(a[1][1] - q, 2) + Math.pow(a[2][2] - q, 2) + 2 * p1;
+    const b = Math.sqrt(p2 / 6);
+    const m = [[(a[0][0] - q) / b, a[0][1] / b, a[0][2] / b],
+      [a[0][1] / b, (a[1][1] - q) / b, a[1][2] / b],
+      [a[0][2] / b, a[1][2] / b, (a[2][2] - q) / b]];
+    const det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+      m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+      m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    const phi = Math.acos(Math.max(-1, Math.min(1, det / 2))) / 3;
+    const e1 = q + 2 * b * Math.cos(phi);
+    const e3 = q + 2 * b * Math.cos(phi + 2 * Math.PI / 3);
+    return [e1, 3 * q - e1 - e3, e3].sort((x, y) => x - y);
+  }
+
+  // Absolute S° of the species as an ideal gas, from geometry and bonds only.
+  function absoluteEntropy(list, bonds, bde) {
+    const mass = list.map(a => (a.el && a.el.mass) || 0);
+    const kg = mass.map(g => g * 1e-3 / N_AV);
+    const xyz = list.map(a => [(a.pos && a.pos.x || 0) * UNIT_M, (a.pos && a.pos.y || 0) * UNIT_M, (a.pos && a.pos.z || 0) * UNIT_M]);
+    let mtot = 0; const com = [0, 0, 0];
+    kg.forEach((m, i) => { mtot += m; for (let c = 0; c < 3; c++) com[c] += m * xyz[i][c]; });
+    if (!(mtot > 0)) return null;
+    for (let c = 0; c < 3; c++) com[c] /= mtot;
+    const I = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    kg.forEach((m, i) => {
+      const x = xyz[i][0] - com[0], y = xyz[i][1] - com[1], z = xyz[i][2] - com[2];
+      I[0][0] += m * (y * y + z * z); I[1][1] += m * (x * x + z * z); I[2][2] += m * (x * x + y * y);
+      I[0][1] -= m * x * y; I[1][0] = I[0][1];
+      I[0][2] -= m * x * z; I[2][0] = I[0][2];
+      I[1][2] -= m * y * z; I[2][1] = I[1][2];
+    });
+    const eigs = eigSym3(I);
+    const St = transEntropy(mass.reduce((s, g) => s + g, 0), T_REF, P_REF);
+    let Sr = 0;
+    if (list.length > 1) {
+      const Br = 8 * Math.PI * Math.PI * K_BOLTZ * T_REF / (H_PLANCK * H_PLANCK);
+      // σ = 1: no point-group detection, so S° is high by R·ln σ (≤ 20 J/mol·K).
+      if (eigs[0] < 1e-47) Sr = R_GAS * (Math.log(Br * Math.max(eigs[1], eigs[2])) + 1);
+      else Sr = R_GAS * (Math.log(Math.sqrt(Math.PI) * Math.pow(Br, 1.5) * Math.sqrt(eigs[0] * eigs[1] * eigs[2])) + 1.5);
+    }
+    let Sv = 0;
+    for (const bd of bonds || []) {
+      const D = bde(bd);
+      const ia = list.findIndex(x => x.id === bd.a), ib = list.findIndex(x => x.id === bd.b);
+      if (!(D > 0) || ia < 0 || ib < 0 || !(mass[ia] > 0) || !(mass[ib] > 0)) continue;
+      const mu = mass[ia] * mass[ib] / (mass[ia] + mass[ib]) * 1e-3 / N_AV;
+      const k = 2 * (D * 1e3 / N_AV) * MORSE_A * MORSE_A;         // Morse curvature, N/m
+      const nu = Math.sqrt(k / mu) / (2 * Math.PI);               // Hz
+      const x = H_PLANCK * nu / (K_BOLTZ * T_REF);
+      if (x > 0 && x < 500) Sv += R_GAS * (x / (Math.exp(x) - 1) - Math.log(1 - Math.exp(-x)));
+    }
+    return { S: St + Sr + Sv, St, Sr, Sv, massTotal: mass.reduce((s, g) => s + g, 0) };
+  }
+
+  // The estimate itself: ΔfH° from the atomisation cycle, ΔfS° from the entropy
+  // above against the element reference entropies, ΔfG° from the two.
+  function theoreticalState(list, bonds, th) {
+    if (!list || list.length < 2) return null;
+    const atomMap = atomMapOf(list);
+    const bde = bond => (th && th.getBondDissociationEnergy ? th.getBondDissociationEnergy(bond, atomMap) : 0);
+    const ent = absoluteEntropy(list, bonds, bde);
+    if (!ent) return null;
+    const counts = Object.create(null);
+    for (const a of list) { const s = a.el && a.el.sym; if (s) counts[s] = (counts[s] || 0) + 1; }
+    const syms = Object.keys(counts);
+    const refS = th && th.refS;
+    const missing = syms.filter(s => ATOM_DH[s] === undefined || !(refS && typeof refS.get === 'function' && refS.get(s) !== undefined));
+    const elementRef = missing.length === 0;
+    let dh = 0, sRef = 0, bondSum = 0;
+    for (const s of syms) {
+      if (elementRef) { dh += counts[s] * ATOM_DH[s]; sRef += counts[s] * refS.get(s); continue; }
+      const el = list.find(a => a.el && a.el.sym === s).el;
+      // Gaseous-atom reference: the free atom's enthalpy is the zero, and its
+      // entropy is the Sackur–Tetrode value (less a condensed-phase allowance
+      // for the elements we still know are solids or liquids at 298 K).
+      sRef += counts[s] * (transEntropy(el.mass, T_REF, P_REF) - (GAS_ELEM[s] ? 0 : LIQUID_ELEM[s] ? 90 : 115));
+    }
+    for (const bd of bonds || []) { const D = bde(bd); if (typeof D === 'number' && D > 0) bondSum += D; }
+    const dfH = dh - bondSum;
+    const dfS = ent.S - sRef;
+    return { dfH, dfS, dfG: dfH - T_REF * dfS / 1000, sAbs: ent.S, elementRef, missing, parts: { St: ent.St, Sr: ent.Sr, Sv: ent.Sv } };
+  }
+  function atomMapOf(list) {
+    const map = new Map();
+    for (const a of list) if (a && a.id !== undefined) map.set(a.id, a);
+    return map;
+  }
+
   // Measured standard-state data for whatever molecule the player selects,
-  // rendered in the Info tab. Bundle tables win when they cover the species;
-  // otherwise the URPE reference table is consulted; never estimated silently.
+  // rendered in the Info tab. Bundle tables win when they cover the species,
+  // then the URPE reference table; anything else is calculated and labelled
+  // as such rather than left blank.
   let thermoBox = null;
   let lastSelectedId = null;
   function selectedComponent(id) {
@@ -365,13 +500,40 @@
     const sp = lookup(a.displayFormula || a.formula || (r && r.formula));
     if (sp) {
       const d = sp.data;
+      // S° is absolute, so the formation entropy only needs the element
+      // reference entropies; when they cover the species ΔfG° follows too.
+      const ref = formationEntropy(list, d.s, th);
       return '<div class="urpe-g-note">' + L('Reference table (298.15 K)', 'Bảng dữ liệu chuẩn (298,15 K)') + '</div>' + head +
-        'ΔfH° = ' + fmt(d.hf, 2) + ' kJ·mol⁻¹ · S° = ' + fmt(d.s, 2) + ' J·mol⁻¹·K⁻¹' +
+        'ΔfH° = ' + fmt(d.hf, 2) + ' kJ·mol⁻¹ · ΔfS° = ' + (ref === null ? fmt(d.s, 2) + ' J·mol⁻¹·K⁻¹ (absolute S°)' : ref.toFixed(2) + ' J·mol⁻¹·K⁻¹') +
+        (ref === null ? '' : ' · ΔfG° = ' + (d.hf - T_REF * ref / 1000).toFixed(2) + ' kJ·mol⁻¹') +
         (d.phase ? ' · ' + esc(phaseName(d.phase)) : '') +
         '<br><i title="' + String(d.source || '').replace(/"/g, '&quot;') + '">' + String(d.source || '').replace(/[<>&]/g, '') + '</i>';
     }
-    return '<div class="urpe-g-note">' + head + L('No measured standard-state data for this species — nothing estimated.',
-      'Loài này chưa có dữ liệu chuẩn đo lường — không ước đoán.') + '</div>';
+    let est = null;
+    try { est = theoreticalState(list, sel.comp.bonds, th); } catch (e) { est = null; }
+    if (!est) return '';
+    const basis = L('estimated: bond-enthalpy cycle and statistical mechanics, ideal gas',
+      'ước lượng: chu trình năng lượng liên kết và cơ học thống kê, khí lý tưởng') +
+      (est.elementRef ? '' : L(' · referred to gaseous atoms, no atomisation data for ',
+        ' · quy về nguyên tử khí, thiếu dữ liệu nguyên tử hoá của ') + est.missing.join(', '));
+    const caveats = L('Ideal gas at 298.15 K. Known limits: rotational symmetry number assumed 1, bending and torsion modes omitted, bond pairs outside the engine table fall back to 350 kJ·mol⁻¹, aromatic resonance is not modelled, isotopes use the standard atomic mass.',
+      'Khí lý tưởng ở 298,15 K. Giới hạn đã biết: số đối xứng quay lấy bằng 1, bỏ qua mode uốn và xoắn, cặp liên kết ngoài bảng động học dùng mặc định 350 kJ·mol⁻¹, chưa mô hình hoá cộng hưởng thơm, đồng vị dùng nguyên tử khối chuẩn.');
+    return '<div class="urpe-g-note">' + L('Theoretically Measured Data (298.15 K, 1 bar)', 'Dữ liệu đo lý thuyết (298,15 K, 1 bar)') + '</div>' + head +
+      'ΔfH° = ' + est.dfH.toFixed(2) + ' kJ·mol⁻¹ · ΔfS° = ' + est.dfS.toFixed(2) + ' J·mol⁻¹·K⁻¹ · ΔfG° = ' + est.dfG.toFixed(2) + ' kJ·mol⁻¹' +
+      '<br><i title="' + esc(caveats) + '">' + esc(basis) + '</i>';
+  }
+  // ΔfS° from a measured absolute S°, or null when an element has no reference
+  // entropy to subtract.
+  function formationEntropy(list, sAbs, th) {
+    const refS = th && th.refS;
+    if (!refS || typeof refS.get !== 'function' || !(sAbs > -Infinity)) return null;
+    let sum = 0;
+    for (const a of list) {
+      const s = a.el && a.el.sym, r = s && refS.get(s);
+      if (typeof r !== 'number') return null;
+      sum += r;
+    }
+    return sAbs - sum;
   }
   root.addEventListener('mol3d:atom-selected', e => {
     lastSelectedId = e.detail && e.detail.id !== undefined ? e.detail.id : null;
@@ -391,5 +553,5 @@
     }, 0);
   });
 
-  root.URPEGame = { evaluate, panelHtml, lookup, canon, parse, envState, thermoTerm, sci };
+  root.URPEGame = { evaluate, panelHtml, lookup, canon, parse, envState, thermoTerm, sci, theoreticalState, ATOM_DH };
 })(window);

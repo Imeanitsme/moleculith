@@ -44417,7 +44417,7 @@ const UI = {
     "kinetics.dg": "Activation free energy",
     "kinetics.kappa": "Tunnelling factor",
     "kinetics.kappaReliable": "Wigner parabolic-barrier estimate, inside its valid range",
-    "kinetics.kappaLimit": "* Barrier motion is past the range the Wigner estimate is valid for, so the factor is held at that limit",
+    "kinetics.kappaLimit": "* Wigner's correction is a high-temperature series; this barrier motion lies outside the range it is reliable for, so the value shown is an extrapolation",
     "kinetics.graph": "Concentration vs Time",
     "status.lang": "Language: English",
     "status.saveFail": "Could not save discoveries (storage unavailable).",
@@ -44963,7 +44963,7 @@ const UI = {
     "kinetics.dg": "Năng lượng tự do hoạt hóa",
     "kinetics.kappa": "Hệ số chui hầm",
     "kinetics.kappaReliable": "Ước lượng Wigner hàng rào parabol, trong khoảng hợp lệ",
-    "kinetics.kappaLimit": "* Chuyển động hàng rào vượt ngoài khoảng ước lượng Wigner hợp lệ, nên hệ số bị giữ ở giới hạn đó",
+    "kinetics.kappaLimit": "* Hiệu chỉnh Wigner là chuỗi nhiệt độ cao; chuyển động hàng rào này nằm ngoài khoảng tin cậy, nên giá trị hiển thị là ngoại suy",
     "kinetics.graph": "Nồng độ theo thời gian",
     "status.lang": "Ngôn ngữ: Tiếng Việt",
     "status.saveFail": "Không thể lưu khám phá (bộ nhớ không khả dụng).",
@@ -52843,6 +52843,9 @@ const K_COULOMB = 89875517923e-1;
 const E_CHARGE = 1602176634e-28;
 const H_PLANCK = 662607015e-42;
 const N_AVOGADRO = 602214076e15;
+// Speed of light in cm/s, the factor that turns a vibrational frequency quoted in
+// wavenumbers (cm⁻¹) into the Hz the Planck relation needs: ν = c·ν̃.
+const C_CM_PER_S = 29979245800;
 // Mean bond dissociation enthalpies, kJ/mol at 298.15 K. A bonded pair the table
 // does not name has no measured value, so lookups against it answer null rather
 // than a substitute number.
@@ -53220,30 +53223,42 @@ class KineticsEngine {
    * @param {number} ea - Barrier quoted at 298.15 K, in kJ/mol
    * @param {number} temperature - Temperature in Kelvin
    * @param {string} reactionType - Channel that owns the pre-exponential factor
-   * @param {{frequencyHz: number}} barrier - Barrier motion for the tunnelling factor
+   * @param {{frequencyCm1?: number, frequencyHz?: number}} barrier - Barrier motion for the tunnelling factor
    */
   calculateRateConstant(ea, temperature = null, reactionType = "unimolecular", barrier = null) {
     return this.transitionState(ea, temperature, reactionType, barrier).rateConstant;
   }
   /**
    * One barrier described at one temperature through the Eyring lens.
-   * Ea = dH + nRT, so the Arrhenius number the panel shows moves with the
-   * temperature while dH stays the enthalpic part of the barrier. dS is
-   * calibrated from the channel pre-exponential factor at 298.15 K, which
-   * makes this agree with the old Arrhenius number there and differ from it
-   * only through the temperature dependence. dG = dH - T dS is its own
-   * quantity and is never reported as Ea.
+   *
+   * Every activation quantity is evaluated at the temperature the molecule is
+   * actually sitting at, never at the 298.15 K table temperature. Ea = ΔH‡ + nRT
+   * holds at one temperature, so
+   *
+   *   ΔH‡(T) = Ea − n·R·T                    n = 1 unimolecular, 2 bimolecular
+   *   ΔS‡(T) = R·ln( A·h / (e·k_B·T) )       A = channel pre-exponential factor
+   *   ΔG‡(T) = ΔH‡(T) − T·ΔS‡(T)
+   *   k_TST  = (k_B·T/h)·exp(ΔS‡/R)·exp(−ΔH‡/(R·T))
+   *   k      = κ · k_TST                     κ = Wigner tunnelling factor, below
+   *
+   * Because ΔH‡ and ΔS‡ are rebuilt from T inside the call, there is no reference
+   * temperature stored anywhere and nothing to go stale: changing the environment
+   * temperature moves both numbers and the rate together, and at 298.15 K the rate
+   * reduces to the Arrhenius value the channel's A and Ea imply.
    */
   transitionState(ea, temperature = null, reactionType = "unimolecular", barrier = null) {
     const T2 = temperature > 0 ? temperature : this.globalTemperature;
     const A = this.preExponentialFactors[reactionType] || 1e13;
     const nRt = (reactionType === "unimolecular" ? 1 : 2) * R_GAS$1;
-    const dhJ = ea * 1e3 - nRt * T_STANDARD;
-    const dsJ = R_GAS$1 * Math.log(A * H_PLANCK / (Math.E * K_BOLTZMANN * T_STANDARD));
+    const dhJ = ea * 1e3 - nRt * T2;
+    const dsJ = R_GAS$1 * Math.log(A * H_PLANCK / (Math.E * K_BOLTZMANN * T2));
     const dgJ = dhJ - T2 * dsJ;
     const thermalFrequency = K_BOLTZMANN * T2 / H_PLANCK;
-    const nu = barrier && barrier.frequencyHz > 0 ? barrier.frequencyHz : 0;
-    const wigner = this.tunnelingCorrection(nu, T2);
+    // The barrier motion may arrive in either unit; the tunnelling formula is
+    // written in wavenumbers, so normalise to cm⁻¹ here and convert once.
+    const barrierCm1 = barrier ? (barrier.frequencyCm1 > 0 ? barrier.frequencyCm1
+      : barrier.frequencyHz > 0 ? barrier.frequencyHz / C_CM_PER_S : 0) : 0;
+    const wigner = this.tunnelingCorrection(barrierCm1, T2);
     const k = wigner.kappa * thermalFrequency * Math.exp(dsJ / R_GAS$1) * Math.exp(-dhJ / (R_GAS$1 * T2));
     return {
       temperature: T2,
@@ -53253,33 +53268,66 @@ class KineticsEngine {
       deltaS: dsJ,
       deltaG: dgJ * 1e-3,
       thermalFrequency,
-      barrierFrequency: nu,
+      barrierWavenumber: barrierCm1,
+      barrierFrequency: wigner.frequencyHz,
       kappa: wigner.kappa,
+      tunnelingX: wigner.x,
       tunnelingReliable: wigner.reliable,
       activationEnergy: (dhJ + nRt * T2) * 1e-3,
       rateConstant: k
     };
   }
   /**
-   * Wigner parabolic-barrier tunnelling factor for one barrier frequency.
-   * The x^2 term is a small-x approximation, so past x = 2 the factor is held
-   * at its boundary value instead of extrapolating a number the formula never
-   * claimed; the caller still learns the correction left its valid range.
+   * Wigner tunnelling correction for one parabolic barrier, computed from its
+   * imaginary frequency and the temperature — no fixed factor anywhere.
+   *
+   *   ν‡ [Hz] = c [cm·s⁻¹] · ν̃‡ [cm⁻¹]
+   *   x       = h·ν‡ / (k_B·T) = (1.4388 K·cm)·ν̃‡/T
+   *   κ       = 1 + x²/24
+   *   k_total = κ · k_TST
+   *
+   * The barrier top is an inverted parabola, V(q) = V‡ − ½·m·ω‡²·q², whose curvature
+   * is ω‡ = 2π·c·ν̃‡. Averaging the exact quantum transmission through that barrier
+   * over a Boltzmann distribution of energies (Wigner, 1937) gives the series
+   * κ = 1 + x²/24 + 7·x⁴/5760 + … in x = ħω‡/(k_B·T) = h·ν‡/(k_B·T).
+   *
+   * Two properties make it behave like a physical factor rather than a constant:
+   * a stiffer, lighter barrier motion (H transfer, whose stretch runs ~4000 cm⁻¹)
+   * gives a larger x than a heavy, soft one (~300 cm⁻¹ for I–I), and x falls as T
+   * rises, so κ relaxes to the classical limit κ = 1 at high temperature.
+   *
+   * The x² term is the leading term of a high-temperature expansion, so past x ≈ 2
+   * the dropped x⁴ term stops being small. `reliable` marks the range the formula
+   * actually claims; outside it κ is still reported because freezing it at the
+   * boundary value made the factor look hardcoded, and the panel footnotes the
+   * extrapolation instead.
+   *
+   * @param {number} frequencyCm1 |ν̃‡| imaginary frequency of the barrier, in cm⁻¹
+   * @param {number} temperature Kelvin
    */
-  tunnelingCorrection(frequencyHz, temperature = null) {
+  tunnelingCorrection(frequencyCm1, temperature = null) {
     const T2 = temperature > 0 ? temperature : this.globalTemperature;
-    if (!(frequencyHz > 0) || !(T2 > 0)) return { kappa: 1, reliable: false, x: 0 };
+    if (!(frequencyCm1 > 0) || !(T2 > 0)) {
+      return { kappa: 1, reliable: false, x: 0, frequencyHz: 0, frequencyCm1: 0 };
+    }
+    const frequencyHz = C_CM_PER_S * frequencyCm1;   // cm⁻¹ → s⁻¹
     const x = H_PLANCK * frequencyHz / (K_BOLTZMANN * T2);
-    const reliable = x < 2;
-    const capped = reliable ? x : 2;
-    return { kappa: 1 + capped * capped / 24, reliable, x };
+    return { kappa: 1 + x * x / 24, reliable: x < 2, x, frequencyHz, frequencyCm1 };
   }
   /**
-   * Stretch frequency of the bond that breaks, from a Morse curvature
-   * (k = 2 D a^2 with a ~ 1.8 per angstrom) and the pair reduced mass.
+   * Stretch wavenumber (cm⁻¹) of the bond that breaks, from a Morse curvature
+   * (k = 2 D a² with a ~ 1.8 per angstrom) and the pair reduced mass. It is the
+   * scale of the barrier motion, quoted the way vibrations are actually tabulated.
    * @param {number} bde - Bond dissociation energy in kJ/mol
    * @param {number} massA - Molar mass of the first atom in g/mol
    * @param {number} massB - Molar mass of the second atom in g/mol
+   */
+  bondStretchWavenumber(bde, massA, massB) {
+    const nuHz = this.bondStretchFrequency(bde, massA, massB);
+    return nuHz > 0 ? nuHz / C_CM_PER_S : 0;
+  }
+  /**
+   * Same motion in Hz: ω/(2π) of the harmonic well under the bond stretch.
    */
   bondStretchFrequency(bde, massA, massB) {
     if (!(bde > 0) || !(massA > 0) || !(massB > 0)) return 0;
@@ -53923,9 +53971,10 @@ class SimulationEngine {
     const temp = this.kinetics.getTemperature(moleculeId);
     const pairA = weakest ? atomsMap.get(weakest.a) : null;
     const pairB = weakest ? atomsMap.get(weakest.b) : null;
-    const barrier = pairA && pairB ? {
-      frequencyHz: this.kinetics.bondStretchFrequency(baseEa, pairA.el && pairA.el.mass, pairB.el && pairB.el.mass)
-    } : null;
+    // The bond that breaks sets the barrier motion: its stretch wavenumber is the
+    // scale the Wigner correction is written in, and the Hz form travels with it.
+    const stretchCm1 = pairA && pairB ? this.kinetics.bondStretchWavenumber(baseEa, pairA.el && pairA.el.mass, pairB.el && pairB.el.mass) : 0;
+    const barrier = stretchCm1 > 0 ? { frequencyCm1: stretchCm1, frequencyHz: C_CM_PER_S * stretchCm1 } : null;
     const ts = this.kinetics.transitionState(effectiveEa, temp, "unimolecular", barrier);
     const decompProb = this.kinetics.calculateDecompositionProbability(effectiveEa, temp, 1, "unimolecular", barrier);
     const halfLife = this.kinetics.calculateHalfLife(effectiveEa, temp, "unimolecular", barrier);
@@ -53943,8 +53992,10 @@ class SimulationEngine {
         deltaS: ts.deltaS,
         deltaG: ts.deltaG,
         thermalFrequency: ts.thermalFrequency,
+        barrierWavenumber: ts.barrierWavenumber,
         barrierFrequency: ts.barrierFrequency,
         kappa: ts.kappa,
+        tunnelingX: ts.tunnelingX,
         tunnelingReliable: ts.tunnelingReliable,
         rateConstant: ts.rateConstant,
         halfLife,
@@ -62697,7 +62748,11 @@ function updateKineticsPanel(comp, an) {
   kineticDgEl.textContent = energy(kin.deltaG);
   kineticDsEl.textContent = mathUnit(kin.deltaS, "J·mol⁻¹·K⁻¹", 1);
   const kappaShown = typeof kin.kappa === "number" && isFinite(kin.kappa) && kin.kappa > 1;
-  kineticKappaEl.textContent = kappaShown ? `${kin.kappa.toFixed(2)}${kin.tunnelingReliable ? "" : " *"}` : "—";
+  // A heavy, soft barrier moves κ only in the third decimal, and two decimals would
+  // print that as a bare 1.00 - the same figure the classical theory gives. Widen the
+  // precision when the correction is small so the displayed number stays the real one.
+  const kappaText = kin.kappa < 1.05 ? kin.kappa.toFixed(3) : kin.kappa.toFixed(2);
+  kineticKappaEl.textContent = kappaShown ? `${kappaText}${kin.tunnelingReliable ? "" : " *"}` : "—";
   // The asterisk has to be readable on a touch screen, where there is no hover to
   // discover a title with, so the footnote it points at is printed under the values
   // and carries a data-i18n key to follow the language switch.

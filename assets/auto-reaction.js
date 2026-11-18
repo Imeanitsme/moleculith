@@ -294,8 +294,8 @@
     const acts = new Map();
     const norm = f => auto().normalize(f);
     for (const t of terms) {
-      const row = root.URPEGame.lookup(t.ref);
-      t.phase = row.data.phase;
+      const row = root.URPEGame.speciesRow(t.ref);
+      t.phase = row ? row.data.phase : null;
     }
     const reactantGases = terms.filter(t => t.nu < 0 && t.phase === 'g');
     const sceneTotal = reactantGases.reduce((s, t) => s + (classes.get(norm(t.formula)) || 0), 0);
@@ -308,7 +308,7 @@
       else return { acts: null, reason: L('no amount or atmosphere fraction for ' + t.formula, 'không có số lượng hay tỉ lệ khí quyển cho ' + t.formula) };
       if (!(x > 0)) return { acts: null, reason: L(t.formula + ' has no molecules present', t.formula + ' không có phân tử nào hiện diện') };
       t.x = x;
-      acts.set(t.formula, x * bar / (root.URPEGame.lookup(t.ref).data.pStandard || 1));
+      acts.set(t.formula, x * bar / (root.URPEGame.speciesRow(t.ref).data.pStandard || 1));
     }
     for (const t of terms) {
       if (t.nu > 0) acts.set(t.formula, 1);
@@ -318,7 +318,7 @@
   }
   function thermoOf(terms, acts, T) {
     return numerics().thermo(terms.map(t => {
-      const d = root.URPEGame.lookup(t.ref).data;
+      const d = root.URPEGame.speciesRow(t.ref).data;
       const term = { nu: t.nu, phase: d.phase, hf: d.hf, s: d.s, cp: d.cp,
         cpPoly: d.cpPoly, cpIntervals: d.cpIntervals,
         referenceTemperature: d.referenceTemperature, pStandard: d.pStandard, cStandard: d.cStandard,
@@ -398,9 +398,12 @@
     if (terms.length < 2 || !terms.some(t => t.nu > 0)) {
       return { state: 'blocked', reason: L('the route has no species left to price', 'phương trình không còn loài nào để tính') };
     }
-    const missing = terms.filter(t => !U.lookup(t.ref)).map(t => t.ref);
+    // Only a species that neither the cited table nor a rebuildable structure can
+    // reach is left unpriced; anything with a template is estimated and labelled.
+    const estimated = terms.filter(t => !U.lookup(t.ref)).map(t => t.ref);
+    const missing = terms.filter(t => !U.speciesRow(t.ref)).map(t => t.ref);
     if (missing.length) return { state: 'nodata', missing };
-    const base = {};
+    const base = { estimated };
     let acts = { acts: null, reason: null };
     try { acts = activities(terms, classes, atmo, bar); } catch (e) { acts = { acts: null, reason: e.message }; }
     let res;
@@ -749,18 +752,27 @@
   function stateLine(r) {
     const f = fires.get(r.id);
     const tail = f ? ' · ' + esc(L('fired ' + f.n + '×', 'đã xảy ra ' + f.n + ' lần')) : '';
+    // A route whose species came from the estimator rather than a cited table says
+    // so on the row, because the verdict inherits the estimator's error bars.
+    const est = r.state !== 'nodata' && r.estimated && r.estimated.length
+      ? '<div class="arxn-state">' + esc(L('ΔfH°/S° estimated for ' + r.estimated.join(', ') +
+          ' from the structure the game rebuilds for it (ideal gas at 298.15 K), not measured',
+          'ΔfH°/S° của ' + r.estimated.join(', ') +
+          ' được ước lượng từ cấu trúc game dựng lại cho nó (khí lý tưởng 298,15 K), không phải đo')) + '</div>'
+      : '';
     if (r.state === 'live') {
       const n = r.numbers;
       return '<div class="arxn-state live">' + tag('live') + esc(L('proceeding: ΔG = ' + sci(r.drive, 2) + ' kJ·mol⁻¹, ' +
         sci(n.lambda, 3) + ' events·s⁻¹ over ' + n.count + ' molecule' + (n.count === 1 ? '' : 's') + ', half-life ' +
         duration(n.halfLife), 'đang tiến hành: ΔG = ' + sci(r.drive, 2) + ' kJ·mol⁻¹, ' +
-        sci(n.lambda, 3) + ' biến·s⁻¹ trên ' + n.count + ' phân tử, nửa đời ' + duration(n.halfLife))) + tail + '</div>';
+        sci(n.lambda, 3) + ' biến·s⁻¹ trên ' + n.count + ' phân tử, nửa đời ' + duration(n.halfLife))) + tail + '</div>' + est;
     }
     if (r.state === 'nodata') {
-      return '<div class="arxn-state">' + tag('nodata') + esc(L('no sourced standard-state data for ', 'chưa có dữ liệu chuẩn có nguồn cho ')) +
-        r.missing.map(esc).join(', ') + esc(L(' — nothing is estimated.', ' — không ước đoán.')) + '</div>';
+      return '<div class="arxn-state">' + tag('nodata') + esc(L('no standard-state data and no structure to estimate one from for ',
+        'không có dữ liệu chuẩn và không có cấu trúc để ước lượng cho ')) +
+        r.missing.map(esc).join(', ') + esc(L(' — the numbers are left absent.', ' — các số liệu được để trống.')) + '</div>';
     }
-    return '<div class="arxn-state">' + tag(r.state) + esc(r.reason || L('not priced', 'chưa tính')) + tail + '</div>';
+    return '<div class="arxn-state">' + tag(r.state) + esc(r.reason || L('not priced', 'chưa tính')) + tail + '</div>' + est;
   }
   function row(r) {
     const a = auto();

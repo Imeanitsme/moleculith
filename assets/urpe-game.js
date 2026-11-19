@@ -985,27 +985,156 @@
   // formula are joined, and the physics engine turns those joins into coordinates
   // on request. Rebuilding the molecule that way, outside the scene, gives the same
   // three numbers the Info tab prints for it, and nothing in the world is touched.
+  // A constitution for a formula nobody authored. The template table and the
+  // isomer enumerator both answer "no structure" for anything outside the
+  // built-in rule sets - a mixed oxide, a borohydride, an unusual arrangement the
+  // player built by hand - and the estimator then has nothing to read, so the
+  // panel leaves the numbers blank. This last resort wires the formula up from
+  // the covalences alone: every hydrogen and halogen caps the most unsaturated
+  // atom it can reach, the remaining heavy atoms link to each other in a chain,
+  // and two bonded atoms still short of their covalence are joined by a higher
+  // bond order. That gives one reasonable structure, not the reasonable one, and
+  // the readout already says the numbers are estimated.
+  function countsOf(formula) {
+    const raw = String(formula).replace(/\((?:s|l|g|aq)\)$/, '').replace(/\s+/g, '');
+    const body = raw.replace(/[+-]\d*$/, '');
+    const counts = Object.create(null), re = /([A-Z][a-z]?)(\d*)|\(([^)]*)\)(\d*)/g;
+    let m;
+    while ((m = re.exec(body))) {
+      if (m[3] !== undefined) {
+        const mult = +m[4] || 1, re2 = /([A-Z][a-z]?)(\d*)/g;
+        let inner;
+        while ((inner = re2.exec(m[3]))) counts[inner[1]] = (counts[inner[1]] || 0) + (+inner[2] || 1) * mult;
+      } else counts[m[1]] = (counts[m[1]] || 0) + (+m[2] || 1);
+    }
+    return counts;
+  }
+  const TERMINAL = { H: 1, F: 1, Cl: 1, Br: 1, I: 1 };
+  function genericTemplate(formula) {
+    const auto = (root.__mol3d || {}).auto || {};
+    if (!auto.elementBySymbol) return null;
+    const counts = countsOf(formula), keys = Object.keys(counts);
+    if (!keys.length) return null;
+    const tail = String(formula).match(/[+-]\d*$/);
+    const charge = tail ? (tail[0][0] === '-' ? -1 : 1) * (+tail[0].slice(1) || 1) : 0;
+    const syms = [];
+    for (const sym of keys) {
+      const el = auto.elementBySymbol(sym);
+      if (!el || !el.z) return null;
+      for (let i = 0; i < counts[sym]; i++) syms.push(sym);
+    }
+    if (syms.length < 2) return null;
+    // Covalence: the bonds an atom wants. Hydrogen and the halogens take one;
+    // a main-group atom takes as many as complete its octet, and a third-period
+    // or heavier atom may go up to its full valence when there are enough
+    // partners to ask for it (that is what makes SF6 and not SF2).
+    const frame = syms.map(sym => {
+      const el = auto.elementBySymbol(sym), f = shellFrame(el.z);
+      const octet = Math.max(1, Math.min(f.v, 8 - f.v) || 1);
+      return { sym, v: f.v, period: f.period, metal: f.metal,
+        need: TERMINAL[sym] ? 1 : (f.metal ? 1 : octet) };
+    });
+    const chi = i => PAULING_EN[frame[i].sym] || 2.55;
+    // A third-period or heavier atom can be asked to hold more bonds than its
+    // octet covalence when the formula really does offer that many partners
+    // (XeF4, SF6), so the hungriest centre is widened up to its full valence.
+    const terminals = frame.filter(nd => TERMINAL[nd.sym]).length;
+    const want = frame.filter(nd => !TERMINAL[nd.sym]).reduce((s, nd) => s + nd.need, 0);
+    if (terminals > want) {
+      let best = -1;
+      frame.forEach((nd, i) => { if (!TERMINAL[nd.sym] && nd.v > 0 && (best < 0 || nd.v > frame[best].v)) best = i; });
+      if (best >= 0) frame[best].need = Math.max(frame[best].need, Math.min(frame[best].v, terminals));
+    }
+    const bonds = [];
+    const link = (i, j) => {
+      if (frame[i].need <= 0 || frame[j].need <= 0) return false;
+      const at = bonds.find(b => (b[0] === i && b[1] === j) || (b[0] === j && b[1] === i));
+      if (at) { if (at[2] < 3) { at[2]++; frame[i].need--; frame[j].need--; return true; } return false; }
+      bonds.push([i, j, 1]); frame[i].need--; frame[j].need--;
+      return true;
+    };
+    const open = () => frame.map((nd, i) => ({ nd, i })).filter(x => x.nd.need > 0);
+    const mostUnsaturated = avoid => open().filter(x => avoid.indexOf(x.i) < 0)
+      .sort((a, b) => b.nd.need - a.nd.need || chi(a.i) - chi(b.i))[0];
+    // Caps first: hydrogens, then halogens, onto whatever is hungriest.
+    for (const list of [frame.map((nd, i) => ({ nd, i })).filter(x => x.nd.sym === 'H'),
+      frame.map((nd, i) => ({ nd, i })).filter(x => TERMINAL[x.nd.sym] && x.nd.sym !== 'H')]) {
+      for (const cap of list) {
+        const host = mostUnsaturated([cap.i]);
+        if (host && host.nd.need > 0) link(cap.i, host.i);
+      }
+    }
+    // Then the heavy skeleton. Nonmetals are laid first, most electronegative
+    // last, and each atom joins the open neighbour it suits: a metal reaches for
+    // the most electronegative partner (so Na2O2 comes out Na-O-O-Na and not
+    // Na-Na with a double-bonded O2), a nonmetal for the least.
+    const heavy = frame.map((nd, i) => ({ nd, i }))
+      .filter(x => !TERMINAL[x.nd.sym])
+      .sort((a, b) => (a.nd.metal ? 1 : 0) - (b.nd.metal ? 1 : 0) ||
+        chi(a.i) - chi(b.i) || b.nd.need - a.nd.need)
+      .map(x => x.i);
+    for (let k = 1; k < heavy.length; k++) {
+      const i = heavy[k];
+      if (frame[i].need <= 0) continue;
+      let host = -1;
+      for (const j of heavy.slice(0, k)) {
+        if (frame[j].need <= 0 || bonds.some(b => (b[0] === i && b[1] === j) || (b[0] === j && b[1] === i))) continue;
+        if (host < 0 || (frame[i].metal ? chi(j) > chi(host) : chi(j) < chi(host))) host = j;
+      }
+      if (host < 0) host = heavy[Math.max(0, k - 1)];
+      link(i, host);
+    }
+    // Spare valences left on neighbours become multiple bonds.
+    for (let pass = 0; pass < 3; pass++) {
+      const unsat = open();
+      if (!unsat.length) break;
+      for (const a of unsat) for (const b of unsat) {
+        if (a.i >= b.i || a.nd.need <= 0 || b.nd.need <= 0) continue;
+        if (bonds.some(x => (x[0] === a.i && x[1] === b.i) || (x[0] === b.i && x[1] === a.i))) link(a.i, b.i);
+      }
+    }
+    // An atom the valence bookkeeping left unattached still belongs to the
+    // species, so it is joined to its nearest neighbour over budget rather than
+    // dropped; the Lewis layer reads the oversaturation as charges.
+    const bonded = new Set();
+    for (const b of bonds) { bonded.add(b[0]); bonded.add(b[1]); }
+    for (let i = 0; i < frame.length; i++) {
+      if (bonded.has(i)) continue;
+      let j = -1;
+      for (let k = 0; k < frame.length; k++) {
+        if (k === i || !bonded.has(k)) continue;
+        if (j < 0 || frame[k].need > frame[j].need) j = k;
+      }
+      if (j < 0) j = i === 0 ? 1 : 0;
+      bonds.push([i, j, 1]); bonded.add(i);
+    }
+    return bonds.length ? { atoms: syms, bonds, charge, generic: true } : null;
+  }
   function templateFor(formula) {
     const auto = (root.__mol3d || {}).auto || {};
     let tpl = null;
     try { if (auto.template) tpl = auto.template(formula); } catch (e) { tpl = null; }
     if (tpl && Array.isArray(tpl.atoms) && tpl.atoms.length) return tpl;
     const ie = root.__isomerEngine;
-    if (!ie || typeof ie.enumerate !== 'function') return null;
-    try {
-      const res = ie.enumerate(formula, { limit: 1, deadlineMs: 40 });
-      const g = res && res.items && res.items[0] && res.items[0].graph;
-      if (!g || !Array.isArray(g.nodes) || !g.nodes.length) return null;
-      // The enumerator hangs hydrogen on the heavy atom as a count while templates
-      // and the geometry solver both want atoms, so materialise the hydrogens.
-      const syms = g.nodes.map(n => n.el);
-      const bonds = (g.edges || []).map(e => [g.nodes.findIndex(n => n.id === e.a), g.nodes.findIndex(n => n.id === e.b), e.order || 1]);
-      g.nodes.forEach((n, i) => {
-        for (let k = 0; k < (n.h || 0); k++) { syms.push('H'); bonds.push([i, syms.length - 1, 1]); }
-      });
-      if (bonds.length !== (g.edges || []).length + g.nodes.reduce((s, n) => s + (n.h || 0), 0)) return null;
-      return { atoms: syms, bonds, charge: 0 };
-    } catch (e) { return null; }
+    if (ie && typeof ie.enumerate === 'function') {
+      try {
+        const res = ie.enumerate(formula, { limit: 1, deadlineMs: 40 });
+        const g = res && res.items && res.items[0] && res.items[0].graph;
+        if (g && Array.isArray(g.nodes) && g.nodes.length) {
+          // The enumerator hangs hydrogen on the heavy atom as a count while templates
+          // and the geometry solver both want atoms, so materialise the hydrogens.
+          const syms = g.nodes.map(n => n.el);
+          const bonds = (g.edges || []).map(e => [g.nodes.findIndex(n => n.id === e.a), g.nodes.findIndex(n => n.id === e.b), e.order || 1]);
+          g.nodes.forEach((n, i) => {
+            for (let k = 0; k < (n.h || 0); k++) { syms.push('H'); bonds.push([i, syms.length - 1, 1]); }
+          });
+          if (bonds.length === (g.edges || []).length + g.nodes.reduce((s, n) => s + (n.h || 0), 0)) {
+            return { atoms: syms, bonds, charge: 0 };
+          }
+        }
+      } catch (e) { /* fall through to the generic constitution */ }
+    }
+    try { return genericTemplate(formula); } catch (e) { return null; }
   }
   function rebuiltStructure(formula) {
     const tpl = templateFor(formula);
@@ -1028,7 +1157,7 @@
         pos: { x: a.x / UNIT_M, y: a.y / UNIT_M, z: a.z / UNIT_M } };
     });
     if (atoms.some(a => !(a.el.mass > 0))) return null;
-    return { atoms, bonds: (built.mol.bonds || []).map(b => ({ a: b.i, b: b.j, order: b.order || 1 })), charge: tpl.charge || 0 };
+    return { atoms, bonds: (built.mol.bonds || []).map(b => ({ a: b.i, b: b.j, order: b.order || 1 })), charge: tpl.charge || 0, generic: !!tpl.generic };
   }
   // One free atom has no bonds and no rotation, so its ideal-gas entropy is the
   // Sackur-Tetrode value and its formation enthalpy is the element's atomisation
@@ -1059,11 +1188,14 @@
       let est = null;
       if (s && th) { try { est = theoreticalState(s.atoms, s.bonds, th, { charge: s.charge }); } catch (e) { est = null; } }
       if (est) {
+        const genericNote = s.generic ? L(', connected from the formula by valence rules (no authored structure exists for it)',
+          ', nối từ công thức theo luật hoá trị (không có cấu trúc được soạn cho chất này)') : '';
         row = { formula, estimated: true, data: {
           phase: 'g', hf: est.dfH, s: est.sAbs,
           referenceTemperature: T_REF, pStandard: 1, cStandard: 1, provenance: 'calculated', estimated: true,
           source: L('estimated: bond-enthalpy cycle and statistical mechanics on a rebuilt structure, ideal gas at 298.15 K',
             'ước lượng: chu trình năng lượng liên kết và cơ học thống kê trên cấu trúc dựng lại, khí lý tưởng 298,15 K') +
+            genericNote +
             (est.elementRef ? '' : L(', referred to gaseous atoms (no atomisation data for ', ', quy về nguyên tử khí (thiếu dữ liệu nguyên tử hoá của ') + est.missing.join(', ') + ')') +
             L('; bonding corrections for charge, lone pairs, radicals and strain; symmetry number 1, no bend or torsion modes',
               '; có hiệu chỉnh liên kết cho điện tích, cặp tự do, gốc tự do và ứng suất; số đối xứng 1, bỏ qua mode uốn và xoắn')

@@ -66585,25 +66585,117 @@ function initBackgroundMusic() {
     return snap;
   }
 
+  // The teacher must see the whole screen, not just the scene graph: the INFO
+  // tab, the Dex, the shop, the environment and the reaction panel are live DOM,
+  // and "why is this number wrong?" always means whatever panel is open right now.
+  const SCREEN_RE = /(panel|shop|info|dex|env|modal|menu|balance|status|log|list|card|rank|graph|console|table)/i;
+  // Always-on chrome: the periodic table is an input device with 118 labels, not a
+  // readout, and its text would crowd out the panels the player is asking about.
+  const SCREEN_SKIP = { ptable: 1 };
+  function screenVisible(el) {
+    if (!el.getClientRects().length) return false;
+    const cs = getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 40 && r.height > 40;
+  }
+  function screenReadout() {
+    const nodes = [];
+    const all = document.querySelectorAll("[id]");
+    for (let k = 0; k < all.length && nodes.length < 40; k++) {
+      const el = all[k];
+      if (SCREEN_SKIP[el.id] || !SCREEN_RE.test(el.id) || el.closest("#quest-panel")) continue;
+      if (!screenVisible(el)) continue;
+      const t = (el.innerText || "").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+      if (t.length > 20) nodes.push({ el, t });
+    }
+    // Outermost panels only - their innerText already carries the nested
+    // sections, so reporting both would double the prompt for free.
+    const kept = nodes.filter((n) => !nodes.some((o) => o !== n && o.el.contains(n.el)));
+    let total = 0;
+    const parts = [];
+    for (const n of kept) {
+      if (total > 6000) break;
+      const t = n.t.slice(0, 1200);
+      total += t.length;
+      parts.push("[" + n.el.id + "] " + t);
+    }
+    return parts.join("\n");
+  }
+  // Live code runs from a /command block. Backticks are the documented payload
+  // because quotes inside JavaScript break a quoted grammar; the fenced and
+  // single-line backtick forms both work.
+  const CMD_KEY = "/command";
+  const CMD_RE = /\/command[ \t]*(?:```[ \t]*[a-zA-Z]*[ \t]*\r?\n?([\s\S]*?)```|`([^`\n]+)`|"([^"]+)"|'([^']+)')/g;
+  function extractCommands(s) {
+    const codes = [];
+    let display = "";
+    let last = 0;
+    let m;
+    CMD_RE.lastIndex = 0;
+    while ((m = CMD_RE.exec(s)) !== null) {
+      display += s.slice(last, m.index);
+      codes.push((m[1] || m[2] || m[3] || m[4] || "").trim());
+      last = m.index + m[0].length;
+    }
+    display += s.slice(last);
+    return { display: hideStreamingCommand(display), codes: codes.filter(Boolean) };
+  }
+  // Mid-stream the payload arrives token by token, so an unfinished directive is
+  // held back from the bubble exactly like an unfinished [ACTION:] tag.
+  function hideStreamingCommand(d) {
+    for (let i = d.lastIndexOf("/"); i !== -1; i = d.lastIndexOf("/", i - 1)) {
+      const t = d.slice(i);
+      if (t.length <= CMD_KEY.length && CMD_KEY.startsWith(t)) return d.slice(0, i);
+      if (t.startsWith(CMD_KEY) && /["'`]/.test(t)) return d.slice(0, i);
+      if (i === 0) break;
+    }
+    return d;
+  }
+  async function runAICommand(code) {
+    if (code.length > 4000) return qt("❌ Command too long to run.", "❌ Lệnh quá dài để chạy.");
+    try {
+      const fn = new Function("ai", '"use strict";return (async () => {' + code + "\n})()");
+      const v = await fn({ say: (x) => addQuestMessage("ai", String(x)), snapshot: buildSceneSnapshot, screen: screenReadout });
+      if (v === undefined || v === null) return qt("✓ Command ran.", "✓ Đã chạy lệnh.");
+      let s = String(v);
+      if (typeof v !== "string") { try { s = JSON.stringify(v); } catch { s = String(v); } }
+      return "⚡ " + s.slice(0, 600);
+    } catch (e) {
+      return "❌ Command failed: " + String((e && e.message) || e).slice(0, 300);
+    }
+  }
+
   function questSystemPrompt(snap) {
     const scene = "[SCENE SNAPSHOT]\n" + JSON.stringify(snap) + "\n[/SCENE SNAPSHOT]";
+    const scr = screenReadout();
+    const screen = scr ? "[ON SCREEN - what the player sees now]\n" + scr + "\n[/ON SCREEN]" : "";
     const actions = "[ACTION:spawnMolecule:formula=H2O], [ACTION:spawnAtom:element=O], [ACTION:clearScene]";
+    const commands = () => (isVi()
+      ? "Bạn chạy được JavaScript thật trong game bằng khối lệnh: " + CMD_KEY + " ```js\\n<mã>\\n``` hoặc " + CMD_KEY + " `mã một dòng`. Mã chạy với toàn bộ biến của game (window.__mol3d, Mol3DPhysics, URPEGame, document) và thêm tiện ích ai: ai.say(text), ai.snapshot(), ai.screen(). Người chơi KHÔNG thấy khối lệnh, chỉ thấy kết quả. Hãy dùng khi cần đọc số, sửa cảnh hoặc kiểm chứng lời khuyên của chính bạn; viết ngắn thôi."
+      : "You can run real JavaScript in the game with " + CMD_KEY + " ```js\\n<code>\\n``` or " + CMD_KEY + " `one-line code`. It runs with all of the game's globals (window.__mol3d, Mol3DPhysics, URPEGame, document) plus helpers: ai.say(text), ai.snapshot(), ai.screen(). The player never sees the block, only its result. Use it to read numbers, change the scene, or check your own advice; keep it short.");
     if (isVi()) {
       return `Bạn là Aria, gia sư hóa học AI của PHÂN TỬ SỐ (ứng dụng dựng phân tử 3D).
 Hãy ĐỌC TOÀN BỘ cảnh của người chơi từ SCENE SNAPSHOT bên dưới: từng nguyên tử (nguyên tố, điện tích hình thức fc, cặp electron tự do lp, số liên kết, khả năng octet, đã liên kết chưa), từng liên kết (bậc, ion), cùng công thức, điện tích tổng và tính khả thi Lewis của mỗi phân tử.
 Như một giáo viên thật: (1) chỉ ra các lỗi người chơi mắc phải — nguyên tử siêu hóa trị, điện tích hình thức sai, thiếu liên kết hoặc nguyên tử chưa liên kết, gốc tự do, điện tích tổng không khép kín, tỉ lệ nguyên tử không tạo được phân tử bền; (2) hướng dẫn từng bước với MỘT hành động tiếp theo cụ thể và câu hỏi gợi mở, không đưa sẵn đáp án; (3) liên hệ hóa học thật (quy tắc octet, liên kết, hình học VSEPR, danh pháp); (4) chính xác về mặt khoa học.
 Định dạng: công thức dùng chỉ số dưới thường (H₂O, CH₄); ký hiệu khoa học dạng a×10ᵇ, không dùng e+, ^ hay caret; không dùng header markdown. Trả lời bằng TIẾNG VIỆT, dưới 5 câu.
+Hãy ĐỌC mục [ON SCREEN]: đó đúng là những gì người chơi đang thấy (tab Thông tin, Sổ tay, cửa hàng, môi trường, bảng phản ứng) — trả lời dựa vào số liệu đang hiển thị, không đoán.
 Bạn có thể sửa cảnh khi được yêu cầu; chèn hành động nội dòng — ${actions}. Chỉ dùng hành động bạn thực sự thực hiện, rồi giải thích.
+${commands}
 
-${scene}`;
+${scene}
+${screen}`;
     }
     return `You are Aria, an AI chemistry teacher inside MOLECULITH, a 3D molecule builder.
 Read the player's ENTIRE scene from the SCENE SNAPSHOT below: every atom (element, formal charge, lone pairs, bond count, octet capacity, bonded?), every bond (order, ionic), and each molecule's formula, net charge, and Lewis feasibility.
 Like a real teacher: (1) point out the mistakes the player made — hypervalent atoms, wrong formal charges, missing or unbonded atoms, radicals, a net charge that will not close, atom ratios that cannot form a stable molecule; (2) guide with one concrete next step and leading questions instead of handing over the finished answer; (3) connect it to real chemistry (octet rule, bonding, VSEPR shape, naming); (4) be scientifically correct.
 Formatting: plain subscripts only (H₂O, CH₄); scientific notation as a×10ᵇ, never e+, ^ or caret; no markdown headers. Reply in English, under 5 sentences.
+Read the [ON SCREEN] section too - it is literally what the player is looking at (the INFO tab, the Dex, the shop, the environment, the reaction panel), so answer from the numbers on display instead of guessing them.
 You may edit the scene when asked; emit actions inline — ${actions}. Use only the actions you actually perform, then explain what you did.
+${commands}
 
-${scene}`;
+${scene}
+${screen}`;
   }
 
   // Both transports stream. onDelta receives the full text accumulated so far
@@ -66839,12 +66931,12 @@ ${scene}`;
     questSend.disabled = true;
     if (qMode === "guest") { lastGuestAt = Date.now(); startGuestCooldown(); }
     // Paint the reply into one bubble as tokens arrive. Full [ACTION:...] tags
-    // are stripped for display; a trailing partial tag (still streaming) is held
-    // back so the raw protocol never flashes on screen.
+    // and /command blocks are stripped for display; a trailing partial tag (still
+    // streaming) is held back so the raw protocol never flashes on screen.
     let aiMsg = null;
     let typingRef = typingMsg;
     const stripForDisplay = s => {
-      let out = s.replace(/\[ACTION:[^\]]*\]/g, "");
+      let out = extractCommands(s.replace(/\[ACTION:[^\]]*\]/g, "")).display;
       const open = out.lastIndexOf("[");
       if (open !== -1 && out.indexOf("]", open) === -1) {
         const tail = out.slice(open);
@@ -66868,13 +66960,17 @@ ${scene}`;
       if (typingRef) { typingRef.remove(); typingRef = null; }
       const clean = (aiText || "").trim() || t("quest.error");
       const actionResults = parseAndExecuteActions(clean);
-      const shown = clean.replace(/\[ACTION:[^\]]+\]/g, "").trim();
+      const cmds = extractCommands(clean);
+      const shown = cmds.display.replace(/\[ACTION:[^\]]+\]/g, "").trim();
       if (!aiMsg) aiMsg = addQuestMessage("ai", "");
       aiMsg.textContent = shown || clean;
       if (actionResults.length > 0) {
         actionResults.forEach((result) => addQuestMessage("system", result));
       }
-      questHistory.push({ role: "assistant", content: clean });
+      // The code runs after the sentence it belongs to is on screen, so the
+      // player reads the advice and then sees what it did.
+      for (const code of cmds.codes) addQuestMessage("system", await runAICommand(code));
+      questHistory.push({ role: "assistant", content: shown || clean });
     } catch (error) {
       if (typingRef) { typingRef.remove(); typingRef = null; }
       if (aiMsg) aiMsg.remove();

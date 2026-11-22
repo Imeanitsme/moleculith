@@ -2702,6 +2702,13 @@
     if (f2 === null) note += L('fragMissing', { f: labelHeavy });
     if (caught.caught > 0) note += L('chainNote', { n: caught.caught });
     showStatus(note);
+    // Nuclear popup: fission shown like a reaction with energy and equation.
+    if (window.__mol3d && typeof window.__mol3d.showNuclearOverlay === 'function') {
+      window.__mol3d.showNuclearOverlay('FISSION', N.formatEnergy(ev.energy),
+        nuclideSym(oldZ, oldA) + ' → ' + nuclideSym(ev.light.z, ev.light.a) +
+        ' + ' + nuclideSym(ev.heavy.z, ev.heavy.a) +
+        (ev.nu > 0 ? ' + ' + ev.nu + 'n' : ''));
+    }
     if (window.__mol3d.reanalyze) window.__mol3d.reanalyze();
     if (window.__mol3d.refreshInspector) window.__mol3d.refreshInspector();
     if (window.__mol3d.invalidate) window.__mol3d.invalidate();

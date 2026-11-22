@@ -1586,6 +1586,14 @@ body.mobile:has(.side-tab-panel.open) #joy {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.rxn-energy {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--warn, #ffaa00);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.rxn-energy:empty { display: none; }
 .rxn-equation {
   font-size: 20px;
   font-weight: 600;

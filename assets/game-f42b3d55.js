@@ -57552,15 +57552,6 @@ class RemotePlayer {
   }
   createMesh() {
     const group = new Group();
-    const bodyGeometry = new CapsuleGeometry(0.3, 0.8, 4, 8);
-    const bodyMaterial = new MeshStandardMaterial({
-      color: 6717162,
-      metalness: 0.3,
-      roughness: 0.7
-    });
-    const body = new Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = 0.7;
-    group.add(body);
     const headGeometry = new SphereGeometry(0.25, 16, 16);
     const headMaterial = new MeshStandardMaterial({
       color: 16767916,
@@ -57648,8 +57639,8 @@ class RemotePlayer {
   }
   updateVisuals() {
     this.mesh.traverse((child) => {
-      if (child.isMesh && child.geometry.type === "CapsuleGeometry") {
-        child.material.color.setHex(this.isDead ? 5592405 : 6717162);
+      if (child.isMesh && child.geometry.type === "SphereGeometry") {
+        child.material.color.setHex(this.isDead ? 5592405 : 16767916);
         child.material.opacity = this.isDead ? 0.5 : 1;
         child.material.transparent = this.isDead;
       }
@@ -58442,6 +58433,8 @@ function emitNuclearDecay(shot, now) {
       parent: nuclideText(nuc.a, oldEl.z, oldEl.sym), daughter: nuclideText(d.a, d.z, newEl.sym),
       q: qText, life, ea: N.formatEnergy(al.alphaEnergy)
     }), "warn");
+    showNuclearOverlay("ALPHA DECAY", N.formatEnergy(al.alphaEnergy),
+      N.nuclideSup(oldEl.z, nuc.a) + " → " + N.nuclideSup(d.z, d.a) + " + " + N.nuclideSup(2, 4));
   } else {
     // A weak transition ionises, it does not shove: a flicker and a recoil, no
     // blast and no dose to the neighbours, exactly as the light-element beta loop
@@ -58471,6 +58464,10 @@ function emitNuclearDecay(shot, now) {
       parent: nuclideText(nuc.a, oldEl.z, oldEl.sym), daughter: nuclideText(d.a, d.z, newEl.sym),
       life: life + t("nuclear.qClause", { q: qText })
     }), "warn");
+    const nucKind = plus ? "BETA+ DECAY" : branch.mode === "electronCapture" ? "ELECTRON CAPTURE" : "BETA− DECAY";
+    const nucEq = N.nuclideSup(oldEl.z, nuc.a) + " → " + N.nuclideSup(d.z, d.a) +
+      (plus ? " + e+" : branch.mode === "electronCapture" ? "" : " + e−");
+    showNuclearOverlay(nucKind, qText, nucEq);
   }
   repaintNucleus(id, newEl, now);
 }
@@ -58642,6 +58639,10 @@ function updateBetaDecay(now) {
       daughter: nuclideText(d.a, d.z, newEl.sym),
       life: book.formatLife(plan.halfLife)
     }), "warn");
+    const N2 = window.__nuclear;
+    const sup = (z, a) => N2 && typeof N2.nuclideSup === "function" ? N2.nuclideSup(z, a) : (ELEMENTS.find((e) => e.z === z)?.sym || "Z" + z) + "-" + a;
+    showNuclearOverlay(plan.kind === "plus" ? "BETA+ DECAY" : "BETA− DECAY", "—",
+      sup(plan.z, plan.a) + " → " + sup(d.z, d.a) + (plan.kind === "plus" ? " + e+" : " + e−"));
     spawnAnim.set(id, now);
     const label = labelSprites.get(id);
     if (label) {
@@ -59600,15 +59601,6 @@ const catalystFX = new CatalystFX(scene);
 const electricityFX = new ElectricityFX(scene);
 function createPlayerAvatar() {
   const avatar = new Group();
-  const bodyGeo = new CapsuleGeometry(0.4, 0.8, 8, 16);
-  const bodyMat = new MeshStandardMaterial({
-    color: 4886754,
-    roughness: 0.6,
-    metalness: 0.2
-  });
-  const body = new Mesh(bodyGeo, bodyMat);
-  body.position.y = 0.8;
-  avatar.add(body);
   const headGeo = new SphereGeometry(0.35, 16, 12);
   const headMat = new MeshStandardMaterial({
     color: 16767916,
@@ -61306,6 +61298,27 @@ function showRxnOverlay(rx) {
     overlay.classList.remove("show");
     overlay.setAttribute("aria-hidden", "true");
   }, redoxHtml ? 7e3 : 3e3);
+}
+// Nuclear event popup: decay or fission shown like a reaction, with energy.
+function showNuclearOverlay(kind, energyText, equation) {
+  const overlay = document.getElementById("rxn-overlay");
+  if (!overlay) return;
+  overlay.querySelector(".rxn-condition").textContent = kind;
+  const enEl = overlay.querySelector(".rxn-energy");
+  if (enEl) enEl.textContent = energyText ? "ENERGY: " + energyText : "";
+  overlay.querySelector(".rxn-equation").textContent = equation;
+  const redoxEl = overlay.querySelector(".rxn-redox");
+  if (redoxEl) {
+    redoxEl.innerHTML = "";
+    overlay.classList.remove("with-redox");
+  }
+  overlay.classList.add("show");
+  overlay.setAttribute("aria-hidden", "false");
+  if (rxnOverlayTimer) clearTimeout(rxnOverlayTimer);
+  rxnOverlayTimer = setTimeout(() => {
+    overlay.classList.remove("show");
+    overlay.setAttribute("aria-hidden", "true");
+  }, 4e3);
 }
 function verifyReactionProducts(rx, newCompKeys, consumedCount) {
   const problems = [];
@@ -66256,6 +66269,7 @@ window.__mol3d = {
   spawnAtom,
   spawnAtomFromScreen,
   spawnMolecule: spawnFormulaMolecule,
+  showNuclearOverlay,
   status,
   i18n: { t, getLang, elName },
   // Bond legality belongs to the game, not to the tool that draws it. BluePrint

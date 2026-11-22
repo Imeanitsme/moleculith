@@ -2336,9 +2336,8 @@
       const splits = !!canSplit &&
         (isFissile(atom.el.z, aNow) || Math.random() < FAST_FISSION_CHANCE);
       if (splits) {
-        // The countdown names the compound nucleus that is about to split:
-        // U-235 + n is U-236*, and it is the U-236* that breaks.
-        startCriticalTimer(atom, atomId, compound);
+        // No countdown: fission splits on capture.
+        triggerFission(atomId, { compoundA: compound });
       } else if (kind === 'neutron') {
         addNeutron(atom, atomId, paid);
       } else {

@@ -195,13 +195,7 @@
     return v.toFixed(d === undefined ? 2 : d).replace(/^-/, '\u2212');
   }
 
-  // Equilibrium composition. The reaction coordinate ξ is measured in units of the
-  // written equation, so species i holds n0(i) + ν(i)ξ. At fixed T and P a gas is
-  // its mole fraction times P/p°, a pure condensed phase stays at unit activity, and
-  // lnQ therefore rises monotonically with ξ, which makes ξ(K) a bisection rather
-  // than a polynomial. The bracket is the stoichiometric limit in each direction:
-  // a mixture can run out of material long before Q reaches K, and that clamp is
-  // itself the prediction (quantitative reaction), so it is reported, not hidden.
+  // Equilibrium composition
   function equilibrium(list, r, moles, P) {
     if (r === null || r.lnK === null || !Number.isFinite(r.lnK)) return null;
     const sp = [];
@@ -246,9 +240,7 @@
       // end of the bracket is an infinite activity: the mixture simply runs out.
       const eps = 1e-7 * (hi - lo || 1);
       if (hi - xi < eps) clamped = 'forward';
-      else if (xi - lo < eps) clamped = 'reverse';
-    }
-    const at = {};
+      else if (xi - lo < eps) clamped = 'reverse';    const at = {};
     let prodmol = 0, reactmol = 0, limiting = null;
     for (const s of sp) {
       const n = Math.max(0, s.n0 + s.nu * xi);
@@ -1408,8 +1400,7 @@
     }, 0);
   });
 
-  // Programmatic face of exactly the maths the panel draws, so the auto-reaction
-  // loop, the console and any external caller read one object instead of HTML.
+  // Predict: all thermodynamic metrics for an equation
   function predict(equation, opts) {
     const o = opts || {};
     const env = envState();

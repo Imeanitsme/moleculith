@@ -194,11 +194,9 @@
     return kinds;
   }
 
-  // The `total` most compact close-packed sites, in unit coordinates where the
-  // distance between touching nucleons is exactly 1.
+  // Compact close-packed sites
   function latticeSites(total) {
-    // The half cube holds about (2m+1)^3 / 2 sites, so start near the answer
-    // instead of growing to it.
+    // Start near cube size
     var m = Math.max(1, Math.ceil(Math.cbrt(2 * total)) - 1);
     var sites = [];
     while (m < 48) {
@@ -206,7 +204,7 @@
       for (var i = -m; i <= m; i++) {
         for (var j = -m; j <= m; j++) {
           for (var k = -m; k <= m; k++) {
-            // FCC is the integer lattice restricted to even coordinate sums.
+            // FCC: even coordinate sums
             if (((i + j + k) & 1) !== 0) continue;
             sites.push([i, j, k, i * i + j * j + k * k]);
           }
@@ -217,15 +215,14 @@
     }
     sites.sort(function (a, b) {
       if (a[3] !== b[3]) return a[3] - b[3];
-      // A tie is a shell: taking the first few in index order would cluster them
-      // on one side, so spread them with an irrational rotation of the site.
+      // Spread ties by shell with an irrational rotation
       return hash3(a) - hash3(b);
     });
     var chosen = [];
     var reach = 0;
     for (var s = 0; s < total && s < sites.length; s++) {
       var p = sites[s];
-      // (i, j, k) / sqrt(2) puts the twelve nearest neighbours exactly at 1.
+      // Scale by SQRT1_2 so nearest neighbours sit at 1
       var x = p[0] * Math.SQRT1_2, y = p[1] * Math.SQRT1_2, z = p[2] * Math.SQRT1_2;
       chosen.push([x, y, z]);
       var r = Math.sqrt(p[3] * 0.5);
@@ -245,8 +242,7 @@
     if (total < 1) return group;
 
     var lattice = latticeSites(total);
-    // In these units a nucleon is half a site apart from its neighbour, so the
-    // drawn ball has to leave room for the outer nucleons' own radius.
+    // Budget leaves room for outer nucleons' radius
     var envelopeUnits = lattice.reach + 0.5;
     var spacing = NUCLEON_RADIUS * 2 * NUCLEON_GAP;
     var budget = (atomRadius || 0.5) * NUCLEUS_BUDGET;
@@ -284,7 +280,7 @@
     var shellRadius = atomRadius * (1.5 + shellIndex * 0.8);
     var baseOpacity = 0.15;
 
-    // Single cloud layer with gradient opacity (optimized: was 3 layers)
+    // Single cloud layer
     var cloudGeo = new THREE.SphereGeometry(shellRadius, 16, 16);
     var cloudMat = new THREE.MeshBasicMaterial({
       color: 0x58a6ff,
@@ -297,7 +293,7 @@
     var cloud = new THREE.Mesh(cloudGeo, cloudMat);
     group.add(cloud);
 
-    // Reduced point count for performance (was electronCount * 8, now * 4)
+    // Reduced point count for performance
     var pointCount = Math.min(electronCount * 4, 32);
     var pointGeo = new THREE.SphereGeometry(0.03, 4, 4); // Smaller, lower poly
     var pointMat = new THREE.MeshBasicMaterial({

@@ -45481,12 +45481,19 @@ function trReason(r) {
     ? window.__mol3dLearning.explain(r, original, getLang() === "vi" ? "liên kết / điện tích" : "bonding / charge")
     : original;
 }
+// Element names are English IUPAC in every language, because the symbols,
+// formulas and compound names the player reads beside them already are
+// ("Sulfur dioxide", not "đi-lưu huỳnh đi-ô-xít"), and the pool chips are too
+// narrow for anything longer than one word anyway.
 function elName(el) {
-  if (lang === "vi") {
-    const n = EL_VI[el.z];
-    if (n) return n;
-  }
   return el.name;
+}
+// The Vietnamese textbook name belongs in the hover tooltip, where there is
+// room for both, and in the search index so "lưu huỳnh" still finds S.
+function elNamePair(el) {
+  if (lang !== "vi") return el.name;
+  const n = EL_VI[el.z];
+  return n && n !== el.name ? `${el.name} (${n})` : el.name;
 }
 function catLabel(cat) {
   return (lang === "vi" ? CAT_VI[cat] : CAT_EN[cat]) || cat;
@@ -62438,7 +62445,7 @@ function buildPeriodicTable() {
     b.style.borderColor = el.color;
     b.dataset.sym = el.sym;
     b.dataset.z = z;
-    b.title = t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
+    b.title = t("el.title", { name: elNamePair(el), cat: catLabel(el.cat), max: el.maxBonds });
     b.innerHTML = `<span class="z">${z}</span><span class="s">${el.sym}</span><span class="el-qty"></span>`;
     b.addEventListener("click", () => {
       spawnAtom(el);
@@ -62470,14 +62477,14 @@ function renderPoolNames() {
   for (const b of document.querySelectorAll("#pool-list .el-chip")) {
     const el = elementBySym(b.dataset.sym);
     if (!el) continue;
-    b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)} ${fold(el.name)} ${fold(elName(el))}`.toLowerCase();
-    b.title = t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
+    b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elNamePair(el)} ${fold(el.name)} ${fold(elNamePair(el))}`.toLowerCase();
+    b.title = t("el.title", { name: elNamePair(el), cat: catLabel(el.cat), max: el.maxBonds });
     b.querySelector(".n").textContent = elName(el);
   }
   for (const b of document.querySelectorAll("#ptable .el[data-sym]")) {
     const el = elementBySym(b.dataset.sym);
     if (el) {
-      b.title = t("el.title", { name: elName(el), cat: catLabel(el.cat), max: el.maxBonds });
+      b.title = t("el.title", { name: elNamePair(el), cat: catLabel(el.cat), max: el.maxBonds });
     }
   }
 }
@@ -62492,8 +62499,8 @@ function buildPool() {
     b.className = "el-chip";
     b.dataset.sym = el.sym;
     if (el.z) b.dataset.z = el.z;
-    b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elName(el)}`.toLowerCase();
-    b.title = `${elName(el)} · ${el.cat} · max bonds ${el.maxBonds}`;
+    b.dataset.search = `${el.sym} ${el.name} ${el.z} ${elNamePair(el)}`.toLowerCase();
+    b.title = `${elNamePair(el)} · ${catLabel(el.cat)} · max bonds ${el.maxBonds}`;
     const dot = document.createElement("i");
     dot.style.background = el.color;
     const s = document.createElement("span");
@@ -62627,7 +62634,7 @@ function updateInspector() {
     <span class="muted">${t("sel.nucleus", { label: iso.label, p: iso.z, n: iso.a - iso.z })}${extra > 0 ? t("sel.nucleusShot", { s: extra }) : ""}</span>`;
     }
   }
-  sel.innerHTML = `<b>${at.el.sym}</b> — ${elName(at.el)}<br />
+  sel.innerHTML = `<b>${at.el.sym}</b> — ${elNamePair(at.el)}<br />
     <span class="muted">${t("sel.stats", { cat: catLabel(at.el.cat), mass: at.el.mass, en: at.el.en ?? "?", max: at.el.maxBonds })}</span>${nucleusHtml}`;
   bohrBtn.hidden = false;
   bohrContainer.hidden = !bohrActive;

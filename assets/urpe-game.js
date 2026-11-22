@@ -195,6 +195,76 @@
     return v.toFixed(d === undefined ? 2 : d).replace(/^-/, '\u2212');
   }
 
+  // Equilibrium composition. The reaction coordinate ξ is measured in units of the
+  // written equation, so species i holds n0(i) + ν(i)ξ. At fixed T and P a gas is
+  // its mole fraction times P/p°, a pure condensed phase stays at unit activity, and
+  // lnQ therefore rises monotonically with ξ, which makes ξ(K) a bisection rather
+  // than a polynomial. The bracket is the stoichiometric limit in each direction:
+  // a mixture can run out of material long before Q reaches K, and that clamp is
+  // itself the prediction (quantitative reaction), so it is reported, not hidden.
+  function equilibrium(list, r, moles, P) {
+    if (r === null || r.lnK === null || !Number.isFinite(r.lnK)) return null;
+    const sp = [];
+    for (const t of list) {
+      const ph = t.data.phase;
+      if (ph === 'aq') return null;
+      let n0 = amountFor(t.formula, moles);
+      if (n0 === null || !Number.isFinite(n0)) n0 = 0;
+      sp.push({ formula: t.formula, nu: t.nu, gas: ph === 'g', pStd: t.data.pStandard || 1, n0 });
+    }
+    let hi = Infinity, lo = -Infinity;
+    for (const s of sp) {
+      if (s.nu < 0) hi = Math.min(hi, s.n0 / -s.nu);
+      else lo = Math.max(lo, -s.n0 / s.nu);
+    }
+    if (!Number.isFinite(hi) || !Number.isFinite(lo) || hi < lo) return null;
+    const lnQ = xi => {
+      let gas = 0;
+      for (const s of sp) if (s.gas) gas += Math.max(0, s.n0 + s.nu * xi);
+      let sum = 0;
+      for (const s of sp) {
+        if (!s.gas || s.nu === 0) continue;
+        const n = Math.max(0, s.n0 + s.nu * xi);
+        if (n <= 0) return s.nu > 0 ? -Infinity : Infinity;
+        sum += s.nu * Math.log(n / gas * P / s.pStd);
+      }
+      return sum;
+    };
+    let xi, clamped = null;
+    const fLo = lnQ(lo) - r.lnK, fHi = lnQ(hi) - r.lnK;
+    if (fLo > 0) { xi = lo; clamped = 'reverse'; }
+    else if (fHi < 0) { xi = hi; clamped = 'forward'; }
+    else {
+      let a = lo, b = hi;
+      for (let k = 0; k < 200; k++) {
+        const m = (a + b) / 2;
+        if (lnQ(m) - r.lnK > 0) b = m; else a = m;
+        if (b - a < 1e-12 * (Math.abs(hi) + 1e-12)) break;
+      }
+      xi = (a + b) / 2;
+      // K sits outside the range Q can reach at this charge even though the far
+      // end of the bracket is an infinite activity: the mixture simply runs out.
+      const eps = 1e-7 * (hi - lo || 1);
+      if (hi - xi < eps) clamped = 'forward';
+      else if (xi - lo < eps) clamped = 'reverse';
+    }
+    const at = {};
+    let prodmol = 0, reactmol = 0, limiting = null;
+    for (const s of sp) {
+      const n = Math.max(0, s.n0 + s.nu * xi);
+      at[s.formula] = n;
+      if (s.nu < 0) {
+        reactmol += n;
+        const conv = s.n0 > 0 ? (s.n0 - n) / s.n0 : 0;
+        if (s.n0 > 0 && (limiting === null || conv > limiting.conv)) limiting = { formula: s.formula, conv };
+      } else prodmol += n;
+    }
+    return { xi, moles: at, productMoles: prodmol, reactantMoles: reactmol,
+      ratio: reactmol > 0 ? prodmol / reactmol : null,
+      limiting: limiting && limiting.formula, conversion: limiting && limiting.conv,
+      clamped };
+  }
+
   function panelHtml(rx, moles) {
     const list = rx && speciesList(rx);
     if (!list) return '';
@@ -248,6 +318,26 @@
             'Mọi chất tham gia là pha ngưng tụ thuần nhất và mỗi sản phẩm ở hoạt độ đơn vị, nên Q = 1 và ΔG = ΔG°.')) + '</div>');
     } else if (q.reason) {
       rows.push('<div class="rxn-gibbs-note">' + esc(L('ΔG not priced: ', 'Chưa tính ΔG: ') + q.reason + '.') + '</div>');
+    }
+    const eq = equilibrium(list, r, moles, P);
+    if (eq) {
+      const dir = eq.xi > 0 ? '→' : eq.xi < 0 ? '←' : '=';
+      const pct = eq.conversion === null || eq.conversion === undefined ? null
+        : eq.conversion > 0 && eq.conversion < 5e-4 ? L('<0.05 %', '<0,05 %')
+        : (100 * eq.conversion).toFixed(1) + '%';
+      const mix = list.map(t => esc(t.formula) + ' ' + sci(eq.moles[t.formula], 3) + ' mol').join(' · ');
+      rows.push('<div class="rxn-gibbs-eq"><b>' + dir + '</b> ' +
+        L('equilibrium mixture', 'hỗn hợp cân bằng') + ': ' + mix + '</div>');
+      rows.push('<div class="rxn-gibbs-note">' + esc(
+        (eq.clamped === 'forward' ? L('Runs to the stoichiometric limit (K is larger than any Q this charge can reach): ',
+            'Chạy hết giới hạn hợp thức (K lớn hơn mọi Q mà lượng chất này đạt tới): ')
+          : eq.clamped === 'reverse' ? L('Runs backward to the stoichiometric limit (K is smaller than any Q this charge can reach): ',
+            'Chạy ngược hết giới hạn hợp thức (K nhỏ hơn mọi Q mà lượng chất này đạt tới): ')
+          : L('Stops at equilibrium with ', 'Dừng ở cân bằng với ')) +
+        (pct === null ? L('no charge given', 'không cho lượng chất nào')
+          : pct + ' ' + L('of ' + eq.limiting + ' converted', ' ' + eq.limiting + ' đã chuyển hoá')) +
+        (eq.ratio === null ? '' : ', ' + L('product:reactant = ', 'sản phẩm:chất tham gia = ') + sci(eq.ratio, 2) + ':1') +
+        (eq.clamped ? L(' — the mixture runs out of material before K is reached.', ' — hỗn hợp cạn chất trước khi đạt K.') : '.')) + '</div>');
     }
     // Say how the number was carried to this temperature. The three-regime ladder
     // always prices a route, so a value 2000 K off the table is displayed with the
@@ -1318,5 +1408,35 @@
     }, 0);
   });
 
-  root.URPEGame = { evaluate, panelHtml, lookup, speciesRow, theoreticalRow, canon, parse, envState, thermoTerm, sci, theoreticalState, ATOM_DH };
+  // Programmatic face of exactly the maths the panel draws, so the auto-reaction
+  // loop, the console and any external caller read one object instead of HTML.
+  function predict(equation, opts) {
+    const o = opts || {};
+    const env = envState();
+    const T = Number.isFinite(o.T) ? o.T : env.T;
+    const P = Number.isFinite(o.P) ? o.P : env.P;
+    const terms = parse(equation);
+    if (!terms) return null;
+    const list = terms.map(t => ({ formula: t.formula, nu: t.nu, data: (speciesRow(t.formula) || {}).data || null }));
+    const missing = list.filter(t => !t.data).map(t => t.formula);
+    if (missing.length) return { equation, T, P, unsupported: missing };
+    const moles = o.moles instanceof Map ? o.moles : new Map(Object.entries(o.moles || {}));
+    const q = activities(list, moles, P);
+    let r;
+    try { r = N.thermo(list.map(t => thermoTerm(t, q.acts[t.formula])), T); } catch (e) { return { equation, T, P, error: e.message }; }
+    const dG = r.dG === null || r.dG === undefined || !Number.isFinite(r.dG) ? null : r.dG;
+    return {
+      equation, T, P,
+      dH: r.dH, dS: r.dS, dG0: r.dG0, dG,
+      K: r.K, lnK: r.lnK,
+      Q: r.lnQ === null || r.lnQ === undefined ? null : Math.exp(r.lnQ), lnQ: r.lnQ,
+      spontaneous: dG === null ? null : dG < 0,
+      spontaneousStandard: r.dG0 === null ? null : r.dG0 < 0,
+      direction: dG === null ? 'unknown' : dG < -1e-9 ? 'forward' : dG > 1e-9 ? 'reverse' : 'equilibrium',
+      equilibrium: equilibrium(list, r, moles, P),
+      activities: q.acts, note: q.reason, model: r.model, provenance: r.provenance, missing: r.missing
+    };
+  }
+
+  root.URPEGame = { evaluate, predict, equilibrium, panelHtml, lookup, speciesRow, theoreticalRow, canon, parse, envState, thermoTerm, sci, theoreticalState, ATOM_DH };
 })(window);

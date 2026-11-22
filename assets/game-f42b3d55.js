@@ -43096,7 +43096,10 @@ function covalentCheck(atoms2, bonds2, aId, bId) {
     return { ok: false, reason: { key: "chem.nobleOnlyFO" } };
   let paid = false;
   const room = (at) => {
-    const after = orderSumOf(atoms2, bonds2, at.id) + 1;
+    // Hydrogen's one attachment may already be spent on an ionic contact, which
+    // orderSumOf deliberately ignores.
+    const held = orderSumOf(atoms2, bonds2, at.id) + (at.el.z === 1 ? ionicCountOf(atoms2, bonds2, at.id) : 0);
+    const after = held + 1;
     const cap = orderCapacityOf(at.el);
     if (after > cap) return { ok: false, key: "chem.noCapacity", max: cap };
     if (after > neutralCovalenceOf(at.el)) {
@@ -43133,6 +43136,11 @@ function ionicCheck(atoms2, bonds2, aId, bId) {
   if (ionicCountOf(atoms2, bonds2, metal.id) >= maxCharge)
     return { ok: false, reason: { key: "chem.metalMax", p: { sym: metal.el.sym, max: maxCharge } } };
   if (!nonmetal.el.anionCharge) return { ok: false, reason: { key: "chem.noAnion", p: { sym: nonmetal.el.sym } } };
+  // Hydrogen has one attachment in total, not one per bond class: a covalently
+  // satisfied H that also takes a metal contact is the H bonded to both Ca and O
+  // curse, not a hydride.
+  if (nonmetal.el.z === 1 && orderSumOf(atoms2, bonds2, nonmetal.id) >= 1)
+    return { ok: false, reason: { key: "chem.anionMax", p: { sym: "H", max: 1 } } };
   if (ionicCountOf(atoms2, bonds2, nonmetal.id) >= nonmetal.el.anionCharge)
     return { ok: false, reason: { key: "chem.anionMax", p: { sym: nonmetal.el.sym, max: nonmetal.el.anionCharge } } };
   const covSum = orderSumOf(atoms2, bonds2, nonmetal.id);
@@ -43425,6 +43433,19 @@ function analyzeComponent(atoms2, bonds2, comp, chargeOverride = null) {
   return { ...res, formula, fingerprint };
 }
 const CENTRAL_FIRST_H = /* @__PURE__ */ new Set(["N"]);
+// The metal test has to be generous: the curated METALS list and the periodic
+// category disagree on the heavy f-block, and a missed metal costs the species
+// its conventional spelling.
+function isHydroxideMetal(sym) {
+  if (isMetal(sym)) return true;
+  const cat = elementBySym$1(sym)?.cat || "";
+  // This app names the categories 'alkali', 'alkaline', 'transition', 'post',
+  // 'lanthanide' and 'actinide'; other tables spell them out with the word
+  // 'metal' in them. 'metalloid' carries that word and is not a metal.
+  if (cat === "metalloid" || /nonmetal/i.test(cat)) return false;
+  return ["alkali", "alkaline", "transition", "post", "lanthanide", "actinide"].includes(cat) ||
+    /metal/i.test(cat);
+}
 function formulaOf(elements) {
   const count = /* @__PURE__ */ new Map();
   for (const el of elements) count.set(el.sym, (count.get(el.sym) || 0) + 1);
@@ -43441,6 +43462,14 @@ function formulaOf(elements) {
   const o = count.get("O") || 0;
   const others = syms.filter((s) => s !== "H" && s !== "O");
   const ACID_CENTRAL = /* @__PURE__ */ new Set(["P", "S", "N", "Cl", "Br", "I", "C", "B", "Si", "Ge", "As", "Sb", "Te", "Cr", "Mn", "V", "W", "Mo"]);
+  // A metal with one H per O is a hydroxide, and hydroxides are written M(OH)n.
+  // Left to the electronegativity fallback this came out as CaH2O2, which no
+  // template, isomer table or curated reaction knows, so the scene fell back to
+  // proximity bonding and built H bonded to both Ca and O.
+  if (h > 0 && h === o && others.length > 0 && others.every(isHydroxideMetal)) {
+    const electroneg = (s) => elementBySym$1(s)?.en ?? 0;
+    return [...others].sort((a, b) => electroneg(a) - electroneg(b) || (a < b ? -1 : 1)).map(seg).join("") + (h === 1 ? "OH" : `(OH)${h}`);
+  }
   if (h > 0 && o > 0 && others.length === 1 && ACID_CENTRAL.has(others[0])) {
     return seg("H") + seg(others[0]) + seg("O");
   }
@@ -49237,26 +49266,30 @@ function parseAnionFormula(sym) {
   }
   return atoms2;
 }
-function findCentralAtom(anionAtoms, offset) {
-  for (let i = 0; i < anionAtoms.length; i++) {
-    if (anionAtoms[i] !== "O") return offset + i;
+// Hydrogen is never the centre of an anion: it has one bond, so picking it as
+// the attachment point gave OH- two bonds (metal-H and H-O). The centre is the
+// least electronegative non-hydrogen atom, and any H hangs off an O.
+function anionCentreIndex(atoms) {
+  const electroneg = (s) => elementBySym$1(s)?.en ?? 0;
+  let best = -1;
+  for (let i = 0; i < atoms.length; i++) {
+    if (atoms[i] === "H") continue;
+    if (best === -1 || electroneg(atoms[i]) < electroneg(atoms[best])) best = i;
   }
-  return offset;
+  return best === -1 ? 0 : best;
+}
+function findCentralAtom(anionAtoms, offset) {
+  return offset + anionCentreIndex(anionAtoms);
 }
 function getAnionInternalBonds(anionSym, offset) {
   const atoms2 = parseAnionFormula(anionSym);
   if (atoms2.length <= 1) return [];
+  const centralLocal = anionCentreIndex(atoms2);
   const bonds2 = [];
-  let centralLocal = 0;
-  for (let i = 0; i < atoms2.length; i++) {
-    if (atoms2[i] !== "O") {
-      centralLocal = i;
-      break;
-    }
-  }
   for (let i = 0; i < atoms2.length; i++) {
     if (i === centralLocal) continue;
-    bonds2.push([offset + centralLocal, offset + i, 1]);
+    const host = atoms2[i] === "H" ? atoms2.indexOf("O") : -1;
+    bonds2.push([offset + (host >= 0 ? host : centralLocal), offset + i, 1]);
   }
   return bonds2;
 }
@@ -66147,12 +66180,10 @@ function autoBondAtoms(atomIds) {
 // "build me some water" is not an instruction to clear the table.
 function spawnFormulaMolecule(formula) {
   const atomList = [];
-  const re = /([A-Z][a-z]?)(\d*)/g;
-  let m;
-  while ((m = re.exec(String(formula || ""))) !== null) {
-    if (!m[1]) continue;
-    const count = m[2] ? parseInt(m[2], 10) : 1;
-    for (let i = 0; i < count; i++) atomList.push(m[1]);
+  // Parenthesised groups are the normal way to write a salt or hydroxide, and a
+  // flat symbol-digit scan silently drops the multiplier: Ca(OH)2 became CaOH.
+  for (const [sym, count] of parseFormula(String(formula || ""))) {
+    for (let i = 0; i < count; i++) atomList.push(sym);
   }
   if (!atomList.length) return null;
   for (const sym of atomList) {

@@ -167,44 +167,111 @@
     return sprite;
   }
 
-  function createNucleus(protons, neutrons, THREE) {
-    var group = new THREE.Group();
-    var nucleusRadius = 0.15;
-    var particleRadius = 0.05;
+  // Nuclear matter is incompressible: a nucleus of A nucleons has a radius
+  // proportional to A^(1/3) and the nucleons inside it touch. The old layout
+  // walked the index outward along one spiral while handing out every proton
+  // first, so a heavy nucleus drew as a red core inside a gray shell, all of the
+  // spheres pushed through each other. The sites below are the face-centred
+  // cubic lattice - every site has twelve neighbours at exactly one unit, so any
+  // subset of it is a close-packed cluster that cannot overlap, and the two kinds
+  // are scattered through the sites by a low-discrepancy sequence the way a real
+  // nucleus mixes them.
+  var NUCLEON_RADIUS = 0.034;
+  // 1.0 is literally touching; a hair of air is what lets the eye read spheres.
+  var NUCLEON_GAP = 1.06;
+  // The nucleus has to stay inside the K shell, which sits at 1.5 * atomRadius.
+  var NUCLEUS_BUDGET = 0.42;
+  var GOLDEN_FRACTION = 0.6180339887498949;
 
-    // Nucleus sphere (transparent shell)
-    var nucleusGeo = new THREE.SphereGeometry(nucleusRadius, 12, 12);
+  function scatterKinds(total, protons) {
+    var slots = [];
+    for (var i = 0; i < total; i++) slots.push(i);
+    slots.sort(function (a, b) {
+      return (a * GOLDEN_FRACTION) % 1 - (b * GOLDEN_FRACTION) % 1;
+    });
+    var kinds = new Array(total);
+    for (var j = 0; j < total; j++) kinds[slots[j]] = j < protons;
+    return kinds;
+  }
+
+  // The `total` most compact close-packed sites, in unit coordinates where the
+  // distance between touching nucleons is exactly 1.
+  function latticeSites(total) {
+    // The half cube holds about (2m+1)^3 / 2 sites, so start near the answer
+    // instead of growing to it.
+    var m = Math.max(1, Math.ceil(Math.cbrt(2 * total)) - 1);
+    var sites = [];
+    while (m < 48) {
+      sites = [];
+      for (var i = -m; i <= m; i++) {
+        for (var j = -m; j <= m; j++) {
+          for (var k = -m; k <= m; k++) {
+            // FCC is the integer lattice restricted to even coordinate sums.
+            if (((i + j + k) & 1) !== 0) continue;
+            sites.push([i, j, k, i * i + j * j + k * k]);
+          }
+        }
+      }
+      if (sites.length >= total) break;
+      m++;
+    }
+    sites.sort(function (a, b) {
+      if (a[3] !== b[3]) return a[3] - b[3];
+      // A tie is a shell: taking the first few in index order would cluster them
+      // on one side, so spread them with an irrational rotation of the site.
+      return hash3(a) - hash3(b);
+    });
+    var chosen = [];
+    var reach = 0;
+    for (var s = 0; s < total && s < sites.length; s++) {
+      var p = sites[s];
+      // (i, j, k) / sqrt(2) puts the twelve nearest neighbours exactly at 1.
+      var x = p[0] * Math.SQRT1_2, y = p[1] * Math.SQRT1_2, z = p[2] * Math.SQRT1_2;
+      chosen.push([x, y, z]);
+      var r = Math.sqrt(p[3] * 0.5);
+      if (r > reach) reach = r;
+    }
+    return { sites: chosen, reach: reach };
+  }
+
+  function hash3(p) {
+    var u = (p[0] * 73856093 ^ p[1] * 19349663 ^ p[2] * 83492791) >>> 0;
+    return (u * GOLDEN_FRACTION) % 1;
+  }
+
+  function createNucleus(protons, neutrons, THREE, atomRadius) {
+    var group = new THREE.Group();
+    var total = protons + neutrons;
+    if (total < 1) return group;
+
+    var lattice = latticeSites(total);
+    // In these units a nucleon is half a site apart from its neighbour, so the
+    // drawn ball has to leave room for the outer nucleons' own radius.
+    var envelopeUnits = lattice.reach + 0.5;
+    var spacing = NUCLEON_RADIUS * 2 * NUCLEON_GAP;
+    var budget = (atomRadius || 0.5) * NUCLEUS_BUDGET;
+    if (envelopeUnits * spacing > budget) spacing = budget / envelopeUnits;
+    var particleRadius = spacing / (2 * NUCLEON_GAP);
+    var envelope = envelopeUnits * spacing;
+
+    var nucleusGeo = new THREE.SphereGeometry(envelope, 12, 12);
     var nucleusMat = new THREE.MeshBasicMaterial({
       color: 0xff6b6b,
       transparent: true,
-      opacity: 0.3
+      opacity: 0.18,
+      depthWrite: false
     });
-    var nucleus = new THREE.Mesh(nucleusGeo, nucleusMat);
-    group.add(nucleus);
+    group.add(new THREE.Mesh(nucleusGeo, nucleusMat));
 
-    // Protons (red) and neutrons (gray) as small spheres
-    var total = protons + neutrons;
     var particleGeo = new THREE.SphereGeometry(particleRadius, 6, 6);
     var protonMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     var neutronMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+    var kinds = scatterKinds(total, protons);
 
-    // Arrange particles in a simple cluster
-    var positions = [];
-    if (total === 1) {
-      positions.push([0, 0, 0]);
-    } else {
-      for (var i = 0; i < total; i++) {
-        var angle = (i / total) * Math.PI * 4;
-        var r = (i / total) * nucleusRadius * 0.7;
-        var y = (i % 3 - 1) * particleRadius * 0.5;
-        positions.push([Math.cos(angle) * r, y, Math.sin(angle) * r]);
-      }
-    }
-
-    for (var j = 0; j < total; j++) {
-      var isProton = j < protons;
-      var particle = new THREE.Mesh(particleGeo, isProton ? protonMat : neutronMat);
-      particle.position.set(positions[j][0], positions[j][1], positions[j][2]);
+    for (var i = 0; i < lattice.sites.length; i++) {
+      var p = lattice.sites[i];
+      var particle = new THREE.Mesh(particleGeo, kinds[i] ? protonMat : neutronMat);
+      particle.position.set(p[0] * spacing, p[1] * spacing, p[2] * spacing);
       group.add(particle);
     }
 
@@ -302,7 +369,7 @@
       atomRadius = window.__mol3d.displayRadius(el);
     }
 
-    var nucleus = createNucleus(protons, neutrons, THREE);
+    var nucleus = createNucleus(protons, neutrons, THREE, atomRadius);
     group.add(nucleus);
     // Null only when the renderer's build predates sprites; the nucleus itself is
     // still the correct isotope without it.

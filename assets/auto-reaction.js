@@ -301,7 +301,11 @@
     const sceneTotal = reactantGases.reduce((s, t) => s + (classes.get(norm(t.formula)) || 0), 0);
     for (const t of reactantGases) {
       const count = classes.get(norm(t.formula)) || 0;
-      const donated = atmo.has(t.formula) ? atmo.get(t.formula) / 100 : atmo.has(norm(t.formula)) ? atmo.get(norm(t.formula)) / 100 : null;
+      // atmosphere.composition holds mole fractions (ratio/total, summing to 1),
+      // the same unit envGasFraction and the attack model read. Dividing by 100
+      // here made every atmosphere-fed gas 100x too dilute: the rate collapsed and
+      // the panel behaved as if the gas were barely present.
+      const donated = atmo.has(t.formula) ? atmo.get(t.formula) : atmo.has(norm(t.formula)) ? atmo.get(norm(t.formula)) : null;
       let x;
       if (count > 0) x = sceneTotal > 0 ? count / sceneTotal : 0;
       else if (donated !== null) x = donated;
@@ -428,6 +432,26 @@
     const priced = res.dG !== null && Number.isFinite(res.dG);
     base.drive = priced ? res.dG : res.dG0;
     base.driveLabel = priced ? L('ΔG', 'ΔG') : L('ΔG° (Q unpriced)', 'ΔG° (chưa tính Q)');
+    base.T = T;
+    // Three bands, not two: ΔG < 0 is favourable, ΔG > 0 is pushed back, and
+    // exactly zero is equilibrium — no net reaction either way, so it must not be
+    // handed to the kinetics solver and fired as if something were proceeding.
+    base.spontaneity = base.drive < -1e-9 ? 'favorable' : base.drive > 1e-9 ? 'nonspontaneous' : 'equilibrium';
+    // When ΔH° and ΔS° share a sign, ΔG° = ΔH° − T·ΔS° changes sign at
+    // T* = ΔH°/ΔS°: the temperature the player set decides the direction of this
+    // route, not merely how fast it gets there. ΔH° is in kJ and ΔS° in J, so the
+    // enthalpy is converted before the ratio.
+    if (res.dH !== null && res.dS !== null && Number.isFinite(res.dH) && Number.isFinite(res.dS) &&
+        res.dH !== 0 && res.dS !== 0 && res.dH * res.dS > 0) {
+      const tStar = res.dH * 1000 / res.dS;
+      if (Number.isFinite(tStar) && tStar > 0) {
+        base.temperatureShift = {
+          crossoverK: tStar,
+          currentAbove: T > tStar,
+          favorableAbove: res.dS > 0
+        };
+      }
+    }
     if (rx.effect && !a.mayhemOn()) {
       return Object.assign(base, { state: 'blocked', reason: L('a mayhem-only equation, and mayhem mode is off',
         'phương trình chỉ dành cho chế độ Hỗn Loạn, và chế độ đang tắt') });
@@ -436,6 +460,12 @@
       return Object.assign(base, { state: 'uphill', reason: L('not spontaneous as written here: ' + base.driveLabel + ' = ' + sci(base.drive, 2) +
         ' kJ·mol⁻¹, so no amount of mixing will drive it', 'không tự diễn ra ở đây khi viết như trên: ' + base.driveLabel + ' = ' + sci(base.drive, 2) +
         ' kJ·mol⁻¹, nên trộn bao nhiêu cũng không thúc đẩy được') });
+    }
+    // At ΔG = 0 forward and reverse rates are equal, so nothing net happens; the
+    // kinetics solver would still report a positive rate constant and fire it.
+    if (base.spontaneity === 'equilibrium') {
+      return Object.assign(base, { state: 'equilibrium', reason: L('at equilibrium here: ' + base.driveLabel + ' = 0 kJ·mol−1, so forward and reverse rates match and no net change occurs',
+        'đang cân bằng ở đây: ' + base.driveLabel + ' = 0 kJ·mol−1, nên tốc độ tiến và nghịch bằng nhau nên không có thay đổi ròng') });
     }
     if (acts.reason) return Object.assign(base, { state: 'blocked', reason: L('ΔG not priced: ' + acts.reason, 'chưa tính ΔG: ' + acts.reason) });
     const e0 = intrinsicBarrier(
@@ -627,7 +657,7 @@
       sameRoute.set(ev.id, routes.length);
       routes.push(ev);
     }
-    const rank = { live: 0, frozen: 1, uphill: 2, blocked: 3, nodata: 4 };
+    const rank = { live: 0, frozen: 1, equilibrium: 2, uphill: 3, blocked: 4, nodata: 5 };
     routes.sort((x, y) => (rank[x.state] - rank[y.state]) ||
       (lambdaOf(y) - lambdaOf(x)) ||
       x.label.localeCompare(y.label));
@@ -676,6 +706,7 @@
     '.arxn-tag.live{background:rgba(60,160,100,.3);color:#6fd39a}',
     '.arxn-tag.frozen{background:rgba(180,140,40,.28);color:#e8c26a}',
     '.arxn-tag.uphill{background:rgba(170,60,60,.28);color:#e88a8a}',
+    '.arxn-tag.equilibrium{background:rgba(90,130,180,.28);color:#9cc3e8}',
     '.arxn-tag.nodata,.arxn-tag.blocked{background:rgba(130,130,140,.25);color:var(--muted)}',
     '.arxn-nums{font-size:11px;line-height:1.5;opacity:.92}',
     '.arxn-nums b{font-weight:600}',
@@ -711,8 +742,10 @@
     const parts = ['<b>' + esc(L('Environment', 'Điều kiện')) + '</b> ' + T.toFixed(2) + ' K · ' +
       sci(atm, atm < 10 ? 4 : 1) + ' atm (' + sci(bar, bar < 10 ? 3 : 1) + ' bar)'];
     if (atmo.size) {
+      // composition stores mole fractions; the readout is a percentage.
+      const asPct = (r) => { const p = r * 100; return p % 1 ? p.toFixed(2) : String(p); };
       parts.push(esc(L('atmosphere', 'khí quyển')) + ': ' + [...atmo.entries()].sort((x, y) => y[1] - x[1])
-        .map(([f, r]) => esc(f) + ' ' + (r % 1 ? r.toFixed(2) : r) + '%').join(', '));
+        .map(([f, r]) => esc(f) + ' ' + asPct(r) + '%').join(', '));
     } else {
       parts.push(esc(L('no atmosphere feed', 'không có nguồn khí quyển')));
     }
@@ -726,6 +759,19 @@
     if (r.dS !== null) bits.push('<b>ΔS°</b> ' + sci(r.dS, 2) + ' J·mol⁻¹·K⁻¹');
     bits.push('<b>ΔG°</b> ' + sci(r.dG0, 2) + ' kJ·mol⁻¹');
     if (r.dG !== null && r.dG !== undefined && r.dG !== r.dG0) bits.push('<b>ΔG</b> ' + sci(r.dG, 2) + ' kJ·mol⁻¹');
+    if (r.spontaneity) {
+      bits.push('<b>' + esc(L('spontaneity', 'tính tự diễn ra')) + '</b> ' + esc(
+        r.spontaneity === 'favorable' ? L('favorable (ΔG < 0)', 'thuận (ΔG < 0)') :
+        r.spontaneity === 'equilibrium' ? L('equilibrium (ΔG = 0)', 'cân bằng (ΔG = 0)') :
+        L('non-spontaneous (ΔG > 0)', 'không tự phát (ΔG > 0)')));
+    }
+    if (r.temperatureShift) {
+      const ts = r.temperatureShift;
+      bits.push('<b>' + esc(L('crossover', 'nhiệt độ đổi chiều')) + '</b> ' + esc(
+        ts.crossoverK.toFixed(1) + ' K · ' +
+        (ts.currentAbove ? L('above', 'trên') : L('below', 'dưới')) + ' ' +
+        (ts.favorableAbove ? L('favourable side', 'chiều thuận') : L('unfavourable side', 'chiều bất thuận'))));
+    }
     if (Number.isFinite(r.lnK)) bits.push('<b>K</b> ' + (Math.abs(r.lnK) > 700 ? 'e' + sup(r.lnK.toFixed(0)) : sci(r.K)));
     const n = r.numbers;
     if (n) {
@@ -745,6 +791,7 @@
   function tag(state) {
     const label = state === 'live' ? L('happening', 'đang xảy ra') :
       state === 'frozen' ? L('too slow', 'quá chậm') :
+      state === 'equilibrium' ? L('equilibrium', 'cân bằng') :
       state === 'uphill' ? L("won't run", 'không xảy ra') :
       L('no data', 'thiếu dữ liệu');
     return '<span class="arxn-tag ' + state + '">' + esc(label) + '</span>';

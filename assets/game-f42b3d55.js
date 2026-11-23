@@ -43025,10 +43025,10 @@ function chargeCompensationExists(atoms2, bonds2, seedIds, centreId) {
 // but a centre whose spare electrons are all lone pairs puts two lone pairs on
 // each of three atoms 60 degrees apart. No such ring is a minimum: the three
 // closed-shell oxygens of cyclic ozone are the textbook case.
-function ringClosureOf(atoms2, bonds2, aId, bId) {
+function ringClosureOf(atoms2, bonds2, aId, bId, includeIonic = false) {
   const adj = /* @__PURE__ */ new Map();
   for (const b of bonds2.values()) {
-    if (b.ionic) continue;
+    if (b.ionic && !includeIonic) continue;
     if (!adj.has(b.a)) adj.set(b.a, []);
     if (!adj.has(b.b)) adj.set(b.b, []);
     adj.get(b.a).push(b.b);
@@ -43155,6 +43155,12 @@ function bondCheck(atoms2, bonds2, aId, bId) {
   if (aId === bId) return { ok: false, reason: { key: "chem.selfBond" } };
   if (bondsOf(atoms2, bonds2, aId).some((b) => partnerId(b, aId) === bId))
     return { ok: false, reason: { key: "chem.alreadyBonded" } };
+  const ring = ringClosureOf(atoms2, bonds2, aId, bId, true);
+  if (ring && ring.size === 3 && ring.atoms.some((id) => {
+    const at = atoms2.get(id);
+    return !!at && isMetal$1(at.el);
+  }))
+    return { ok: false, reason: { key: "chem.ringLonePair", p: { n: ring.size } } };
   const covalent = covalentCheck(atoms2, bonds2, aId, bId);
   if (covalent.ok) {
     const ring = ringClosureOf(atoms2, bonds2, aId, bId);
@@ -47608,215 +47614,6 @@ function haloalkaneClass(tpl, halideTag) {
   if (cNeighbors.length === 2) return "secondary";
   return "tertiary";
 }
-const DECOMPOSITION_RULES = [
-  // ── Methyl radical (CH3) — stable radical, should not decompose ──
-  {
-    id: "methylRadical",
-    match: (parsed) => {
-      const c = parsed.get("C") || 0;
-      const h = parsed.get("H") || 0;
-      const totalAtoms = Array.from(parsed.values()).reduce((s, v) => s + v, 0);
-      return totalAtoms === 4 && c === 1 && h === 3 && parsed.size === 2;
-    },
-    products: () => null
-    // Return null to indicate no decomposition
-  },
-  // ── Ozone (O3) → O2 + O (thermal/spontaneous decomposition) ──
-  {
-    id: "ozone",
-    match: (parsed) => {
-      const o = parsed.get("O") || 0;
-      const totalAtoms = Array.from(parsed.values()).reduce((s, v) => s + v, 0);
-      return totalAtoms === 3 && o === 3;
-    },
-    products: () => ["O2", "O"]
-  },
-  // ── Carbonates → metal oxide + CO2 ──
-  {
-    id: "carbonate",
-    match: (parsed) => {
-      const c = parsed.get("C") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      return metals.length > 0 && c >= 1 && o >= 3 && o / c >= 3;
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      const oxide = buildOxide(metals);
-      return [oxide, "CO2"];
-    }
-  },
-  // ── Hydrogen carbonates → carbonate + CO2 + H2O ──
-  {
-    id: "hydrogenCarbonate",
-    match: (parsed) => {
-      const h = parsed.get("H") || 0;
-      const c = parsed.get("C") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      return metals.length > 0 && h > 0 && c >= 1 && o >= 3;
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      const carbonate = buildCarbonate(metals);
-      return [carbonate, "CO2", "H2O"];
-    }
-  },
-  // ── Carbonic acid → water + carbon dioxide ──
-  {
-    id: "carbonicAcid",
-    match: (parsed) => {
-      const h = parsed.get("H") || 0;
-      const c = parsed.get("C") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      return metals.length === 0 && h === 2 && c === 1 && o === 3;
-    },
-    products: () => ["H2O", "CO2"]
-  },
-  // ── Metal hydroxides → metal oxide + H2O (non-alkali) ──
-  {
-    id: "hydroxide",
-    match: (parsed) => {
-      const h = parsed.get("H") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      if (metals.length === 0 || h === 0 || o === 0) return false;
-      const metal = metals[0];
-      return !["Li", "Na", "K", "Rb", "Cs"].includes(metal);
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      const oxide = buildOxide(metals);
-      return [oxide, "H2O"];
-    }
-  },
-  // ── Metal nitrates → metal nitrite + O2 (Group 1/2) ──
-  //   or → metal oxide + NO2 + O2 (other metals)
-  {
-    id: "nitrate",
-    match: (parsed) => {
-      const n = parsed.get("N") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      return metals.length > 0 && n >= 1 && o >= 3 && o / n >= 3;
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      const metal = metals[0];
-      if (["Li", "Na", "K", "Rb", "Cs", "Ca", "Ba", "Sr"].includes(metal)) {
-        return [buildNitrite(metals), "O2"];
-      }
-      return [buildOxide(metals), "NO2", "O2"];
-    }
-  },
-  // ── Chlorates → chloride + O2 ──
-  {
-    id: "chlorate",
-    match: (parsed) => {
-      const cl = parsed.get("Cl") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      return metals.length > 0 && cl >= 1 && o === 3;
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      return [buildChloride(metals), "O2"];
-    }
-  },
-  // ── Permanganates → manganate + O2 (or MnO2 + O2) ──
-  {
-    id: "permanganate",
-    match: (parsed) => {
-      const k = parsed.get("K") || 0;
-      const mn = parsed.get("Mn") || 0;
-      const o = parsed.get("O") || 0;
-      return k > 0 && mn > 0 && o === 4;
-    },
-    products: () => ["K2MnO4", "MnO2", "O2"]
-  },
-  // ── Ammonium salts → NH3 + acid gas ──
-  {
-    id: "ammoniumSalt",
-    match: (parsed) => {
-      const n = parsed.get("N") || 0;
-      const h = parsed.get("H") || 0;
-      return n >= 1 && h >= 4 && h / n === 4 && !getMetals(parsed).length;
-    },
-    products: (parsed) => {
-      const cl = parsed.get("Cl") || 0;
-      const no3 = (parsed.get("N") || 0) >= 2 && (parsed.get("O") || 0) >= 3;
-      if (cl > 0) return ["NH3", "HCl"];
-      if (no3) return ["NH3", "HNO3"];
-      const s = parsed.get("S") || 0;
-      if (s > 0) return ["NH3", "H2SO4"];
-      return ["NH3"];
-    }
-  },
-  // ── Peroxides → oxide + O2 ──
-  {
-    id: "peroxide",
-    match: (parsed) => {
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      if (metals.length === 0) return false;
-      const metal = metals[0];
-      const metalCount = parsed.get(metal) || 1;
-      return o / metalCount >= 1 && o / metalCount <= 1.5;
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      return [buildOxide(metals), "O2"];
-    }
-  },
-  // ── Hydrated salts → anhydrous + nH2O ──
-  {
-    id: "hydrate",
-    match: (parsed) => {
-      const h = parsed.get("H") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      if (metals.length === 0 || o === 0) return false;
-      const nonWaterO = estimateNonWaterOxygen(parsed, metals);
-      return h >= 2 && o >= h / 2 && o > nonWaterO && h % 2 === 0;
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      const anhydrous = buildAnhydrous(parsed, metals);
-      return [anhydrous, "H2O"];
-    }
-  },
-  // ── Metal oxides with low-activity metals → metal + O2 ──
-  {
-    id: "nobleOxide",
-    match: (parsed) => {
-      const metals = getMetals(parsed);
-      if (metals.length === 0) return false;
-      const metal = metals[0];
-      return ["Ag", "Hg", "Au"].includes(metal);
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      return [metals[0], "O2"];
-    }
-  },
-  // ── Sulfates → oxide + SO3 (high heat, non-alkali) ──
-  {
-    id: "sulfate",
-    match: (parsed) => {
-      const s = parsed.get("S") || 0;
-      const o = parsed.get("O") || 0;
-      const metals = getMetals(parsed);
-      if (metals.length === 0 || s === 0) return false;
-      const metal = metals[0];
-      return !["Na", "K", "Li"].includes(metal) && o / s >= 4;
-    },
-    products: (parsed) => {
-      const metals = getMetals(parsed);
-      return [buildOxide(metals), "SO3"];
-    }
-  }
-];
 const METAL_SET = /* @__PURE__ */ new Set([
   "Li",
   "Na",
@@ -48253,7 +48050,7 @@ const T = {
   NaCl: { atoms: ["Na", "Cl"], bonds: [[0, 1, 1, true]] },
   CaO: { atoms: ["Ca", "O"], bonds: [[0, 1, 2, true]] },
   CaOH2: { atoms: ["Ca", "O", "O", "H", "H"], bonds: [[0, 1, 1, true], [0, 2, 1, true], [1, 3, 1], [2, 4, 1]] },
-  CaCO3: { atoms: ["Ca", "C", "O", "O", "O"], bonds: [[0, 2, 1, true], [0, 3, 1, true], [1, 2, 1], [1, 3, 1], [1, 4, 2]] },
+  CaCO3: { atoms: ["Ca", "C", "O", "O", "O"], bonds: [[0, 2, 2, true], [1, 2, 1], [1, 3, 1], [1, 4, 2]] },
   NaOH: { atoms: ["Na", "O", "H"], bonds: [[0, 1, 1, true], [1, 2, 1]] },
   KOH: { atoms: ["K", "O", "H"], bonds: [[0, 1, 1, true], [1, 2, 1]] },
   MgCl2: { atoms: ["Mg", "Cl", "Cl"], bonds: [[0, 1, 1, true], [0, 2, 1, true]] },
@@ -49062,9 +48859,13 @@ function generateSaltTemplate(cation, anion) {
       }
       for (let j = oxo.d + oxo.x; j < oxo.o; j++) slots.push(oIdx[j]);
     }
-    const totalIonic = anionCharge * anionCount;
-    for (let k = 0; k < totalIonic; k++) {
-      bonds2.push([k % cationCount, slots[k % slots.length], 1, true]);
+    const contactsPerUnit = Math.min(anionCharge, cationCount);
+    const orderPerContact = anionCharge / contactsPerUnit;
+    for (let u = 0; u < anionCount; u++) {
+      for (let k = 0; k < contactsPerUnit; k++) {
+        const t = u * contactsPerUnit + k;
+        bonds2.push([t % cationCount, slots[u * slots.length / anionCount + k], orderPerContact, true]);
+      }
     }
     return { atoms: atoms2, bonds: bonds2 };
   }
@@ -49072,14 +48873,15 @@ function generateSaltTemplate(cation, anion) {
   for (let i = 0; i < anionCount; i++) {
     for (const a of anionAtoms) atoms2.push(a);
   }
-  const cationIndices = [];
-  for (let i = 0; i < cationCount; i++) cationIndices.push(i);
   const anionStartIdx = cationCount;
+  const contactsPerUnit = Math.min(anionCharge, cationCount);
+  const orderPerContact = anionCharge / contactsPerUnit;
   for (let i = 0; i < anionCount; i++) {
     const anionOffset = anionStartIdx + i * anionAtoms.length;
     const centralIdx = findCentralAtom(anionAtoms, anionOffset);
-    for (const catIdx of cationIndices) {
-      bonds2.push([catIdx, centralIdx, 1, true]);
+    for (let k = 0; k < contactsPerUnit; k++) {
+      const t = i * contactsPerUnit + k;
+      bonds2.push([t % cationCount, centralIdx, orderPerContact, true]);
     }
   }
   for (let i = 0; i < anionCount; i++) {
@@ -49284,41 +49086,7 @@ function getAnionInternalBonds(anionSym, offset) {
   }
   return bonds2;
 }
-function tryAcidBaseReaction(formulas) {
-  const acids = formulas.filter((f) => isAcid(f));
-  const bases = formulas.filter((f) => isBase(f));
-  if (acids.length === 0 || bases.length === 0) return null;
-  const acid = acids[0];
-  const base = bases[0];
-  const hCount = getAcidHCount(acid);
-  const ohCount = getBaseOHCount(base);
-  if (hCount === 0 || ohCount === 0) return null;
-  const cation = getBaseCation(base);
-  const anion = getAcidAnion(acid);
-  if (!cation || !anion) return null;
-  const rawAcidMult = ohCount;
-  const rawBaseMult = hCount;
-  const multGcd = gcd(rawAcidMult, rawBaseMult);
-  const acidMultiplier = rawAcidMult / multGcd;
-  const baseMultiplier = rawBaseMult / multGcd;
-  const waterCount = hCount * ohCount / multGcd;
-  const saltTemplate = generateSaltTemplate(cation, anion);
-  const saltFormula = generateSaltFormula(cation, anion);
-  const saltKey = saltFormula;
-  T[saltKey] = saltTemplate;
-  const acidPart = acidMultiplier === 1 ? acid : `${acidMultiplier}${acid}`;
-  const basePart = baseMultiplier === 1 ? base : `${baseMultiplier}${base}`;
-  const waterPart = waterCount === 1 ? "H2O" : `${waterCount}H2O`;
-  const equation = `${acidPart} + ${basePart} -> ${saltFormula} + ${waterPart}`;
-  return {
-    reactants: { [acid]: acidMultiplier, [base]: baseMultiplier },
-    condition: "rt",
-    products: [[saltKey, 1], ["H2O", waterCount]],
-    equation,
-    dynamic: true,
-    protonTransfer: true
-  };
-}
+
 function generateSaltFormula(cation, anion) {
   const cationCharge = Math.abs(cation.charge);
   const anionCharge = Math.abs(anion.charge);
@@ -49361,46 +49129,8 @@ function parseFormula(f) {
   }
   return counts;
 }
-function isCombustible(formula) {
-  if (formula === "O2" || formula === "H2") return false;
-  const cls = classifyMolecule(formula, 0, null);
-  if (["alkane", "alkene", "alkyne", "organic"].includes(cls.key)) return true;
-  const c = parseFormula(formula);
-  return c.has("C") && c.has("H");
-}
-function tryCombustion(formulas) {
-  const have = multisetOf(formulas);
-  const fuels = [...have.keys()].filter((f) => isCombustible(f));
-  if (fuels.length === 0 || !have.has("O2")) return null;
-  if (have.size !== 2) return null;
-  const fuel = fuels[0];
-  const fc = parseFormula(fuel);
-  const x = fc.get("C") || 0;
-  const y = fc.get("H") || 0;
-  const z = fc.get("O") || 0;
-  let fuelCoeff = 4;
-  let o2Coeff = 4 * x + y - 2 * z;
-  let co2Coeff = 4 * x;
-  let h2oCoeff = 2 * y;
-  if (o2Coeff <= 0) return null;
-  const g = gcd(gcd(fuelCoeff, o2Coeff), gcd(co2Coeff, h2oCoeff));
-  fuelCoeff /= g;
-  o2Coeff /= g;
-  co2Coeff /= g;
-  h2oCoeff /= g;
-  const reactants = { [fuel]: fuelCoeff, O2: o2Coeff };
-  const fuelPart = fuelCoeff === 1 ? fuel : `${fuelCoeff}${fuel}`;
-  const o2Part = o2Coeff === 1 ? "O2" : `${o2Coeff}O2`;
-  const co2Part = co2Coeff === 1 ? "CO2" : `${co2Coeff}CO2`;
-  const h2oPart = h2oCoeff === 1 ? "H2O" : `${h2oCoeff}H2O`;
-  return {
-    reactants,
-    condition: "spark",
-    products: [["CO2", co2Coeff], ["H2O", h2oCoeff]],
-    equation: `${fuelPart} + ${o2Part} -> ${co2Part} + ${h2oPart}`,
-    dynamic: true
-  };
-}
+
+
 function isSingleMetal(formula) {
   const el = elementBySym$1(formula);
   return el && isMetal$1(el);
@@ -49410,91 +49140,8 @@ function getMetalCharge(formula) {
   if (!el || !el.charges || el.charges.length === 0) return null;
   return el.charges[0];
 }
-function tryMetalAcidReaction(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2) return null;
-  const metals = [...have.keys()].filter((f) => isSingleMetal(f));
-  const acids = [...have.keys()].filter((f) => isAcid(f));
-  if (metals.length === 0 || acids.length === 0) return null;
-  const metal = metals[0];
-  const acid = acids[0];
-  const metalCharge = getMetalCharge(metal);
-  const anion = getAcidAnion(acid);
-  if (!metalCharge || !anion) return null;
-  const cation = { sym: metal, charge: metalCharge };
-  const saltFormula = generateSaltFormula(cation, anion);
-  const saltTemplate = generateSaltTemplate(cation, anion);
-  T[saltFormula] = saltTemplate;
-  const anionCharge = Math.abs(anion.charge);
-  const g = gcd(metalCharge, anionCharge);
-  const saltCationCount = anionCharge / g;
-  const saltAnionCount = metalCharge / g;
-  const acidHCount = getAcidHCount(acid);
-  if (acidHCount === 0) return null;
-  const anionsPerAcid = 1;
-  let metalCoeff = saltCationCount;
-  let acidCoeff = saltAnionCount;
-  let saltCoeff = 1;
-  let h2Num = acidCoeff * acidHCount;
-  let h2Den = 2;
-  const h2g = gcd(h2Num, h2Den);
-  let h2Coeff = h2Num / h2g;
-  const divisor = h2Den / h2g;
-  if (divisor !== 1) {
-    metalCoeff *= divisor;
-    acidCoeff *= divisor;
-    saltCoeff *= divisor;
-  }
-  const metalPart = metalCoeff === 1 ? metal : `${metalCoeff}${metal}`;
-  const acidPart = acidCoeff === 1 ? acid : `${acidCoeff}${acid}`;
-  const saltPart = saltCoeff === 1 ? saltFormula : `${saltCoeff}${saltFormula}`;
-  const h2Part = h2Coeff === 1 ? "H2" : `${h2Coeff}H2`;
-  return {
-    reactants: { [metal]: metalCoeff, [acid]: acidCoeff },
-    condition: "rt",
-    products: [[saltFormula, saltCoeff], ["H2", h2Coeff]],
-    equation: `${metalPart} + ${acidPart} -> ${saltPart} + ${h2Part}`,
-    dynamic: true
-  };
-}
-function tryMetalWaterReaction(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2 || !have.has("H2O")) return null;
-  const other = [...have.keys()].find((f) => f !== "H2O");
-  if (!other) return null;
-  const el = elementBySym$1(other);
-  if (!el || !isMetal$1(el) || !el.charges || el.charges.length === 0) return null;
-  const charge = el.charges[0];
-  const isAlkali = el.cat === "alkali";
-  const isAlkalineEarth = el.cat === "alkaline";
-  if (!isAlkali && !isAlkalineEarth) return null;
-  const cation = { sym: other, charge };
-  const anion = { sym: "OH", charge: -1 };
-  const hydroxideFormula = generateHydroxideFormula(cation);
-  const hydroxideTemplate = generateHydroxideTemplate(cation);
-  T[hydroxideFormula] = hydroxideTemplate;
-  let metalCoeff, h2oCoeff, hydroCoeff, h2Coeff;
-  if (charge === 1) {
-    metalCoeff = 2;
-    h2oCoeff = 2;
-    hydroCoeff = 2;
-    h2Coeff = 1;
-  } else {
-    metalCoeff = 1;
-    h2oCoeff = 2;
-    hydroCoeff = 1;
-    h2Coeff = 1;
-  }
-  const metalPart = metalCoeff === 1 ? other : `${metalCoeff}${other}`;
-  const hydroPart = hydroCoeff === 1 ? hydroxideFormula : `${hydroCoeff}${hydroxideFormula}`;
-  return {
-    reactants: { [other]: metalCoeff, H2O: h2oCoeff },
-    condition: "rt",
-    products: [[hydroxideFormula, hydroCoeff], ["H2", h2Coeff]],
-    equation: `${metalPart} + ${h2oCoeff}H2O -> ${hydroPart} + ${h2Coeff === 1 ? "H2" : h2Coeff + "H2"}`,
-    dynamic: true
-  };
-}
+
+
 function generateHydroxideFormula(cation) {
   const charge = cation.charge;
   if (charge === 1) return `${cation.sym}OH`;
@@ -49550,52 +49197,7 @@ function getCarbonateCation(formula) {
   if (!Number.isInteger(charge) || !metalEl.charges.includes(charge)) return null;
   return { sym: metalSym, charge };
 }
-function tryCarbonateAcidReaction(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2) return null;
-  const carbonates = [...have.keys()].filter((f) => getCarbonateCation(f));
-  const acids = [...have.keys()].filter((f) => isAcid(f));
-  if (carbonates.length === 0 || acids.length === 0) return null;
-  const carbonate = carbonates[0];
-  const acid = acids[0];
-  const cation = getCarbonateCation(carbonate);
-  const anion = getAcidAnion(acid);
-  if (!cation || !anion) return null;
-  const saltFormula = generateSaltFormula(cation, anion);
-  const saltTemplate = generateSaltTemplate(cation, anion);
-  T[saltFormula] = saltTemplate;
-  const acidH = getAcidHCount(acid);
-  if (acidH === 0) return null;
-  const carbCounts = parseFormula(carbonate);
-  const cCount = carbCounts.get("C") || 1;
-  // Each CO3 framework carries 2−; an H already bonded to it (bicarbonate)
-  // neutralizes one charge, so the acid must supply 2·C − H protons, not a fixed 2.
-  const anionCharge = 2 * cCount - (carbCounts.get("H") || 0);
-  const g2 = gcd(anionCharge, acidH);
-  const carbonateCoeff = acidH / g2;
-  const acidCoeff = anionCharge / g2;
-  const co2Coeff = carbonateCoeff * cCount;
-  const h2oCoeff = carbonateCoeff * cCount;
-  const cationsInCarbonate = carbCounts.get(cation.sym) || 1;
-  const totalCations = carbonateCoeff * cationsInCarbonate;
-  const saltCounts = parseFormula(saltFormula);
-  const cationsInSalt = saltCounts.get(cation.sym) || 1;
-  const saltCoeff = totalCations / cationsInSalt;
-  const g = gcd(gcd(carbonateCoeff, acidCoeff), gcd(saltCoeff, gcd(co2Coeff, h2oCoeff)));
-  const carbPart = carbonateCoeff === 1 ? carbonate : `${carbonateCoeff}${carbonate}`;
-  const acidPart = acidCoeff === 1 ? acid : `${acidCoeff}${acid}`;
-  const saltPart = saltCoeff === 1 ? saltFormula : `${saltCoeff}${saltFormula}`;
-  const co2Part = co2Coeff === 1 ? "CO2" : `${co2Coeff}CO2`;
-  const h2oPart = h2oCoeff === 1 ? "H2O" : `${h2oCoeff}H2O`;
-  return {
-    reactants: { [carbonate]: carbonateCoeff, [acid]: acidCoeff },
-    condition: "rt",
-    products: [[saltFormula, saltCoeff], ["CO2", co2Coeff], ["H2O", h2oCoeff]],
-    equation: `${carbPart} + ${acidPart} -> ${saltPart} + ${co2Part} + ${h2oPart}`,
-    dynamic: true,
-    protonTransfer: true
-  };
-}
+
 const REACTIVITY = {
   Fr: 1,
   Cs: 2,
@@ -49666,56 +49268,7 @@ function generateOxideTemplate(metalSym, oxState) {
 function generateSingleAtomTemplate(sym) {
   return { atoms: [sym], bonds: [] };
 }
-function tryMetalOxideReduction(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2) return null;
-  const keys = [...have.keys()];
-  let oxideFormula = null, oxideInfo = null, reducingMetal = null;
-  for (const f of keys) {
-    const info = isMetalOxide(f);
-    if (info) {
-      oxideFormula = f;
-      oxideInfo = info;
-    } else {
-      const el = elementBySym$1(f);
-      if (el && isMetal$1(el) && el.charges && el.charges.length > 0) reducingMetal = f;
-    }
-  }
-  if (!oxideFormula || !oxideInfo || !reducingMetal) return null;
-  const redRank = REACTIVITY[reducingMetal];
-  const oxRank = REACTIVITY[oxideInfo.metalSym];
-  if (redRank == null || oxRank == null || redRank >= oxRank) return null;
-  const redCharge = elementBySym$1(reducingMetal).charges[0];
-  const oxState = oxideInfo.oxidationState;
-  const oxideCounts = parseFormula(oxideFormula);
-  const metalCount = oxideCounts.get(oxideInfo.metalSym) || 1;
-  const g = gcd(redCharge, oxState);
-  const lcmVal = redCharge * oxState / g;
-  let oxideCoeff = lcmVal / oxState;
-  let metalCoeff = lcmVal * metalCount / redCharge;
-  const newOxideFormula = generateOxideFormula(reducingMetal, redCharge);
-  const newOxideCounts = parseFormula(newOxideFormula);
-  const newOxideO = newOxideCounts.get("O") || 1;
-  const newOxideCoeff = oxideCoeff * oxideInfo.oCount / newOxideO;
-  const freedMetalCoeff = oxideCoeff * (parseFormula(oxideFormula).get(oxideInfo.metalSym) || 1);
-  const num = [oxideCoeff, metalCoeff, newOxideCoeff, freedMetalCoeff];
-  let den = num[0];
-  for (let i = 1; i < 4; i++) den = gcd(den, num[i]);
-  const [a, b, c, d] = num.map((n) => n / den);
-  if (!T[newOxideFormula]) T[newOxideFormula] = generateOxideTemplate(reducingMetal, redCharge);
-  if (!T[oxideInfo.metalSym]) T[oxideInfo.metalSym] = generateSingleAtomTemplate(oxideInfo.metalSym);
-  const oP = a === 1 ? oxideFormula : `${a}${oxideFormula}`;
-  const mP = b === 1 ? reducingMetal : `${b}${reducingMetal}`;
-  const noP = c === 1 ? newOxideFormula : `${c}${newOxideFormula}`;
-  const fP = d === 1 ? oxideInfo.metalSym : `${d}${oxideInfo.metalSym}`;
-  return {
-    reactants: { [oxideFormula]: a, [reducingMetal]: b },
-    condition: "heat",
-    products: [[newOxideFormula, c], [oxideInfo.metalSym, d]],
-    equation: `${oP} + ${mP} -> ${noP} + ${fP}`,
-    dynamic: true
-  };
-}
+
 function detectAnion(compCounts, metalSym, metalCount) {
   const metalEl = elementBySym$1(metalSym);
   if (!metalEl || !metalEl.charges || metalEl.charges.length === 0) return null;
@@ -49749,231 +49302,10 @@ function detectAnion(compCounts, metalSym, metalCount) {
   }
   return null;
 }
-function trySingleDisplacement(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2) return null;
-  const keys = [...have.keys()];
-  let pureMetal = null, compound = null;
-  for (const f of keys) {
-    const el = elementBySym$1(f);
-    if (el && isMetal$1(el) && el.charges && el.charges.length > 0) {
-      pureMetal = f;
-    } else {
-      compound = f;
-    }
-  }
-  if (!pureMetal || !compound) return null;
-  const compCounts = parseFormula(compound);
-  const compKeys = [...compCounts.keys()];
-  const metalsInCompound = compKeys.filter((k) => {
-    const el = elementBySym$1(k);
-    return el && isMetal$1(el);
-  });
-  if (metalsInCompound.length !== 1) return null;
-  const displacedMetal = metalsInCompound[0];
-  const pureRank = REACTIVITY[pureMetal];
-  const displacedRank = REACTIVITY[displacedMetal];
-  if (pureRank == null || displacedRank == null || pureRank >= displacedRank) return null;
-  const pureCharge = elementBySym$1(pureMetal).charges[0];
-  const displacedCharge = elementBySym$1(displacedMetal).charges[0];
-  const displacedCount = compCounts.get(displacedMetal);
-  const anion = detectAnion(compCounts, displacedMetal, displacedCount);
-  if (!anion) return null;
-  const newSaltFormula = generateSaltFormula(
-    { sym: pureMetal, charge: pureCharge },
-    { sym: anion.sym, charge: anion.chargePerUnit }
-  );
-  const newSaltTemplate = generateSaltTemplate(
-    { sym: pureMetal, charge: pureCharge },
-    { sym: anion.sym, charge: anion.chargePerUnit }
-  );
-  if (!T[newSaltFormula]) T[newSaltFormula] = newSaltTemplate;
-  if (!T[displacedMetal]) T[displacedMetal] = generateSingleAtomTemplate(displacedMetal);
-  const newSaltCounts = parseFormula(newSaltFormula);
-  const pureAtomsInNewSalt = newSaltCounts.get(pureMetal) || 1;
-  let newSaltCoeff = 1;
-  let pureCoeff = pureAtomsInNewSalt;
-  let compoundCoeff = pureCoeff * pureCharge / (displacedCount * displacedCharge);
-  let displacedCoeff = compoundCoeff * displacedCount;
-  const g = gcd(gcd(pureCoeff, compoundCoeff), gcd(newSaltCoeff, displacedCoeff));
-  const [a, b, c, d] = [pureCoeff, compoundCoeff, newSaltCoeff, displacedCoeff].map((n) => n / g);
-  const mP = a === 1 ? pureMetal : `${a}${pureMetal}`;
-  const cP = b === 1 ? compound : `${b}${compound}`;
-  const nsP = c === 1 ? newSaltFormula : `${c}${newSaltFormula}`;
-  const dP = d === 1 ? displacedMetal : `${d}${displacedMetal}`;
-  return {
-    reactants: { [pureMetal]: a, [compound]: b },
-    condition: "rt",
-    products: [[newSaltFormula, c], [displacedMetal, d]],
-    equation: `${mP} + ${cP} -> ${nsP} + ${dP}`,
-    dynamic: true
-  };
-}
-function tryMetalHalogenSynthesis(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2) return null;
-  const keys = [...have.keys()];
-  let metal = null, halogen = null;
-  for (const f of keys) {
-    const el = elementBySym$1(f);
-    if (el && isMetal$1(el) && el.charges && el.charges.length > 0) {
-      metal = f;
-    } else if (f === "Cl2" || f === "Br2" || f === "F2" || f === "I2") {
-      halogen = f;
-    }
-  }
-  if (!metal || !halogen) return null;
-  const metalCharge = elementBySym$1(metal).charges[0];
-  const halogenSym = halogen.replace("2", "");
-  const halideFormula = generateSaltFormula(
-    { sym: metal, charge: metalCharge },
-    { sym: halogenSym, charge: -1 }
-  );
-  const halideTemplate = generateSaltTemplate(
-    { sym: metal, charge: metalCharge },
-    { sym: halogenSym, charge: -1 }
-  );
-  if (!T[halideFormula]) T[halideFormula] = halideTemplate;
-  const halideCounts = parseFormula(halideFormula);
-  const metalInHalide = halideCounts.get(metal) || 1;
-  const halogenInHalide = halideCounts.get(halogenSym) || 1;
-  let metalCoeff = metalInHalide;
-  let halogenCoeff = halogenInHalide / 2;
-  let halideCoeff = 1;
-  if (halogenCoeff !== Math.floor(halogenCoeff)) {
-    metalCoeff *= 2;
-    halogenCoeff *= 2;
-    halideCoeff *= 2;
-  }
-  const g = gcd(gcd(metalCoeff, halogenCoeff), halideCoeff);
-  metalCoeff /= g;
-  halogenCoeff /= g;
-  halideCoeff /= g;
-  const mP = metalCoeff === 1 ? metal : `${metalCoeff}${metal}`;
-  const hP = halogenCoeff === 1 ? halogen : `${halogenCoeff}${halogen}`;
-  const hp = halideCoeff === 1 ? halideFormula : `${halideCoeff}${halideFormula}`;
-  return {
-    reactants: { [metal]: metalCoeff, [halogen]: halogenCoeff },
-    condition: "heat",
-    products: [[halideFormula, halideCoeff]],
-    equation: `${mP} + ${hP} -> ${hp}`,
-    dynamic: true
-  };
-}
-function tryMetalDimerFormation(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 1) return null;
-  const keys = [...have.keys()];
-  const metal = keys[0];
-  const count = have.get(metal);
-  if (count < 2) return null;
-  const el = elementBySym$1(metal);
-  if (!el || !isMetal$1(el)) return null;
-  const transitionMetals = /* @__PURE__ */ new Set([
-    "Sc",
-    "Ti",
-    "V",
-    "Cr",
-    "Mn",
-    "Fe",
-    "Co",
-    "Ni",
-    "Cu",
-    "Zn",
-    "Y",
-    "Zr",
-    "Nb",
-    "Mo",
-    "Tc",
-    "Ru",
-    "Rh",
-    "Pd",
-    "Ag",
-    "Cd",
-    "Hf",
-    "Ta",
-    "W",
-    "Re",
-    "Os",
-    "Ir",
-    "Pt",
-    "Au",
-    "Hg"
-  ]);
-  if (!transitionMetals.has(metal)) return null;
-  const dimerFormula = `${metal}2`;
-  const dimerTemplate = {
-    atoms: [metal, metal],
-    bonds: [[0, 1, 4]]
-    // Quadruple bond
-  };
-  if (!T[dimerFormula]) T[dimerFormula] = dimerTemplate;
-  const pairs = Math.floor(count / 2);
-  if (pairs < 1) return null;
-  const mP = count === 2 ? metal : `${count}${metal}`;
-  const dP = pairs === 1 ? dimerFormula : `${pairs}${dimerFormula}`;
-  return {
-    reactants: { [metal]: count },
-    condition: "heat",
-    products: [[dimerFormula, pairs]],
-    equation: `${mP} -> ${dP}`,
-    dynamic: true
-  };
-}
-function tryMetalDimerDecomposition(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 1) return null;
-  const keys = [...have.keys()];
-  const dimer = keys[0];
-  const m = dimer.match(/^([A-Z][a-z]?)2$/);
-  if (!m) return null;
-  const metal = m[1];
-  const el = elementBySym$1(metal);
-  if (!el || !isMetal$1(el)) return null;
-  const transitionMetals = /* @__PURE__ */ new Set([
-    "Sc",
-    "Ti",
-    "V",
-    "Cr",
-    "Mn",
-    "Fe",
-    "Co",
-    "Ni",
-    "Cu",
-    "Zn",
-    "Y",
-    "Zr",
-    "Nb",
-    "Mo",
-    "Tc",
-    "Ru",
-    "Rh",
-    "Pd",
-    "Ag",
-    "Cd",
-    "Hf",
-    "Ta",
-    "W",
-    "Re",
-    "Os",
-    "Ir",
-    "Pt",
-    "Au",
-    "Hg"
-  ]);
-  if (!transitionMetals.has(metal)) return null;
-  const count = have.get(dimer);
-  const metalCoeff = count * 2;
-  const dP = metalCoeff === 1 ? metal : `${metalCoeff}${metal}`;
-  const mP = count === 1 ? dimer : `${count}${dimer}`;
-  return {
-    reactants: { [dimer]: count },
-    condition: "heat",
-    products: [[metal, metalCoeff]],
-    equation: `${mP} -> ${dP}`,
-    dynamic: true
-  };
-}
+
+
+
+
 function isAlkane(f) {
   const cls = classifyMolecule(f, 0, null);
   return cls.key === "alkane";
@@ -50338,157 +49670,9 @@ function phaseOfSalt(formula) {
   if (!parsed) return "";
   return isSoluble(parsed.cation, parsed.anion) ? "(aq)" : "(s)";
 }
-function tryAcidicOxideBase(formulas, have) {
-  const out = [];
-  const keys = [...have.keys()];
-  const oxides = keys.map((f) => ({ f, ox: acidicOxideOf(f) })).filter((e) => e.ox);
-  if (!oxides.length) return out;
-  const bases = keys.filter((f) => isBase(f)).map((f) => ({ f, cat: getBaseCation(f) })).filter((e) => e.cat && e.cat.charge <= 2 && !AMPHOTERIC_METALS.has(e.cat.sym));
-  const metalOxides = keys.map((f) => ({ f, mo: isMetalOxide(f) })).filter((e) => e.mo && !AMPHOTERIC_METALS.has(e.mo.metalSym) && !OXYACID[e.mo.metalSym]);
-  for (const { f: oxideF, ox } of oxides) {
-    const anionSym = oxoanionFormulaSym(ox.central, 0, ox.acidO);
-    const anion = { sym: anionSym, charge: -ox.acidH };
-    for (const { f: baseF, cat } of bases) {
-      const saltF = generateSaltFormula(cat, anion);
-      const coeffs = balanceEquation([baseF, oxideF], [saltF, "H2O"]);
-      if (!coeffs) continue;
-      if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, anion);
-      const phases = { [saltF]: phaseOfSalt(saltF) };
-      out.push({
-        reactants: { [baseF]: coeffs[0], [oxideF]: coeffs[1] },
-        condition: "rt",
-        products: [[saltF, coeffs[2]], ["H2O", coeffs[3]]],
-        equation: eqParts([baseF, oxideF], [saltF, "H2O"], coeffs, phases),
-        dynamic: true,
-        protonTransfer: true
-      });
-    }
-    if (ox.acidH >= 2) {
-      const hAnion = { sym: oxoanionFormulaSym(ox.central, ox.acidH - 1, ox.acidO), charge: -1 };
-      for (const { f: baseF, cat } of bases) {
-        const saltF = generateSaltFormula(cat, hAnion);
-        const coeffs = balanceEquation([baseF, oxideF], [saltF]);
-        if (!coeffs) continue;
-        if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, hAnion);
-        const phases = { [saltF]: phaseOfSalt(saltF) };
-        out.push({
-          reactants: { [baseF]: coeffs[0], [oxideF]: coeffs[1] },
-          condition: "rt",
-          products: [[saltF, coeffs[2]]],
-          equation: eqParts([baseF, oxideF], [saltF], coeffs, phases),
-          dynamic: true,
-          protonTransfer: true
-        });
-      }
-    }
-    for (const { f: mF, mo } of metalOxides) {
-      const cat = { sym: mo.metalSym, charge: mo.oxidationState };
-      const saltF = generateSaltFormula(cat, anion);
-      const coeffs = balanceEquation([mF, oxideF], [saltF]);
-      if (!coeffs) continue;
-      if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, anion);
-      const phases = { [saltF]: phaseOfSalt(saltF) };
-      out.push({
-        reactants: { [mF]: coeffs[0], [oxideF]: coeffs[1] },
-        condition: "rt",
-        products: [[saltF, coeffs[2]]],
-        equation: eqParts([mF, oxideF], [saltF], coeffs, phases),
-        dynamic: true
-      });
-    }
-  }
-  if (have.has("CO2") && have.has("H2O")) {
-    for (const f of keys) {
-      const ions = parseIonicCompound(f);
-      if (!ions || ions.anion.sym !== "CO3") continue;
-      if (AMPHOTERIC_METALS.has(ions.cation.sym)) continue;
-      const hAnion = { sym: oxoanionFormulaSym("C", 1, 3), charge: -1 };
-      const saltF = generateSaltFormula(ions.cation, hAnion);
-      const coeffs = balanceEquation([f, "CO2", "H2O"], [saltF]);
-      if (!coeffs) continue;
-      if (!T[saltF]) T[saltF] = generateSaltTemplate(ions.cation, hAnion);
-      const phases = { [saltF]: phaseOfSalt(saltF) };
-      out.push({
-        reactants: { [f]: coeffs[0], CO2: coeffs[1], H2O: coeffs[2] },
-        condition: "rt",
-        products: [[saltF, coeffs[3]]],
-        equation: eqParts([f, "CO2", "H2O"], [saltF], coeffs, phases),
-        dynamic: true
-      });
-    }
-  }
-  return out;
-}
-function tryOxideHydration(formulas, have) {
-  if (have.size !== 2 || !have.has("H2O")) return [];
-  const out = [];
-  const others = [...have.keys()].filter((f) => f !== "H2O");
-  for (const f of others) {
-    const mo = isMetalOxide(f);
-    if (mo) {
-      const el = elementBySym$1(mo.metalSym);
-      if (el && (el.cat === "alkali" || el.cat === "alkaline") && mo.metalSym !== "Be") {
-        const cat = { sym: mo.metalSym, charge: mo.oxidationState };
-        const hydF = generateHydroxideFormula(cat);
-        const coeffs2 = balanceEquation([f, "H2O"], [hydF]);
-        if (coeffs2) {
-          if (!T[hydF]) T[hydF] = generateHydroxideTemplate(cat);
-          out.push({
-            reactants: { [f]: coeffs2[0], H2O: coeffs2[1] },
-            condition: "rt",
-            products: [[hydF, coeffs2[2]]],
-            equation: eqParts([f, "H2O"], [hydF], coeffs2),
-            dynamic: true
-          });
-          continue;
-        }
-      }
-    }
-    const ox = acidicOxideOf(f);
-    if (!ox || NO_HYDRATION.has(ox.central)) continue;
-    const acidTpl = buildOxoacidTemplate(ox.central, ox.acidH, ox.acidO);
-    const acidF = formulaOf(acidTpl.atoms.map((s) => elementBySym$1(s)));
-    const coeffs = balanceEquation([f, "H2O"], [acidF]);
-    if (!coeffs) continue;
-    if (!T[acidF]) T[acidF] = acidTpl;
-    out.push({
-      reactants: { [f]: coeffs[0], H2O: coeffs[1] },
-      condition: "rt",
-      products: [[acidF, coeffs[2]]],
-      equation: eqParts([f, "H2O"], [acidF], coeffs),
-      dynamic: true
-    });
-  }
-  return out;
-}
-function tryAmphotericBase(formulas, have) {
-  if (have.size !== 2) return [];
-  const out = [];
-  for (const f of have.keys()) {
-    const cat = getBaseCation(f);
-    if (!cat || !AMPHOTERIC_METALS.has(cat.sym)) continue;
-    const other = [...have.keys()].find((k) => k !== f);
-    if (!other) continue;
-    const oCat = getBaseCation(other);
-    if (!oCat || oCat.charge !== 1) continue;
-    const oEl = elementBySym$1(oCat.sym);
-    if (!oEl || oEl.cat !== "alkali") continue;
-    const metalate = { sym: oxoanionFormulaSym(cat.sym, 0, 2), charge: cat.charge - 4 };
-    const saltF = generateSaltFormula(oCat, metalate);
-    const coeffs = balanceEquation([f, other], [saltF, "H2O"]);
-    if (!coeffs) continue;
-    if (!T[saltF]) T[saltF] = generateSaltTemplate(oCat, metalate);
-    const phases = { [saltF]: phaseOfSalt(saltF) };
-    out.push({
-      reactants: { [f]: coeffs[0], [other]: coeffs[1] },
-      condition: "rt",
-      products: [[saltF, coeffs[2]], ["H2O", coeffs[3]]],
-      equation: eqParts([f, other], [saltF, "H2O"], coeffs, phases),
-      dynamic: true
-    });
-  }
-  return out;
-}
+
+
+
 function tplAdj(tpl) {
   const adj = tpl.atoms.map(() => []);
   for (const b of tpl.bonds) {
@@ -51119,6 +50303,43 @@ function tryFriedelCraftsAlkylation(comps, have) {
   }
   return null;
 }
+// Complete combustion of whatever carbon fuel the scene holds:
+// CxHyOz + (x + y/4 - z/2) O2 -> x CO2 + y/2 H2O, balanced in quarter-molecule
+// units and reduced to lowest terms, so the builder and the authored entries
+// (CH4, C2H6, C3H8...) price one route rather than two. The oxidizer half of the
+// requirement is validated by autoScaled against the scene AND the atmosphere
+// feed, so the route is offered only when O2 is genuinely available — a fuel in
+// an O2-free world gets nothing, and a fuel over typed-in O2 gets a route.
+function tryCompleteCombustion(formulas) {
+  if (formulas.length !== 1 && formulas.length !== 2) return null;
+  let fuel = null;
+  for (const f of formulas) {
+    if (f === "O2") continue;
+    if (fuel !== null) return null;
+    fuel = f;
+  }
+  if (!fuel) return null;
+  const counts = parseFormula(fuel);
+  const c = counts.get("C") || 0;
+  if (c < 1) return null;
+  const h = counts.get("H") || 0;
+  const o = counts.get("O") || 0;
+  // Quarter units keep every coefficient integral for any CxHyOz. A non-positive
+  // oxygen demand means the species is already fully oxidised (CO2, H2O, CO3...).
+  const o2q = 4 * c + h - 2 * o;
+  if (o2q <= 0) return null;
+  let fq = 4, o2 = o2q, co2 = 4 * c, h2o = 2 * h;
+  const g = gcd(gcd(fq, o2), gcd(co2, h2o));
+  fq /= g; o2 /= g; co2 /= g; h2o /= g;
+  const reactants = { [fuel]: fq, O2: o2 };
+  const products = [];
+  if (co2) products.push(["CO2", co2]);
+  if (h2o) products.push(["H2O", h2o]);
+  const fmt = (f, n) => (n === 1 ? "" : n) + f;
+  const equation = Object.entries(reactants).map(([f, n]) => fmt(f, n)).join(" + ") +
+    " -> " + products.map(([f, n]) => fmt(f, n)).join(" + ");
+  return { reactants, condition: "spark", products, equation, dynamic: true };
+}
 const STRUCT_CHECKS = {
   rt: [tryAcidBaseStruct, tryAlkeneHalogenationStruct, tryAlkeneAdditionHXStruct, tryNucleophilicSubstitution, tryAlcoholOxidation],
   catalyst: [tryEsterificationStruct, tryEsterHydrolysisStruct, tryAlkeneHydrationStruct, tryFriedelCraftsAlkylation, tryAmideFormation],
@@ -51128,11 +50349,12 @@ const STRUCT_CHECKS = {
 // scanner walks their union once per species subset, which covers every condition
 // a builder can emit (each one stamps its own condition on the result).
 const DYNAMIC_CHECKS = {
-  "rt": [tryAcidBaseReaction, tryMetalOxideAcidReaction, tryMetalAcidReaction, tryMetalWaterReaction, tryCarbonateAcidReaction, tryAcidicOxideBase, tryOxideHydration, tryAmphotericBase, trySingleDisplacement, tryAlkeneAdditionHX, tryPrecipitation, tryGasEvolution, tryWeakAcidDisplacement, tryNonMetalHalideHydrolysis, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction, tryWeakAcidDissociation, tryFluorineWaterReaction, tryHalogenDisproportionation],
-  "spark": [tryCombustion, tryElementalCombustion],
-  "heat": [tryCombustion, tryMetalOxideReduction, tryMetalHalogenSynthesis, tryMetalDimerFormation, tryMetalDimerDecomposition, tryDehydration, tryAdvancedDecomposition, tryGenericDecomposition, tryDisproportionation],
+  "rt": [tryAlkeneAdditionHX, tryNonMetalHalideHydrolysis, tryRedoxBalancing, tryComproportionation, tryHydrateFormation, tryCoordinationComplex, tryBiochemicalReaction, tryWeakAcidDissociation, tryFluorineWaterReaction, tryHalogenDisproportionation],
+  "heat": [tryDehydration, tryDisproportionation],
   "catalyst": [tryEsterification, tryHydrogenation, tryAlkeneHydration, tryEsterHydrolysis, tryBiochemicalReaction],
-  "uv": [tryHalogenation]
+  "uv": [tryHalogenation],
+  "spark": [tryCompleteCombustion]
+
 };
 const ALL_DYNAMIC_CHECKS = [...new Set(Object.values(DYNAMIC_CHECKS).flat())];
 const ALL_STRUCT_CHECKS = [...new Set(Object.values(STRUCT_CHECKS).flat())];
@@ -51180,134 +50402,8 @@ function buildIonicFormula(cation, anion) {
   }
   return formula;
 }
-function tryPrecipitation(formulas) {
-  if (formulas.length !== 2) return null;
-  const [f1, f2] = formulas;
-  const ions1 = parseIonicCompound(f1);
-  const ions2 = parseIonicCompound(f2);
-  if (!ions1 || !ions2) return null;
-  const prodA = buildIonicFormula(ions1.cation, ions2.anion);
-  const prodB = buildIonicFormula(ions2.cation, ions1.anion);
-  const solA = isSoluble(ions1.cation, ions2.anion);
-  const solB = isSoluble(ions2.cation, ions1.anion);
-  if (solA && solB) return null;
-  if (prodA === f1 && prodB === f2) return null;
-  if (prodA === prodB) return null;
-  const catCharge1 = Math.abs(ions1.cation.charge);
-  const anCharge2 = Math.abs(ions2.anion.charge);
-  const lcmA = catCharge1 * anCharge2 / gcd(catCharge1, anCharge2);
-  const coeffA = lcmA / catCharge1;
-  const coeffB_factor = lcmA / anCharge2;
-  const catCharge2 = Math.abs(ions2.cation.charge);
-  const anCharge1 = Math.abs(ions1.anion.charge);
-  const lcmB = catCharge2 * anCharge1 / gcd(catCharge2, anCharge1);
-  const coeffB = lcmB / catCharge2;
-  const reactantCoeff1 = lcmA / Math.abs(ions1.cation.charge) * Math.abs(ions1.anion.charge) / gcd(Math.abs(ions1.anion.charge), Math.abs(ions2.cation.charge));
-  const phaseA = solA ? "(aq)" : "(s)";
-  const phaseB = solB ? "(aq)" : "(s)";
-  const eq = `${f1}(aq) + ${f2}(aq) -> ${prodA}${phaseA} + ${prodB}${phaseB}`;
-  if (!T[prodA]) T[prodA] = { atoms: [], bonds: [] };
-  if (!T[prodB]) T[prodB] = { atoms: [], bonds: [] };
-  return {
-    reactants: { [f1]: 1, [f2]: 1 },
-    condition: "rt",
-    products: [[prodA, 1], [prodB, 1]],
-    equation: eq,
-    dynamic: true,
-    phases: { [prodA]: phaseA, [prodB]: phaseB }
-  };
-}
-function tryAdvancedDecomposition(formulas) {
-  if (formulas.length !== 1) return null;
-  const f = formulas[0];
-  const parsed = parseFormula(f);
-  const nitrateMatch = f.match(/^(.+?)\(NO3\)(\d*)$/);
-  if (nitrateMatch) {
-    const metalSym = nitrateMatch[1];
-    const no3Count = nitrateMatch[2] ? parseInt(nitrateMatch[2]) : 1;
-    const metal = COMMON_CATIONS[metalSym] || COMMON_CATIONS[metalSym + "2"];
-    if (metal) {
-      if (metal.group === 1) {
-        const nitrite = metalSym + "NO2";
-        if (!T[nitrite]) T[nitrite] = { atoms: [], bonds: [] };
-        return {
-          reactants: { [f]: 2 },
-          condition: "heat",
-          products: [[nitrite, 2], ["O2", 1]],
-          equation: `2${f} -> 2${nitrite} + O2`,
-          dynamic: true
-        };
-      } else {
-        const oxide = buildIonicFormula(metal, { sym: "O", charge: -2 });
-        if (!T[oxide]) T[oxide] = { atoms: [], bonds: [] };
-        return {
-          reactants: { [f]: 2 },
-          condition: "heat",
-          products: [[oxide, 1], ["NO2", no3Count * 2], ["O2", 1]],
-          equation: `2${f} -> ${oxide} + ${no3Count * 2}NO2 + O2`,
-          dynamic: true
-        };
-      }
-    }
-  }
-  const chlorateMatch = f.match(/^(.+?)ClO3(\d*)$/);
-  if (chlorateMatch) {
-    const metalSym = chlorateMatch[1];
-    const metal = COMMON_CATIONS[metalSym];
-    if (metal) {
-      const chloride = buildIonicFormula(metal, { sym: "Cl", charge: -1 });
-      if (!T[chloride]) T[chloride] = { atoms: [], bonds: [] };
-      return {
-        reactants: { [f]: 2 },
-        condition: "heat",
-        products: [[chloride, 2], ["O2", 3]],
-        equation: `2${f} -> 2${chloride} + 3O2`,
-        dynamic: true
-      };
-    }
-  }
-  if (f === "NH4Cl") {
-    return {
-      reactants: { NH4Cl: 1 },
-      condition: "heat",
-      products: [["NH3", 1], ["HCl", 1]],
-      equation: "NH4Cl -> NH3 + HCl",
-      dynamic: true
-    };
-  }
-  return null;
-}
-function tryGenericDecomposition(formulas) {
-  if (formulas.length !== 1) return null;
-  const f = formulas[0];
-  const parsed = parseFormula(f);
-  if (!parsed || parsed.size === 0) return null;
-  for (const rule of DECOMPOSITION_RULES) {
-    if (rule.match(parsed, parsed)) {
-      const productFormulas = rule.products(parsed, parsed);
-      if (!productFormulas || productFormulas.length < 2) continue;
-      const validProducts = productFormulas.filter((pf) => {
-        const pp = parseFormula(pf);
-        return pp && pp.size > 0;
-      });
-      if (validProducts.length < 2) continue;
-      const coeffs = balanceEquation([f], validProducts);
-      if (!coeffs) continue;
-      for (const pf of validProducts) {
-        if (!T[pf]) T[pf] = generateSingleAtomTemplate(pf.split(/(?=[A-Z])/)[0]) || { atoms: [], bonds: [] };
-      }
-      return {
-        reactants: { [f]: coeffs[0] },
-        condition: "heat",
-        products: validProducts.map((pf, i) => [pf, coeffs[1 + i]]),
-        equation: eqParts([f], validProducts, coeffs),
-        dynamic: true,
-        decompositionRule: rule.id
-      };
-    }
-  }
-  return null;
-}
+
+
 function tryHydrateFormation(formulas) {
   if (formulas.length !== 2) return null;
   let salt = null, waterCount = 0;
@@ -51340,81 +50436,7 @@ function tryHydrateFormation(formulas) {
     hydrateName: known ? known.name : null
   };
 }
-function tryGasEvolution(formulas) {
-  if (formulas.length !== 2) return null;
-  for (let i = 0; i < 2; i++) {
-    const other = formulas[1 - i];
-    const p = parseFormula(formulas[i]);
-    const h = p.get("H") || 0;
-    const n = p.get("N") || 0;
-    if (p.has("N") && !p.has("C") && h > 0 && h % 4 === 0 && (h === 4 * n || p.size > 2) && isBase(other)) {
-      return {
-        reactants: { [formulas[i]]: 1, [other]: 1 },
-        condition: "rt",
-        products: [["NH3", 1], ["H2O", 1]],
-        equation: `${formulas[i]} + ${other} -> NH3(g) + H2O + ...`,
-        dynamic: true,
-        protonTransfer: true,
-        gas: "NH3"
-      };
-    }
-  }
-  let acid = null, salt = null;
-  for (const f of formulas) {
-    if (isAcid(f)) acid = f;
-    else salt = f;
-  }
-  if (!acid || !salt) return null;
-  const saltParsed = parseFormula(salt);
-  if (saltParsed.has("S") && saltParsed.get("S") === 1 && !saltParsed.has("O")) {
-    const metalPart = [...saltParsed.entries()].filter(([sym]) => sym !== "S");
-    if (metalPart.length === 1) {
-      const metalSym = metalPart[0][0];
-      const metal = COMMON_CATIONS[metalSym] || COMMON_CATIONS[metalSym + "2"];
-      if (metal) {
-        const h2sCount = metal.charge === 2 ? 1 : metal.charge;
-        return {
-          reactants: { [salt]: 1, [acid]: 1 },
-          condition: "rt",
-          products: [["H2S", 1], [buildIonicFormula(metal, getAcidAnion(acid)), 1]],
-          equation: `${salt} + ${acid} -> H2S(g) + ${buildIonicFormula(metal, getAcidAnion(acid))}`,
-          dynamic: true,
-          protonTransfer: true,
-          gas: "H2S"
-        };
-      }
-    }
-  }
-  if (saltParsed.has("S") && saltParsed.has("O")) {
-    const sCount = saltParsed.get("S");
-    const oCount = saltParsed.get("O");
-    if (oCount / sCount === 3) {
-      return {
-        reactants: { [salt]: 1, [acid]: 1 },
-        condition: "rt",
-        products: [["SO2", 1], ["H2O", 1]],
-        equation: `${salt} + ${acid} -> SO2(g) + H2O + ...`,
-        dynamic: true,
-        gas: "SO2"
-      };
-    }
-  }
-  if (saltParsed.has("N") && saltParsed.has("O")) {
-    const nCount = saltParsed.get("N");
-    const oCount = saltParsed.get("O");
-    if (oCount / nCount === 2) {
-      return {
-        reactants: { [salt]: 1, [acid]: 1 },
-        condition: "rt",
-        products: [["NO", 1], ["H2O", 1]],
-        equation: `${salt} + ${acid} -> NO(g) + H2O + ...`,
-        dynamic: true,
-        gas: "NO"
-      };
-    }
-  }
-  return null;
-}
+
 function tryRedoxBalancing(formulas) {
   if (formulas.length < 2) return null;
   const have = /* @__PURE__ */ new Map();
@@ -51876,8 +50898,10 @@ const REACTIONS = [
   { reactants: { N2: 1, H2: 3 }, condition: "catalyst", products: [["NH3", 2]], equation: "N2 + 3H2 -> 2NH3" },
   { reactants: { Mg: 2, O2: 1 }, condition: "heat", products: [["MgO", 2]], equation: "2Mg + O2 -> 2MgO" },
   { reactants: { Na: 2, Cl2: 1 }, condition: "spark", products: [["NaCl", 2]], equation: "2Na + Cl2 -> 2NaCl" },
-  // CaO + H2O / CaO + CO2 / Ca(OH)2 + CO2 / SO3 + H2O are derived
-  // universally by tryOxideHydration and tryAcidicOxideBase now.
+  { reactants: { CaO: 1, H2O: 1 }, condition: "rt", products: [["CaOH2", 1]], equation: "CaO + H2O -> Ca(OH)2" },
+  { reactants: { CaO: 1, CO2: 1 }, condition: "rt", products: [["CaCO3", 1]], equation: "CaO + CO2 -> CaCO3" },
+  { reactants: { CaOH2: 1, CO2: 1 }, condition: "rt", products: [["CaCO3", 1], ["H2O", 1]], equation: "Ca(OH)2 + CO2 -> CaCO3 + H2O" },
+  { reactants: { SO3: 1, H2O: 1 }, condition: "rt", products: [["H2SO4", 1]], equation: "SO3 + H2O -> H2SO4" },
   { reactants: { CaCO3: 1 }, condition: "heat", products: [["CaO", 1], ["CO2", 1]], equation: "CaCO3 -> CaO + CO2" },
   { reactants: { HCl: 1, NaOH: 1 }, condition: "rt", products: [["NaCl", 1], ["H2O", 1]], equation: "HCl + NaOH -> NaCl + H2O" },
   { reactants: { H2O2: 2 }, condition: "catalyst", products: [["H2O", 2], ["O2", 1]], equation: "2H2O2 -> 2H2O + O2" },
@@ -51920,68 +50944,8 @@ const REACTIONS = [
   { reactants: { CaCl2: 1 }, condition: "electricity", products: [["Ca", 1], ["Cl2", 1]], equation: "CaCl2 -> Ca + Cl2" },
   { reactants: { MgCl2: 1 }, condition: "electricity", products: [["Mg", 1], ["Cl2", 1]], equation: "MgCl2 -> Mg + Cl2" }
 ];
-function tryMetalOxideAcidReaction(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2) return null;
-  const keys = [...have.keys()];
-  let oxideF = null, oxideInfo = null, acidF = null;
-  for (const f of keys) {
-    const mo = isMetalOxide(f);
-    if (mo) {
-      oxideF = f;
-      oxideInfo = mo;
-    }
-    if (isAcid(f)) acidF = f;
-  }
-  if (!oxideF || !acidF) return null;
-  const anion = getAcidAnion(acidF);
-  if (!anion) return null;
-  const cat = { sym: oxideInfo.metalSym, charge: oxideInfo.oxidationState };
-  const saltF = generateSaltFormula(cat, anion);
-  const coeffs = balanceEquation([oxideF, acidF], [saltF, "H2O"]);
-  if (!coeffs) return null;
-  if (!T[saltF]) T[saltF] = generateSaltTemplate(cat, anion);
-  const phases = { [saltF]: phaseOfSalt(saltF) };
-  return {
-    reactants: { [oxideF]: coeffs[0], [acidF]: coeffs[1] },
-    condition: "rt",
-    products: [[saltF, coeffs[2]], ["H2O", coeffs[3]]],
-    equation: eqParts([oxideF, acidF], [saltF, "H2O"], coeffs, phases),
-    dynamic: true,
-    protonTransfer: true
-  };
-}
-function tryElementalCombustion(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2 || !have.has("O2")) return null;
-  const others = [...have.keys()].filter((f) => f !== "O2");
-  if (others.length !== 1) return null;
-  const fuel = others[0];
-  const fuelParsed = parseFormula(fuel);
-  if (fuelParsed.size !== 1) return null;
-  const elSym = [...fuelParsed.keys()][0];
-  const el = elementBySym$1(elSym);
-  if (!el || isMetal$1(el)) return null;
-  const oxEntries = Object.entries(OXYACID[el.sym] || {}).sort(([a], [b]) => parseInt(a) - parseInt(b));
-  const oxEntry = oxEntries.find(([v]) => {
-    const oxV2 = parseInt(v);
-    const oxideF2 = generateOxideFormula(el.sym, oxV2);
-    return acidicOxideOf(oxideF2) != null;
-  });
-  if (!oxEntry) return null;
-  const oxV = parseInt(oxEntry[0]);
-  const oxideF = generateOxideFormula(el.sym, oxV);
-  if (!T[oxideF]) T[oxideF] = generateOxideTemplate(el.sym, oxV);
-  const coeffs = balanceEquation([fuel, "O2"], [oxideF]);
-  if (!coeffs) return null;
-  return {
-    reactants: { [fuel]: coeffs[0], O2: coeffs[1] },
-    condition: "spark",
-    products: [[oxideF, coeffs[2]]],
-    equation: eqParts([fuel, "O2"], [oxideF], coeffs),
-    dynamic: true
-  };
-}
+
+
 function tryNonMetalHalideHydrolysis(formulas, have) {
   if (have.size !== 2 || !have.has("H2O")) return [];
   const out = [];
@@ -52062,71 +51026,7 @@ function decomposingOxyacidGas(formula) {
   }
   return null;
 }
-function tryWeakAcidDisplacement(formulas) {
-  const have = multisetOf(formulas);
-  if (have.size !== 2) return null;
-  const keys = [...have.keys()];
-  let acidF = null, saltF = null;
-  for (const f of keys) {
-    if (isAcid(f)) acidF = f;
-    else saltF = f;
-  }
-  if (!acidF || !saltF) return null;
-  const ions = parseIonicCompound(saltF);
-  if (!ions) return null;
-  const weakInfo = WEAK_ACID_ANIONS[ions.anion.sym];
-  if (!weakInfo) return null;
-  const anionCharge = Math.abs(ions.anion.charge);
-  const acidHCount = anionCharge;
-  const acidParsed = parseFormula(weakInfo.acidF);
-  const acidActualH = acidParsed.get("H") || 0;
-  const hMult = acidActualH > 0 ? acidHCount / acidActualH : 1;
-  if (weakInfo.decomposes) {
-    const newSaltF = buildIonicFormula(ions.cation, getAcidAnion(acidF));
-    const allProducts = [weakInfo.gas, "H2O", newSaltF];
-    if (!T[newSaltF]) T[newSaltF] = generateSaltTemplate(ions.cation, getAcidAnion(acidF));
-    const coeffs = balanceEquation([saltF, acidF], allProducts);
-    if (!coeffs) return null;
-    const phases = { [newSaltF]: phaseOfSalt(newSaltF) };
-    return {
-      reactants: { [saltF]: coeffs[0], [acidF]: coeffs[1] },
-      condition: "rt",
-      products: allProducts.map((f, i) => [f, coeffs[2 + i]]),
-      equation: eqParts([saltF, acidF], allProducts, coeffs, phases),
-      dynamic: true,
-      protonTransfer: true,
-      gas: weakInfo.gas
-    };
-  } else {
-    const weakAcidActualF = weakInfo.acidF;
-    if (!T[weakAcidActualF]) {
-      const ap = parseFormula(weakAcidActualF);
-      const central = [...ap.keys()].find((k) => k !== "H" && k !== "O");
-      const oCount = ap.get("O") || 0;
-      const hCount = ap.get("H") || 0;
-      if (central && oCount > 0) {
-        T[weakAcidActualF] = buildOxoacidTemplate(central, hCount, oCount);
-      } else {
-        const atoms2 = [...ap.entries()].flatMap(([sym, n]) => Array(n).fill(sym));
-        T[weakAcidActualF] = { atoms: atoms2, bonds: [] };
-      }
-    }
-    const newSaltF = buildIonicFormula(ions.cation, getAcidAnion(acidF));
-    const allProducts = [weakAcidActualF, newSaltF];
-    if (!T[newSaltF]) T[newSaltF] = generateSaltTemplate(ions.cation, getAcidAnion(acidF));
-    const coeffs = balanceEquation([saltF, acidF], allProducts);
-    if (!coeffs) return null;
-    const phases = { [newSaltF]: phaseOfSalt(newSaltF) };
-    return {
-      reactants: { [saltF]: coeffs[0], [acidF]: coeffs[1] },
-      condition: "rt",
-      products: allProducts.map((f, i) => [f, coeffs[2 + i]]),
-      equation: eqParts([saltF, acidF], allProducts, coeffs, phases),
-      dynamic: true,
-      protonTransfer: true
-    };
-  }
-}
+
 function multisetOf(formulas) {
   const m = /* @__PURE__ */ new Map();
   for (const f of formulas) m.set(f, (m.get(f) || 0) + 1);
@@ -58950,61 +57850,6 @@ function decomposeMolecule(comp, now) {
   const an = analyses[lastComps.indexOf(comp)];
   const formula = an && an.formula || "?";
   if (!comp.atoms.every((id) => atoms.has(id))) return;
-  const parsed = parseFormula(formula);
-  if (parsed && parsed.size > 0) {
-    for (const rule of DECOMPOSITION_RULES) {
-      if (rule.match(parsed, parsed)) {
-        const productFormulas = rule.products(parsed, parsed);
-        if (productFormulas === null) {
-          return;
-        }
-        if (productFormulas && productFormulas.length >= 2) {
-          if (productFormulas.some((pf) => pf === formula)) {
-            console.warn(`[DECOMPOSITION] Blocked self-decomposition: ${formula}`);
-            continue;
-          }
-          const coeffs = solveDecayBalance(formula, productFormulas);
-          if (!coeffs) {
-            console.warn(`[DECOMPOSITION] Blocked mass violation: ${formula} → ${productFormulas.join(" + ")}`);
-            continue;
-          }
-          const templates = productFormulas.map((pf) => productTemplate(pf));
-          const allValid = templates.every((tpl) => tpl && tpl.atoms && tpl.atoms.length > 0);
-          if (!allValid) continue;
-          const cen2 = new Vector3();
-          for (const id of comp.atoms) {
-            const p = atoms.get(id).pos;
-            cen2.x += p.x;
-            cen2.y += p.y;
-            cen2.z += p.z;
-          }
-          cen2.divideScalar(comp.atoms.length);
-          for (const id of comp.atoms) {
-            atoms.delete(id);
-            for (const [bid2, b] of bonds) {
-              if (b.a === id || b.b === id) bonds.delete(bid2);
-            }
-          }
-          for (let pi = 0; pi < productFormulas.length; pi++) {
-            const tpl = templates[pi];
-            for (let copy = 0; copy < coeffs[pi]; copy++) {
-              const offset = new Vector3(
-                (Math.random() - 0.5) * 2,
-                (Math.random() - 0.5) * 2,
-                (Math.random() - 0.5) * 2
-              );
-              buildMoleculeAt(tpl, cen2.x + offset.x, cen2.y + offset.y, cen2.z + offset.z);
-            }
-          }
-          reactionVFX.explode(cen2, 1.2, new Color(16737792));
-          applyExplosionDamage(cen2, 1.2, comp.atoms.length);
-          status(t("status.decomposed", { formula }), "warn");
-          reanalyze();
-          return;
-        }
-      }
-    }
-  }
   const bid = weakestBondIdOf(comp);
   if (bid === null) return;
   const cen = new Vector3();
@@ -61670,7 +60515,11 @@ function autoReactionCandidates(force) {
       out.push(stamped);
     };
     for (const route of autoCatalog()) {
-      if (!route.req.some((r) => classes.has(r.norm))) continue;
+      // A route is on offer when every reactant is available somewhere: in the
+      // scene, or — for gases — in the atmosphere feed. Requiring scene presence
+      // hid routes like 3O2 -> 2O3 from a world whose oxygen lives in the
+      // Environment content.
+      if (!route.req.some((r) => classes.has(r.norm) || bonus.has(r.norm))) continue;
       push(autoScaled(route.rx, route.req, classes, bonus));
     }
     // Each builder is written against a two- or three-species mixture, so the
@@ -66206,6 +65055,10 @@ function spawnFormulaMolecule(formula) {
     reanalyze();
     return ids;
   }
+  // The template path checks the ceiling inside buildMoleculeAt; the loose-atom
+  // fallback must refuse the same way, or a full scene swallows a hundred
+  // unbonded atoms that no template can ever assemble.
+  if (!sceneHasRoom(atomList.length)) return null;
   const ids = [];
   const positions = computeInitialPositions(atomList);
   for (let i = 0; i < atomList.length; i++) {
@@ -66276,6 +65129,9 @@ window.__mol3d = {
   // builds the Maps these expect (atoms: id -> {id, el}, bonds: id -> {id, a, b,
   // order}) and asks before it lets a line onto the board, so a drawing can never
   // promise a structure the scene would refuse.
+  // Loaded after this bundle, so the namespace is resolved lazily: the
+  // bonding/octet evaluator answers as ChemBonding without a load-order dance.
+  get bonding() { return window.ChemBonding || null; },
   chem: {
     bondCheck,
     upgradeCheck,

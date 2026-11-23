@@ -163,6 +163,7 @@
     record('C4H10', null, null, { hf: -125.6, s: 310.0, cp: 97.5, source: 'NIST SRD 69 / Chase 1998; butane gas' }),
     record('C3H6', null, null, { hf: 20.4, s: 266.6, cp: 63.9, source: 'NIST SRD 69; propene gas' }),
     record('CH3COOH', null, null, { hf: -432.8, s: 282.8, source: 'NIST SRD 69; ethanoic (acetic) acid gas' }),
+    record('C4H8O2', null, null, { hf: -445.43, s: 362.75, cp: 113.64, source: 'NIST WebBook SRD 69; ethyl acetate gas — ΔfH° −445.43±0.84 kJ·mol−1 (Wiberg, Crocker et al. 1991, ALS), S° and Cp°(298.15 K) (Stull 1969, GT)', url: 'https://webbook.nist.gov/cgi/cbook.cgi?ID=C141786&Mask=1' }),
     record('HCN', null, null, { hf: 135.1, s: 199.5, source: 'NIST SRD 69 / Chase 1998; hydrogen cyanide gas' })
     ]);
   // --- Cp°(T) polynomials merged from the NIST Chemistry WebBook (SRD 69) ------

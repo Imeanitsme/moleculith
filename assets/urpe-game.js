@@ -240,7 +240,9 @@
       // end of the bracket is an infinite activity: the mixture simply runs out.
       const eps = 1e-7 * (hi - lo || 1);
       if (hi - xi < eps) clamped = 'forward';
-      else if (xi - lo < eps) clamped = 'reverse';    const at = {};
+      else if (xi - lo < eps) clamped = 'reverse';
+    }
+    const at = {};
     let prodmol = 0, reactmol = 0, limiting = null;
     for (const s of sp) {
       const n = Math.max(0, s.n0 + s.nu * xi);

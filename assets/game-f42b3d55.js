@@ -48091,6 +48091,10 @@ const T = {
   C3H6: { atoms: ["C", "C", "C", "H", "H", "H", "H", "H", "H"], bonds: [[0, 1, 2], [1, 2, 1], [0, 3, 1], [0, 4, 1], [1, 5, 1], [2, 6, 1], [2, 7, 1], [2, 8, 1]] },
   C2H2: { atoms: ["C", "C", "H", "H"], bonds: [[0, 1, 3], [0, 2, 1], [1, 3, 1]] },
   C6H6: { atoms: ["C", "C", "C", "C", "C", "C", "H", "H", "H", "H", "H", "H"], bonds: [[0, 1, 2], [1, 2, 1], [2, 3, 2], [3, 4, 1], [4, 5, 2], [5, 0, 1], [0, 6, 1], [1, 7, 1], [2, 8, 1], [3, 9, 1], [4, 10, 1], [5, 11, 1]] },
+  // Phenol: benzene with one ring H swapped for O-H. Without a structure the
+  // formula spawn fell back to loose atoms that never assemble, so the engine
+  // never even saw a phenol molecule to predict with.
+  C6H6O: { atoms: ["C", "C", "C", "C", "C", "C", "O", "H", "H", "H", "H", "H", "H"], bonds: [[0, 1, 2], [1, 2, 1], [2, 3, 2], [3, 4, 1], [4, 5, 2], [5, 0, 1], [0, 6, 1], [6, 7, 1], [1, 8, 1], [2, 9, 1], [3, 10, 1], [4, 11, 1], [5, 12, 1]] },
   // ── Alcohols ──
   CH4O: { atoms: ["C", "O", "H", "H", "H", "H"], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1], [1, 5, 1]] },
   C2H6O: { atoms: ["C", "C", "O", "H", "H", "H", "H", "H", "H"], bonds: [[0, 1, 1], [1, 2, 1], [0, 3, 1], [0, 4, 1], [0, 5, 1], [1, 6, 1], [1, 7, 1], [2, 8, 1]] },
@@ -50180,7 +50184,7 @@ function tryAmideFormation(comps, have) {
         reactants: Object.fromEntries([[formulaOf(comps[i].atoms.map((s) => elementBySym$1(s))), 1], [formulaOf(comps[j].atoms.map((s) => elementBySym$1(s))), 1]]),
         condition: "heat",
         products: [[productFormula, 1], ["H2O", 1]],
-        equation: `${formulaOf(comps[i].atoms.map((s) => elementBySym$1(s)))} + ${formulaOf(comps[j].atoms.map((s) => elementBySym$1(s)))} -> amide + H2O`,
+        equation: `${formulaOf(comps[i].atoms.map((s) => elementBySym$1(s)))} + ${formulaOf(comps[j].atoms.map((s) => elementBySym$1(s)))} -> ${productFormula} + H2O`,
         dynamic: true,
         organic: true,
         condensation: true
@@ -57342,6 +57346,9 @@ function emitNuclearDecay(shot, now) {
     // hands back two 511 keV gammas flying apart.
     const plus = branch.mode === "betaPlus";
     reactionVFX.explode(pos, plus ? 0.5 : 0.35, plus ? 16737502 : branch.mode === "electronCapture" ? 11034879 : 6547199);
+    if (plus && window.__gammaRay && typeof window.__gammaRay.annihilation === "function") {
+      window.__gammaRay.annihilation({ x: pos.x, y: pos.y, z: pos.z });
+    }
     // A weak decay throws a charged lepton out of the nucleus, and with it the
     // neutrino the books demand: beta-minus pairs the electron with an
     // antineutrino, beta-plus the positron with a neutrino. Electron capture is
@@ -57521,6 +57528,11 @@ function updateBetaDecay(now) {
     // annihilates against an electron almost at once and hands back two 511 keV
     // gammas flying apart in opposite directions, which is the whole of PET.
     reactionVFX.explode(pos, plan.kind === "plus" ? 0.5 : 0.35, plan.kind === "plus" ? 16737502 : 6547199);
+    if (plan.kind === "plus" && window.__gammaRay && typeof window.__gammaRay.annihilation === "function") {
+      // The positron's two 511 keV gammas, back to back — the beam pair this
+      // comment has promised since the flash was drawn without them.
+      window.__gammaRay.annihilation({ x: pos.x, y: pos.y, z: pos.z });
+    }
     if (window.__decayParticles && typeof window.__decayParticles.beta === "function") {
       window.__decayParticles.beta({ x: pos.x, y: pos.y, z: pos.z }, plan.kind);
     }
@@ -60387,14 +60399,36 @@ function generatedUniverse() {
 }
 function generatedCandidates(classes, bonus, emit) {
   const uni = generatedUniverse();
-  if (!uni || uni.length < 2) return;
+  if (!uni || uni.length < 2) {
+    if (autoDiag) autoDiag.generated = { stage: 'universe', n: uni ? uni.length : 0 };
+    return;
+  }
   const supply = [];
-  for (const sp of uni) {
+  // The table-only universe hid every species the engine prices from its own
+  // structure (the estimator rows) — amines, phenols, most organics could never
+  // be a reactant here. Scene species with a row and a buildable structure join
+  // the universe so their rearrangements can be predicted too.
+  const known = new Map(uni.map((sp) => [sp.norm, sp]));
+  for (const [norm, n] of classes) {
+    if (n <= 0 || known.has(norm)) continue;
+    const row = typeof window === "undefined" ? null : window.URPEGame && window.URPEGame.speciesRow && window.URPEGame.speciesRow(norm);
+    if (!row || !row.data || !Number.isFinite(row.data.hf) || !Number.isFinite(row.data.s)) continue;
+    const tpl = productTemplate(norm);
+    if (!tpl || !Array.isArray(tpl.atoms) || !tpl.atoms.length) continue;
+    const comp = parseFormula(norm);
+    if (!comp.size) continue;
+    known.set(norm, { formula: norm, norm: norm, parts: [...comp.entries()] });
+  }
+  const uniAll = [...known.values()];
+  for (const sp of uniAll) {
     const have = classes.get(sp.norm) || 0;
     if (have > 0) supply.push({ sp, max: Math.min(have, AUTO_GEN_MAX_COEFF), scene: true });
     else if (bonus.has(sp.norm)) supply.push({ sp, max: AUTO_GEN_MAX_COEFF, scene: false });
   }
-  if (!supply.length) return;
+  if (!supply.length) {
+    if (autoDiag) autoDiag.generated = { stage: 'supply', universe: uni.length, n: 0 };
+    return;
+  }
   supply.sort((x, y) => x.scene === y.scene ? y.max - x.max || x.sp.formula.localeCompare(y.sp.formula) : (x.scene ? -1 : 1));
   const side = supply.slice(0, AUTO_GEN_MAX_SPECIES);
   // One, two or three species on the left, each with 1..4 molecules; three-species
@@ -60447,6 +60481,7 @@ function generatedCandidates(classes, bonus, emit) {
     if (seenRoute.has(equation)) return;
     seenRoute.add(equation);
     routes++;
+    if (autoDiag) autoDiag.genRoutes = routes;
     emit({ reactants: Object.fromEntries(lhs), products: rhs, condition: "env", equation, generated: true });
   };
   for (const spec of sides) {
@@ -60456,7 +60491,7 @@ function generatedCandidates(classes, bonus, emit) {
     for (const [i, c] of spec)
       for (const [el, k] of side[i].sp.parts) budget.set(el, (budget.get(el) || 0) + k * c);
     const usable = [];
-    for (const sp of uni) {
+    for (const sp of uniAll) {
       let fits = true;
       for (const [el, k] of sp.parts) if ((budget.get(el) || 0) < k) { fits = false; break; }
       if (fits) usable.push(sp);
@@ -60495,23 +60530,36 @@ function generatedCandidates(classes, bonus, emit) {
   }
 }
 let autoScan = { sig: null, list: [] };
+// Last run's funnel counters, read through __mol3d.auto.diag() — why a scene
+// yields zero candidates is otherwise invisible from outside the closure.
+let autoDiag = null;
 function autoReactionCandidates(force) {
   const sig = sceneSignature();
   if (!force && sig === autoScan.sig) return autoScan.list;
   const classes = sceneSpeciesClasses();
   const out = [];
+  const diag = autoDiag = {
+    classes: classes.size, combos: 0, catalog: 0, built: 0,
+    unscaled: 0, duplicate: 0, kept: 0, generated: null, generatedEmitted: 0
+  };
   if (classes.size) {
     const bonus = new Set(envAtmosphereGases().map((f) => normalizeFormula(f)));
     const spell = sceneSpellings(classes);
     const seen = new Set();
+    const scale = (cand, req) => {
+      const s = autoScaled(cand, req, classes, bonus);
+      if (cand && !s) diag.unscaled++;
+      return s;
+    };
     const push = (cand) => {
       if (!cand || out.length >= AUTO_MAX_CANDIDATES) return;
       if (!conservesEveryElement(cand)) return;
       const stamped = acceptReaction(cand);
       if (!stamped) return;
       const key = stamped.equation + "@" + stamped.condition;
-      if (seen.has(key)) return;
+      if (seen.has(key)) { diag.duplicate++; return; }
       seen.add(key);
+      diag.kept++;
       out.push(stamped);
     };
     for (const route of autoCatalog()) {
@@ -60520,7 +60568,8 @@ function autoReactionCandidates(force) {
       // hid routes like 3O2 -> 2O3 from a world whose oxygen lives in the
       // Environment content.
       if (!route.req.some((r) => classes.has(r.norm) || bonus.has(r.norm))) continue;
-      push(autoScaled(route.rx, route.req, classes, bonus));
+      diag.catalog++;
+      push(scale(route.rx, route.req));
     }
     // Each builder is written against a two- or three-species mixture, so the
     // scene is offered to them one species subset at a time.
@@ -60532,24 +60581,30 @@ function autoReactionCandidates(force) {
       for (let i = start; i < names.length; i++) { pick.push(names[i]); walk(i + 1, pick); pick.pop(); }
     };
     walk(0, []);
+    diag.combos = combos.length;
     for (const subset of combos) {
       const have = new Map();
       for (const f of subset) have.set(f, classes.get(f));
       const keys = [...have.keys()].map((f) => spell.get(f) || f);
       for (const tryFn of ALL_DYNAMIC_CHECKS) {
-        for (const cand of candidatesOf(tryFn(keys, have))) push(autoScaled(cand, requirementOf(cand), classes, bonus));
+        for (const cand of candidatesOf(tryFn(keys, have))) { diag.built++; push(scale(cand, requirementOf(cand))); }
       }
       if (subset.length >= 2) {
         const comps = keys.map((f) => productTemplate(f));
         if (comps.every((c) => c && Array.isArray(c.atoms) && c.atoms.length)) {
           for (const tryFn of ALL_STRUCT_CHECKS) {
-            for (const cand of candidatesOf(tryFn(comps, have))) push(autoScaled(cand, requirementOf(cand), classes, bonus));
+            for (const cand of candidatesOf(tryFn(comps, have))) { diag.built++; push(scale(cand, requirementOf(cand))); }
           }
         }
       }
       if (out.length >= AUTO_MAX_CANDIDATES) break;
     }
-    if (out.length < AUTO_MAX_CANDIDATES) generatedCandidates(classes, bonus, push);
+    if (out.length < AUTO_MAX_CANDIDATES) {
+      diag.generated = 'ran';
+      const before = out.length;
+      generatedCandidates(classes, bonus, push);
+      diag.generatedEmitted = out.length - before;
+    } else diag.generated = 'capped';
   }
   autoScan = { sig, list: out };
   return autoScan.list;
@@ -65259,6 +65314,7 @@ window.__mol3d = {
   },
   auto: {
     candidates: (force) => autoReactionCandidates(force),
+    diag: () => autoDiag,
     species: () => sceneSpeciesClasses(),
     signature: () => sceneSignature(),
     execute: (rx) => executeReaction(rx),

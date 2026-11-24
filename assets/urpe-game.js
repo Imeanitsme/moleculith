@@ -66,6 +66,10 @@
       }), T);
     } catch (e) { return null; }
     res.sources = rows;
+    // Schema metadata: which species rode on theoretical structure/standard
+    // data, and the units/reference state the numbers are in.
+    const schema = normalizeReaction(equation, { T: T });
+    if (schema) { res.species = schema.species; res.warnings = schema.warnings; res.reference = schema.reference; }
     return res;
   }
 
@@ -1257,6 +1261,7 @@
     return { formula, estimated: true, data: {
       phase: 'g', hf: ATOM_DH[sym], s: transEntropy(mass, T_REF, P_REF),
       referenceTemperature: T_REF, pStandard: 1, cStandard: 1, provenance: 'calculated', estimated: true,
+      data_source: 'estimated',
       source: L('estimated: free ' + sym + ' atom, Sackur-Tetrode entropy and atomisation enthalpy, ideal gas at 298.15 K',
         'ước lượng: nguyên tử ' + sym + ' tự do, entropy Sackur-Tetrode và enthalpy nguyên tử hoá, khí lý tưởng 298,15 K')
     } };
@@ -1277,6 +1282,7 @@
         row = { formula, estimated: true, data: {
           phase: 'g', hf: est.dfH, s: est.sAbs,
           referenceTemperature: T_REF, pStandard: 1, cStandard: 1, provenance: 'calculated', estimated: true,
+          data_source: 'group_contribution',
           source: L('estimated: bond-enthalpy cycle and statistical mechanics on a rebuilt structure, ideal gas at 298.15 K',
             'ước lượng: chu trình năng lượng liên kết và cơ học thống kê trên cấu trúc dựng lại, khí lý tưởng 298,15 K') +
             genericNote +
@@ -1289,9 +1295,148 @@
     estimateCache.set(key, row);
     return row;
   }
-  // Measured first, then theoretical, then nothing. `lookup` stays strict so the
-  // Info tab can still tell a cited table row apart from a calculation.
-  function speciesRow(formula) { return lookup(formula) || theoreticalRow(formula); }
+  // Measured first, theoretical (rebuilt structure), then the configured
+  // default. A parseable formula must never fail pricing; only a formula the
+  // parser cannot read reports nothing.
+  function speciesRow(formula) { return lookup(formula) || theoreticalRow(formula) || formulaOnlyRow(formula); }
+
+  // --- Species/reaction schema: normalization, fallback, metadata -----------
+  // Used only when neither a cited row nor a rebuilt structure can price a
+  // parseable formula. The values are configuration, not chemistry — every
+  // consumer sees is_theoretical = true, data_source = 'estimated', and a
+  // warning naming the species, per the reaction-output contract.
+  const THEORETICAL_DEFAULTS = Object.freeze({
+    delta_f_h_kj_mol: 0,
+    s_j_mol_k_base: 100,
+    s_j_mol_k_per_atom: 40
+  });
+  const formulaFallbackCache = new Map();
+  function formulaOnlyRow(formula) {
+    const key = canon(formula);
+    if (formulaFallbackCache.has(key)) return formulaFallbackCache.get(key);
+    const counts = countsOf(formula);
+    const syms = Object.keys(counts);
+    const nAtoms = syms.reduce((sum, x) => sum + counts[x], 0);
+    // An unparseable formula is an unknown species, not an unknown number:
+    // this single case still reports nothing.
+    const row = !nAtoms ? null : { formula, estimated: true, structureFallback: true, data: {
+      phase: 'g',
+      hf: THEORETICAL_DEFAULTS.delta_f_h_kj_mol,
+      s: THEORETICAL_DEFAULTS.s_j_mol_k_base + THEORETICAL_DEFAULTS.s_j_mol_k_per_atom * nAtoms,
+      referenceTemperature: T_REF, pStandard: 1, cStandard: 1,
+      provenance: 'calculated', estimated: true, data_source: 'estimated',
+      source: L('theoretical default: no cited row and no rebuildable structure could price it (configured atom-count defaults), ideal gas at 298.15 K',
+        'mặc định lý thuyết: không có bảng trích dẫn và không dựng lại được cấu trúc (giá trị cấu hình theo số nguyên tử), khí lý tưởng 298,15 K')
+    } };
+    formulaFallbackCache.set(key, row);
+    return row;
+  }
+
+  const DATA_SOURCE_FROM_PROVENANCE = { measured: 'experimental', empirical: 'experimental', calculated: 'estimated' };
+  function dataSourceOf(row) {
+    if (!row || !row.data) return 'missing';
+    if (row.data.data_source) return row.data.data_source;
+    return DATA_SOURCE_FROM_PROVENANCE[row.data.provenance] || 'estimated';
+  }
+  function structureStatusOf(row) {
+    if (!row) return 'undefined';
+    if (row.data && row.data.structureFallback) return 'theoretical';
+    if (row.estimated) return 'theoretical';
+    return 'defined';
+  }
+  // Structure strings: the formula layer is authoritative; SMILES and InChI are
+  // validated and reduced to an explicit-atom tally — the only part a text scan
+  // can honestly claim without a cheminformatics stack — and marked theoretical.
+  function atomCountsFromSmiles(smiles) {
+    const s = String(smiles || '').trim();
+    if (!s || !/^[A-Za-z0-9@+\-\[\]\(\)=#$:\\.\/%]+$/.test(s)) return null;
+    const counts = Object.create(null);
+    const re = /Br|Cl|[BCNOPSCIHKF]|[bcnops]/g;
+    let m, atoms = 0;
+    while ((m = re.exec(s))) {
+      const sym = m[0] === m[0].toLowerCase() ? m[0].toUpperCase() : m[0];
+      counts[sym] = (counts[sym] || 0) + 1;
+      atoms++;
+    }
+    return atoms ? counts : null;
+  }
+  function atomCountsFromInchi(inchi) {
+    const m = /^InChI=1S?\/([^\/]+)/.exec(String(inchi || '').trim());
+    if (!m) return null;
+    const counts = countsOf(m[1].split('/')[0]);
+    return Object.keys(counts).length ? counts : null;
+  }
+
+  function normalizeSpecies(formula, opts) {
+    opts = opts || {};
+    const f = String(formula || '').trim();
+    const row = f ? speciesRow(f) : null;
+    let counts = row ? countsOf(row.formula) : null;
+    let status = structureStatusOf(row);
+    if (!counts && opts.smiles) { counts = atomCountsFromSmiles(opts.smiles); if (counts && status === 'undefined') status = 'theoretical'; }
+    if (!counts && (opts.inchi || opts.inchikey)) { counts = atomCountsFromInchi(opts.inchi || opts.inchikey); if (counts && status === 'undefined') status = 'theoretical'; }
+    const ds = row ? dataSourceOf(row) : (counts ? 'estimated' : 'missing');
+    const d = (row && row.data) || {};
+    const charge = Number.isFinite(opts.charge) ? opts.charge : 0;
+    const hf = Number.isFinite(d.hf) ? d.hf : null;
+    const sv = Number.isFinite(d.s) ? d.s : null;
+    const tRef = Number.isFinite(d.referenceTemperature) ? d.referenceTemperature : T_REF;
+    return {
+      species_id: (row ? canon(row.formula) : (f || 'unknown')) + (charge ? (charge > 0 ? '+' + charge : String(charge)) : ''),
+      name: opts.name || f,
+      formula: row ? row.formula : (f || null),
+      phase: d.phase || null,
+      stoichiometric_coeff: Number.isFinite(opts.stoichiometric_coeff) ? opts.stoichiometric_coeff : 1,
+      charge: charge,
+      multiplicity: Number.isFinite(opts.multiplicity) ? opts.multiplicity : null,
+      structure_status: status,
+      canonical_smiles: opts.canonical_smiles || opts.smiles || null,
+      inchikey: opts.inchikey || null,
+      atom_counts: counts ? Object.assign({}, counts) : null,
+      connectivity_or_graph: (row && row.graph && row.graph.atoms && row.graph.atoms.length) ? { atoms: row.graph.atoms, bonds: row.graph.bonds } : null,
+      data_source: ds,
+      standard_state: { temperature_k: tRef, pressure_bar: Number.isFinite(d.pStandard) ? d.pStandard : 1 },
+      delta_f_h_kj_mol: hf,
+      s_j_mol_k: sv,
+      delta_f_g_kj_mol: hf !== null && sv !== null ? hf - tRef * sv / 1000 : null,
+      cp_params: d.cp !== undefined ? d.cp : (d.cpPoly || d.cpIntervals || null),
+      is_theoretical: ds !== 'experimental'
+    };
+  }
+
+  function normalizeReaction(equation, opts) {
+    opts = opts || {};
+    const terms = parse(equation);
+    if (!terms) return null;
+    const warnings = [];
+    const species = terms.map((t) => {
+      const per = (opts.species && opts.species[t.formula]) || {};
+      const sch = normalizeSpecies(t.formula, Object.assign({}, per, { stoichiometric_coeff: t.nu }));
+      if (sch.structure_status !== 'defined' || sch.is_theoretical) {
+        warnings.push({
+          species_id: sch.species_id, formula: sch.formula,
+          structure_status: sch.structure_status, data_source: sch.data_source,
+          is_theoretical: sch.is_theoretical,
+          message: L('theoretical ' + (sch.structure_status !== 'defined' && sch.data_source === 'missing' ? 'structure' :
+            sch.structure_status !== 'defined' ? 'structure and standard data' : 'standard data') +
+            ' used for ' + (sch.formula || sch.species_id),
+            'dùng dữ liệu lý thuyết cho ' + (sch.formula || sch.species_id))
+        });
+      }
+      return sch;
+    });
+    const first = species.find((x) => x.data_source !== 'missing');
+    return {
+      equation: equation,
+      species: species,
+      warnings: warnings,
+      reference: {
+        temperature_k: first ? first.standard_state.temperature_k : T_REF,
+        pressure_bar: first ? first.standard_state.pressure_bar : 1,
+        units: { delta_f_h: 'kJ·mol−1', delta_f_g: 'kJ·mol−1', s: 'J·mol−1·K−1', cp: 'J·mol−1·K−1' }
+      }
+    };
+  }
 
   // Measured standard-state data for whatever molecule the player selects,
   // rendered in the Info tab. Bundle tables win when they cover the species,
@@ -1431,5 +1576,6 @@
     };
   }
 
-  root.URPEGame = { evaluate, predict, equilibrium, panelHtml, lookup, speciesRow, theoreticalRow, canon, parse, envState, thermoTerm, sci, theoreticalState, ATOM_DH };
+  root.URPEGame = { evaluate, predict, equilibrium, panelHtml, lookup, speciesRow, theoreticalRow, canon, parse, envState, thermoTerm, sci, theoreticalState, ATOM_DH,
+    normalizeSpecies, normalizeReaction, formulaOnlyRow, THEORETICAL_DEFAULTS };
 })(window);

@@ -31,6 +31,9 @@
   const MIN_GAP_MS = 400;
   const PAINT_THROTTLE_MS = 250;
   const PANEL_ROWS = 10;
+  // Collapsed by default; the Show More button below the rows opens the full
+  // ranked list in place, and Show less puts it back.
+  let showAllRoutes = false;
   // A route counts as proceeding when its own half-life is under about two hours
   // of simulated time; anything slower is reported as frozen with its half-life.
   const LIVE_PER_SECOND = Math.LN2 / 7200;
@@ -407,7 +410,24 @@
     const estimated = terms.filter(t => !U.lookup(t.ref)).map(t => t.ref);
     const missing = terms.filter(t => !U.speciesRow(t.ref)).map(t => t.ref);
     if (missing.length) return { state: 'nodata', missing };
-    const base = { estimated };
+    // Schema metadata rides with every route: which species used theoretical
+    // structure or standard data, and the units/reference state of the numbers.
+    const warnings = [];
+    if (U.normalizeSpecies) {
+      for (const t of terms) {
+        const sch = U.normalizeSpecies(t.ref, { stoichiometric_coeff: t.nu });
+        if (sch.is_theoretical || sch.structure_status !== 'defined') {
+          warnings.push({ formula: sch.formula || t.ref, structure_status: sch.structure_status,
+            data_source: sch.data_source, is_theoretical: sch.is_theoretical });
+        }
+      }
+    }
+    const base = {
+      estimated,
+      warnings,
+      reference: { temperature_k: T, pressure_bar: bar,
+        units: { delta_f_h: 'kJ·mol−1', delta_f_g: 'kJ·mol−1', s: 'J·mol−1·K−1', cp: 'J·mol−1·K−1' } }
+    };
     let acts = { acts: null, reason: null };
     try { acts = activities(terms, classes, atmo, bar); } catch (e) { acts = { acts: null, reason: e.message }; }
     let res;
@@ -713,6 +733,10 @@
     '.arxn-item details{font-size:11px;width:100%}',
     '.arxn-item summary{cursor:pointer;opacity:.75}',
     '.arxn-more{font-size:10.5px;opacity:.7;line-height:1.45}',
+    '.arxn-showmore{display:block;width:100%;margin-top:5px;padding:6px 8px;font-size:11.5px;' +
+      'font-weight:600;line-height:1.4;text-align:center;cursor:pointer;color:inherit;' +
+      'background:rgba(127,127,127,.08);border:1px dashed var(--border);border-radius:8px}',
+    '.arxn-showmore:hover{background:rgba(127,127,127,.16);border-style:solid}',
     '.auto-rxn-env b{font-weight:600}'
   ].join('');
 
@@ -764,6 +788,17 @@
         r.spontaneity === 'favorable' ? L('favorable (ΔG < 0)', 'thuận (ΔG < 0)') :
         r.spontaneity === 'equilibrium' ? L('equilibrium (ΔG = 0)', 'cân bằng (ΔG = 0)') :
         L('non-spontaneous (ΔG > 0)', 'không tự phát (ΔG > 0)')));
+    }
+    if (r.warnings && r.warnings.length) {
+      const shown = r.warnings.slice(0, 3);
+      const more = r.warnings.length - shown.length;
+      bits.push('<b>' + esc(L('theoretical inputs', 'dữ liệu lý thuyết')) + '</b> ' + esc(
+        shown.map((w) => w.formula + ' (' + w.data_source + ')').join(', ') + (more > 0 ? ' +' + more : '')));
+      if (r.reference) {
+        bits.push('<b>' + esc(L('reference', 'chuẩn trạng thái')) + '</b> ' +
+          r.reference.temperature_k.toFixed(2) + ' K · ' + sci(r.reference.pressure_bar, 3) + ' bar · ' +
+          'ΔfH/ΔG ' + r.reference.units.delta_f_h + ' · S ' + r.reference.units.s);
+      }
     }
     if (r.temperatureShift) {
       const ts = r.temperatureShift;
@@ -862,16 +897,32 @@
       return;
     }
     // Rebuilding the list would throw away a mass field the player is typing in.
-    if (listBox.contains(document.activeElement)) { dirty = true; return; }
+    // The Show More button lives inside this list, so only real inputs block a rebuild.
+    const active = document.activeElement;
+    if (active && listBox.contains(active) && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName)) {
+      dirty = true; return;
+    }
     listBox.className = '';
     listBox.textContent = '';
-    for (const r of routes.slice(0, PANEL_ROWS)) listBox.appendChild(row(r));
+    const shown = showAllRoutes ? routes : routes.slice(0, PANEL_ROWS);
+    for (const r of shown) listBox.appendChild(row(r));
     if (routes.length > PANEL_ROWS) {
-      const more = document.createElement('div');
-      more.className = 'arxn-more';
-      more.textContent = L('+ ' + (routes.length - PANEL_ROWS) + ' more equations this scene could run, ranked behind the ones the maths favours',
-        '+ ' + (routes.length - PANEL_ROWS) + ' phương trình khác cảnh này có thể chạy, xếp sau những phương trình được toán học ủng hộ');
-      listBox.appendChild(more);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'arxn-showmore';
+      const hidden = routes.length - PANEL_ROWS;
+      btn.setAttribute('aria-expanded', String(showAllRoutes));
+      btn.textContent = showAllRoutes
+        ? L('Show less', 'Thu gọn')
+        : L('+ ' + hidden + ' more reactions the maths approves — show all',
+            '+ ' + hidden + ' phản ứng nữa mà toán học ủng hộ — xem tất cả');
+      btn.addEventListener('click', () => {
+        showAllRoutes = !showAllRoutes;
+        dirty = true;
+        repaintAt = 0; // the paint throttle must not swallow the click
+        paint();
+      });
+      listBox.appendChild(btn);
     }
     if (!routes.some(r => r.state === 'live' || r.state === 'frozen')) {
       const note = document.createElement('div');

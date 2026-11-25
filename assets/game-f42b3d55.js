@@ -43161,6 +43161,15 @@ function bondCheck(atoms2, bonds2, aId, bId) {
     return !!at && isMetal$1(at.el);
   }))
     return { ok: false, reason: { key: "chem.ringLonePair", p: { n: ring.size } } };
+  const metA = atoms2.get(aId), metB = atoms2.get(bId);
+  if (isMetal$1(metA.el) && isMetal$1(metB.el)) {
+    if (orderSumOf(atoms2, bonds2, aId) < orderCapacityOf(metA.el) &&
+        orderSumOf(atoms2, bonds2, bId) < orderCapacityOf(metB.el))
+      return { ok: true, type: "metallic" };
+    return { ok: false, reason: { key: "chem.metalMetal" } };
+  }
+  const dative = dativeCheck(atoms2, bonds2, aId, bId);
+  if (dative.ok) return dative;
   const covalent = covalentCheck(atoms2, bonds2, aId, bId);
   if (covalent.ok) {
     const ring = ringClosureOf(atoms2, bonds2, aId, bId);
@@ -43171,6 +43180,28 @@ function bondCheck(atoms2, bonds2, aId, bId) {
   const ionic = ionicCheck(atoms2, bonds2, aId, bId);
   if (ionic.ok) return ionic;
   return covalent.reason?.key && !covalent.reason.key.startsWith("chem.metal") ? covalent : ionic;
+}
+// Coordinate bond: one atom donates a whole lone pair (>=2 spare electrons and
+// room for one more bond), the other accepts because its octet is short but it
+// has no electron of its own to share — BF3 + NH3, Cu + NH3, the whole
+// coordination family the plain covalent/ionic paths both refuse.
+function dativeCheck(atoms2, bonds2, aId, bId) {
+  for (const [donId, accId] of [[aId, bId], [bId, aId]]) {
+    const don = atoms2.get(donId), acc = atoms2.get(accId);
+    if (!don || !acc) continue;
+    if (isMetal$1(don.el) && isMetal$1(acc.el)) continue;
+    const donSum = orderSumOf(atoms2, bonds2, donId) + ionicCountOf(atoms2, bonds2, donId);
+    const accSum = orderSumOf(atoms2, bonds2, accId) + ionicCountOf(atoms2, bonds2, accId);
+    const donFree = (don.el.valenceElectrons || 0) - donSum;
+    const accFree = (acc.el.valenceElectrons || 0) - accSum;
+    if (donFree < 2) continue;
+    if (donSum >= orderCapacityOf(don.el)) continue;
+    if (accFree >= 1) continue;
+    const cap = acc.el.z > 10 ? 18 : 8;
+    if (2 * accSum >= cap && accSum >= Math.max(1, acc.el.maxBonds || 1)) continue;
+    return { ok: true, type: "dative", donor: donId };
+  }
+  return { ok: false };
 }
 const HALO = /* @__PURE__ */ new Set(["F", "Cl", "Br", "I", "At"]);
 const TRANSITION_METALS = /* @__PURE__ */ new Set([
@@ -43530,13 +43561,18 @@ function structuralFingerprint(atoms2, bonds2, atomIds) {
   if (n === 0) return "";
   const atomsArr = atoms2 instanceof Map ? atomIds.map((id) => atoms2.get(id)) : atomIds.map((id, i) => ({ el: { sym: atoms2[i] || id } }));
   const adj = Array.from({ length: n }, () => []);
-  for (const b of bonds2) {
-    if (b[3]) continue;
-    const i = atomIds.indexOf(b[0]);
-    const j = atomIds.indexOf(b[1]);
+  const bondList = bonds2 instanceof Map
+    ? [...bonds2.values()]
+    : bonds2.map((t) => ({ a: t[0], b: t[1], order: t[2], ionic: !!t[3] }));
+  for (const b of bondList) {
+    if (b.ionic) continue;
+    const i = atomIds.indexOf(b.a);
+    const j = atomIds.indexOf(b.b);
     if (i >= 0 && j >= 0) {
-      adj[i].push({ to: j, order: b[2] || 1 });
-      adj[j].push({ to: i, order: b[2] || 1 });
+      const kind = b.dative ? "d" : b.metallic ? "m" : "";
+      const ord = (b.order || 1) + kind;
+      adj[i].push({ to: j, order: ord });
+      adj[j].push({ to: i, order: ord });
     }
   }
   let ids = atomsArr.map((a, i) => `${atomIds[i] || a.el.sym}_${i}`);
@@ -44374,6 +44410,8 @@ const UI = {
     "status.undone": "Undone.",
     "status.ionicBond": "Ionic bond {a}–{b}: electron transferred.",
     "status.covBond": "Covalent bond {a}–{b} formed.",
+    "status.dativeBond": "Coordinate bond {a}–{b}: one atom donated the electron pair.",
+    "status.metallicBond": "Metallic bond {a}–{b} formed in the electron sea.",
     "status.orderIonic": "Electron transfer set to {n}.",
     "status.bondLowered": "Bond order lowered to {n}. Shift+click or right-click the bond to raise it again.",
     "status.decomposed": "{formula} decomposed — its decay time elapsed.",
@@ -44920,6 +44958,8 @@ const UI = {
     "status.undone": "Đã hoàn tác.",
     "status.ionicBond": "Liên kết ion {a}–{b}: đã chuyển electron.",
     "status.covBond": "Đã tạo liên kết cộng hóa trị {a}–{b}.",
+    "status.dativeBond": "Liên kết phối khử {a}–{b}: một atom hiến cặp electron.",
+    "status.metallicBond": "Đã tạo liên kết kim loại {a}–{b} trong biển electron.",
     "status.orderIonic": "Đã đặt mức chuyển electron thành {n}.",
     "status.bondLowered": "Đã giảm bậc liên kết xuống {n}. Shift+click hoặc click phải vào liên kết để tăng lại.",
     "status.decomposed": "{formula} đã phân hủy — hết thời gian phân hủy.",
@@ -56379,7 +56419,7 @@ class WorldSync {
       a: bond.a,
       b: bond.b,
       order: bond.order,
-      ionic: bond.ionic
+      ionic: bond.ionic, dative: bond.dative, donor: bond.donor, metallic: bond.metallic
     });
   }
   broadcastBondRemove(bondId) {
@@ -58230,7 +58270,7 @@ function autoBondPair(aId, bId) {
     const chk = bondCheck(atoms, bonds, aId, bId);
     if (!chk.ok) return null;
     const nb = nextId++;
-    bond = { id: nb, a: aId, b: bId, order: 1, ionic: chk.type === "ionic" };
+    bond = { id: nb, a: aId, b: bId, order: 1, ionic: chk.type === "ionic", dative: chk.type === "dative", donor: chk.type === "dative" ? chk.donor : void 0, metallic: chk.type === "metallic" };
     bonds.set(nb, bond);
     worldSync.broadcastBondAdd(bond);
   }
@@ -58336,7 +58376,7 @@ function stabilizeStrays(strayIds, now) {
         break;
       }
       const nb = nextId++;
-      bonds.set(nb, { id: nb, a: sid, b: hid, order: 1, ionic: chk.type === "ionic" });
+      bonds.set(nb, { id: nb, a: sid, b: hid, order: 1, ionic: chk.type === "ionic", dative: chk.type === "dative", donor: chk.type === "dative" ? chk.donor : void 0, metallic: chk.type === "metallic" });
     }
     if (freeValenceOf(sid) === 0) stabilized.push(sid);
   }
@@ -58476,7 +58516,7 @@ network.onMessage = (peerId, msgType, payload) => {
   } else if (msgType === 13) {
     if (data && data.id) {
       if (!bonds.has(data.id)) {
-        bonds.set(data.id, { id: data.id, a: data.a, b: data.b, order: data.order, ionic: data.ionic });
+        bonds.set(data.id, { id: data.id, a: data.a, b: data.b, order: data.order, ionic: data.ionic, dative: data.dative, donor: data.donor, metallic: data.metallic });
         needsRender = true;
       }
     }
@@ -58599,6 +58639,8 @@ const C_COV = new Color(10135475);
 const C_ION = new Color(15774761);
 const C_SEL = new Color(5809919);
 const C_OK = new Color(4176208);
+const C_DAT = new Color(700161);
+const C_MET = new Color(13938167);
 const C_ERR = new Color(16273737);
 const OFF1 = [0], OFF2 = [-0.12, 0.12], OFF3 = [-0.18, 0, 0.18], OFF4 = [-0.22, -0.07, 0.07, 0.22];
 const atomMatM = new MeshPhongMaterial({ color: 16777215, shininess: 70, specular: 5592405 });
@@ -58997,7 +59039,7 @@ function syncInstances() {
         ii++;
       } else {
         bondMeshC.setMatrixAt(ci, _m);
-        bondMeshC.setColorAt(ci, C_COV);
+        bondMeshC.setColorAt(ci, b.metallic ? C_MET : b.dative ? C_DAT : C_COV);
         bondIdC[ci] = b.id;
         ci++;
       }
@@ -59639,7 +59681,7 @@ function createBond(aId, bId) {
     overrides.delete(kB);
   }
   const id = nextId++;
-  bonds.set(id, { id, a: aId, b: bId, order: 1, ionic: chk.type === "ionic" });
+  bonds.set(id, { id, a: aId, b: bId, order: 1, ionic: chk.type === "ionic", dative: chk.type === "dative", donor: chk.type === "dative" ? chk.donor : void 0, metallic: chk.type === "metallic" });
   if (merging && vA !== void 0 !== (vB !== void 0)) {
     overrides.set(compKey(componentOf(atoms, bonds, aId)), vA !== void 0 ? vA : vB);
   }
@@ -59648,7 +59690,7 @@ function createBond(aId, bId) {
   reanalyze();
   save(true);
   const elA = atoms.get(aId).el.sym, elB = atoms.get(bId).el.sym;
-  status(chk.type === "ionic" ? t("status.ionicBond", { a: elA, b: elB }) : t("status.covBond", { a: elA, b: elB }), "ok");
+  status(chk.type === "ionic" ? t("status.ionicBond", { a: elA, b: elB }) : chk.type === "dative" ? t("status.dativeBond", { a: elA, b: elB }) : chk.type === "metallic" ? t("status.metallicBond", { a: elA, b: elB }) : t("status.covBond", { a: elA, b: elB }), "ok");
   worldSync.broadcastBondAdd(bonds.get(id));
   return true;
 }
@@ -59895,7 +59937,7 @@ function duplicateMolecule() {
     const newA = idMap.get(b.a);
     const newB = idMap.get(b.b);
     if (newA !== void 0 && newB !== void 0) {
-      bonds.set(nextId, { id: nextId, a: newA, b: newB, order: b.order, ionic: b.ionic });
+      bonds.set(nextId, { id: nextId, a: newA, b: newB, order: b.order, ionic: b.ionic, dative: b.dative, donor: b.donor, metallic: b.metallic });
       nextId++;
     }
   }
@@ -63411,7 +63453,7 @@ function getWorldState() {
   }
   const bondsArr = [];
   for (const b of bonds.values()) {
-    bondsArr.push({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic });
+    bondsArr.push({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic, dative: b.dative, donor: b.donor, metallic: b.metallic });
   }
   const overridesArr = [];
   for (const [k, v] of overrides) {
@@ -63434,7 +63476,7 @@ function applyWorldSync(data) {
   }
   if (data.bonds) {
     for (const b of data.bonds) {
-      bonds.set(b.id, { id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic });
+      bonds.set(b.id, { id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic, dative: b.dative, donor: b.donor, metallic: b.metallic });
     }
   }
   if (data.overrides) {
@@ -63457,7 +63499,7 @@ function save(immediate = false) {
     try {
       localStorage.setItem("mol3d.v1", JSON.stringify({
         atoms: [...atoms.values()].map((a) => ({ id: a.id, z: a.el.z, pos: a.pos })),
-        bonds: [...bonds.values()].map((b) => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic })),
+        bonds: [...bonds.values()].map((b) => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic, dative: b.dative, donor: b.donor, metallic: b.metallic })),
         nextId,
         overrides: [...overrides],
         isoF: [...isoSel],
@@ -63655,7 +63697,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
       exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
       scene: {
         atoms: [...atoms.values()].map((a2) => ({ id: a2.id, z: a2.el.z, pos: a2.pos })),
-        bonds: [...bonds.values()].map((b) => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic })),
+        bonds: [...bonds.values()].map((b) => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic, dative: b.dative, donor: b.donor, metallic: b.metallic })),
         nextId
       },
       discoveries: discoveries.map((d) => ({ ...d })),
@@ -65247,7 +65289,7 @@ function autoBondAtoms(atomIds) {
         const chk = bondCheck(atoms, bonds, aId, bId);
         if (chk.ok || window.__mol3d?._godMode) {
           const id = nextId++;
-          bonds.set(id, { id, a: aId, b: bId, order: 1, ionic: chk.type === "ionic" });
+          bonds.set(id, { id, a: aId, b: bId, order: 1, ionic: chk.type === "ionic", dative: chk.type === "dative", donor: chk.type === "dative" ? chk.donor : void 0, metallic: chk.type === "metallic" });
           bonded = true;
         }
       }

@@ -57051,6 +57051,112 @@ function updateFreezeButtonCooldown() {
     setTimeout(updateFreezeButtonCooldown, 100);
   }
 }
+// ── TimeStop input gate ──
+// While the world is frozen nothing answers the player: buttons, drags,
+// shortcuts and the canvas all stop, and only the time controls stay live,
+// because they are how time starts again. Capture phase so a blocked press
+// never reaches the handler underneath it — and what is kept is the handler
+// itself, not the raw input: each gated event records the listeners it would
+// have called, and the moment time resumes they all fire at once, in order,
+// on their original targets.
+const TIME_STOP_LIVE = "#time-modal, #btn-time-menu";
+// The scene stays alive under the player's hands during The World: looking
+// around and grabbing a molecule are how you watch the frozen moment. Their
+// releases (pointerup/touchend) still queue, so a held molecule drops the
+// instant time runs again — captured mid-air, released on resume.
+const TIME_STOP_SCENE_LIVE = ["pointerdown", "pointerup", "mousedown", "mouseup",
+  "touchstart", "touchend"];
+const timeStopQueue = [];
+const TIME_STOP_QUEUE_MAX = 100;
+// Every addEventListener registration in the page lands here, so a gated event
+// can name the exact functions it was headed for. Installed from an inline
+// script in <head> (see game.html) so even the IIFE modules are covered —
+// reuse that registry, never replace it or every prior registration is lost.
+const TIME_STOP_LISTENERS = window.__timeStopListeners || (window.__timeStopListeners = new WeakMap());
+function timeStopListenersOf(type, target, capture) {
+  const byType = TIME_STOP_LISTENERS.get(target);
+  const list = byType && byType.get(type);
+  if (!list) return [];
+  const cap = !!capture;
+  return list.filter((r) => !!r.capture === cap && typeof r.fn === "function");
+}
+function queueTimeStopEvent(e) {
+  if (timeStopQueue.length >= TIME_STOP_QUEUE_MAX) return;
+  const type = e.type;
+  const calls = [];
+  // Which document-capture registration is the gate itself for this type:
+  // everything registered before it already ran when the gate fired, so only
+  // later registrations plus everything below document was left unwoken.
+  let gateSeq = Infinity;
+  for (const rec of timeStopListenersOf(type, document, true)) {
+    if (rec.fn === timeStopGate) gateSeq = rec.seq;
+  }
+  const pushAncCaptures = (node) => {
+    for (const rec of timeStopListenersOf(type, node, true)) {
+      if (rec.fn === timeStopGate) continue;
+      if (node === document && rec.seq < gateSeq) continue;
+      calls.push(rec);
+    }
+  };
+  const pushBubbles = (node) => {
+    for (const rec of timeStopListenersOf(type, node, false)) calls.push(rec);
+  };
+  // Capture runs top-down: html … parent, then the target's own listeners.
+  const path = [];
+  let node = e.target;
+  while (node && node !== document && node !== window) {
+    path.push(node);
+    node = node.parentNode;
+  }
+  for (let i = path.length - 1; i >= 1; i--) pushAncCaptures(path[i]);
+  if (path.length) {
+    pushAncCaptures(path[0]);
+    pushBubbles(path[0]);
+  }
+  // Then the bubbles back up, document (late captures + all bubbles), window
+  // bubbles. Window capture ran before document — it is deliberately absent.
+  for (let i = 1; i < path.length; i++) pushBubbles(path[i]);
+  if (e.target !== document) pushAncCaptures(document);
+  pushBubbles(document);
+  if (e.target !== window) pushBubbles(window);
+  if (!calls.length) return;
+  timeStopQueue.push({ type, event: e, calls });
+}
+function flushTimeStopQueue() {
+  const pending = timeStopQueue.splice(0, timeStopQueue.length);
+  for (const q of pending) {
+    for (const rec of q.calls) {
+      try {
+        if (rec.once && rec.fired) continue;
+        rec.fired = true;
+        if (typeof rec.fn === "function") rec.fn.call(rec.node, q.event);
+        else if (rec.fn && typeof rec.fn.handleEvent === "function") rec.fn.handleEvent(q.event);
+      } catch (err) { /* one bad handler must not swallow the rest */ }
+    }
+  }
+}
+function timeStopGate(e) {
+  if (!timeFrozen || !e || !e.target) return;
+  const t = e.target;
+  if (t.closest && t.closest(TIME_STOP_LIVE)) return;
+  // Looking around and grabbing a molecule pass straight through; everything
+  // else is recorded as the handler it would have called and fires on resume.
+  if (TIME_STOP_SCENE_LIVE.indexOf(e.type) >= 0 && t.closest && t.closest("#scene-wrap")) return;
+  queueTimeStopEvent(e);
+  e.stopImmediatePropagation();
+  e.preventDefault();
+}
+document.addEventListener("click", timeStopGate, true);
+document.addEventListener("dblclick", timeStopGate, true);
+document.addEventListener("pointerdown", timeStopGate, true);
+document.addEventListener("pointerup", timeStopGate, true);
+document.addEventListener("mousedown", timeStopGate, true);
+document.addEventListener("mouseup", timeStopGate, true);
+document.addEventListener("keydown", timeStopGate, true);
+document.addEventListener("keyup", timeStopGate, true);
+document.addEventListener("touchstart", timeStopGate, true);
+document.addEventListener("touchend", timeStopGate, true);
+
 function toggleFreeze() {
   if (!canFreezeTime()) {
     const remaining = Math.ceil((worldCooldownEnd - Date.now()) / 1e3);
@@ -63952,14 +64058,66 @@ document.getElementById("btn-modal-forward").addEventListener("click", () => {
     triggerMadeInHeaven(SPEED_LEVELS[idx + 1]);
   }
 });
+// ── TimeStop audio: the music drops out and a clock ticks in its place ──
+// One tick per second, synthesised rather than sampled — a clock is a click,
+// and a click needs no asset, no decode, and starts on the very frame the
+// player presses stop.
+let timeStopTickTimer = 0;
+let timeStopAudioCtx = null;
+let timeStopBeat = 0;
+function timeStopTick() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!timeStopAudioCtx) timeStopAudioCtx = new AC();
+    const ctx = timeStopAudioCtx;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    // A grandfather clock: a low wooden tick-tock, alternating between the
+    // pendulum's two beats, each note dropping in pitch as the hammer leaves.
+    const base = timeStopBeat++ % 2 === 0 ? 500 : 420;
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(base, t0);
+    osc.frequency.exponentialRampToValueAtTime(base * 0.72, t0 + 0.05);
+    gain.gain.setValueAtTime(1e-4, t0);
+    gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.005);
+    gain.gain.exponentialRampToValueAtTime(1e-4, t0 + 0.09);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.1);
+  } catch (e) { /* no audio device: the tick is a nicety, not the show */ }
+}
+function startTimeStopClock() {
+  stopTimeStopClock();
+  timeStopTick();
+  timeStopTickTimer = window.setInterval(timeStopTick, 1e3);
+}
+function stopTimeStopClock() {
+  if (timeStopTickTimer) {
+    clearInterval(timeStopTickTimer);
+    timeStopTickTimer = 0;
+  }
+}
 function triggerTheWorld() {
   console.log("[THE WORLD] triggerTheWorld called");
+  timeStopQueue.length = 0;
   playSFX("sfx-timestop");
+  try { audio.pause(); } catch (e) { /* music never started */ }
+  startTimeStopClock();
   const overlay = document.getElementById("time-effect-overlay");
   const sphere = overlay.querySelector(".effect-sphere");
   const flash = overlay.querySelector(".effect-flash");
   const sceneWrap2 = document.getElementById("scene-wrap");
   console.log("[THE WORLD] overlay:", !!overlay, "sphere:", !!sphere, "sceneWrap:", !!sceneWrap2);
+  // The bubble belongs to the whole screen: re-parent the overlay out of the
+  // scene box so nothing clips the expansion to the scene's bounds, and flip
+  // every colour on the page for a beat while it lands.
+  if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
+  document.body.classList.add("timestop-glitch");
+  setTimeout(() => document.body.classList.remove("timestop-glitch"), 500);
   overlay.hidden = false;
   sphere.classList.remove("expanding", "contracting");
   flash.classList.remove("flash", "release");
@@ -63979,11 +64137,22 @@ function triggerTheWorld() {
 function triggerTimeResume() {
   console.log("[TIME RESUME] triggerTimeResume called");
   playSFX("sfx-timeresume");
+  stopTimeStopClock();
+  try { audio.play().catch(() => {}); } catch (e) { /* music never started */ }
+  // Every press held back during the freeze fires now, on the target it was
+  // aimed at — timeFrozen is already false, so the gate lets them through.
+  // Deferred one microtask: flushing synchronously would open a panel while
+  // the resume click is still bubbling, and the document-level "click outside"
+  // handlers would instantly close it again.
+  queueMicrotask(flushTimeStopQueue);
   const overlay = document.getElementById("time-effect-overlay");
   const sphere = overlay.querySelector(".effect-sphere");
   const flash = overlay.querySelector(".effect-flash");
   const sceneWrap2 = document.getElementById("scene-wrap");
   console.log("[TIME RESUME] overlay:", !!overlay, "sphere:", !!sphere);
+  if (overlay.parentElement !== document.body) document.body.appendChild(overlay);
+  document.body.classList.add("timestop-glitch");
+  setTimeout(() => document.body.classList.remove("timestop-glitch"), 500);
   overlay.hidden = false;
   sphere.classList.remove("expanding", "contracting");
   flash.classList.remove("flash", "release");
@@ -64907,12 +65076,16 @@ function frame(now) {
   checkAndRearrangeMolecules();
   updateHealth(now, dt);
   updatePhaseState(dt);
-  updateMayhemParticles(dt);
-  updateReactionEffects(dt);
-  updateScreenShake(now);
-  if (reactionVFX.update(dt)) active = true;
-  if (catalystFX.update(dt)) active = true;
-  if (electricityFX.update(dt)) active = true;
+  // The World holds every effect where it stands: particles, flashes and
+  // shake stop mid-flight and pick up the same frame time runs again.
+  if (!timeFrozen) {
+    updateMayhemParticles(dt);
+    updateReactionEffects(dt);
+    updateScreenShake(now);
+    if (reactionVFX.update(dt)) active = true;
+    if (catalystFX.update(dt)) active = true;
+    if (electricityFX.update(dt)) active = true;
+  }
   if (mayhemParticles.length) active = true;
   if (reactionParticles.length || uvBeams.length) active = true;
   if (shakeDuration) active = true;

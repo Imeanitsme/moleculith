@@ -3299,7 +3299,7 @@ body.time-stopped #meltdown-overlay.active {
 
 /* ── Time Effect Overlay (THE WORLD / Made in Heaven) ── */
 .time-effect-overlay {
-  position: absolute;
+  position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   pointer-events: none;
   z-index: 9998;
@@ -3376,26 +3376,42 @@ body.time-stopped #meltdown-overlay.active {
   100% { opacity: 0; }
 }
 
-/* THE WORLD saturation effect */
+/* Glitchy activation: the whole screen flips its colours for a beat, twice —
+   step-end keyframes so each flip is a hard cut, not a wash. */
+body.timestop-glitch {
+  animation: timestopGlitch 0.5s step-end;
+}
+
+@keyframes timestopGlitch {
+  0% { filter: invert(1); }
+  25% { filter: none; }
+  50% { filter: invert(1); }
+  75% { filter: none; }
+  100% { filter: invert(1); }
+}
+
+/* THE WORLD: the frozen world is drained of colour — mass grayscale, no
+   saturation tricks — with a hard glitchy wobble while it lands. */
 #scene-wrap.the-world-active {
-  filter: saturate(3) contrast(1.2);
+  filter: grayscale(1);
   animation: worldDistort 0.5s ease-out;
 }
 
-/* Inverse: saturation unwinds back to normal */
+/* Inverse: grayscale unwinds back to normal */
 #scene-wrap.the-world-releasing {
   animation: worldRelease 1.5s ease-in forwards;
 }
 
 @keyframes worldDistort {
-  0% { transform: scale(1); filter: hue-rotate(0deg); }
-  50% { transform: scale(1.02); filter: hue-rotate(180deg); }
-  100% { transform: scale(1); filter: hue-rotate(360deg); }
+  0% { transform: scale(1); filter: grayscale(1) brightness(1.7); }
+  33% { transform: scale(1.02); filter: grayscale(1) contrast(1.7); }
+  66% { transform: scale(0.995); filter: grayscale(1) brightness(0.6); }
+  100% { transform: scale(1); filter: grayscale(1); }
 }
 
 @keyframes worldRelease {
-  0% { filter: saturate(3) contrast(1.2); }
-  100% { filter: saturate(1) contrast(1); }
+  0% { filter: grayscale(1); }
+  100% { filter: grayscale(0); }
 }
 
 /* ── Rank Widget ── */

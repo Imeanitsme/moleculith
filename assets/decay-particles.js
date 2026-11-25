@@ -247,11 +247,27 @@
     pool.push(g);
   }
 
+  let lastFrame = 0;
   function tick() {
     frame = 0;
     const A = api();
     if (!A) { live.length = 0; ghosts.length = 0; return; }
     const now = performance.now();
+    // The World: every clock in here is wall time, so while the world is
+    // stopped the ages are pushed forward by the frozen span instead — the
+    // particles hang exactly where they are and age not a millisecond.
+    if (document.body.classList.contains('time-stopped')) {
+      const shift = lastFrame ? now - lastFrame : 0;
+      lastFrame = now;
+      if (shift > 0) {
+        for (const p of live) { p.born += shift; p.last = now; }
+        for (const g of ghosts) g.born += shift;
+      }
+      if (typeof A.invalidate === 'function') A.invalidate();
+      if (live.length || ghosts.length) frame = requestAnimationFrame(tick);
+      return;
+    }
+    lastFrame = now;
     let alive = false;
 
     for (let i = live.length - 1; i >= 0; i--) {

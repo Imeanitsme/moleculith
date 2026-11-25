@@ -101,22 +101,33 @@
     return beam;
   }
 
-  // The PET signature: two gammas, opposite directions, one point.
+  // The gamma leaves the nucleus in ONE direction — a single ray, not a pair:
+  // the beam should streak one way across the scene and stop there.
   function annihilation(pos) {
     const A = ctx();
     if (!A || !pos) return 0;
     const THREE = A.THREE;
-    // Any unit vector: the pair flies back to back along it, and the random
-    // choice means two annihilations rarely streak the same way across the scene.
     const a = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
     if (a.lengthSq() < 1e-6) a.set(1, 0, 0);
     a.normalize();
     const n = fire(pos, { x: pos.x + a.x, y: pos.y + a.y, z: pos.z + a.z });
-    const m = fire(pos, { x: pos.x - a.x, y: pos.y - a.y, z: pos.z - a.z });
-    return (n ? 1 : 0) + (m ? 1 : 0);
+    return n ? 1 : 0;
   }
 
+  let lastStep = 0;
   function step(now) {
+    // The World: beam ages are wall time, so while the world is stopped each
+    // beam's birth is pushed forward by the frozen span — the light hangs
+    // mid-pulse and resumes exactly where it stopped.
+    if (document.body.classList.contains('time-stopped')) {
+      const shift = lastStep ? now - lastStep : 0;
+      lastStep = now;
+      if (shift > 0) for (const b of beams) b.birth += shift;
+      if (beams.length) raf = window.requestAnimationFrame(step);
+      else raf = 0;
+      return;
+    }
+    lastStep = now;
     for (let i = beams.length - 1; i >= 0; i--) {
       const b = beams[i];
       const age = now - b.birth;

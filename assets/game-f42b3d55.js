@@ -43274,6 +43274,12 @@ function pairOrderCap(elA, elB) {
   return 3;
 }
 function upgradeCheck(atoms2, bonds2, bond) {
+  // A coordinate bond is one donated pair and a metallic bond is a delocalized
+  // sea — neither has a second order to cycle into.
+  if (bond.dative || bond.metallic) {
+    const a = atoms2.get(bond.a).el.sym, b = atoms2.get(bond.b).el.sym;
+    return { ok: false, reason: { key: "chem.pairCapSingle", p: { a, b } } };
+  }
   if (bond.order >= 5) {
     return { ok: false, reason: { key: bond.ionic ? "chem.ionicMax4" : "chem.quadrupleMax" } };
   }
@@ -43563,7 +43569,8 @@ function structuralFingerprint(atoms2, bonds2, atomIds) {
   const adj = Array.from({ length: n }, () => []);
   const bondList = bonds2 instanceof Map
     ? [...bonds2.values()]
-    : bonds2.map((t) => ({ a: t[0], b: t[1], order: t[2], ionic: !!t[3] }));
+    : bonds2.map((t) => ({ a: t[0], b: t[1], order: t[2], ionic: !!t[3],
+      dative: t[4] === "d", metallic: t[4] === "m" }));
   for (const b of bondList) {
     if (b.ionic) continue;
     const i = atomIds.indexOf(b.a);
@@ -55093,7 +55100,7 @@ class NetworkManager {
       const settle = (fn, val) => { if (!settled) { settled = true; fn(val); } };
       try {
         this.peer = new window.Peer(peerId, {
-          host: "peerjs.com",
+          host: "0.peerjs.com",
           port: 443,
           path: "/",
           secure: true,
@@ -57099,7 +57106,11 @@ function updateFreezeButtonCooldown() {
 // itself, not the raw input: each gated event records the listeners it would
 // have called, and the moment time resumes they all fire at once, in order,
 // on their original targets.
-const TIME_STOP_LIVE = "#time-modal, #btn-time-menu";
+const TIME_STOP_LIVE = "#time-modal, #btn-time-menu, #joy";
+// Walking never stops: WASD/arrows/Q/E/space/Shift feed only the movement
+// rig, so they pass the gate untouched while everything else queues.
+const TIME_STOP_MOVE_KEYS = new Set(["w", "a", "s", "d", "q", "e", " ",
+  "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"]);
 // The scene stays alive under the player's hands during The World: looking
 // around and grabbing a molecule are how you watch the frozen moment. Their
 // releases (pointerup/touchend) still queue, so a held molecule drops the
@@ -57179,6 +57190,10 @@ function timeStopGate(e) {
   if (!timeFrozen || !e || !e.target) return;
   const t = e.target;
   if (t.closest && t.closest(TIME_STOP_LIVE)) return;
+  if ((e.type === "keydown" || e.type === "keyup")) {
+    const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+    if (!typing && TIME_STOP_MOVE_KEYS.has((e.key || "").toLowerCase())) return;
+  }
   // Looking around and grabbing a molecule pass straight through; everything
   // else is recorded as the handler it would have called and fires on resume.
   if (TIME_STOP_SCENE_LIVE.indexOf(e.type) >= 0 && t.closest && t.closest("#scene-wrap")) return;
@@ -58639,8 +58654,11 @@ const C_COV = new Color(10135475);
 const C_ION = new Color(15774761);
 const C_SEL = new Color(5809919);
 const C_OK = new Color(4176208);
-const C_DAT = new Color(700161);
-const C_MET = new Color(13938167);
+// Palette rule: every bond kind gets a hue no neighbour shares. Ionic is
+// orange (240,180,41), covalent slate (154,167,179), so dative takes teal
+// #00ACC1 and metallic violet #8B5CF6 — nothing reads as anything else.
+const C_DAT = new Color(44225);
+const C_MET = new Color(9133302);
 const C_ERR = new Color(16273737);
 const OFF1 = [0], OFF2 = [-0.12, 0.12], OFF3 = [-0.18, 0, 0.18], OFF4 = [-0.22, -0.07, 0.07, 0.22];
 const atomMatM = new MeshPhongMaterial({ color: 16777215, shininess: 70, specular: 5592405 });
@@ -59323,7 +59341,7 @@ function structureTplOf(comp, an) {
   const cKey = compKey(comp);
   const tpl = {
     atoms: comp.atoms.map((id) => atoms.get(id).el.sym),
-    bonds: comp.bonds.map((b) => [idxMap.get(b.a), idxMap.get(b.b), b.order, b.ionic ? 1 : 0]),
+    bonds: comp.bonds.map((b) => [idxMap.get(b.a), idxMap.get(b.b), b.order, b.ionic ? 1 : 0, b.dative ? "d" : b.metallic ? "m" : ""]),
     charge: overrides.get(cKey) || 0
   };
   return { tpl, cKey };

@@ -55074,10 +55074,38 @@ class NetworkManager {
     this.lastRot = 0;
     this.voiceEnabled = false;
     this.muted = true;
-    this.onMessage = null;
-    this.onPlayerJoin = null;
-    this.onPlayerLeave = null;
+    this.username = null;
+    this.messageHandlers = [];
+    this.joinHandlers = [];
+    this.leaveHandlers = [];
     this.onVoiceStream = null;
+  }
+  addMessageHandler(fn) {
+    if (typeof fn === "function") this.messageHandlers.push(fn);
+  }
+  addJoinHandler(fn) {
+    if (typeof fn === "function") this.joinHandlers.push(fn);
+  }
+  addLeaveHandler(fn) {
+    if (typeof fn === "function") this.leaveHandlers.push(fn);
+  }
+  emitMessage(peerId, msgType, data) {
+    const hs = this.messageHandlers;
+    for (let i = 0; i < hs.length; i++) {
+      try { hs[i](peerId, msgType, data); } catch (e) { console.error("[Network] message handler error:", e); }
+    }
+  }
+  emitJoin(peerId, player) {
+    const hs = this.joinHandlers;
+    for (let i = 0; i < hs.length; i++) {
+      try { hs[i](peerId, player); } catch (e) { console.error("[Network] join handler error:", e); }
+    }
+  }
+  emitLeave(peerId, player) {
+    const hs = this.leaveHandlers;
+    for (let i = 0; i < hs.length; i++) {
+      try { hs[i](peerId, player); } catch (e) { console.error("[Network] leave handler error:", e); }
+    }
   }
   // Generate a unique player ID
   generatePlayerId() {
@@ -55153,9 +55181,10 @@ class NetworkManager {
     });
   }
   // Host a new room
-  async hostRoom(roomCode, password = null) {
+  async hostRoom(roomCode, password = null, username = null) {
     this.roomId = roomCode || this.generateRoomCode();
     this.isHost = true;
+    this.username = username || "Player";
     const hostId = `room_${this.roomId}_host`;
     if (this.peer) {
       this.peer.destroy();
@@ -55175,7 +55204,8 @@ class NetworkManager {
     }
   }
   // Join an existing room
-  async joinRoom(roomCode, password = null) {
+  async joinRoom(roomCode, password = null, username = null) {
+    this.username = username || "Player";
     if (!roomCode || roomCode === "undefined" || typeof roomCode === "string" && roomCode.trim() === "") {
       const errorMsg = "Invalid room code: " + roomCode;
       console.error("[Network]", errorMsg);
@@ -55239,7 +55269,7 @@ class NetworkManager {
         this.connections.set(hostId, conn);
         this.sendMessage(hostId, MSG.JOIN, {
           playerId: this.playerId,
-          username: "Player",
+          username: this.username || "Player",
           password
         });
         this.setupConnectionHandlers(conn, hostId);
@@ -55275,10 +55305,9 @@ class NetworkManager {
     conn.on("close", () => {
       console.log("[Network] Connection closed:", peerId);
       this.connections.delete(peerId);
+      const gone = this.players.get(peerId);
       this.players.delete(peerId);
-      if (this.onPlayerLeave) {
-        this.onPlayerLeave(peerId);
-      }
+      this.emitLeave(peerId, gone);
     });
     conn.on("error", (err) => {
       console.error("[Network] Connection error:", peerId, err);
@@ -55312,8 +55341,8 @@ class NetworkManager {
       case MSG.TIME_SPEED:
         break;
     }
-    if (this.onMessage) {
-      this.onMessage(peerId, msgType, payload);
+    if (msgType !== MSG.CHAT && msgType !== MSG.SYNC && msgType !== MSG.JOIN && msgType !== MSG.LEAVE && msgType !== MSG.ROOM_INFO) {
+      this.emitMessage(peerId, msgType, payload);
     }
   }
   // Handle player join
@@ -55330,27 +55359,24 @@ class NetworkManager {
     if (this.isHost) {
       this.sendMessage(peerId, MSG.ROOM_INFO, {
         roomId: this.roomId,
-        players: Array.from(this.players.values())
+        players: [{ id: this.playerId, playerId: this.playerId, username: this.username || "Player", position: { x: 0, y: 0, z: 0 }, rotation: 0, velocity: { x: 0, y: 0, z: 0 } }, ...Array.from(this.players.values())]
       });
       this.broadcast(peerId, MSG.JOIN, {
         playerId: peerId,
         player: this.players.get(peerId)
       });
     }
-    if (this.onPlayerJoin) {
-      this.onPlayerJoin(peerId, this.players.get(peerId));
-    }
+    this.emitJoin(peerId, this.players.get(peerId));
   }
   // Handle player leave
   handleLeave(peerId) {
     console.log("[Network] Player left:", peerId);
+    const gone = this.players.get(peerId);
     this.players.delete(peerId);
     if (this.isHost) {
       this.broadcast(peerId, MSG.LEAVE, { playerId: peerId });
     }
-    if (this.onPlayerLeave) {
-      this.onPlayerLeave(peerId);
-    }
+    this.emitLeave(peerId, gone);
   }
   // Handle position update
   handleMove(peerId, data) {
@@ -55368,22 +55394,16 @@ class NetworkManager {
   // Handle chat message
   handleChat(peerId, message) {
     const player = this.players.get(peerId);
+    const msg = message && typeof message === "object" ? message : {
+      playerId: peerId,
+      username: player?.username || "Player",
+      message,
+      timestamp: Date.now()
+    };
     if (this.isHost) {
-      this.broadcast(peerId, MSG.CHAT, {
-        playerId: peerId,
-        username: player?.username || "Player",
-        message,
-        timestamp: Date.now()
-      });
+      this.broadcast(peerId, MSG.CHAT, msg);
     }
-    if (this.onMessage) {
-      this.onMessage(peerId, MSG.CHAT, {
-        playerId: peerId,
-        username: player?.username || "Player",
-        message,
-        timestamp: Date.now()
-      });
-    }
+    this.emitMessage(peerId, MSG.CHAT, msg);
   }
   // Handle room info (client receives this)
   handleRoomInfo(peerId, data) {
@@ -55391,17 +55411,13 @@ class NetworkManager {
     for (const player of data.players) {
       if (player.id !== this.playerId) {
         this.players.set(player.id, player);
-        if (this.onPlayerJoin) {
-          this.onPlayerJoin(player.id, player);
-        }
+        this.emitJoin(player.id, player);
       }
     }
   }
   // Handle sync message
   handleSync(peerId, data) {
-    if (this.onMessage) {
-      this.onMessage(peerId, MSG.SYNC, data);
-    }
+    this.emitMessage(peerId, MSG.SYNC, data);
   }
   // Handle incoming voice call
   handleCall(call) {
@@ -55466,7 +55482,7 @@ class NetworkManager {
       rotation
     ];
     if (this.isHost) {
-      this.broadcast(null, MSG.MOVE, packet);
+      this.broadcast(null, MSG.MOVE, packet.slice(1));
     } else {
       for (const [peerId, conn] of this.connections) {
         if (conn.open) {
@@ -55570,6 +55586,7 @@ class NetworkManager {
   }
 }
 const network = new NetworkManager();
+window.__network = network;
 const FADE_DELAY = 5e3;
 const MAX_MESSAGES = 100;
 class ChatManager {
@@ -55671,11 +55688,11 @@ class ChatManager {
     this.chatBox.addEventListener("mouseenter", () => {
       this.wake();
     });
-    network.onMessage = (peerId, msgType, data) => {
+    network.addMessageHandler((peerId, msgType, data) => {
       if (msgType === MSG.CHAT) {
         this.receiveMessage(data);
       }
-    };
+    });
   }
   startDrag(e) {
     this.isDragging = true;
@@ -56237,7 +56254,7 @@ async function startSingleplayer() {
 async function hostRoom(username2, roomCode, password) {
   console.log("[Menu] Hosting room:", roomCode || "auto");
   try {
-    const result = await network.hostRoom(roomCode, password);
+    const result = await network.hostRoom(roomCode, password, username2);
     updateTopBarRoomInfo(result.roomId, 1);
     hideAllMenus();
     console.log("[Menu] Room hosted successfully:", result.roomId);
@@ -56260,7 +56277,7 @@ async function joinRoom(username2, roomCode, password) {
     throw new Error(errorMsg);
   }
   try {
-    await network.joinRoom(roomCode, password);
+    await network.joinRoom(roomCode, password, username2);
     updateTopBarRoomInfo(roomCode, 1);
     hideAllMenus();
     console.log("[Menu] Joined room successfully:", roomCode);
@@ -56303,7 +56320,7 @@ function updateSettingsDisplay() {
     volumeSlider.value = volume;
   }
 }
-network.onPlayerJoin = (peerId, player) => {
+network.addJoinHandler((peerId, player) => {
   console.log("[Menu] Player joined:", player.username);
   updatePlayerCount();
   const notification = document.createElement("div");
@@ -56313,11 +56330,10 @@ network.onPlayerJoin = (peerId, player) => {
   setTimeout(() => {
     notification.remove();
   }, 3e3);
-};
-network.onPlayerLeave = (peerId) => {
+});
+network.addLeaveHandler((peerId, player) => {
   console.log("[Menu] Player left:", peerId);
   updatePlayerCount();
-  const player = network.players.get(peerId);
   if (player) {
     const notification = document.createElement("div");
     notification.className = "network-notification";
@@ -56327,7 +56343,7 @@ network.onPlayerLeave = (peerId) => {
       notification.remove();
     }, 3e3);
   }
-};
+});
 function updatePlayerCount() {
   const count = network.players.size + 1;
   const topRosterCount = document.getElementById("top-roster-count");
@@ -56383,37 +56399,9 @@ class WorldSync {
     this.onWorldSync = null;
   }
   init() {
+    // Inbound state messages are handled by the main network handler;
+    // this module only broadcasts.
     this.enabled = true;
-    const origHandler = network.onMessage;
-    network.onMessage = (peerId, msgType, data) => {
-      switch (msgType) {
-        case MSG.ATOM_MOVE:
-          if (this.onAtomMove && data) this.onAtomMove(data);
-          break;
-        case MSG.BOND_ADD:
-          if (this.onBondAdd && data) this.onBondAdd(data);
-          break;
-        case MSG.BOND_REMOVE:
-          if (this.onBondRemove && data) this.onBondRemove(data);
-          break;
-        case MSG.CHARGE_SET:
-          if (this.onChargeSet && data) this.onChargeSet(data);
-          break;
-        case MSG.ATOM_ADD:
-          if (this.onAtomAdd && data) this.onAtomAdd(data);
-          break;
-        case MSG.ATOM_REMOVE:
-          if (this.onAtomRemove && data) this.onAtomRemove(data);
-          break;
-        case MSG.REACTION:
-          if (this.onReaction && data) this.onReaction(data);
-          break;
-        case MSG.WORLD_SYNC:
-          if (this.onWorldSync && data) this.onWorldSync(data);
-          break;
-      }
-      if (origHandler) origHandler(peerId, msgType, data);
-    };
   }
   broadcastAtomMove(id, pos) {
     if (!this.enabled || !network.roomId) return;
@@ -56625,21 +56613,21 @@ class PlayerSync {
   init(scene2) {
     this.scene = scene2;
     this.enabled = true;
-    network.onMessage = (peerId, msgType, data) => {
+    network.addMessageHandler((peerId, msgType, data) => {
       if (msgType === MSG.MOVE) {
         this.handlePositionUpdate(peerId, data);
       }
-    };
-    network.onPlayerJoin = (peerId, playerData) => {
+    });
+    network.addJoinHandler((peerId, playerData) => {
       this.addRemotePlayer(peerId, playerData);
       if (network.isHost && this.getWorldState) {
         const state = this.getWorldState();
         network.sendMessage(peerId, MSG.WORLD_SYNC, state);
       }
-    };
-    network.onPlayerLeave = (peerId) => {
+    });
+    network.addLeaveHandler((peerId) => {
       this.removeRemotePlayer(peerId);
-    };
+    });
   }
   setWorldStateProvider(fn) {
     this.getWorldState = fn;
@@ -56703,6 +56691,7 @@ class PlayerSync {
   }
 }
 const playerSync = new PlayerSync();
+window.__playerSync = playerSync;
 class VoiceChatManager {
   constructor() {
     this.audioElements = /* @__PURE__ */ new Map();
@@ -58438,13 +58427,9 @@ scene.fog = new Fog(856343, 34, 80);
 playerSync.init(scene);
 playerSync.setWorldStateProvider(getWorldState);
 worldSync.init();
-network.onMessage = (peerId, msgType, payload) => {
+network.addMessageHandler((peerId, msgType, payload) => {
   const data = payload[0];
-  console.log("[NETWORK] Received message:", msgType, "from:", peerId, "data:", data);
-  if (msgType === 0 && data) {
-    playerSync.handlePositionUpdate(peerId, payload);
-    return;
-  }
+  if (msgType !== 0) console.log("[NETWORK] Received message:", msgType, "from:", peerId, "data:", data);
   if (!data) return;
   if (msgType === 7) {
     if (!timeFrozen) {
@@ -58569,7 +58554,7 @@ network.onMessage = (peerId, msgType, payload) => {
       applyWorldSync(data);
     }
   }
-};
+});
 scene.add(new HemisphereLight(16777215, 3358799, 1.05));
 const sun = new DirectionalLight(16777215, 1.5);
 sun.position.set(6, 10, 8);

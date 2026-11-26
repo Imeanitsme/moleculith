@@ -4931,6 +4931,22 @@
     return ids.slice().sort(function (x, y) { return x - y; }).join(',');
   }
 
+  // A bracket in the drawing is one group the scene must keep showing as one:
+  // the doc ids are remapped to the spawned atoms and handed over with the
+  // group's charge, so [Cu(NH3)4]2+ arrives bracketed instead of loose.
+  function wireBrackets(A, sceneOf) {
+    if (!A || typeof A.addComplexBracket !== 'function' || !doc.brackets.length) return;
+    for (var i = 0; i < doc.brackets.length; i++) {
+      var g = doc.brackets[i], sid = [], j, ok = true;
+      for (j = 0; j < g.ids.length; j++) {
+        var s = sceneOf[g.ids[j]];
+        if (s === undefined) { ok = false; break; }
+        sid.push(s);
+      }
+      if (!ok || !sid.length) continue;
+      try { A.addComplexBracket(sid, netCharge(g.ids)); } catch (e) { /* older bundle */ }
+    }
+  }
   function exportToScene() {
     var A = app();
     if (!A || typeof A.spawnAtom !== 'function' || typeof A.devBond !== 'function') {
@@ -4971,7 +4987,7 @@
     }
 
     // the game's own one-call builder, if a newer bundle ever exposes it
-    if (typeof A.buildMoleculeAt === 'function') {
+    if (typeof A.buildMoleculeAt === 'function' && comps.length === 1) {
       var res = null;
       try {
         var one = fragData(comps[0]);
@@ -4985,12 +5001,15 @@
         if (crate) { try { crate.take(res.ids); } catch (et) {} }
         try { A.reanalyze(new Set(res.ids)); } catch (e2) { /* older signature */ }
         if (A.invalidate) A.invalidate();
+        var so = {}, zi;
+        for (zi = 0; zi < one.ids.length && zi < res.ids.length; zi++) so[one.ids[zi]] = res.ids[zi];
+        wireBrackets(A, so);
         toast(tx('exported', { list: tx('exportedList', { n: res.ids.length, b: 0 }) + costText(cost) }), 'ok');
         return { ids: res.ids, atoms: res.ids.length, bonds: 0, rejected: [], cost: cost };
       }
     }
 
-    var made = [], bondCount = 0, rejected = [], lowered = [], noRoom = 0;
+    var made = [], bondCount = 0, rejected = [], lowered = [], noRoom = 0, sceneOf = {};
     for (var c = 0; c < comps.length; c++) {
       var f = fragData(comps[c]);
       if (!f.syms.length) continue;
@@ -5011,6 +5030,10 @@
         if (id === null || id === undefined) { noRoom++; continue; }
         map[i] = id;
         made.push(id);
+      }
+      for (i = 0; i < f.ids.length; i++) {
+        var li = f.index[f.ids[i]];
+        if (li !== undefined && map[li] !== undefined) sceneOf[f.ids[i]] = map[li];
       }
       for (i = 0; i < f.bonds.length; i++) {
         var ia = f.bonds[i][0], ib = f.bonds[i][1], order = f.bonds[i][2];
@@ -5045,6 +5068,7 @@
       toast(tx('exportBroken', { reason: tx('exportNoRoom', { n: noRoom }) }), 'err');
       return null;
     }
+    wireBrackets(A, sceneOf);
     try { A.reanalyze(new Set(made)); } catch (e5) { A.reanalyze(); }
     if (A.invalidate) A.invalidate();
     if (typeof A.refreshInspector === 'function') { try { A.refreshInspector(); } catch (e6) {} }
@@ -5635,6 +5659,23 @@
       ensureUp();
       return { atoms: doc.atoms.length, bonds: doc.bonds.length, rings: ringCount(),
         fragments: components().length, charge: netCharge(doc.atoms.map(function (x) { return x.id; })) };
+    },
+    bracket: function (ids) {
+      ensureUp();
+      if (Array.isArray(ids)) {
+        ui.sel = [];
+        for (var bi = 0; bi < ids.length; bi++) {
+          var ba = atomById(+ids[bi]);
+          if (ba) ui.sel.push(ba.id);
+        }
+      }
+      actBracket();
+      return api.brackets();
+    },
+    brackets: function () {
+      var out = [];
+      for (var i = 0; i < doc.brackets.length; i++) out.push({ key: doc.brackets[i].key, ids: doc.brackets[i].ids.slice(), q: doc.brackets[i].q });
+      return out;
     },
     toScene: function () { ensureUp(); return exportToScene(); },
     toMol: function () { ensureUp(); return toMol(); },

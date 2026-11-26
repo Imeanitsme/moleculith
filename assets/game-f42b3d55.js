@@ -55051,7 +55051,8 @@ const MSG = {
   ATOM_ADD: 16,
   ATOM_REMOVE: 17,
   REACTION: 18,
-  WORLD_SYNC: 19
+  WORLD_SYNC: 19,
+  BRACKET: 20
 };
 const SEND_INTERVAL = 50;
 const HEARTBEAT_INTERVAL = 2e3;
@@ -58553,6 +58554,11 @@ network.addMessageHandler((peerId, msgType, payload) => {
     if (data) {
       applyWorldSync(data);
     }
+  } else if (msgType === 20) {
+    if (data && Array.isArray(data.ids)) {
+      if (network.isHost && peerId) network.broadcast(peerId, 20, data);
+      addComplexBracket(data.ids, data.q, true);
+    }
   }
 });
 scene.add(new HemisphereLight(16777215, 3358799, 1.05));
@@ -58887,6 +58893,97 @@ function badgeTex(fc) {
   badgeCache.set(fc, t2);
   return t2;
 }
+const bracketCache = /* @__PURE__ */ new Map();
+function bracketTex(ch) {
+  if (bracketCache.has(ch)) return bracketCache.get(ch);
+  const c = document.createElement("canvas");
+  c.width = 64;
+  c.height = 160;
+  const g = c.getContext("2d");
+  g.font = "bold 132px Georgia, 'Times New Roman', serif";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.lineJoin = "round";
+  g.lineWidth = 9;
+  const LP = uiPalette();
+  g.strokeStyle = LP.labelEdge;
+  g.fillStyle = LP.labelText;
+  g.strokeText(ch, 32, 82);
+  g.fillText(ch, 32, 82);
+  const t = new CanvasTexture(c);
+  bracketCache.set(ch, t);
+  return t;
+}
+const complexBrackets = /* @__PURE__ */ new Map();
+const _bRight = new Vector3(), _bUp = new Vector3(), _bFwd = new Vector3();
+function complexBracketKey(ids) {
+  return [...ids].sort((a, b) => a - b).join(",");
+}
+function syncBracketCharge(g) {
+  const want = g.q ? badgeTex(g.q) : null;
+  if (g.spQ) {
+    if (!want) {
+      scene.remove(g.spQ);
+      g.spQ.material.dispose();
+      g.spQ = null;
+    } else if (g.spQ.material.map !== want) {
+      g.spQ.material.map = want;
+      g.spQ.material.needsUpdate = true;
+    }
+  } else if (want) {
+    g.spQ = new Sprite(new SpriteMaterial({ map: want, transparent: true, depthWrite: false }));
+    g.spQ.scale.set(0.7, 0.35, 1);
+    scene.add(g.spQ);
+  }
+}
+function addComplexBracket(ids, q, fromNet) {
+  const live = [];
+  for (const id of ids || []) {
+    if (!Number.isInteger(id) || !atoms.has(id)) return null;
+    live.push(id);
+  }
+  if (!live.length) return null;
+  const key = complexBracketKey(live);
+  let g = complexBrackets.get(key);
+  if (!g) {
+    g = {
+      ids: live,
+      q: 0,
+      spL: new Sprite(new SpriteMaterial({ map: bracketTex("["), transparent: true, depthWrite: false })),
+      spR: new Sprite(new SpriteMaterial({ map: bracketTex("]"), transparent: true, depthWrite: false })),
+      spQ: null
+    };
+    scene.add(g.spL);
+    scene.add(g.spR);
+    complexBrackets.set(key, g);
+  }
+  g.ids = live;
+  g.q = Number.isInteger(q) ? q : 0;
+  syncBracketCharge(g);
+  if (!fromNet && network.roomId) {
+    try { network.broadcast(null, MSG.BRACKET, { ids: live, q: g.q }); } catch (e) {}
+  }
+  return key;
+}
+function removeComplexBracket(key) {
+  const g = complexBrackets.get(key);
+  if (!g) return;
+  scene.remove(g.spL);
+  g.spL.material.dispose();
+  scene.remove(g.spR);
+  g.spR.material.dispose();
+  if (g.spQ) {
+    scene.remove(g.spQ);
+    g.spQ.material.dispose();
+  }
+  complexBrackets.delete(key);
+}
+function clearComplexBrackets() {
+  for (const key of [...complexBrackets.keys()]) removeComplexBracket(key);
+}
+function complexBracketList() {
+  return [...complexBrackets.values()].map((g) => ({ ids: [...g.ids], q: g.q }));
+}
 function retextureLabels() {
   for (const [, tex] of labelCache) tex.dispose();
   labelCache.clear();
@@ -58900,6 +58997,15 @@ function retextureLabels() {
     sp.material.needsUpdate = true;
   }
   for (const [, sp] of badgeSprites) sp.userData.fc = void 0;
+  for (const [, tex] of bracketCache) tex.dispose();
+  bracketCache.clear();
+  for (const g of complexBrackets.values()) {
+    g.spL.material.map = bracketTex("[");
+    g.spL.material.needsUpdate = true;
+    g.spR.material.map = bracketTex("]");
+    g.spR.material.needsUpdate = true;
+    syncBracketCharge(g);
+  }
 }
 function syncSprites() {
   for (const [id, at] of atoms) {
@@ -59118,6 +59224,56 @@ function updateSprites() {
     }
     const r = displayRadius(at.el);
     sp.position.set(at.pos.x, at.pos.y, at.pos.z).addScaledVector(_v, -(r + 0.48));
+  }
+  if (complexBrackets.size) {
+    _bRight.setFromMatrixColumn(camera.matrixWorld, 0);
+    _bUp.setFromMatrixColumn(camera.matrixWorld, 1);
+    _bFwd.setFromMatrixColumn(camera.matrixWorld, 2);
+    for (const [key, g] of complexBrackets) {
+      let missing = false;
+      for (const id of g.ids) if (!atoms.has(id)) { missing = true; break; }
+      if (missing) {
+        removeComplexBracket(key);
+        continue;
+      }
+      let rMin = Infinity, rMax = -Infinity, uMin = Infinity, uMax = -Infinity;
+      let sx = 0, sy = 0, sz = 0, maxR = 0;
+      for (const id of g.ids) {
+        const at2 = atoms.get(id);
+        const p = at2.pos;
+        sx += p.x; sy += p.y; sz += p.z;
+        const rr = p.x * _bRight.x + p.y * _bRight.y + p.z * _bRight.z;
+        const uu = p.x * _bUp.x + p.y * _bUp.y + p.z * _bUp.z;
+        if (rr < rMin) rMin = rr;
+        if (rr > rMax) rMax = rr;
+        if (uu < uMin) uMin = uu;
+        if (uu > uMax) uMax = uu;
+        const dr = displayRadius(at2.el);
+        if (dr > maxR) maxR = dr;
+      }
+      const n = g.ids.length;
+      const midU = (uMin + uMax) / 2;
+      const depth = (sx / n) * _bFwd.x + (sy / n) * _bFwd.y + (sz / n) * _bFwd.z + 0.12;
+      const pad = maxR + 0.3;
+      const span = Math.max(0.9, uMax - uMin + 2 * maxR + 0.4);
+      const place = (sp, rr, uu) => {
+        sp.position.set(
+          _bRight.x * rr + _bUp.x * uu + _bFwd.x * depth,
+          _bRight.y * rr + _bUp.y * uu + _bFwd.y * depth,
+          _bRight.z * rr + _bUp.z * uu + _bFwd.z * depth
+        );
+      };
+      place(g.spL, rMin - pad, midU);
+      place(g.spR, rMax + pad, midU);
+      g.spL.scale.set(span * 0.4, span, 1);
+      g.spR.scale.set(span * 0.4, span, 1);
+      g.spL.visible = true;
+      g.spR.visible = true;
+      if (g.spQ) {
+        place(g.spQ, rMax + pad + 0.7, uMax + 0.4);
+        g.spQ.visible = true;
+      }
+    }
   }
 }
 function compKey(comp) {
@@ -63462,13 +63618,14 @@ function getWorldState() {
   for (const [k, v] of overrides) {
     overridesArr.push([k, v]);
   }
-  return { atoms: atomsArr, bonds: bondsArr, overrides: overridesArr, nextId };
+  return { atoms: atomsArr, bonds: bondsArr, overrides: overridesArr, brackets: complexBracketList(), nextId };
 }
 function applyWorldSync(data) {
   if (!data) return;
   atoms.clear();
   bonds.clear();
   overrides.clear();
+  clearComplexBrackets();
   if (data.atoms) {
     for (const a of data.atoms) {
       const el = elementBySym(a.el);
@@ -63490,6 +63647,9 @@ function applyWorldSync(data) {
   if (typeof data.nextId === "number") {
     nextId = Math.max(nextId, data.nextId);
   }
+  if (Array.isArray(data.brackets)) {
+    for (const b of data.brackets) if (b && Array.isArray(b.ids)) addComplexBracket(b.ids, b.q, true);
+  }
   selectedId = null;
   hoverId = null;
   reanalyze();
@@ -63506,7 +63666,8 @@ function save(immediate = false) {
         nextId,
         overrides: [...overrides],
         isoF: [...isoSel],
-        fc: [...completed]
+        fc: [...completed],
+        bk: complexBracketList()
       }));
     } catch {
     }
@@ -63569,6 +63730,9 @@ function load() {
     if (typeof k === "string" && typeof v === "string") isoSel.set(k, v);
   }
   for (const k of Array.isArray(data.fc) ? data.fc : []) if (typeof k === "string") completed.add(k);
+  for (const b of Array.isArray(data.bk) ? data.bk : []) {
+    if (b && Array.isArray(b.ids)) addComplexBracket(b.ids, b.q, true);
+  }
   nextId = Number.isInteger(data.nextId) && data.nextId > 0 ? data.nextId : Math.max(0, ...atoms.keys(), ...bonds.keys()) + 1;
   if (data.atoms.length > atoms.size) {
     // Saying nothing here leaves the player with a scene that quietly lost atoms.
@@ -65426,6 +65590,10 @@ window.__mol3d = {
     ranks: () => RANKS
   },
   reanalyze,
+  addComplexBracket,
+  removeComplexBracket,
+  complexBracketList,
+  updateSprites,
   selectAtom,
   undo,
   clearAll,

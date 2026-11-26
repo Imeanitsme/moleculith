@@ -767,7 +767,7 @@
     var m = new Map();
     for (var i = 0; i < doc.bonds.length; i++) {
       var b = doc.bonds[i];
-      m.set(b.id, { id: b.id, a: b.a, b: b.b, order: Math.max(1, b.order || 1), ionic: !!b.ionic });
+      m.set(b.id, { id: b.id, a: b.a, b: b.b, order: Math.max(1, b.order || 1), ionic: !!b.ionic, dative: !!b.d, donor: b.dn });
     }
     return m;
   }
@@ -807,7 +807,7 @@
     var rec = { id: 'plan', a: aId, b: bId, order: 1, ionic: chk.type === 'ionic' };
     bm.set('plan', rec);
     var s = stepUp(r, am, bm, rec, want);
-    return { ok: true, type: chk.type, order: s.order, reason: s.reason, short: s.order < want };
+    return { ok: true, type: chk.type, donor: chk.donor, order: s.order, reason: s.reason, short: s.order < want };
   }
   // A bond whose end(s) are not on the board yet: the atoms are attached only for
   // the length of the question, so a refused bond leaves nothing behind to undo.
@@ -1787,8 +1787,9 @@
   function removeBond(id) {
     doc.bonds = doc.bonds.filter(function (b) { return b.id !== id; });
   }
-  function addBond(aId, bId, order, ionic) {
+  function addBond(aId, bId, order, ionic, dative, donor) {
     var b = { id: newId(), a: aId, b: bId, order: order, ionic: !!ionic };
+    if (dative) { b.d = true; b.dn = donor; }
     doc.bonds.push(b);
     return b;
   }
@@ -1942,7 +1943,7 @@
     // closes a ring, which is how cyclohexane and benzene get drawn.
     var closesRing = connected(aId, bId);
     beforeChange();
-    var nb = addBond(aId, bId, plan.order, plan.type === 'ionic');
+    var nb = addBond(aId, bId, plan.order, plan.type === 'ionic', plan.type === 'dative', plan.donor);
     // Joining two atoms that were each placed by their own structure means the
     // piece has to reconcile both: it settles into one set of VSEPR angles.
     if (closesRing || Math.hypot(A.x - B.x, A.y - B.y) > 1) settleAround(aId);
@@ -4931,6 +4932,10 @@
     return ids.slice().sort(function (x, y) { return x - y; }).join(',');
   }
 
+  function inAnyBracket(docId) {
+    for (var i = 0; i < doc.brackets.length; i++) if (doc.brackets[i].ids.indexOf(docId) >= 0) return true;
+    return false;
+  }
   // A bracket in the drawing is one group the scene must keep showing as one:
   // the doc ids are remapped to the spawned atoms and handed over with the
   // group's charge, so [Cu(NH3)4]2+ arrives bracketed instead of loose.
@@ -5057,6 +5062,19 @@
           }
           var reached = sceneBondOrder(bid);
           if (reached < order) lowered.push(f.syms[ia] + ordGlyph(reached) + f.syms[ib]);
+        }
+        // Inside a bracket the metal-donor link is a coordinate bond: the ligand
+        // hands over a pair, so the scene records it as dative with the ligand as
+        // donor and the complex draws and analyses as the coordination sphere it is.
+        if (order === 1 && inAnyBracket(f.ids[ia]) && inAnyBracket(f.ids[ib])) {
+          var mA2 = A.chem.isMetal(f.syms[ia]), mB2 = A.chem.isMetal(f.syms[ib]);
+          if (mA2 !== mB2) {
+            var sb2 = A.bonds.get(bid);
+            if (sb2 && !sb2.ionic && !sb2.dative) {
+              sb2.dative = true;
+              sb2.donor = mA2 ? map[ib] : map[ia];
+            }
+          }
         }
         bondCount++;
       }

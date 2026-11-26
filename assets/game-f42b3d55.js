@@ -42927,7 +42927,7 @@ function bondsOf(atoms2, bonds2, atomId) {
   return [...bonds2.values()].filter((b) => b.a === atomId || b.b === atomId);
 }
 function orderSumOf(atoms2, bonds2, atomId) {
-  return bondsOf(atoms2, bonds2, atomId).filter((b) => !b.ionic).reduce((s, b) => s + b.order, 0);
+  return bondsOf(atoms2, bonds2, atomId).filter((b) => !b.ionic && !b.dative).reduce((s, b) => s + b.order, 0);
 }
 function ionicCountOf(atoms2, bonds2, atomId) {
   return bondsOf(atoms2, bonds2, atomId).filter((b) => b.ionic).reduce((s, b) => s + b.order, 0);
@@ -43366,7 +43366,7 @@ function lewisAssign(atoms2, bonds2, atomIds, chargeOverride = null) {
   for (const id of atomIds) {
     const at = atoms2.get(id);
     const bs = bondsOf(atoms2, bonds2, id);
-    const covSum = bs.filter((b) => !b.ionic).reduce((s, b) => s + b.order, 0);
+    const covSum = bs.filter((b) => !b.ionic && !b.dative).reduce((s, b) => s + b.order, 0);
     const ionU = bs.filter((b) => b.ionic).reduce((s, b) => s + b.order, 0);
     const bonded = bs.length > 0;
     const isM = isMetal$1(at.el);
@@ -43442,12 +43442,21 @@ function lewisAssign(atoms2, bonds2, atomIds, chargeOverride = null) {
       const total = [...per.values()].reduce((s, p) => s + p.fc, 0);
       return total === chargeOverride ? { feasible: true, per, charge: chargeOverride } : { feasible: false, reason: { key: "chem.lewis.charge" }, charge: chargeOverride };
     }
-    const S = sumV + sumIon - sumCov - chargeOverride;
+    const metalId = atomIds.find((id) => {
+      const at = atoms2.get(id);
+      return at && isMetal$1(at.el);
+    });
+    const S = sumV + sumIon - sumCov - (metalId !== void 0 ? 0 : chargeOverride);
     if (S % 2 !== 0) return { feasible: false, reason: { key: "chem.lewis.radical" }, charge: chargeOverride };
     if (S < 0) return { feasible: false, reason: { key: "chem.lewis.electrons" }, charge: chargeOverride };
     const sol = solveFor(S / 2);
     if (!sol) return { feasible: false, reason: { key: "chem.lewis.charge" }, charge: chargeOverride };
     applyLps(sol.lps);
+    if (metalId !== void 0) {
+      let ligFc = 0;
+      for (const p of part) ligFc += per.get(p.id).fc;
+      per.get(metalId).fc = chargeOverride - ligFc;
+    }
     return { feasible: true, per, charge: chargeOverride };
   }
   const base = sumV + sumIon - sumCov;
@@ -44342,6 +44351,12 @@ const UI = {
     "mol.title": "Molecule",
     "mol.empty": "Build a molecule to analyze it.",
     "mol.freeAtom": "Free atom — drag onto another to bond.",
+    "mol.coordination": "Coordination complex ({g} · CN {n})",
+    "mol.coordinationCn": "Coordination complex (CN {n})",
+    "geo.linear": "linear",
+    "geo.tetrahedral": "tetrahedral",
+    "geo.squarePlanar": "square planar",
+    "geo.octahedral": "octahedral",
     "mol.unnamed": "Unnamed molecule",
     "mol.stats": "{a} atoms · {b} bonds",
     "mol.chargeLbl": "Ion charge",
@@ -44895,6 +44910,12 @@ const UI = {
     "mol.title": "Phân tử",
     "mol.empty": "Hãy tạo phân tử để phân tích.",
     "mol.freeAtom": "Nguyên tử tự do — kéo vào nguyên tử khác để liên kết.",
+    "mol.coordination": "Hợp chất phối trí ({g} · CN {n})",
+    "mol.coordinationCn": "Hợp chất phối trí (CN {n})",
+    "geo.linear": "tuyến tính",
+    "geo.tetrahedral": "tứ diện",
+    "geo.squarePlanar": "vuông phẳng",
+    "geo.octahedral": "bát diện",
     "mol.unnamed": "Phân tử chưa đặt tên",
     "mol.stats": "{a} nguyên tử · {b} liên kết",
     "mol.chargeLbl": "Điện tích ion",
@@ -58984,6 +59005,126 @@ function clearComplexBrackets() {
 function complexBracketList() {
   return [...complexBrackets.values()].map((g) => ({ ids: [...g.ids], q: g.q }));
 }
+const COORD_LIGAND_ALIAS = { HO: "OH", C2H4N2: "en", C2O4: "ox" };
+const COORD_PREFIX = ["", "mono", "di", "tri", "tetra", "penta", "hexa"];
+const COORD_METAL_NAMES = {
+  Cu: "copper", Fe: "iron", Co: "cobalt", Ni: "nickel", Zn: "zinc", Cr: "chromium",
+  Mn: "manganese", Pt: "platinum", Pd: "palladium", Ag: "silver", Au: "gold",
+  Ru: "ruthenium", Rh: "rhodium", Ir: "iridium", Os: "osmium", Mo: "molybdenum",
+  V: "vanadium", Ti: "titanium", Sc: "scandium", Al: "aluminium", Mg: "magnesium",
+  Ca: "calcium", Na: "sodium", K: "potassium", Li: "lithium", Hg: "mercury",
+  Cd: "cadmium", Pb: "lead", Sn: "tin"
+};
+const COORD_METAL_ANION = {
+  Cu: "cuprate", Fe: "ferrate", Co: "cobaltate", Ni: "nickelate", Zn: "zincate",
+  Cr: "chromate", Mn: "manganate", Pt: "platinate", Pd: "palladate",
+  Ag: "argentate", Au: "aurate", Hg: "mercurate", Cd: "cadmate", Pb: "plumbate",
+  Sn: "stannate", Al: "aluminate", Mg: "magnesate"
+};
+function coordRoman(n) {
+  const map = [["X", 10], ["IX", 9], ["V", 5], ["IV", 4], ["I", 1]];
+  let out = "";
+  for (const [s, v] of map) while (n >= v) { out += s; n -= v; }
+  return out;
+}
+// A bracketed group holding a metal with bonds to it is the coordination
+// sphere: the formula is written the way the notation writes it, [Cu(NH3)4],
+// and the geometry is measured from where the donors actually sit rather than
+// assumed, so a flat d8 centre reads square planar and not tetrahedral.
+function complexInfoOf(ids, charge) {
+  const idSet = new Set(ids);
+  let metalId = null;
+  for (const id of ids) {
+    const at = atoms.get(id);
+    if (at && isMetal$1(at.el)) { metalId = id; break; }
+  }
+  if (metalId === null) return null;
+  const donors = [];
+  for (const b of bonds.values()) {
+    if (b.ionic || !idSet.has(b.a) || !idSet.has(b.b)) continue;
+    const other = b.a === metalId ? b.b : b.b === metalId ? b.a : null;
+    if (other !== null && !isMetal$1(atoms.get(other).el)) donors.push(other);
+  }
+  if (!donors.length) return null;
+  const rest = ids.filter((id) => id !== metalId);
+  const parent = new Map(rest.map((id) => [id, id]));
+  const find = (x) => { let r = x; while (parent.get(r) !== r) r = parent.get(r); return r; };
+  for (const b of bonds.values()) {
+    if (b.ionic || !idSet.has(b.a) || !idSet.has(b.b)) continue;
+    if (b.a === metalId || b.b === metalId) continue;
+    parent.set(find(b.a), find(b.b));
+  }
+  const seen = new Set();
+  const parts = [];
+  for (const d of donors) {
+    const root = find(d);
+    if (seen.has(root)) continue;
+    seen.add(root);
+    const frag = rest.filter((x) => find(x) === root);
+    const f = formulaOf(frag.map((id) => atoms.get(id).el));
+    const hit = parts.find((p) => p.f === f);
+    if (hit) hit.n++;
+    else parts.push({ f, n: 1, multi: frag.length > 1 });
+  }
+  const metalSym = atoms.get(metalId).el.sym;
+  const core = "[" + metalSym + parts.map((p) => (p.multi ? "(" + p.f + ")" : p.f) + (p.n > 1 ? p.n : "")).join("") + "]";
+  const cn = donors.length;
+  let geometry = null;
+  if (cn === 2) geometry = "linear";
+  else if (cn === 6) geometry = "octahedral";
+  else if (cn === 4) {
+    const m = atoms.get(metalId).pos;
+    const d = donors.map((id) => atoms.get(id).pos);
+    const v1 = { x: d[0].x - m.x, y: d[0].y - m.y, z: d[0].z - m.z };
+    const v2 = { x: d[1].x - m.x, y: d[1].y - m.y, z: d[1].z - m.z };
+    const nx = v1.y * v2.z - v1.z * v2.y;
+    const ny = v1.z * v2.x - v1.x * v2.z;
+    const nz = v1.x * v2.y - v1.y * v2.x;
+    const nl = Math.hypot(nx, ny, nz);
+    if (nl > 1e-6) {
+      let dev = 0;
+      for (const i of [2, 3]) {
+        const w = { x: d[i].x - m.x, y: d[i].y - m.y, z: d[i].z - m.z };
+        dev = Math.max(dev, Math.abs((w.x * nx + w.y * ny + w.z * nz) / nl));
+      }
+      geometry = dev < 0.4 ? "squarePlanar" : "tetrahedral";
+    } else geometry = "tetrahedral";
+  }
+  let name = null;
+  let ok = Number.isFinite(charge) && cn >= 1 && cn <= 6;
+  let ligCharge = 0;
+  let nm = "";
+  if (ok) {
+    for (const p of parts) {
+      const L = COMMON_LIGANDS[COORD_LIGAND_ALIAS[p.f] || p.f];
+      if (!L) { ok = false; break; }
+      ligCharge += L.charge * p.n;
+      nm += (p.n > 1 ? COORD_PREFIX[p.n] || "" : "") + L.name;
+    }
+  }
+  if (ok) {
+    const metalCharge = charge - ligCharge;
+    if (Number.isInteger(metalCharge) && metalCharge >= 1 && metalCharge <= 8) {
+      const base = COORD_METAL_NAMES[metalSym] || metalSym.toLowerCase();
+      const metalName = charge < 0 ? COORD_METAL_ANION[metalSym] || base + "ate" : base;
+      name = nm + metalName + "(" + coordRoman(metalCharge) + ")";
+    }
+  }
+  return { core, cn, geometry, metal: metalSym, name };
+}
+function applyComplexAnalyses() {
+  if (!complexBrackets.size) return;
+  for (let i = 0; i < lastComps.length; i++) {
+    const an = analyses[i];
+    const g = complexBrackets.get(complexBracketKey(lastComps[i].atoms));
+    if (!g) continue;
+    const info = complexInfoOf(lastComps[i].atoms, an.charge);
+    if (info) {
+      an.displayFormula = info.core;
+      an.coordination = info;
+    }
+  }
+}
 function retextureLabels() {
   for (const [, tex] of labelCache) tex.dispose();
   labelCache.clear();
@@ -59429,6 +59570,7 @@ function reanalyze(pinnedIds = /* @__PURE__ */ new Set()) {
     if (arrangementMatchesScene(df, lastComps[i])) analyses[i].displayFormula = df;
     else isoSel.delete(key);
   }
+  applyComplexAnalyses();
   const solved = solveAll(atoms, bonds, lastComps, analyses, pinnedIds);
   targetPos = /* @__PURE__ */ new Map();
   for (const [id, p] of solved) targetPos.set(id, { x: p.x, y: p.y, z: p.z });
@@ -59468,6 +59610,7 @@ function discKeyOf(f, charge) {
 }
 function safeName(comp, an) {
   if (!an.feasible) return null;
+  if (an.coordination && an.coordination.name) return an.coordination.name;
   try {
     const formulaToName = an.displayFormula || an.formula;
     const name = nameMolecule(comp.atoms.map((id) => atoms.get(id)), comp.bonds, formulaToName, an.charge, an.per);
@@ -61875,6 +62018,11 @@ function updateInspector() {
     } else if (groupSet.has(GROUP_TYPES.ESTER)) {
       refinedType = { key: "ester", label: "Ester" };
     }
+  }
+  if (an.coordination) {
+    refinedType = an.coordination.geometry
+      ? { key: "coordination", label: t("mol.coordination", { g: t("geo." + an.coordination.geometry), n: an.coordination.cn }) }
+      : { key: "coordination", label: t("mol.coordinationCn", { n: an.coordination.cn }) };
   }
   const groupLabels = {
     [GROUP_TYPES.ALCOHOL]: "Alcohol (-OH)",

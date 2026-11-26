@@ -43163,8 +43163,9 @@ function bondCheck(atoms2, bonds2, aId, bId) {
     return { ok: false, reason: { key: "chem.ringLonePair", p: { n: ring.size } } };
   const metA = atoms2.get(aId), metB = atoms2.get(bId);
   if (isMetal$1(metA.el) && isMetal$1(metB.el)) {
-    if (orderSumOf(atoms2, bonds2, aId) < orderCapacityOf(metA.el) &&
-        orderSumOf(atoms2, bonds2, bId) < orderCapacityOf(metB.el))
+    const shellOf = (id) => bondsOf(atoms2, bonds2, id).filter((b) => !b.ionic).reduce((s, b) => s + b.order, 0);
+    if (shellOf(aId) < orderCapacityOf(metA.el) &&
+        shellOf(bId) < orderCapacityOf(metB.el))
       return { ok: true, type: "metallic" };
     return { ok: false, reason: { key: "chem.metalMetal" } };
   }
@@ -43190,14 +43191,18 @@ function dativeCheck(atoms2, bonds2, aId, bId) {
     const don = atoms2.get(donId), acc = atoms2.get(accId);
     if (!don || !acc) continue;
     if (isMetal$1(don.el) && isMetal$1(acc.el)) continue;
-    const donSum = orderSumOf(atoms2, bonds2, donId) + ionicCountOf(atoms2, bonds2, donId);
-    const accSum = orderSumOf(atoms2, bonds2, accId) + ionicCountOf(atoms2, bonds2, accId);
+    const shellOf = (id) => bondsOf(atoms2, bonds2, id).reduce((s, b) => s + b.order, 0);
+    const donSum = shellOf(donId);
+    const accSum = shellOf(accId);
     const donFree = (don.el.valenceElectrons || 0) - donSum;
     const accFree = (acc.el.valenceElectrons || 0) - accSum;
     if (donFree < 2) continue;
     if (donSum >= orderCapacityOf(don.el)) continue;
     if (accFree >= 1) continue;
-    const cap = acc.el.z > 10 ? 18 : 8;
+    // H and He close at two electrons, not eight: an H that already carries
+    // one bond has a full shell and can never be an acceptor. The generic
+    // octet cap would count its 2 electrons against 8 and wave it through.
+    const cap = acc.el.z <= 2 ? 2 : acc.el.z > 10 ? 18 : 8;
     if (2 * accSum >= cap && accSum >= Math.max(1, acc.el.maxBonds || 1)) continue;
     return { ok: true, type: "dative", donor: donId };
   }

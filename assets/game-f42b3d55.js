@@ -42989,36 +42989,6 @@ function neutralCovalenceOf(el) {
   if (el.z > 10 || !Number.isFinite(V)) return ceiling;
   return Math.max(1, Math.min(ceiling, 8 - V));
 }
-// A +1 formal charge only stands in a neutral molecule if a neighbour takes the
-// matching -1. That is checked as Lewis bookkeeping on the finished structure: an
-// atom pays if some whole number of lone pairs leaves it at formal charge -1 with
-// its octet still closed. Hydrogen cannot - one electron, one bond, half a lone
-// pair left over - so ammonia has nobody to pay for a fourth bond on its nitrogen
-// and NH4 is refused, while the far oxygen of ozone (one bond, three lone pairs)
-// and the carbon of carbon monoxide (three bonds, one lone pair) both can.
-// Only the centre's own neighbours are searched: a charge separated across the
-// molecule by several bonds is not the pair that makes this structure valid.
-function chargeCompensationExists(atoms2, bonds2, seedIds, centreId) {
-  const payer = (id, incoming) => {
-    if (id === centreId) return false;
-    const at = atoms2.get(id);
-    if (!at || at.el.z > 10) return false;
-    if (ionicCountOf(atoms2, bonds2, id)) return false;
-    const V = at.el.valenceElectrons;
-    if (!Number.isFinite(V)) return false;
-    const sum = orderSumOf(atoms2, bonds2, id) + incoming;
-    const lp = (V - sum + 1) / 2;
-    if (!Number.isInteger(lp) || lp < 0) return false;
-    return sum + lp <= 4 && sum <= orderCapacityOf(at.el);
-  };
-  for (const id of seedIds) if (payer(id, 1)) return true;
-  for (const b of bonds2.values()) {
-    if (b.ionic) continue;
-    if (b.a === centreId && payer(b.b, 0)) return true;
-    else if (b.b === centreId && payer(b.a, 0)) return true;
-  }
-  return false;
-}
 // Lone pairs need room. In a three-membered ring every centre is forced to 60
 // degrees; a centre with a spare valence electron reinforces those bonds (the
 // "banana" bonding of cyclopropane, 115 kJ/mol of strain and still a minimum),
@@ -43102,8 +43072,14 @@ function covalentCheck(atoms2, bonds2, aId, bId) {
     const cap = orderCapacityOf(at.el);
     if (after > cap) return { ok: false, key: "chem.noCapacity", max: cap };
     if (after > neutralCovalenceOf(at.el)) {
-      if (!chargeCompensationExists(atoms2, bonds2, [aId, bId], at.id))
-        return { ok: false, key: "chem.chargeUnpaid", max: neutralCovalenceOf(at.el) };
+      // A centre one bond past its neutral valence is not a defect on its own:
+      // it is how every polyatomic ion exists. NH4+ puts a +1 on nitrogen with
+      // no negative neighbour to pair it against, H3O+ does the same on oxygen,
+      // and the old requirement for an adjacent opposite charge refused both
+      // ("no compensating opposite charge is bonded to it") while still letting
+      // a genuinely over-coordinated centre through the cap above. The species
+      // carries the charge as a whole, so the only thing left to enforce is the
+      // shell: `after > cap` already refused that a few lines up.
       paid = true;
     }
     return { ok: true };
@@ -43163,6 +43139,19 @@ function bondCheck(atoms2, bonds2, aId, bId) {
     return { ok: false, reason: { key: "chem.ringLonePair", p: { n: ring.size } } };
   const metA = atoms2.get(aId), metB = atoms2.get(bId);
   if (isMetal$1(metA.el) && isMetal$1(metB.el)) {
+    // Two bare s-block atoms meeting are a diatomic, not a bulk metal: Be2 and
+    // He2 have bond order 0, so the pair must refuse and drift apart instead of
+    // welding into a molecule the structure pass then has to call impossible.
+    // Once either atom already carries a bond the aggregate is bulk, and the
+    // delocalised sea model (below) takes over - that is the fallback path for
+    // a cluster of Be, Fe or Cu rather than a discrete covalent pair.
+    const bareA = bondsOf(atoms2, bonds2, aId).length === 0;
+    const bareB = bondsOf(atoms2, bonds2, bId).length === 0;
+    if (bareA && bareB) {
+      const mo = moBondOrder(metA.el.valenceElectrons, metB.el.valenceElectrons, metA.el.z, metB.el.z);
+      if (!(mo.order > 0))
+        return { ok: false, reason: { key: "chem.diatomicUnstable", p: { sym: metA.el.sym + metB.el.sym } } };
+    }
     const shellOf = (id) => bondsOf(atoms2, bonds2, id).filter((b) => !b.ionic).reduce((s, b) => s + b.order, 0);
     if (shellOf(aId) < orderCapacityOf(metA.el) &&
         shellOf(bId) < orderCapacityOf(metB.el))
@@ -43181,6 +43170,44 @@ function bondCheck(atoms2, bonds2, aId, bId) {
   const ionic = ionicCheck(atoms2, bonds2, aId, bId);
   if (ionic.ok) return ionic;
   return covalent.reason?.key && !covalent.reason.key.startsWith("chem.metal") ? covalent : ionic;
+}
+// Molecular-orbital bond order for a diatomic, from valence electrons only.
+// The simple "do the valences pair up?" test calls Be2 stable (2 + 2 = 4, an
+// even number, so it looks paired) when the real answer is bond order zero:
+// the sigma*2s it fills cancels the sigma2s it filled first. Filling the
+// ladder in energy order gives the right number for every case the valence
+// rule got wrong - Be2/He2 at 0, N2 at 3, O2 at 2 with two unpaired electrons
+// - and the pi/sigma ordering flips at Z = 8, which is why nitrogen is a
+// triple bond and oxygen a double one.
+//   zMin <= 2  : the 1s shell is the valence shell, so the ladder starts there
+//   zMax >= 8  : sigma2p drops below pi2p (O2 and everything heavier)
+//   else       : pi2p fills first (B2, C2, N2)
+const MO_ORDER_HIGH = ["s2s", "s*2s", "s2p", "p2p", "p*2p", "s*2p"];
+const MO_ORDER_LOW = ["s2s", "s*2s", "p2p", "s2p", "p*2p", "s*2p"];
+const MO_CAP = { s1s: 2, "s*1s": 2, s2s: 2, "s*2s": 2, s2p: 2, p2p: 4, "p*2p": 4, "s*2p": 2 };
+function moBondOrder(vA, vB, zA, zB) {
+  const total = (vA || 0) + (vB || 0);
+  if (!(total > 0)) return { order: 0, bonding: 0, antibonding: 0, unpaired: 0 };
+  const zMax = Math.max(zA || 0, zB || 0), zMin = Math.min(zA || 0, zB || 0);
+  const ladder = (zMin <= 2 ? ["s1s", "s*1s"] : []).concat(zMax >= 8 ? MO_ORDER_HIGH : MO_ORDER_LOW);
+  let left = total, bonding = 0, antibonding = 0;
+  const fill = Object.create(null);
+  for (const mo of ladder) {
+    if (left <= 0) break;
+    const take = Math.min(left, MO_CAP[mo]);
+    if (!take) continue;
+    fill[mo] = take;
+    left -= take;
+    if (mo.indexOf("*") >= 0) antibonding += take; else bonding += take;
+  }
+  // Hund filling of the degenerate pi set: a half-filled shell keeps its
+  // electrons unpaired, which is what makes O2 paramagnetic.
+  let unpaired = 0;
+  for (const key of ["p2p", "p*2p"]) {
+    const n = fill[key] || 0;
+    if (n > 0 && n < 4) unpaired += n % 2 === 0 ? 2 : 1;
+  }
+  return { order: (bonding - antibonding) / 2, bonding, antibonding, unpaired };
 }
 // Coordinate bond: one atom donates a whole lone pair (>=2 spare electrons and
 // room for one more bond), the other accepts because its octet is short but it
@@ -43203,7 +43230,17 @@ function dativeCheck(atoms2, bonds2, aId, bId) {
     // one bond has a full shell and can never be an acceptor. The generic
     // octet cap would count its 2 electrons against 8 and wave it through.
     const cap = acc.el.z <= 2 ? 2 : acc.el.z > 10 ? 18 : 8;
-    if (2 * accSum >= cap && accSum >= Math.max(1, acc.el.maxBonds || 1)) continue;
+    const shellFull = 2 * accSum >= cap;
+    const atCeiling = accSum >= Math.max(1, acc.el.maxBonds || 1);
+    // The two tests used to be ANDed, so a period-3+ centre (cap 18, i.e. it
+    // needs nine bonds before the shell reads full) never tripped the ceiling
+    // half while its maxBonds was still 4-7: sulfur happily took a seventh,
+    // eighth and ninth bond and the scene grew SF9 the Lewis pass called
+    // feasible. Either limit refusing is enough to leave no room - but a metal
+    // is exempt from the ceiling, because maxBonds there is the ionic valence
+    // (Zn lists 2) rather than the coordination number, and [Zn(NH3)4] is a
+    // real complex the ceiling would forbid.
+    if (shellFull || (!isMetal$1(acc.el) && atCeiling)) continue;
     return { ok: true, type: "dative", donor: donId };
   }
   return { ok: false };
@@ -43321,8 +43358,10 @@ function upgradeCheck(atoms2, bonds2, bond) {
     if (after > cap)
       return { ok: false, reason: { key: "chem.capacityMax", p: { sym: at.el.sym, max: cap } } };
     if (!isMetal$1(at.el) && after > neutralCovalenceOf(at.el)) {
-      if (!chargeCompensationExists(atoms2, bonds2, [bond.a, bond.b], id))
-        return { ok: false, reason: { key: "chem.chargeUnpaid", p: { sym: at.el.sym, max: neutralCovalenceOf(at.el) } } };
+      // Same rule as covalentCheck: an ion may sit past its neutral valence as
+      // long as the shell still closes - the cap above is what refuses a real
+      // octet violation, so demanding a bonded opposite charge here only broke
+      // legitimate upgrades to NH4+ and H3O+.
       paid = true;
     }
     if (isMetal$1(at.el)) continue;
@@ -44527,7 +44566,7 @@ const UI = {
     "chem.nobleNoCompound": "Noble gas does not form compounds",
     "chem.nobleOnlyFO": "Noble gases only bond with F or O",
     "chem.noCapacity": "{sym} has no bonding capacity left (max {max})",
-    "chem.chargeUnpaid": "{sym} would exceed its neutral valence of {max} and carry an unpaid formal charge — no compensating opposite charge is bonded to it",
+    "chem.diatomicUnstable": "{sym} has molecular-orbital bond order 0 — the antibonding orbitals cancel the bonding ones, so the pair cannot hold together",
     "chem.ringLonePair": "A {n}-membered ring would leave every atom with only lone pairs — closed shells 60° apart only repel",
     "chem.anionClosedShare": "{sym} is an anion — it accepted {n} electron{s} and its shell is closed, so it cannot share electrons",
     "chem.ionicNeedMetal": "Ionic bonds need a metal",
@@ -45092,7 +45131,7 @@ const UI = {
     "chem.nobleNoCompound": "Khí hiếm không tạo thành hợp chất",
     "chem.nobleOnlyFO": "Khí hiếm chỉ liên kết với F hoặc O",
     "chem.noCapacity": "{sym} không còn khả năng liên kết (tối đa {max})",
-    "chem.chargeUnpaid": "{sym} sẽ vượt hóa trị trung hòa {max} và mang điện tích chính thức không được bù trừ — không có điện tích trái dấu liên kết với nó",
+    "chem.diatomicUnstable": "{sym} có bậc liên kết quỹ đạo phân tử bằng 0 — các quỹ đạo kháng liên kết hủy các quỹ đạo liên kết, nên cặp nguyên tử không thể tồn tại",
     "chem.ringLonePair": "Vòng {n} cạnh sẽ khiến mọi nguyên tử chỉ còn cặp electron tự do — các lớp vỏ kín cách nhau 60° chỉ đẩy nhau",
     "chem.anionClosedShare": "{sym} là anion — đã nhận {n} electron nên lớp vỏ đã kín, không thể dùng chung electron",
     "chem.ionicNeedMetal": "Liên kết ion cần kim loại",
@@ -65833,6 +65872,7 @@ window.__mol3d = {
     neutralCovalenceOf,
     lonePairsAt,
     ringClosureOf,
+    moBondOrder,
     // The distance the scene would draw between two element balls. The 2D editor
     // measures its own bonds with this so a long Na–Cl never shrinks to a C–C.
     bondLength,

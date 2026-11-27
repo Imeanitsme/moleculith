@@ -578,6 +578,16 @@
   const LP_CHAIN = 12;                   // kJ/mol, escalating per link of a heteroatom row
   const OCTET_KJ = 32, RADICAL_KJ = 24;  // kJ/mol per missing electron, per unpaired electron
   const BEND_K = 102.8, RING4_KJ = 20;   // kJ/mol/rad², kJ/mol per eclipsed ring atom
+  // Structural and electronic penalties the plain bond sum cannot see. Each
+  // one is a measured effect that shows up as extra enthalpy, so each is
+  // charged here and propagated into dG through corr.total.
+  const DATIVE_KJ = 18;        // localised dipole of a coordinate bond
+  const LIKE_Q_KJ = 120;       // ++ or -- on two bonded atoms
+  const HYPER_KJ = 25;         // each electron past an octet on period 3+
+  const PEROXIDE_KJ = 45;      // O-O / N-N / F-F single bond lone-pair clash
+  const RING3_KJ = 115;        // cyclopropane strain, per 3-ring
+  const BRIDGE_KJ = 90;        // bridgehead / spiro compression
+  const EN_Q_KJ = 30;          // + on the electronegative end, - on the electropositive
   const AROMATIC_KJ = 25.1;              // kJ/mol per ring atom (benzene 150.6/6)
   const IDEAL_ANGLE = { 2: [180], 3: [120], 4: [109.47], 5: [90, 120, 180], 6: [90, 180] };
   // Pauling electronegativities, used when the element record does not carry one.
@@ -625,7 +635,7 @@
         chi: typeof el.en === 'number' && el.en > 0 ? el.en : (PAULING_EN[el.sym] || 2.55),
         period: frame.period, metal: frame.metal || el.cat === 'transition' || el.cat === 'lanthanide' || el.cat === 'actinide',
         pos: [(a.pos && a.pos.x || 0) * UNIT_M * 1e10, (a.pos && a.pos.y || 0) * UNIT_M * 1e10, (a.pos && a.pos.z || 0) * UNIT_M * 1e10],
-        B: 0, nbrs: [], links: []
+        B: 0, nbrs: [], links: [], dative: []
       });
       idx.set(a.id, i);
     }
@@ -636,6 +646,10 @@
       nodes[i].B += order; nodes[j].B += order;
       nodes[i].nbrs.push(j); nodes[j].nbrs.push(i);
       nodes[i].links.push(order); nodes[j].links.push(order);
+      // A coordinate bond donates a whole pair from one side, so it localises a
+      // dipole the covalent terms never price - the flag has to survive into
+      // the correction pass or the penalty can never fire.
+      nodes[i].dative.push(!!b.dative); nodes[j].dative.push(!!b.dative);
     }
     // The aufbau read only counts an s/p valence, but a transition metal also
     // brings d electrons to its bonds. Reading TiCl4 as a two-electron centre
@@ -785,7 +799,8 @@
 
   // The five destabilising terms plus the aromatic one, in kJ/mol.
   function bondingCorrections(g, lw, sys) {
-    const out = { fc: 0, zw: 0, chain: 0, octet: 0, radical: 0, strain: 0, res: 0, terms: [] };
+    const out = { fc: 0, zw: 0, chain: 0, octet: 0, radical: 0, strain: 0, res: 0,
+      dative: 0, likeQ: 0, hyper: 0, peroxide: 0, enQ: 0, terms: [] };
     const nodes = g.nodes, n = nodes.length;
     // 1a - formal charge on an atom that does not want it.
     for (let i = 0; i < n; i++) {
@@ -862,7 +877,17 @@
       }
     }
     const rings = cyclesOf(g, 8);
+    // A three-membered ring is far worse than a four: 60 degree corners charge
+    // ~115 kJ/mol of angle strain (cyclopropane's measured value) and a
+    // bridgehead or spiro fusion that pins one of those corners adds more still
+    // because the substituents cannot reach their tetrahedral angle at all.
+    const degree = new Array(n).fill(0);
+    for (const ring of rings) for (const i of ring) degree[i]++;
     for (const ring of rings) {
+      if (ring.length === 3 && ring.every(i => !nodes[i].metal)) {
+        out.strain += RING3_KJ;
+        if (ring.some(i => degree[i] >= 3)) out.strain += BRIDGE_KJ;
+      }
       if (ring.length === 4 && ring.every(i => !nodes[i].metal)) out.strain += RING4_KJ * ring.length;
       // aromatic term: a planar, fully conjugated ring of 4n+2 π electrons
       if (ring.length < 5 || ring.some(i => nodes[i].metal)) continue;
@@ -885,7 +910,72 @@
       if (pi % 4 !== 2 || pi < 6) continue;
       out.res -= AROMATIC_KJ * ring.length;
     }
-    out.total = out.fc + out.zw + out.chain + out.octet + out.radical + out.strain + out.res;
+    // 5 - a coordinate bond. Both electrons come from one partner, so the pair
+    // sits polarised where an ordinary covalent bond would be symmetric; the
+    // shift is small but it is not free.
+    // Each dative bond flags BOTH of its endpoints in the adjacency lists, so
+    // charging per node would price one coordinate bond twice; j > i counts it
+    // exactly once, the same way the like-charge walk below does.
+    for (let i = 0; i < n; i++) {
+      const flags = nodes[i].dative;
+      for (let k = 0; k < flags.length; k++) {
+        if (!flags[k]) continue;
+        if (nodes[i].nbrs[k] > i) out.dative += DATIVE_KJ;
+      }
+    }
+    // 6 - two bonded atoms carrying the same-sign formal charge. Nothing
+    // separates them electrostatically, so ++ and -- adjacency is a heavy cost
+    // that a net-charge species can still pay overall (NH4+ has no such pair).
+    for (let i = 0; i < n; i++) {
+      const qi = lw[i].fc;
+      if (!qi || nodes[i].metal) continue;
+      for (let k = 0; k < nodes[i].nbrs.length; k++) {
+        const j = nodes[i].nbrs[k];
+        if (j <= i || nodes[j].metal) continue;
+        const qj = lw[j].fc;
+        if (qj && (qj > 0) === (qi > 0)) out.likeQ += LIKE_Q_KJ;
+      }
+    }
+    // 7 - an expanded octet. Period 3+ may go past eight electrons, but the
+    // d-orbital participation that allows it is worth little, so SF6, PCl5 and
+    // SO4(2-) are all charged for every electron beyond the octet rather than
+    // read as free stability.
+    for (let i = 0; i < n; i++) {
+      const nd = nodes[i];
+      if (nd.metal || nd.period <= 2) continue;
+      const past = 2 * nd.B - 8;
+      if (past > 0) out.hyper += HYPER_KJ * past;
+    }
+    // 8 - a single bond between two lone-pair-rich period-2 atoms. The lone
+    // pairs on opposite ends eclipse each other (H2O2's O-O, hydrazine's N-N,
+    // F2), which is why those bonds are 40-60% weaker than the table average.
+    for (let i = 0; i < n; i++) {
+      const nd = nodes[i];
+      if (nd.metal || nd.period > 2 || !lw[i].hasLP) continue;
+      for (let k = 0; k < nd.nbrs.length; k++) {
+        const j = nd.nbrs[k];
+        if (j <= i || nodes[j].period > 2 || !lw[j].hasLP) continue;
+        if (nd.links[k] !== 1) continue;
+        out.peroxide += PEROXIDE_KJ;
+      }
+    }
+    // 9 - electronegativity vs charge placement. A + on fluorine or oxygen
+    // (beyond what a full octet justifies) and a - on an electropositive metal
+    // or alkali earth are both backwards, and each is charged separately from
+    // the base formal-charge term so the breakdown can name it.
+    // The "without full octet" half of the rule matters: H3O+ and ozone's
+    // central oxygen are both +1 on an electronegative atom and both close an
+    // eight-electron shell, so charging them would penalise the very ions the
+    // bonding pass now accepts. Only a short shell makes the placement wrong.
+    for (let i = 0; i < n; i++) {
+      const nd = nodes[i], q = lw[i].fc;
+      if (!q || nd.metal) continue;
+      const shortShell = lw[i].short > 0;
+      if (q > 0 && nd.chi >= 3.44 && shortShell) out.enQ += EN_Q_KJ;
+      else if (q < 0 && nd.chi <= 1.3) out.enQ += EN_Q_KJ;
+    }
+    out.total = out.fc + out.zw + out.chain + out.octet + out.radical + out.strain + out.res +
+      out.dative + out.likeQ + out.hyper + out.peroxide + out.enQ;
     return out;
   }
   function linkOrder(nodes, i, j) {
@@ -1502,7 +1592,12 @@
     octet: ['incomplete octet', 'thiếu octet'],
     radical: ['radical', 'gốc tự do'],
     strain: ['angle & ring strain', 'ứng suất góc & vòng'],
-    res: ['resonance', 'cộng hưởng']
+    res: ['resonance', 'cộng hưởng'],
+    dative: ['dative bond', 'liên kết phối khuyết'],
+    likeQ: ['adjacent like-charge', 'cùng dấu kề nhau'],
+    hyper: ['expanded octet', 'octet mở rộng'],
+    peroxide: ['O-O/N-N lone-pair repulsion', 'xung khắc cặp tự do O-O/N-N'],
+    enQ: ['charge vs electronegativity', 'điện tích so với electronegativity']
   };
   function corrHtml(corr) {
     if (!corr || corr.skipped) return '';

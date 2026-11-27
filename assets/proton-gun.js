@@ -484,7 +484,8 @@
       // readable, so the panels stay reachable from here for testing and for the
       // console alike.
       fissionEvent: cineEvent,
-      fissionPreview: cinePreview
+      fissionPreview: cinePreview,
+      playFission: playFissionCinematic
     };
   }
 
@@ -2044,6 +2045,15 @@
   // z and a: the nucleus as it was, so every panel and every line describes it.
   function playFissionCinematic(opts) {
     if (cine) return false;
+    // After the guard, not before: a peer that is already playing refuses the
+    // trigger and must not echo it, or two players bounce it back and forth.
+    if (opts.worldPos && window.__mol3d && typeof window.__mol3d.broadcastFission === "function") {
+      window.__mol3d.broadcastFission({
+        x: opts.worldPos.x, y: opts.worldPos.y, z: opts.worldPos.z,
+        nz: opts.z, a: opts.a, sym: opts.sym,
+        name: opts.elementName, frags: opts.fragNames || null
+      });
+    }
     ensureCineStyles();
     cine = { nodes: [], timers: [], millis: [], raf: null };
     const ev = cineEvent(opts);
@@ -2717,6 +2727,7 @@
     // then ARIA walks the player through the nucleus that actually split.
     playFissionCinematic({
       origin: screen,
+      worldPos: pos,
       elementName: oldName,
       z: oldZ,
       a: oldA,

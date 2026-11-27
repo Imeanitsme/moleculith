@@ -42846,9 +42846,8 @@ const ELEMENTS = E.map(([z, s, n, m, c, en, mb, an, ch, r, col]) => ({
 function valenceOf(z) {
   if (z === 1) return 1;
   if (z === 2) return 2;
-  const table = { 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 6, 9: 7, 10: 8, 11: 1, 12: 2, 13: 3, 14: 4, 15: 5, 16: 6, 17: 7, 18: 8 };
-  if (table[z]) return table[z];
   const group = groupOf(z);
+  // p-block: group 13 -> 3 valence electrons ... group 18 -> 8.
   if (group >= 13 && group <= 18) return group - 10;
   // Groups 1-2 of period 4 and beyond (K, Ca, Rb, Sr, Cs, Ba, Fr, Ra) were
   // missing from the table above and fell through to 0. That zero is not
@@ -42859,8 +42858,16 @@ function valenceOf(z) {
   // instead of the ionic one - which is also why the name came out CCaO3
   // (only an ionic bond splits the component, and only then does the writer
   // use the cation-first path rather than Hill order).
+  // s-block, any period: Li..Fr are group 1, Be..Ra are group 2. Covers the
+  // period-4+ metals the old table missed (K, Ca, Rb, Sr, Cs, Ba, Fr, Ra).
   if (group >= 1 && group <= 2) return group;
-  return 0;
+  // d/f block: only the outer s subshell is the valence shell for this model.
+  // Two electrons for every transition and inner-transition metal - the d shell
+  // is full (d10) or half-full, not the bonding shell. Returning 0 here is what
+  // made a bare Zn look electron-poor enough to accept a coordinate bond from
+  // carbonate; 2 makes accFree = 2, the dative gate refuses, and bondCheck
+  // falls through to ionic - Zn2+ + CO3 2- as it should be.
+  return 2;
 }
 function groupOf(z) {
   if (z === 1) return 1;
@@ -43523,10 +43530,27 @@ function lewisAssign(atoms2, bonds2, atomIds, chargeOverride = null) {
     const sol = solveFor(S / 2);
     if (!sol) return { feasible: false, reason: { key: "chem.lewis.charge" }, charge: chargeOverride };
     applyLps(sol.lps);
-    if (metalId !== void 0) {
+    const metalIds = atomIds.filter((id) => {
+      const at = atoms2.get(id);
+      return at && isMetal$1(at.el);
+    });
+    if (metalIds.length) {
       let ligFc = 0;
       for (const p of part) ligFc += per.get(p.id).fc;
-      per.get(metalId).fc = chargeOverride - ligFc;
+      const need = chargeOverride - ligFc;
+      // Split across the metals. Every metal of the same element takes an equal
+      // share, so Al2O3 lands on +3 each instead of +6 on the first and the
+      // bond count on the second; mixed metals split in proportion to how many
+      // ionic bonds each one already carries.
+      const z0 = atoms2.get(metalIds[0]).el.z;
+      const same = metalIds.every((id) => atoms2.get(id).el.z === z0);
+      if (same) {
+        metalIds.forEach((id) => { per.get(id).fc = need / metalIds.length; });
+      } else {
+        const w = metalIds.map((id) => Math.max(1, per.get(id).ionU));
+        const wSum = w.reduce((a, b) => a + b, 0) || metalIds.length;
+        metalIds.forEach((id, i) => { per.get(id).fc = need * w[i] / wSum; });
+      }
     }
     return { feasible: true, per, charge: chargeOverride };
   }
@@ -43681,6 +43705,91 @@ function structuralFingerprint(atoms2, bonds2, atomIds) {
   return Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}×${v}`).join(";");
 }
 const SUBS = "₀₁₂₃₄₅₆₇₈₉";
+// Aufbau order for the subshells the charge rules care about. Filling this
+// instead of tabulating oxidation states is what lets Zn, Cd and Hg all come
+// out as +2 without naming them: each one lands on a full d10 with two outer s
+// electrons left to lose.
+const SUBSHELLS = [
+  ["1s", 2], ["2s", 2], ["2p", 6], ["3s", 2], ["3p", 6], ["4s", 2], ["3d", 10],
+  ["4p", 6], ["5s", 2], ["4d", 10], ["5p", 6], ["6s", 2], ["4f", 14], ["5d", 10],
+  ["6p", 6], ["7s", 2], ["5f", 14], ["6d", 10], ["7p", 6]
+];
+function electronConfig(z) {
+  const cfg = Object.create(null);
+  let left = Math.max(0, Math.round(z));
+  for (const [name, cap] of SUBSHELLS) {
+    if (left <= 0) break;
+    const n = Math.min(cap, left);
+    cfg[name] = n;
+    left -= n;
+  }
+  return cfg;
+}
+// The outermost s subshell holds the electrons a full-d10 metal gives up.
+function outerSElectrons(cfg) {
+  let best = -1, n = 0;
+  for (const name of Object.keys(cfg)) {
+    const shell = Number(name[0]);
+    if (name[1] === "s" && shell > best) { best = shell; n = cfg[name]; }
+  }
+  return n;
+}
+function isFullD10(z) {
+  const cfg = electronConfig(z);
+  for (const name of Object.keys(cfg)) {
+    if (name[1] === "d" && cfg[name] === 10) return true;
+  }
+  return false;
+}
+var chargeEngine = {
+  config: electronConfig,
+  // Octet rule for main-group elements, from valence electrons alone:
+  //   V <= 3 -> metal, gives up V electrons   (Na+, Mg2+, Al3+)
+  //   V >= 5 -> nonmetal, gains 8 - V          (N3-, O2-, Cl-)
+  //   V == 4 -> no fixed ionic charge          (C, Si share instead)
+  mainGroupCharge(V) {
+    if (!Number.isFinite(V) || V <= 0) return 0;
+    if (V <= 3) return V;
+    if (V >= 5) return V - 8;
+    return 0;
+  },
+  // Full d10 subshell: only the outer s electrons are lost, so the charge is
+  // fixed rather than read off the paired anion. Returns null when the d shell
+  // is not full, meaning the oxidation state has to be solved instead.
+  fixedD10Charge(z) {
+    if (!isFullD10(z)) return null;
+    return outerSElectrons(electronConfig(z)) || 2;
+  },
+  // Oxyanion charge without a table: the central atom donates one electron per
+  // oxygen, so CO3 -> 4 - 6 = -2, NO3 -> 5 - 6 = -1, SO4 -> 6 - 8 = -2,
+  // PO4 -> 5 - 8 = -3. The -ite variants keep the charge because the central
+  // atom's lone pair is what changes, not the oxygen count's sign.
+  oxyanionCharge(centralZ, nOxygen, nHydrogen) {
+    const nH = nHydrogen || 0;
+    return valenceOf(centralZ) - 2 * (nOxygen || 0) - nH;
+  },
+  // Zero-sum balance for AxB y:  x * Qcation + y * Qanion = 0
+  //   =>  Qcation = -(y * Qanion) / x
+  // ZnCO3: x=1, y=1, Q(CO3)=-2  =>  Q(Zn)=+2
+  cationCharge(x, y, anionCharge) {
+    if (!x) return 0;
+    return -(y * anionCharge) / x;
+  },
+  // Bond class from who is on each side. Metal next to a nonmetal or a
+  // polyatomic ion is electrostatic: Zn2+ + CO3 2- is ionic, never dative.
+  // Two nonmetals share pairs, and so does everything inside a polyatomic ion.
+  classifyBond(aIsMetal, bIsMetal) {
+    if (aIsMetal && bIsMetal) return "metallic";
+    if (aIsMetal || bIsMetal) return "ionic";
+    return "covalent";
+  },
+  // Charge a metal must carry for the compound to be neutral, given the
+  // polyatomic it is paired with and the stoichiometry.
+  balance(x, y, anionCharge) {
+    const q = chargeEngine.cationCharge(x, y, anionCharge);
+    return Number.isInteger(q) ? q : null;
+  }
+};
 function prettyFormula(formula) {
   if (typeof formula !== "string") {
     console.warn("[prettyFormula] Expected string, got:", typeof formula, formula);
@@ -55171,7 +55280,8 @@ const MSG = {
   REACTION: 18,
   WORLD_SYNC: 19,
   BRACKET: 20,
-  ENV: 21
+  ENV: 21,
+  FISSION: 22
 };
 const SEND_INTERVAL = 50;
 const HEARTBEAT_INTERVAL = 2e3;
@@ -55669,7 +55779,7 @@ class NetworkManager {
   // Get invite link
   getInviteLink() {
     const baseUrl = window.location.origin + window.location.pathname;
-    return `${baseUrl}?room=${this.roomId}`;
+    return `${baseUrl}?mode=multiplayer&room=${this.roomId}`;
   }
   // Disconnect from room
   disconnect() {
@@ -55990,10 +56100,52 @@ const chatManager = new ChatManager();
 let currentMenu = "main";
 let username = "";
 let isJoining = false;
+function initMpCommDropdown() {
+  const label = document.getElementById("top-mode-badge");
+  const menu = document.getElementById("mp-comm-menu");
+  if (!label || !menu) return;
+  const close = () => {
+    menu.hidden = true;
+    label.setAttribute("aria-expanded", "false");
+  };
+  label.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    // Chat and voice only mean anything once a room exists; in singleplayer the
+    // badge is a status readout, not a control.
+    const mp = document.getElementById("top-bar-mp");
+    if (!mp || mp.hidden) return;
+    menu.hidden = !menu.hidden;
+    label.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
+    if (!menu.hidden) hydrateIcons(menu);
+  });
+  document.addEventListener("click", (ev) => {
+    if (menu.hidden) return;
+    if (menu.contains(ev.target) || label.contains(ev.target)) return;
+    close();
+  });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") close();
+  });
+  const chat = document.getElementById("mp-comm-chat");
+  if (chat) {
+    chat.addEventListener("click", () => {
+      close();
+      const toggle = document.getElementById("btn-chat-toggle");
+      if (toggle) toggle.click();
+    });
+  }
+  // The voice button is the one the bundle binds, so it lives inside the menu;
+  // it only needs to close the menu once it has toggled.
+  const voice = document.getElementById("btn-voice-toggle");
+  if (voice) voice.addEventListener("click", () => setTimeout(close, 0));
+}
 function initMenu() {
   const urlParams = new URLSearchParams(window.location.search);
-  const mode = urlParams.get("mode");
+  let mode = urlParams.get("mode");
   const roomCode = urlParams.get("room");
+  // Links shared before the invite link carried mode= have only the room code.
+  // Without this they fell through to showMainMenu() instead of joining.
+  if (!mode && roomCode) mode = "multiplayer";
   const btnReturnLobby2 = document.getElementById("btn-return-lobby");
   if (btnReturnLobby2) {
     btnReturnLobby2.hidden = mode !== "multiplayer";
@@ -56012,6 +56164,7 @@ function initMenu() {
     showMainMenu();
   }
   setupMenuEventListeners();
+  initMpCommDropdown();
 }
 let lastTopMode = "singleplayer";
 let lastTopRoomName = "—";
@@ -56049,7 +56202,9 @@ function initTopBar(mode) {
   }
   if (topBtnShare) {
     topBtnShare.addEventListener("click", () => {
-      const url = window.location.href;
+      // location.href has the mode but no room code, which is what sent every
+      // recipient to the lobby; getInviteLink carries both.
+      const url = network.getInviteLink();
       navigator.clipboard.writeText(url).then(() => {
         alert(t("top.linkCopied"));
       }).catch(() => {
@@ -56336,32 +56491,6 @@ function setupMenuEventListeners() {
     topBtnExit.addEventListener("click", () => {
       if (confirm(t("net.leaveConfirm"))) {
         leaveRoom();
-      }
-    });
-  }
-  const btnVoiceToggle = document.getElementById("btn-voice-toggle");
-  if (btnVoiceToggle) {
-    btnVoiceToggle.addEventListener("click", async () => {
-      const btn = document.getElementById("btn-voice-toggle");
-      const icon = btn.querySelector("i");
-      if (network.voiceEnabled) {
-        network.setMuted(true);
-        icon.setAttribute("data-lucide", "mic-off");
-        btn.classList.remove("active");
-        const indicator = document.getElementById("voice-indicator");
-        if (indicator) indicator.classList.remove("speaking");
-        lucide.createIcons();
-      } else {
-        try {
-          await network.setVoiceEnabled(true);
-          network.setMuted(false);
-          icon.setAttribute("data-lucide", "mic");
-          btn.classList.add("active");
-          lucide.createIcons();
-        } catch (err) {
-          console.error("Failed to enable voice:", err);
-          alert(t("net.micDenied"));
-        }
       }
     });
   }
@@ -56843,18 +56972,27 @@ class VoiceChatManager {
   async toggleVoice() {
     const voiceBtn = document.getElementById("btn-voice-toggle");
     if (!voiceBtn) return;
-    const icon = voiceBtn.querySelector("i");
+    // lucide has already replaced the <i> with an <svg>, so looking one up by
+    // tag returns null and setAttribute throws. Swap in a fresh <i> instead.
+    const setIcon = (name) => {
+      const cur = voiceBtn.querySelector("i, svg");
+      if (!cur) return;
+      const fresh = document.createElement("i");
+      fresh.setAttribute("data-lucide", name);
+      cur.replaceWith(fresh);
+      hydrateIcons(voiceBtn);
+    };
     const indicator = document.getElementById("voice-indicator");
     if (this.enabled) {
       this.disable();
-      icon.setAttribute("data-lucide", "mic-off");
+      setIcon("mic-off");
       voiceBtn.classList.remove("active");
       if (indicator) indicator.classList.remove("speaking");
       if (window.lucide) lucide.createIcons();
     } else {
       try {
         await this.enable();
-        icon.setAttribute("data-lucide", "mic");
+        setIcon("mic");
         voiceBtn.classList.add("active");
         if (window.lucide) lucide.createIcons();
       } catch (err) {
@@ -58561,7 +58699,7 @@ network.addMessageHandler((peerId, msgType, payload) => {
   if (msgType !== 0) console.log("[NETWORK] Received message:", msgType, "from:", peerId, "data:", data);
   // A client only ever talks to the host, so every scene, time and environment
   // message a client sends has to be relayed to the other clients here.
-  if (network.isHost && peerId && (msgType === 7 || msgType === 8 || msgType === 9 || msgType === 12 || msgType === 13 || msgType === 14 || msgType === 15 || msgType === 16 || msgType === 17 || msgType === 19 || msgType === 21)) {
+  if (network.isHost && peerId && (msgType === 7 || msgType === 8 || msgType === 9 || msgType === 12 || msgType === 13 || msgType === 14 || msgType === 15 || msgType === 16 || msgType === 17 || msgType === 19 || msgType === 21 || msgType === 22)) {
     network.broadcast(peerId, msgType, data);
   }
   if (!data) return;
@@ -58645,6 +58783,10 @@ network.addMessageHandler((peerId, msgType, payload) => {
       const at = atoms.get(data.id);
       if (at) {
         at.pos = { x: data.x, y: data.y, z: data.z };
+        // updateLerp() pulls every atom toward targetPos each frame, so writing
+        // pos alone is undone immediately and the mover snaps back to where it
+        // was on the other screen.
+        targetPos.set(data.id, { x: data.x, y: data.y, z: data.z });
         needsRender = true;
       }
     }
@@ -58705,6 +58847,22 @@ network.addMessageHandler((peerId, msgType, payload) => {
       syncEnvInputs();
       renderEnvGasList();
       updateAtmosphereButton();
+    }
+  } else if (msgType === 22) {
+    // The bubble has to grow from where the nucleus is on THIS screen, so the
+    // payload carries world coordinates and each peer projects them itself.
+    if (data && window.__protonGun && typeof window.__protonGun.playFission === "function") {
+      const o = window.__mol3d && window.__mol3d.screenPosOfWorld
+        ? window.__mol3d.screenPosOfWorld(data.x, data.y, data.z)
+        : null;
+      window.__protonGun.playFission({
+        origin: o || undefined,
+        elementName: data.name,
+        z: data.nz,
+        a: data.a,
+        sym: data.sym,
+        fragNames: data.frags
+      });
     }
   }
 });
@@ -61772,6 +61930,13 @@ function onPointerMove(e) {
     at.pos.z = p.z;
     clampAtomToBounds(at);
     targetPos.set(drag.id, { x: at.pos.x, y: at.pos.y, z: at.pos.z });
+    // Throttled so a drag is a stream of positions instead of one message at
+    // release; the other player watches it move rather than seeing it jump.
+    const nowSend = Date.now();
+    if (nowSend - lastDragSend > 60) {
+      lastDragSend = nowSend;
+      worldSync.broadcastAtomMove(drag.id, at.pos);
+    }
     let bestId = null, bestD = Infinity;
     for (const [oid, oat] of atoms) {
       if (oid === drag.id) continue;
@@ -63964,12 +64129,22 @@ function applyWorldSync(data) {
   }
   needsRender = true;
 }
+// A room must never read or write the singleplayer save. multiplayer keeps its
+// own key, and load() skips it outright so every create/join starts empty.
+function sceneStorageKey() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("mode") === "multiplayer" || p.get("room")) return "mol3d.v1.mp";
+  } catch (e) {}
+  return "mol3d.v1";
+}
+let lastDragSend = 0;
 let saveTimer = null;
 function save(immediate = false) {
   clearTimeout(saveTimer);
   const doSave = () => {
     try {
-      localStorage.setItem("mol3d.v1", JSON.stringify({
+      localStorage.setItem(sceneStorageKey(), JSON.stringify({
         atoms: [...atoms.values()].map((a) => ({ id: a.id, z: a.el.z, pos: a.pos })),
         bonds: [...bonds.values()].map((b) => ({ id: b.id, a: b.a, b: b.b, order: b.order, ionic: b.ionic, dative: b.dative, donor: b.donor, metallic: b.metallic })),
         nextId,
@@ -63988,6 +64163,7 @@ function save(immediate = false) {
   }
 }
 function load() {
+  if (sceneStorageKey() !== "mol3d.v1") return;
   let data;
   try {
     data = JSON.parse(localStorage.getItem("mol3d.v1") || "null");
@@ -65900,6 +66076,7 @@ window.__mol3d = {
     lonePairsAt,
     ringClosureOf,
     moBondOrder,
+    chargeEngine,
     // The distance the scene would draw between two element balls. The 2D editor
     // measures its own bonds with this so a long Na–Cl never shrinks to a C–C.
     bondLength,
@@ -65954,6 +66131,14 @@ window.__mol3d = {
   },
   triggerDeath: triggerPlayerDeath,
   triggerNuclearVFX: triggerNuclearExplosionVFX,
+  broadcastFission: (p) => {
+    if (network && network.roomId) network.broadcast(null, MSG.FISSION, p);
+  },
+  screenPosOfWorld: (x, y, z) => {
+    const v = new Vector3(x, y, z).project(camera);
+    const rect = renderer.domElement.getBoundingClientRect();
+    return { x: (v.x + 1) / 2 * rect.width + rect.left, y: (-v.y + 1) / 2 * rect.height + rect.top };
+  },
   screenPosOf: (id) => {
     const at = atoms.get(id);
     if (!at) return null;

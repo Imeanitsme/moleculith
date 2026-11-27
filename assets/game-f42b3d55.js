@@ -55078,7 +55078,8 @@ const MSG = {
   ATOM_REMOVE: 17,
   REACTION: 18,
   WORLD_SYNC: 19,
-  BRACKET: 20
+  BRACKET: 20,
+  ENV: 21
 };
 const SEND_INTERVAL = 50;
 const HEARTBEAT_INTERVAL = 2e3;
@@ -55414,7 +55415,9 @@ class NetworkManager {
       player.velocity = { x: vx, y: vy, z: vz };
       player.rotation = rot;
       if (this.isHost) {
-        this.broadcast(peerId, MSG.MOVE, data);
+        for (const [pid, conn] of this.connections) {
+          if (pid !== peerId && conn.open) conn.send([MSG.MOVE, ...data]);
+        }
       }
     }
   }
@@ -55508,13 +55511,9 @@ class NetworkManager {
       velocity.z,
       rotation
     ];
-    if (this.isHost) {
-      this.broadcast(null, MSG.MOVE, packet.slice(1));
-    } else {
-      for (const [peerId, conn] of this.connections) {
-        if (conn.open) {
-          conn.send(packet);
-        }
+    for (const [peerId, conn] of this.connections) {
+      if (conn.open) {
+        conn.send(packet);
       }
     }
     this.lastSendTime = now;
@@ -56494,6 +56493,15 @@ class WorldSync {
         }
       }
     }
+  }
+  broadcastEnvironment() {
+    if (!this.enabled || !network.roomId) return;
+    network.broadcast(null, MSG.ENV, {
+      temperatureK: environment.temperatureK,
+      pressureAtm: environment.pressureAtm,
+      gases: environment.gases.map((g) => ({ formula: g.formula, ratio: g.ratio })),
+      atmosphere: atmosphere.enabled
+    });
   }
 }
 const worldSync = new WorldSync();
@@ -58264,6 +58272,7 @@ function updateReactivitySweep(now) {
   if (bonded) {
     reanalyze();
     invalidate();
+    worldSync.sendWorldSync(getWorldState);
   }
 }
 const targetValenceOf = (el) => isMetalCat(el.cat) ? el.maxBonds : Math.max(0, Math.min(8 - (el.valenceElectrons || 0), el.maxBonds));
@@ -58424,6 +58433,7 @@ function stabilizeStrays(strayIds, now) {
     reshapeComponent(comp);
   }
   reanalyze();
+  worldSync.sendWorldSync(getWorldState);
   const formulas = [...new Set(stabilized.map((sid) => {
     const comp = lastComps.find((c) => c.atoms.includes(sid));
     const idx = lastComps.indexOf(comp);
@@ -58457,6 +58467,11 @@ worldSync.init();
 network.addMessageHandler((peerId, msgType, payload) => {
   const data = payload[0];
   if (msgType !== 0) console.log("[NETWORK] Received message:", msgType, "from:", peerId, "data:", data);
+  // A client only ever talks to the host, so every scene, time and environment
+  // message a client sends has to be relayed to the other clients here.
+  if (network.isHost && peerId && (msgType === 7 || msgType === 8 || msgType === 9 || msgType === 12 || msgType === 13 || msgType === 14 || msgType === 15 || msgType === 16 || msgType === 17 || msgType === 19 || msgType === 21)) {
+    network.broadcast(peerId, msgType, data);
+  }
   if (!data) return;
   if (msgType === 7) {
     if (!timeFrozen) {
@@ -58507,6 +58522,7 @@ network.addMessageHandler((peerId, msgType, payload) => {
         label.textContent = formatSpeed(timeSpeed);
       }
       updateTimeDisplay();
+      if (typeof updateSpeedSlider === "function") updateSpeedSlider();
       status(t("net.speedRemote", { speed: formatSpeed(timeSpeed) }), "ok");
     }
   } else if (msgType === 10) {
@@ -58584,6 +58600,19 @@ network.addMessageHandler((peerId, msgType, payload) => {
     if (data && Array.isArray(data.ids)) {
       if (network.isHost && peerId) network.broadcast(peerId, 20, data);
       addComplexBracket(data.ids, data.q, true);
+    }
+  } else if (msgType === 21) {
+    if (data) {
+      if (Number.isFinite(data.temperatureK)) environment.temperatureK = data.temperatureK;
+      if (Number.isFinite(data.pressureAtm)) environment.pressureAtm = data.pressureAtm;
+      if (Array.isArray(data.gases)) environment.gases = data.gases.map((g) => ({ formula: g.formula, ratio: g.ratio }));
+      if (typeof data.atmosphere === "boolean") atmosphere.enabled = data.atmosphere;
+      envFromNet = true;
+      applyEnvironment();
+      envFromNet = false;
+      syncEnvInputs();
+      renderEnvGasList();
+      updateAtmosphereButton();
     }
   }
 });
@@ -60255,6 +60284,7 @@ function duplicateMolecule() {
   }
   selectAtom([...idMap.values()][0]);
   reanalyze();
+  worldSync.sendWorldSync(getWorldState);
   status(t("status.duplicated"), "info");
 }
 function clearAll() {
@@ -60276,6 +60306,7 @@ function clearAll() {
   selectedId = null;
   hoverId = null;
   reanalyze();
+  worldSync.sendWorldSync(getWorldState);
   status(t("status.cleared"), "info");
 }
 function undo() {
@@ -60350,6 +60381,7 @@ function undo() {
       break;
     }
   }
+  worldSync.sendWorldSync(getWorldState);
   status(t("status.undone"));
 }
 const DRIFT_SPEED = 0.4;
@@ -61328,6 +61360,7 @@ function executeMayhemEffect(rx, consumedIds, cen) {
   };
   toast(effectLabels[rx.effect] || rx.effect);
   status(t("status.mayhemEffect", { effect: effectLabels[rx.effect], eq: prettyEq(rx.equation) }), "ok");
+  worldSync.sendWorldSync(getWorldState);
   showRxnOverlay(rx);
 }
 function updateMayhemParticles(dt) {
@@ -63438,6 +63471,7 @@ function buildMoleculeAt(tpl, cx, cy, cz) {
     const bid = nextId++;
     bonds.set(bid, { id: bid, a: aId, b: bId, order: order || 1, ionic: !!ionic });
   }
+  worldSync.sendWorldSync(getWorldState);
   return { ids: newAtomIds };
 }
 function swapToIsomer(compIdx, iso) {
@@ -63469,6 +63503,7 @@ function swapToIsomer(compIdx, iso) {
   if (iso.displayFormula) isoSel.set(key, iso.displayFormula);
   closeIsomerPanel();
   reanalyze(new Set(newAtomIds));
+  worldSync.sendWorldSync(getWorldState);
 }
 // The shape of a centre comes from its electron domains, not from the atoms
 // attached to it: three substituents on a nitrogen are a pyramid because the
@@ -63771,7 +63806,19 @@ function getWorldState() {
   for (const [k, v] of overrides) {
     overridesArr.push([k, v]);
   }
-  return { atoms: atomsArr, bonds: bondsArr, overrides: overridesArr, brackets: complexBracketList(), nextId };
+  return {
+    atoms: atomsArr,
+    bonds: bondsArr,
+    overrides: overridesArr,
+    brackets: complexBracketList(),
+    env: {
+      temperatureK: environment.temperatureK,
+      pressureAtm: environment.pressureAtm,
+      gases: environment.gases.map((g) => ({ formula: g.formula, ratio: g.ratio })),
+      atmosphere: atmosphere.enabled
+    },
+    nextId
+  };
 }
 function applyWorldSync(data) {
   if (!data) return;
@@ -63803,9 +63850,26 @@ function applyWorldSync(data) {
   if (Array.isArray(data.brackets)) {
     for (const b of data.brackets) if (b && Array.isArray(b.ids)) addComplexBracket(b.ids, b.q, true);
   }
+  let envApplied = false;
+  if (data.env) {
+    if (Number.isFinite(data.env.temperatureK)) environment.temperatureK = data.env.temperatureK;
+    if (Number.isFinite(data.env.pressureAtm)) environment.pressureAtm = data.env.pressureAtm;
+    if (Array.isArray(data.env.gases)) environment.gases = data.env.gases.map((g) => ({ formula: g.formula, ratio: g.ratio }));
+    if (typeof data.env.atmosphere === "boolean") atmosphere.enabled = data.env.atmosphere;
+    envApplied = true;
+  }
   selectedId = null;
   hoverId = null;
-  reanalyze();
+  if (envApplied) {
+    envFromNet = true;
+    applyEnvironment();
+    envFromNet = false;
+    syncEnvInputs();
+    renderEnvGasList();
+    updateAtmosphereButton();
+  } else {
+    reanalyze();
+  }
   needsRender = true;
 }
 let saveTimer = null;
@@ -64391,6 +64455,9 @@ document.getElementById("time-speed-range").addEventListener("input", (e) => {
     updateSpeedSlider();
     updateTimeDisplay();
     status(t("time.speedNormal", { speed: formatSpeed(timeSpeed) }));
+    if (network.roomId) {
+      network.broadcast(null, 9, { playerId: network.playerId, speed: timeSpeed, timestamp: Date.now() });
+    }
   }
 });
 document.getElementById("btn-modal-freeze").addEventListener("click", () => {
@@ -64411,6 +64478,9 @@ document.getElementById("btn-modal-rewind").addEventListener("click", () => {
     updateSpeedSlider();
     updateTimeDisplay();
     status(t("time.speedSlow", { speed: formatSpeed(timeSpeed) }));
+    if (network.roomId) {
+      network.broadcast(null, 9, { playerId: network.playerId, speed: timeSpeed, timestamp: Date.now() });
+    }
   }
 });
 document.getElementById("btn-modal-forward").addEventListener("click", () => {
@@ -64551,6 +64621,9 @@ function triggerMadeInHeaven(targetSpeed) {
       updateTimeDisplay();
       updateSpeedSlider();
       status(t("time.speedSet", { speed: formatSpeed(timeSpeed) }));
+      if (network.roomId) {
+        network.broadcast(null, 9, { playerId: network.playerId, speed: timeSpeed, timestamp: Date.now() });
+      }
     }
   }
   requestAnimationFrame(accelerate);
@@ -64581,6 +64654,7 @@ function toggleAtmosphere() {
   atmosphere.enabled = !atmosphere.enabled;
   updateAtmosphereButton();
   status(atmosphere.enabled ? "🌍 Atmosphere ON — O2, N2, Ar, CO2 present" : " Atmosphere OFF — vacuum");
+  worldSync.broadcastEnvironment();
 }
 document.getElementById("btn-atmosphere").addEventListener("click", toggleAtmosphere);
 const environment = {
@@ -64723,6 +64797,7 @@ function updateEnvironmentReadouts() {
   if (tempEl) tempEl.textContent = formatEnvTemperature(environment.temperatureK);
   if (pressEl) pressEl.textContent = formatEnvPressure(environment.pressureAtm);
 }
+let envFromNet = false;
 function applyEnvironment() {
   simulation.kinetics.setGlobalTemperature(environment.temperatureK);
   syncAtmosphereComposition();
@@ -64731,6 +64806,7 @@ function applyEnvironment() {
   invalidate();
   updatePhaseState(0);
   window.dispatchEvent(new CustomEvent("mol3d:environment", { detail: { temperatureK: environment.temperatureK, pressureAtm: environment.pressureAtm } }));
+  if (!envFromNet) worldSync.broadcastEnvironment();
 }
 const MatterState = Object.freeze({
   Standard: "standard",
@@ -65663,6 +65739,7 @@ function spawnFormulaMolecule(formula) {
   autoBondAtoms(ids);
   relaxSceneAtomsFromEngine(ids);
   reanalyze();
+  worldSync.sendWorldSync(getWorldState);
   return ids;
 }
 window.__mol3d = {

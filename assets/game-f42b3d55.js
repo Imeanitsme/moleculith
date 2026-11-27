@@ -44860,6 +44860,9 @@ const UI = {
     "net.createFailed": "Failed to create room: {error}",
     "net.joinFailed": "Failed to join room: {error}",
     "net.inviteCopied": "Invite link copied to clipboard!",
+    "net.needRoom": "Join or create a room first",
+    "mp.chat": "Chat",
+    "mp.voice": "Voice",
     "net.leaveConfirm": "Are you sure you want to leave the room?",
     "net.micDenied": "Failed to access microphone. Please check permissions.",
     "net.timeFrozenRemote": "🕰 Time frozen by another player",
@@ -45424,6 +45427,9 @@ const UI = {
     "net.createFailed": "Tạo phòng thất bại: {error}",
     "net.joinFailed": "Tham gia phòng thất bại: {error}",
     "net.inviteCopied": "Đã sao chép liên kết mời vào clipboard!",
+    "net.needRoom": "Hãy vào hoặc tạo phòng trước",
+    "mp.chat": "Trò chuyện",
+    "mp.voice": "Giọng nói",
     "net.leaveConfirm": "Bạn có chắc muốn rời khỏi phòng?",
     "net.micDenied": "Không truy cập được micro. Vui lòng kiểm tra quyền.",
     "net.timeFrozenRemote": "🕰 Một người chơi khác đã đóng băng thời gian",
@@ -56110,10 +56116,9 @@ function initMpCommDropdown() {
   };
   label.addEventListener("click", (ev) => {
     ev.stopPropagation();
-    // Chat and voice only mean anything once a room exists; in singleplayer the
-    // badge is a status readout, not a control.
-    const mp = document.getElementById("top-bar-mp");
-    if (!mp || mp.hidden) return;
+    // Always open. Gating this on already being in a room meant the menu could
+    // not be seen from singleplayer at all, which read as it not existing; the
+    // entries now say so instead of silently doing nothing.
     menu.hidden = !menu.hidden;
     label.setAttribute("aria-expanded", menu.hidden ? "false" : "true");
     if (!menu.hidden) hydrateIcons(menu);
@@ -56126,18 +56131,31 @@ function initMpCommDropdown() {
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") close();
   });
+  // Registered before voiceChat.init() binds the same element, so stopping
+  // propagation here is what keeps a click from opening the microphone while
+  // there is nobody to talk to.
+  const needRoom = (ev) => {
+    if (network && network.roomId) return false;
+    if (ev) { ev.stopImmediatePropagation(); ev.preventDefault(); }
+    status(t("net.needRoom"), "err");
+    return true;
+  };
   const chat = document.getElementById("mp-comm-chat");
   if (chat) {
-    chat.addEventListener("click", () => {
+    chat.addEventListener("click", (ev) => {
       close();
+      if (needRoom(ev)) return;
       const toggle = document.getElementById("btn-chat-toggle");
       if (toggle) toggle.click();
     });
   }
-  // The voice button is the one the bundle binds, so it lives inside the menu;
-  // it only needs to close the menu once it has toggled.
   const voice = document.getElementById("btn-voice-toggle");
-  if (voice) voice.addEventListener("click", () => setTimeout(close, 0));
+  if (voice) {
+    voice.addEventListener("click", (ev) => {
+      if (needRoom(ev)) { close(); return; }
+      setTimeout(close, 0);
+    });
+  }
 }
 function initMenu() {
   const urlParams = new URLSearchParams(window.location.search);

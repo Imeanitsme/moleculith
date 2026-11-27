@@ -10,7 +10,9 @@
 
   var KEY = 'mol3d.events.v1';
   var CHECK_MS = 5 * 60 * 1000;
-  var CHANCE = 0.35;
+  // Every check fires. The old 0.35 meant two thirds of the five-minute slots
+  // produced nothing at all, so an event could easily be fifteen minutes away.
+  var CHANCE = 1;
   var MAX_CATCHUP = 48;
   var MIN = 60 * 1000;
 
@@ -498,7 +500,7 @@
     if ((now - c) / CHECK_MS > MAX_CATCHUP) c += Math.floor((now - c) / CHECK_MS - MAX_CATCHUP) * CHECK_MS;
     while (c <= now && n++ < MAX_CATCHUP + 2) {
       var live = e.event();
-      if (!live && !kingSlot(c) && rand() < CHANCE) {
+      if (!live && !kingSlot(c) && (CHANCE >= 1 || rand() < CHANCE)) {
         var pool = eligible();
         var kind = pool[Math.floor(rand() * pool.length)];
         if (kind && c + DEFS[kind].dur > now) begin(kind, c, false);

@@ -43244,7 +43244,10 @@ function dativeCheck(atoms2, bonds2, aId, bId) {
   for (const [donId, accId] of [[aId, bId], [bId, aId]]) {
     const don = atoms2.get(donId), acc = atoms2.get(accId);
     if (!don || !acc) continue;
-    if (isMetal$1(don.el) && isMetal$1(acc.el)) continue;
+    // A metal never donates a coordinate (lone-pair) bond: it loses electrons
+    // ionically instead. Only non-metal donors are considered here; metal
+    // acceptors still work so coordination complexes ([Zn(NH3)4]2+) keep forming.
+    if (isMetal$1(don.el)) continue;
     const shellOf = (id) => bondsOf(atoms2, bonds2, id).reduce((s, b) => s + b.order, 0);
     const donSum = shellOf(donId);
     const accSum = shellOf(accId);

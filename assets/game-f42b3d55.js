@@ -42850,6 +42850,16 @@ function valenceOf(z) {
   if (table[z]) return table[z];
   const group = groupOf(z);
   if (group >= 13 && group <= 18) return group - 10;
+  // Groups 1-2 of period 4 and beyond (K, Ca, Rb, Sr, Cs, Ba, Fr, Ra) were
+  // missing from the table above and fell through to 0. That zero is not
+  // harmless: valenceElectrons feeds dativeCheck's "is the acceptor electron
+  // poor?" gate as (V - accSum), so a calcium with no bonds read accFree = 0
+  // and sailed through as a dative acceptor. dativeCheck runs before
+  // ionicCheck in bondCheck, so Ca-O in CaCO3 was claimed as a coordinate bond
+  // instead of the ionic one - which is also why the name came out CCaO3
+  // (only an ionic bond splits the component, and only then does the writer
+  // use the cation-first path rather than Hill order).
+  if (group >= 1 && group <= 2) return group;
   return 0;
 }
 function groupOf(z) {
@@ -43110,6 +43120,16 @@ function ionicCheck(atoms2, bonds2, aId, bId) {
   const maxCharge = Math.max(...metal.el.charges);
   if (ionicCountOf(atoms2, bonds2, metal.id) >= maxCharge)
     return { ok: false, reason: { key: "chem.metalMax", p: { sym: metal.el.sym, max: maxCharge } } };
+  // The dative gate already refuses a seventh bond (accSum >= 6); this is the
+  // same ceiling seen from the ionic side. Without it a metal holding six
+  // coordinate bonds still reads as "0 of maxCharge ionic" - ionicCountOf
+  // counts only b.ionic - and the fallback handed out a seventh bond labelled
+  // ionic, so CN 6 was a ceiling dative respected and ionic walked straight
+  // past. Total shell, not ionic count: maxCharge alone caps electron transfer
+  // (Ca2+ takes two), coordination caps ligands (the engine builds 2/4/6).
+  const shellTotal = orderSumOf(atoms2, bonds2, metal.id);
+  if (shellTotal >= 6)
+    return { ok: false, reason: { key: "chem.capacityMax", p: { sym: metal.el.sym, max: 6 } } };
   if (!nonmetal.el.anionCharge) return { ok: false, reason: { key: "chem.noAnion", p: { sym: nonmetal.el.sym } } };
   // H has one attachment total, not one per bond class
   if (nonmetal.el.z === 1 && orderSumOf(atoms2, bonds2, nonmetal.id) >= 1)
@@ -43231,16 +43251,23 @@ function dativeCheck(atoms2, bonds2, aId, bId) {
     // octet cap would count its 2 electrons against 8 and wave it through.
     const cap = acc.el.z <= 2 ? 2 : acc.el.z > 10 ? 18 : 8;
     const shellFull = 2 * accSum >= cap;
-    const atCeiling = accSum >= Math.max(1, acc.el.maxBonds || 1);
     // The two tests used to be ANDed, so a period-3+ centre (cap 18, i.e. it
     // needs nine bonds before the shell reads full) never tripped the ceiling
     // half while its maxBonds was still 4-7: sulfur happily took a seventh,
     // eighth and ninth bond and the scene grew SF9 the Lewis pass called
-    // feasible. Either limit refusing is enough to leave no room - but a metal
-    // is exempt from the ceiling, because maxBonds there is the ionic valence
-    // (Zn lists 2) rather than the coordination number, and [Zn(NH3)4] is a
-    // real complex the ceiling would forbid.
-    if (shellFull || (!isMetal$1(acc.el) && atCeiling)) continue;
+    // feasible. Either limit refusing is enough to leave no room.
+    //
+    // The two ceilings differ by kind. For a main-group acceptor maxBonds IS
+    // the bond count, so it is the limit. For a metal maxBonds is the ionic
+    // valence (Zn lists 2) rather than the coordination number, so applying it
+    // would forbid the real [Zn(NH3)4]; but exempting metals outright - which
+    // is what the previous version did - let them run all the way to the
+    // 18-electron shell, i.e. nine bonds, when the coordination engine only
+    // ever builds CN 2, 4 or 6. So a metal is capped at that same six.
+    const ceiling = isMetal$1(acc.el)
+      ? 6
+      : Math.max(1, acc.el.maxBonds || 1);
+    if (shellFull || accSum >= ceiling) continue;
     return { ok: true, type: "dative", donor: donId };
   }
   return { ok: false };

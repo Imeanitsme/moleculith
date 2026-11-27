@@ -46206,6 +46206,12 @@ function classifyMolecule(formula, charge, comp) {
         return { key: "organic", label: "Organic" };
     }
   }
+  // Carbonates are salts of a carbon oxoacid, not oxides or bases. A metal +
+  // CO3 (ZnCO3, CaCO3, Na2CO3) must read as carbonate before the generic
+  // metal+O branches below can call it a basic oxide or a base.
+  if (hasMetal && isCarbonate(formula)) {
+    return { key: "carbonate", label: hasH ? "Hydrogen carbonate" : "Carbonate" };
+  }
   if (hasMetal && hasO && hasH) {
     return { key: "base", label: "Base" };
   }
@@ -47671,10 +47677,72 @@ function canReach(adj, from, target, visited, maxDepth) {
 function carbonSubstitution(adj, atoms2, i) {
   return neighbors(adj, i).filter((j) => atoms2[j] === "C").length;
 }
+// Organic functional groups are defined on carbon frameworks with non-metal
+// partners. A metal atom or an ionic contact means the species is a salt
+// (ZnCO3, CaCO3, sodium acetate), so the organic rules must not speak for it.
+// The narrow carbon-oxo clause also catches carbonates and CO2/carbonic acid
+// that reach the tagger without a metal flag, while leaving amides (urea),
+// acyl halides (phosgene) and other C-heteroatom compounds organic.
+function isInorganicTemplate(atoms2, bonds2) {
+  let hasC = false, hasCH = false, hasCC = false;
+  for (let i = 0; i < atoms2.length; i++) {
+    if (isMetal(atoms2[i])) return true;
+    if (atoms2[i] === "C") hasC = true;
+  }
+  for (let bi = 0; bi < bonds2.length; bi++) {
+    const b = bonds2[bi];
+    const i = b[0], j = b[1];
+    if (b[3] === true || b[3] === 1) return true;
+    if (i === void 0 || j === void 0 || !atoms2[i] || !atoms2[j]) continue;
+    const a = atoms2[i], c = atoms2[j];
+    if ((a === "C" && c === "H") || (a === "H" && c === "C")) hasCH = true;
+    if (a === "C" && c === "C") hasCC = true;
+    if (a === "C" && c !== "O" && c !== "C" && c !== "H") carbonOnlyOxo[i] = false;
+    if (c === "C" && a !== "O" && a !== "C" && a !== "H") carbonOnlyOxo[j] = false;
+  }
+  if (!hasC) return true;
+  if (!hasCH && !hasCC) {
+    // A carbon is part of an organic framework when it bonds to another carbon,
+    // to N/S/halogen (amide, acyl halide), or to an oxygen that also bonds to
+    // another carbon (ester linkage). Otherwise it is a bare carbon oxo unit
+    // (CO2, carbonic acid, carbonate cores): inorganic carbon.
+    const HALO = new Set(["F", "Cl", "Br", "I"]);
+    let organicCarbon = false;
+    for (let bi = 0; bi < bonds2.length && !organicCarbon; bi++) {
+      const b = bonds2[bi];
+      const i = b[0], j = b[1];
+      if (i === void 0 || j === void 0 || !atoms2[i] || !atoms2[j]) continue;
+      const a = atoms2[i], c = atoms2[j];
+      if (a === "C" && (c === "C" || HALO.has(c) || c === "N" || c === "S")) { organicCarbon = true; break; }
+      if (c === "C" && (a === "C" || HALO.has(a) || a === "N" || a === "S")) { organicCarbon = true; break; }
+      if (a === "C" && c === "O") {
+        for (let b2i = 0; b2i < bonds2.length; b2i++) {
+          const b2 = bonds2[b2i];
+          const x = b2[0], y = b2[1];
+          if (x === void 0 || y === void 0) continue;
+          if ((x === j && atoms2[y] === "C") || (y === j && atoms2[x] === "C")) { organicCarbon = true; break; }
+        }
+        if (organicCarbon) break;
+      }
+      if (c === "C" && a === "O") {
+        for (let b2i = 0; b2i < bonds2.length; b2i++) {
+          const b2 = bonds2[b2i];
+          const x = b2[0], y = b2[1];
+          if (x === void 0 || y === void 0) continue;
+          if ((x === i && atoms2[y] === "C") || (y === i && atoms2[x] === "C")) { organicCarbon = true; break; }
+        }
+        if (organicCarbon) break;
+      }
+    }
+    return organicCarbon ? false : true;
+  }
+  return false;
+}
 function tagFunctionalGroups(tpl) {
   if (!tpl || !tpl.atoms || !tpl.bonds) return [];
   const { atoms: atoms2, bonds: bonds2 } = tpl;
   const adj = buildAdj(atoms2, bonds2);
+  if (isInorganicTemplate(atoms2, bonds2)) return [];
   const tags = [];
   const seen = /* @__PURE__ */ new Set();
   function addTag(group, indices) {
@@ -47726,7 +47794,13 @@ function tagFunctionalGroups(tpl) {
         }
         for (const so of singleO) {
           const soIdx = so.j !== void 0 ? so.j : so.i;
-          if (neighborCount(adj, atoms2, soIdx, "H") === 0 && neighborCount(adj, atoms2, soIdx, "C") >= 1) {
+          // An ester needs carbon on BOTH sides: the carbonyl carbon and, past
+          // the bridging oxygen, an alkyl/aryl carbon. Counting every C
+          // neighbour of that oxygen counted the carbonyl carbon itself, which
+          // made carbonates of metals (ZnCO3, CaCO3) read as esters. An O bound
+          // to a metal has no carbon beyond the carbonyl and stays untagged.
+          const alkylOnO = neighbors(adj, soIdx).some((j) => j !== i && atoms2[j] === "C");
+          if (neighborCount(adj, atoms2, soIdx, "H") === 0 && alkylOnO) {
             addTag(GROUP_TYPES.ESTER, [i, oIdx, soIdx]);
             break;
           }

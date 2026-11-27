@@ -816,7 +816,7 @@
               var cnt = 0, oth = -1;
               for (var q = 0; q < n; q++) if (q !== i && g.adj[w.v * g.s + q]) { cnt++; oth = q; }
               if (hv[w.v] === 1 && cnt === 0) ohOn = w.v;
-              else if (cnt === 1 && oth !== i) oEtherOn = w.v;
+              else if (cnt === 1 && oth !== i && g.z[oth] === 6) oEtherOn = w.v;
             }
           }
           if (ohOn >= 0) push('carboxylic acid', [i, dblO[0], ohOn]);

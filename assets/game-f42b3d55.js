@@ -44586,7 +44586,7 @@ const UI = {
     "quest.title": "AI Quest Guide",
     "quest.clear": "Clear chat",
     "quest.close": "Close",
-    "quest.placeholder": "Ask the AI chemist...",
+    "quest.placeholder": "Ask Aria... (try /help)",
     "quest.send": "Send",
     // multiplayer
     "menu.singleplayer": "Singleplayer",
@@ -44632,6 +44632,19 @@ const UI = {
     "voice.unmuted": "Unmuted",
     // quest AI
     "quest.thinking": "Thinking...",
+    "quest.copied": "Copied!",
+    "quest.helpTitle": "Commands",
+    "quest.helpLocal": "Local (instant, no AI):",
+    "quest.helpAI": "Ask Aria:",
+    "quest.helpHint": "Type / to autocomplete. Suggestions are below the input.",
+    "quest.localOnly": "runs instantly on your device",
+    "quest.aiOnly": "sent to Aria",
+    "quest.noMatch": "No command matches. Type /help to list them all.",
+    "quest.unknownCmd": "Unknown command. Type /help for the list.",
+    "quest.sceneEmpty": "The scene is empty — drop an atom from the pool first.",
+    "quest.suggestTitle": "Suggestions",
+    "quest.readAloud": "Read aloud",
+    "quest.stopReading": "Stop reading",
     "quest.error": "I could not process that request.",
     "quest.connectionError": "Error",
     // environment control
@@ -45137,7 +45150,7 @@ const UI = {
     "quest.title": "Hướng Dẫn AI",
     "quest.clear": "Xóa trò chuyện",
     "quest.close": "Đóng",
-    "quest.placeholder": "Hỏi nhà hóa học AI...",
+    "quest.placeholder": "Hỏi Aria... (thử /help)",
     "quest.send": "Gửi",
     // multiplayer
     "menu.singleplayer": "Chơi đơn",
@@ -45183,6 +45196,19 @@ const UI = {
     "voice.unmuted": "Đã bật tiếng",
     // quest AI
     "quest.thinking": "Đang suy nghĩ...",
+    "quest.copied": "Đã sao chép!",
+    "quest.helpTitle": "Lệnh",
+    "quest.helpLocal": "Cục bộ (ngay lập tức, không cần AI):",
+    "quest.helpAI": "Hỏi Aria:",
+    "quest.helpHint": "Gõ / để tự hoàn thiện lệnh. Gợi ý nằm dưới ô nhập.",
+    "quest.localOnly": "chạy ngay trên máy của bạn",
+    "quest.aiOnly": "gửi cho Aria",
+    "quest.noMatch": "Không có lệnh phù hợp. Gõ /help để xem danh sách.",
+    "quest.unknownCmd": "Lệnh không rõ. Gõ /help để xem danh sách.",
+    "quest.sceneEmpty": "Cảnh đang trống — kéo một nguyên tử từ bảng xuống trước.",
+    "quest.suggestTitle": "Gợi ý",
+    "quest.readAloud": "Đọc to",
+    "quest.stopReading": "Dừng đọc",
     "quest.error": "Không thể xử lý yêu cầu đó.",
     "quest.connectionError": "Lỗi",
     // environment control
@@ -66080,6 +66106,8 @@ function initBackgroundMusic() {
   const questSend = document.getElementById("quest-send");
   const questClear = document.getElementById("quest-clear");
   const questClose = document.getElementById("quest-close");
+  const questCmdList = document.getElementById("quest-cmdlist");
+  const questSuggest = document.getElementById("quest-suggest");
   if (!btnQuest || !questPanel) return;
   const questHistory = [];
   // ── Guest API-key transport (Token Harbor, OpenAI-compatible) ──
@@ -66241,7 +66269,7 @@ function initBackgroundMusic() {
       return `Bạn là Aria, gia sư hóa học AI của PHÂN TỬ SỐ (ứng dụng dựng phân tử 3D).
 Hãy ĐỌC TOÀN BỘ cảnh của người chơi từ SCENE SNAPSHOT bên dưới: từng nguyên tử (nguyên tố, điện tích hình thức fc, cặp electron tự do lp, số liên kết, khả năng octet, đã liên kết chưa), từng liên kết (bậc, ion), cùng công thức, điện tích tổng và tính khả thi Lewis của mỗi phân tử.
 Như một giáo viên thật: (1) chỉ ra các lỗi người chơi mắc phải — nguyên tử siêu hóa trị, điện tích hình thức sai, thiếu liên kết hoặc nguyên tử chưa liên kết, gốc tự do, điện tích tổng không khép kín, tỉ lệ nguyên tử không tạo được phân tử bền; (2) hướng dẫn từng bước với MỘT hành động tiếp theo cụ thể và câu hỏi gợi mở, không đưa sẵn đáp án; (3) liên hệ hóa học thật (quy tắc octet, liên kết, hình học VSEPR, danh pháp); (4) chính xác về mặt khoa học.
-Định dạng: công thức dùng chỉ số dưới thường (H₂O, CH₄); ký hiệu khoa học dạng a×10ᵇ, không dùng e+, ^ hay caret; không dùng header markdown. Trả lời bằng TIẾNG VIỆT, dưới 5 câu.
+Định dạng: công thức trong câu dùng chỉ số dưới thường (H₂O, CH₄); phương trình hóa học và toán học viết bằng LaTeX với $...$ (inline) và $$...$$ (hiển thị), dùng \ce{...} cho chất (ví dụ $$\ce{2H2 + O2 -> 2H2O}$$, $\Delta G = \Delta H - T\Delta S$); ký hiệu khoa học dạng $a \times 10^{b}$; được dùng **đậm** và danh sách - , không dùng header markdown. Trả lời bằng TIẾNG VIỆT, dưới 5 câu.
 Hãy ĐỌC mục [ON SCREEN]: đó đúng là những gì người chơi đang thấy (tab Thông tin, Sổ tay, cửa hàng, môi trường, bảng phản ứng) — trả lời dựa vào số liệu đang hiển thị, không đoán.
 Bạn có thể sửa cảnh khi được yêu cầu; chèn hành động nội dòng — ${actions}. Chỉ dùng hành động bạn thực sự thực hiện, rồi giải thích.
 ${commands}
@@ -66252,7 +66280,7 @@ ${screen}`;
     return `You are Aria, an AI chemistry teacher inside MOLECULITH, a 3D molecule builder.
 Read the player's ENTIRE scene from the SCENE SNAPSHOT below: every atom (element, formal charge, lone pairs, bond count, octet capacity, bonded?), every bond (order, ionic), and each molecule's formula, net charge, and Lewis feasibility.
 Like a real teacher: (1) point out the mistakes the player made — hypervalent atoms, wrong formal charges, missing or unbonded atoms, radicals, a net charge that will not close, atom ratios that cannot form a stable molecule; (2) guide with one concrete next step and leading questions instead of handing over the finished answer; (3) connect it to real chemistry (octet rule, bonding, VSEPR shape, naming); (4) be scientifically correct.
-Formatting: plain subscripts only (H₂O, CH₄); scientific notation as a×10ᵇ, never e+, ^ or caret; no markdown headers. Reply in English, under 5 sentences.
+Formatting: plain subscripts only (H₂O, CH₄) in prose; write chemical equations and math in LaTeX using $...$ inline and $$...$$ display, with \ce{...} for species (e.g. $$\ce{2H2 + O2 -> 2H2O}$$, $\Delta G = \Delta H - T\Delta S$); scientific notation as $a \times 10^{b}$; **bold** and simple - lists allowed, no markdown headers. Reply in English, under 5 sentences.
 Read the [ON SCREEN] section too - it is literally what the player is looking at (the INFO tab, the Dex, the shop, the environment, the reaction panel), so answer from the numbers on display instead of guessing them.
 You may edit the scene when asked; emit actions inline — ${actions}. Use only the actions you actually perform, then explain what you did.
 ${commands}
@@ -66406,6 +66434,7 @@ ${screen}`;
     const opening = questPanel.hidden;
     questPanel.hidden = !opening;
     btnQuest.classList.toggle("active", opening);
+    if (opening) refreshSuggestions();
     if (opening && questMessages.children.length === 0) {
       if (!qMode) showQuestModeChooser();
       else addQuestMessage("system", qt("🧪 AI Quest Guide ready. Ask me to read your scene or build a molecule.", "🧪 Hướng dẫn AI đã sẵn sàng. Hãy hỏi tôi đọc cảnh của em hoặc dựng phân tử."));
@@ -66418,22 +66447,141 @@ ${screen}`;
   questClear.addEventListener("click", () => {
     questMessages.innerHTML = "";
     questHistory.length = 0;
+    try { localStorage.removeItem("mol3d.questChat"); } catch (e) {}
     addQuestMessage("system", t("quest.cleared"));
+    refreshSuggestions();
   });
   questSend.addEventListener("click", sendQuestMessage);
+  questInput.addEventListener("input", () => {
+    const v = questInput.value;
+    if (v.startsWith("/") && !v.includes(" ")) renderCmdList(v);
+    else hideCmdList();
+  });
+  questInput.addEventListener("blur", () => setTimeout(hideCmdList, 120));
   questInput.addEventListener("keydown", (e) => {
+    const open = questCmdList && !questCmdList.hidden;
+    if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      const rows = [...questCmdList.children];
+      if (!rows.length) return;
+      let i = rows.findIndex((r) => r.classList.contains("sel"));
+      i = e.key === "ArrowDown" ? (i + 1) % rows.length : (i - 1 + rows.length) % rows.length;
+      rows.forEach((r) => r.classList.remove("sel"));
+      rows[i].classList.add("sel");
+      return;
+    }
+    const exactCmd = QUEST_COMMANDS.some((c) => c.name === questInput.value.trim());
+    if (open && !exactCmd && (e.key === "Tab" || (e.key === "Enter" && questInput.value.split(" ").length === 1))) {
+      const sel = questCmdList.querySelector(".quest-cmd-row.sel") || questCmdList.firstElementChild;
+      if (sel) {
+        e.preventDefault();
+        sel.dispatchEvent(new MouseEvent("mousedown"));
+        return;
+      }
+    }
+    if (e.key === "Escape") { hideCmdList(); return; }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendQuestMessage();
     }
   });
+  // Escape first, then convert a small markdown subset, then typeset $...$ /
+  // $$...$$ / \ce{...} with KaTeX. Anything KaTeX cannot parse stays literal
+  // (throwOnError:false renders the source instead of dropping the message).
+  function renderQuestRich(el, raw) {
+    const esc = (x) => String(x).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    // Render KaTeX/code into a stash BEFORE the escape pass: reaction arrows
+    // (\ce{A -> B}) contain '>' and would become '&gt;' if escaped first,
+    // which KaTeX cannot parse. Stashed HTML is restored after escaping.
+    const stash = [];
+    const hold = (html) => "\u0001" + (stash.push(html) - 1) + "\u0001";
+    let body = String(raw ?? "");
+    const canKatex = typeof katex !== "undefined";
+    // Display math first so $$...$$ never leaks into the inline pass.
+    body = body.replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => {
+      if (!canKatex) return hold(esc(m));
+      try { return hold(katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false })); }
+      catch (e) { return hold(esc(m)); }
+    });
+    body = body.replace(/(^|[^\\$])\$([^$\n]+?)\$/g, (m, pre, tex) => {
+      if (!canKatex) return pre + hold(esc(m));
+      try { return pre + hold(katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false })); }
+      catch (e) { return pre + hold(esc(m)); }
+    });
+    // Fenced and inline code: escaped at stash time, restored raw at the end.
+    body = body.replace(/```[a-zA-Z]*\n?([\s\S]*?)(?:```|$)/g, (m, code) =>
+      hold('<pre class="q-code"><code>' + esc(code.replace(/\n$/, "")) + "</code></pre>"));
+    body = body.replace(/`([^`\n]+)`/g, (m, code) => hold("<code>" + esc(code) + "</code>"));
+    // Prose is safe to escape now; no raw '<', '>' or '&' survives past here.
+    body = esc(body);
+    body = body.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+    body = body.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+    body = body.replace(/^#{1,6}\s+(.+)$/gm, "<strong>$1</strong>");
+    body = body.replace(/^[ \t]*[-*]\s+/gm, "&bull; ");
+    body = body.replace(/\n/g, "<br>");
+    body = body.replace(/\u0001(\d+)\u0001/g, (m, k) => stash[+k] ?? m);
+    const target = el._body || el;
+    target.innerHTML = body;
+    el.dataset.raw = raw;
+    target.dataset.raw = raw;
+  }
   function addQuestMessage(type, text) {
     const msgDiv = document.createElement("div");
     msgDiv.className = `quest-msg ${type}`;
-    msgDiv.textContent = text;
+    if (type === "ai") {
+      // Content lives in a child so streaming re-renders never wipe the buttons.
+      const bodyDiv = document.createElement("div");
+      bodyDiv.className = "quest-msg-body";
+      msgDiv._body = bodyDiv;
+      msgDiv.appendChild(bodyDiv);
+      renderQuestRich(msgDiv, text);
+      attachMsgActions(msgDiv);
+    } else {
+      msgDiv.textContent = text;
+    }
     questMessages.appendChild(msgDiv);
     questMessages.scrollTop = questMessages.scrollHeight;
     return msgDiv;
+  }
+  // Copy + read-aloud affordances on every Aria reply.
+  function attachMsgActions(msgDiv) {
+    const bar = document.createElement("div");
+    bar.className = "quest-msg-actions";
+    const mk = (label, title, fn) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "quest-msg-action";
+      b.textContent = label;
+      b.title = title;
+      b.addEventListener("click", fn);
+      return b;
+    };
+    const copyBtn = mk("\u2398", qt("Copy", "Sao chép"), () => {
+      const raw = (msgDiv._body && msgDiv._body.dataset.raw) || msgDiv.dataset.raw || msgDiv.textContent;
+      (navigator.clipboard ? navigator.clipboard.writeText(raw) : Promise.reject())
+        .catch(() => {
+          const ta = document.createElement("textarea");
+          ta.value = raw; document.body.appendChild(ta); ta.select();
+          try { document.execCommand("copy"); } catch (e) {}
+          ta.remove();
+        })
+        .finally(() => {
+          copyBtn.textContent = "\u2713";
+          setTimeout(() => { copyBtn.textContent = "\u2398"; }, 1200);
+        });
+    });
+    const speakBtn = mk("\u25B6", qt("Read aloud", "Đọc to"), () => {
+      if (!("speechSynthesis" in window)) return;
+      if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+      const raw = (msgDiv._body && msgDiv._body.dataset.raw) || msgDiv.dataset.raw || msgDiv.textContent;
+      const u = new SpeechSynthesisUtterance(raw.replace(/\$\$?[\s\S]*?\$\$?/g, " ").replace(/\*\*?|`/g, ""));
+      u.lang = isVi() ? "vi-VN" : "en-US";
+      u.rate = 1;
+      speechSynthesis.speak(u);
+    });
+    bar.appendChild(copyBtn);
+    bar.appendChild(speakBtn);
+    msgDiv.appendChild(bar);
   }
   function executeAIAction(action) {
     try {
@@ -66478,9 +66626,209 @@ ${screen}`;
     }
     return results;
   }
+  // ── Slash commands ────────────────────────────────────────────
+  // Local commands answer instantly from game state (no API, no cooldown);
+  // AI commands are rewrites of the prompt so the reply keeps full context.
+  const QUEST_COMMANDS = [
+    { name: "/help", kind: "local", args: "", desc: () => qt("List every command", "Liệt kê mọi lệnh") },
+    { name: "/clear", kind: "local", args: "", desc: () => qt("Clear the chat", "Xóa trò chuyện") },
+    { name: "/scene", kind: "local", args: "", desc: () => qt("Summarise what is in the scene", "Tóm tắt cảnh hiện tại") },
+    { name: "/build", kind: "local", args: "<formula>", desc: () => qt("Build a molecule, e.g. /build H2O", "Dựng phân tử, vd /build H2O") },
+    { name: "/molar", kind: "local", args: "<formula>", desc: () => qt("Molar mass of a formula", "Khối lượng mol của công thức") },
+    { name: "/env", kind: "local", args: "", desc: () => qt("Temperature, pressure, atmosphere", "Nhiệt độ, áp suất, khí quyển") },
+    { name: "/quiz", kind: "ai", args: "", desc: () => qt("Aria quizzes you on your scene", "Aria đố bạn về cảnh của bạn") },
+    { name: "/explain", kind: "ai", args: "", desc: () => qt("Aria explains your scene step by step", "Aria giải thích cảnh từng bước") },
+    { name: "/lesson", kind: "ai", args: "<topic>", desc: () => qt("A short lesson, e.g. /lesson VSEPR", "Bài học ngắn, vd /lesson VSEPR") },
+    { name: "/joke", kind: "ai", args: "", desc: () => qt("A chemistry joke", "Một câu đùa hóa học") },
+  ];
+  const AI_PREFIX = {
+    "/quiz": () => qt("Quiz me with 3 short questions about exactly what is in my scene right now. Wait for my answers before grading.",
+                      "Đố tôi bằng 3 câu hỏi ngắn đúng về cảnh hiện tại của tôi. Hãy chờ tôi trả lời rồi mới chấm điểm."),
+    "/explain": () => qt("Explain my current scene step by step: what each molecule is, whether it is stable, and what I should do next.",
+                         "Giải thích cảnh hiện tại của tôi từng bước: mỗi phân tử là gì, có bền không, và tôi nên làm gì tiếp."),
+    "/joke": () => qt("Tell me one chemistry joke I can actually understand from what is in my scene.",
+                      "Kể một câu đùa hóa học mà tôi có thể hiểu từ cảnh của tôi."),
+  };
+  function runLocalQuestCommand(raw) {
+    const sp = raw.indexOf(" ");
+    const name = (sp === -1 ? raw : raw.slice(0, sp)).toLowerCase();
+    const arg = sp === -1 ? "" : raw.slice(sp + 1).trim();
+    const def = QUEST_COMMANDS.find((c) => c.name === name && c.kind === "local");
+    if (!def) return null;
+    switch (name) {
+      case "/help": {
+        const lines = [];
+        lines.push(qt("COMMANDS", "LỆNH"));
+        for (const c of QUEST_COMMANDS.filter((x) => x.kind === "local"))
+          lines.push("  " + c.name + (c.args ? " " + c.args : "") + " — " + c.desc());
+        lines.push("");
+        lines.push(qt("ASK ARIA", "HỎI ARIA"));
+        for (const c of QUEST_COMMANDS.filter((x) => x.kind === "ai"))
+          lines.push("  " + c.name + (c.args ? " " + c.args : "") + " — " + c.desc());
+        lines.push("");
+        lines.push(t("quest.helpHint"));
+        return lines.join("\n");
+      }
+      case "/clear":
+        questMessages.innerHTML = "";
+        questHistory.length = 0;
+        try { localStorage.removeItem("mol3d.questChat"); } catch (e) {}
+        return t("quest.cleared");
+      case "/scene": {
+        const snap = buildSceneSnapshot();
+        if (!snap.molecules.length && !snap.totalAtoms)
+          return t("quest.sceneEmpty");
+        const lines = [qt("Scene: ", "Cảnh: ") + snap.totalAtoms + qt(" atoms, ", " nguyên tử, ") + snap.totalBonds + qt(" bonds", " liên kết")];
+        for (const m of snap.molecules) {
+          const issue = m.issue ? qt(" — issue: ", " — vấn đề: ") + m.issue : "";
+          lines.push("  " + m.formula + (m.charge ? (m.charge > 0 ? " (" + m.charge + "+)" : " (" + (-m.charge) + "-)") : "") +
+            (m.feasible ? qt(" ✓ stable", " ✓ bền") : qt(" ✗ unstable", " ✗ không bền")) + issue);
+        }
+        return lines.join("\n");
+      }
+      case "/build": {
+        if (!arg) return qt("Usage: /build H2O", "Cách dùng: /build H2O");
+        const ids = spawnFormulaMolecule(arg);
+        return ids ? qt("✓ Built ", "✓ Đã dựng ") + prettyFormula(arg) :
+          qt("⚠ Could not build ", "⚠ Không dựng được ") + arg + qt(" — check the formula or your stock.", " — kiểm tra công thức hoặc tồn kho.");
+      }
+      case "/molar": {
+        if (!arg) return qt("Usage: /molar CO2", "Cách dùng: /molar CO2");
+        const m = molarMass(arg);
+        if (m == null) return qt("⚠ Unknown formula: ", "⚠ Không nhận diện công thức: ") + arg;
+        return "M(" + prettyFormula(arg) + ") = " + m.toFixed(3) + " g/mol";
+      }
+      case "/env": {
+        const lines = [];
+        lines.push(qt("Temperature: ", "Nhiệt độ: ") + environment.temperatureK + " K (" + (environment.temperatureK - 273.15).toFixed(1) + " °C)");
+        lines.push(qt("Pressure: ", "Áp suất: ") + environment.pressureAtm + " atm");
+        if (atmosphere.enabled) {
+          const parts = [];
+          for (const [f, r] of atmosphere.composition) parts.push(f + " " + (r * 100).toFixed(r < 0.01 ? 3 : 1) + "%");
+          lines.push(qt("Atmosphere: ", "Khí quyển: ") + parts.join(", "));
+        } else {
+          lines.push(qt("Atmosphere: off (vacuum)", "Khí quyển: tắt (chân không)"));
+        }
+        return lines.join("\n");
+      }
+    }
+    return null;
+  }
+  function aiPromptFor(raw) {
+    const sp = raw.indexOf(" ");
+    const name = (sp === -1 ? raw : raw.slice(0, sp)).toLowerCase();
+    const arg = sp === -1 ? "" : raw.slice(sp + 1).trim();
+    if (name === "/lesson") {
+      if (!arg) return qt("Give me a short lesson. Pick the topic from what is in my scene right now.",
+                          "Hãy cho tôi một bài học ngắn. Chọn chủ đề từ cảnh hiện tại của tôi.");
+      return qt("Give me a short lesson about ", "Hãy cho tôi một bài học ngắn về ") + arg +
+        qt(". Tie it to the molecules actually in my scene.", ". Gắn với các phân tử thực tế trong cảnh của tôi.");
+    }
+    if (AI_PREFIX[name]) {
+      const base = AI_PREFIX[name]();
+      return arg ? base + " The topic is " + arg + "." : base;
+    }
+    return null;
+  }
+  function renderCmdList(filter) {
+    const q = (filter || "").toLowerCase();
+    const list = questCmdList;
+    list.innerHTML = "";
+    const matches = QUEST_COMMANDS.filter((c) => !q || c.name.startsWith(q) || c.name.slice(1).startsWith(q.slice(1)));
+    if (!matches.length) {
+      list.hidden = true;
+      return;
+    }
+    for (const c of matches) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "quest-cmd-row" + (c.kind === "ai" ? " ai" : "");
+      const nm = document.createElement("span");
+      nm.className = "quest-cmd-name";
+      nm.textContent = c.name + (c.args ? " " + c.args : "");
+      const ds = document.createElement("span");
+      ds.className = "quest-cmd-desc";
+      ds.textContent = c.desc();
+      const kd = document.createElement("span");
+      kd.className = "quest-cmd-kind";
+      kd.textContent = c.kind === "ai" ? t("quest.aiOnly") : t("quest.localOnly");
+      row.appendChild(nm); row.appendChild(ds); row.appendChild(kd);
+      row.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        questInput.value = c.name + (c.args ? " " : "");
+        questInput.focus();
+        renderCmdList(questInput.value);
+      });
+      list.appendChild(row);
+    }
+    list.hidden = false;
+  }
+  function hideCmdList() { questCmdList.hidden = true; }
+  // Context-aware suggestion chips: buildable when the scene is empty,
+  // teaching prompts when molecules exist.
+  function refreshSuggestions() {
+    const chips = [];
+    const snapAtoms = atoms.size;
+    if (!snapAtoms) {
+      chips.push({ label: qt("Build water", "Dựng nước"), send: "/build H2O" });
+      chips.push({ label: qt("Build methane", "Dựng metan"), send: "/build CH4" });
+      chips.push({ label: qt("Build salt", "Dựng muối"), send: "/build NaCl" });
+      chips.push({ label: qt("What can I make?", "Tôi làm được gì?"), send: qt("What molecules can I build from the elements I have unlocked?", "Tôi có thể dựng phân tử nào từ các nguyên tố đã mở khóa?") });
+    } else {
+      chips.push({ label: qt("Explain my scene", "Giải thích cảnh"), send: "/explain" });
+      chips.push({ label: qt("Quiz me", "Đố tôi"), send: "/quiz" });
+      chips.push({ label: qt("What's wrong?", "Cái gì sai?"), send: qt("Point out every mistake in my current scene and the single next step to fix each.", "Chỉ ra mọi lỗi trong cảnh hiện tại và một bước sửa cho từng lỗi.") });
+      chips.push({ label: qt("Next step?", "Bước tiếp theo?"), send: qt("Based on what is in my scene, what should I build next and why?", "Dựa trên cảnh của tôi, tôi nên dựng gì tiếp theo và tại sao?") });
+    }
+    questSuggest.innerHTML = "";
+    for (const c of chips) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "quest-chip";
+      b.textContent = c.label;
+      b.addEventListener("click", () => {
+        questInput.value = c.send;
+        sendQuestMessage();
+      });
+      questSuggest.appendChild(b);
+    }
+  }
   async function sendQuestMessage() {
     const text = questInput.value.trim();
     if (!text) return;
+    hideCmdList();
+    // Local commands answer here — no mode, cooldown or API needed.
+    if (text[0] === "/") {
+      const localOut = runLocalQuestCommand(text);
+      if (localOut !== null) {
+        questInput.value = "";
+        addQuestMessage("user", text);
+        addQuestMessage("system", localOut);
+        refreshSuggestions();
+        questInput.focus();
+        return;
+      }
+      const rewritten = aiPromptFor(text);
+      if (rewritten === null && /^\/[a-z]+/i.test(text)) {
+        questInput.value = "";
+        addQuestMessage("user", text);
+        addQuestMessage("system", t("quest.unknownCmd"));
+        questInput.focus();
+        return;
+      }
+      if (rewritten !== null) {
+        // Show the slash the player typed, send Aria the expanded prompt.
+        // Input clears inside sendQuestToAI, after the cooldown check, so a
+        // blocked send keeps what the player typed.
+        sendQuestToAI(rewritten, text);
+        return;
+      }
+    }
+    if (!qMode) { showQuestModeChooser(); return; }
+    if (qMode === "guest" && !GUEST.key) { handleQuestError(new Error("missing_key")); return; }
+    sendQuestToAI(text, text);
+  }
+  async function sendQuestToAI(promptText, displayText) {
     if (!qMode) { showQuestModeChooser(); return; }
     if (qMode === "guest" && !GUEST.key) { handleQuestError(new Error("missing_key")); return; }
     if (qMode === "guest") {
@@ -66488,8 +66836,8 @@ ${screen}`;
       if (rem > 0) { addQuestMessage("system", qt("⏳ Guest cooldown: wait " + Math.ceil(rem / 1000) + "s before the next message.", "⏳ Thời gian chờ: hãy đợi " + Math.ceil(rem / 1000) + "s trước tin nhắn tiếp theo.")); return; }
     }
     questInput.value = "";
-    addQuestMessage("user", text);
-    questHistory.push({ role: "user", content: text });
+    addQuestMessage("user", displayText);
+    questHistory.push({ role: "user", content: promptText });
     const typingMsg = addQuestMessage("typing", t("quest.thinking"));
     questSend.disabled = true;
     if (qMode === "guest") { lastGuestAt = Date.now(); startGuestCooldown(); }
@@ -66510,7 +66858,7 @@ ${screen}`;
     const onDelta = (full) => {
       if (typingRef) { typingRef.remove(); typingRef = null; }
       if (!aiMsg) aiMsg = addQuestMessage("ai", "");
-      aiMsg.textContent = stripForDisplay(full);
+      renderQuestRich(aiMsg, stripForDisplay(full));
       questMessages.scrollTop = questMessages.scrollHeight;
     };
     try {
@@ -66526,7 +66874,7 @@ ${screen}`;
       const cmds = extractCommands(clean);
       const shown = cmds.display.replace(/\[ACTION:[^\]]+\]/g, "").trim();
       if (!aiMsg) aiMsg = addQuestMessage("ai", "");
-      aiMsg.textContent = shown || clean;
+      renderQuestRich(aiMsg, shown || clean);
       if (actionResults.length > 0) {
         actionResults.forEach((result) => addQuestMessage("system", result));
       }

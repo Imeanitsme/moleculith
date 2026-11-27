@@ -2804,6 +2804,72 @@ html[data-theme="light"] .isomer-badge.binary { background: #e2e2e2; color: #444
 }
 .quest-input:focus { border-color: var(--accent); }
 
+
+/* ── AI Quest revamp: rich messages, commands, suggestions ── */
+.quest-msg-body { display: inline-block; max-width: 100%; }
+.quest-msg-body .katex-display { margin: 6px 0; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+.quest-msg-body .katex { font-size: 1.04em; }
+.quest-msg-body code {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  padding: 1px 5px; font-size: 12px;
+}
+.quest-msg-body pre.q-code {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; margin: 6px 0; overflow-x: auto; white-space: pre-wrap;
+  font-size: 12px;
+}
+.quest-msg-body strong { color: var(--accent); font-weight: 600; }
+.quest-msg-actions {
+  display: flex; gap: 4px; margin-top: 6px; opacity: 0; transition: opacity 0.15s;
+}
+.quest-msg.ai:hover .quest-msg-actions,
+.quest-msg-actions:focus-within { opacity: 1; }
+@media (hover: none) { .quest-msg-actions { opacity: 0.55; } }
+.quest-msg-action {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; width: 26px; height: 22px; font-size: 12px; line-height: 1;
+  cursor: pointer; transition: all 0.15s; padding: 0;
+}
+.quest-msg-action:hover { color: var(--accent); border-color: var(--accent); }
+
+.quest-suggest {
+  display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto;
+  border-top: 1px solid var(--border); background: var(--panel-2);
+  scrollbar-width: thin; flex-shrink: 0;
+}
+.quest-suggest:empty { display: none; }
+.quest-chip {
+  flex: 0 0 auto; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 999px; padding: 5px 12px; font-size: 12px;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.quest-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+.quest-input-row { position: relative; }
+.quest-cmdlist {
+  position: absolute; left: 16px; right: 16px; bottom: calc(100% + 6px);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--panel-shadow); z-index: 520; max-height: 250px;
+  overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px;
+}
+.quest-cmdlist[hidden] { display: none; }
+.quest-cmd-row {
+  display: flex; align-items: baseline; gap: 8px; width: 100%;
+  background: transparent; border: none; color: var(--text); padding: 7px 9px;
+  border-radius: 7px; cursor: pointer; font-size: 12px; text-align: left;
+}
+.quest-cmd-row:hover, .quest-cmd-row.sel { background: var(--accent-soft); }
+.quest-cmd-name {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  color: var(--accent); font-weight: 600; flex: 0 0 auto;
+}
+.quest-cmd-row:not(.ai) .quest-cmd-name { color: var(--text); }
+.quest-cmd-desc {
+  color: var(--muted); flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.quest-cmd-kind { font-size: 10px; color: var(--muted); opacity: 0.7; flex: 0 0 auto; }
+
 .quest-btn-send {
   background: var(--accent);
   border: none;

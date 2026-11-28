@@ -59009,16 +59009,17 @@ const reactionVFX = new ReactionVFXManager(scene, camera);
 const catalystFX = new CatalystFX(scene);
 const electricityFX = new ElectricityFX(scene);
 function createPlayerAvatar() {
-  const avatar = new Group();
-  const headGeo = new SphereGeometry(0.35, 16, 12);
-  const headMat = new MeshStandardMaterial({
-    color: 16767916,
-    roughness: 0.7,
-    metalness: 0.1
-  });
-  const head = new Mesh(headGeo, headMat);
-  head.position.y = 1.75;
-  avatar.add(head);
+  // One capsule for the whole player model: upright cylinder with rounded ends,
+  // spanning from foot level up to head level at camera height (≈2.1 m total),
+  // centered so its bottom rides at the player's feet.
+  const avatar = new Mesh(
+    new CapsuleGeometry(0.35, 1.4, 8, 16),
+    new MeshStandardMaterial({
+      color: 16767916,
+      roughness: 0.7,
+      metalness: 0.1
+    })
+  );
   avatar.position.set(0, 0, 0);
   return avatar;
 }
@@ -65850,9 +65851,9 @@ function frame(now) {
   active = movement.update(dt) || active;
   if (gameMode === "survival") {
     const playerPos = movement.getPlayerPos();
-    playerAvatar.position.set(playerPos.x, playerPos.y, playerPos.z);
+    playerAvatar.position.set(playerPos.x, playerPos.y + 0.9, playerPos.z);
   } else {
-    playerAvatar.position.set(camera.position.x, camera.position.y - 1.8, camera.position.z);
+    playerAvatar.position.set(camera.position.x, camera.position.y - 0.9, camera.position.z);
   }
   camera.getWorldDirection(_camDir);
   const angle = Math.atan2(_camDir.x, _camDir.z);

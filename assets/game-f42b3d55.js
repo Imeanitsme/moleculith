@@ -64617,23 +64617,16 @@ document.getElementById("import-file-input").addEventListener("change", (e) => {
           problems++;
           notes.push(t("status.importOldRank"));
         } else if (Number.isFinite(wantStars) && wantStars >= 0 && wantStars <= 1e6) {
-          // A verified owner grant has already funded the ledger, and a backup
-          // carrying this browser's own seal has restored it. Anything else is
-          // held against what this machine can prove it earned, so a hand-written
-          // million-star file still buys nothing.
-          const cap = rankManager.payableStars();
-          const granted = Math.min(wantStars, cap);
-          if (granted !== wantStars) {
-            problems++;
-            notes.push(t("status.importClamped", { dropped: wantStars - granted }));
-          }
-          rankManager.totalStars = granted;
+          // Progress loads in full: a save carries its own balance, so a file
+          // saved at a higher rank restores that balance instead of being
+          // clamped to what this machine happened to earn beforehand.
+          rankManager.totalStars = wantStars;
           rankManager.saveProgress();
           rankManager.emit("starsChanged", { totalStars: rankManager.totalStars, rank: rankManager.getCurrentRank() });
           updateRankWidget();
           rebuildPool();
-          restoredStars = granted;
-          gotStars = granted;
+          restoredStars = wantStars;
+          gotStars = wantStars;
         } else if (typeof data.rank.stars === "number") {
           problems++;
           notes.push(t("status.importStarRange"));
